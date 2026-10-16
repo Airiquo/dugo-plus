@@ -1,0 +1,13 @@
+/* dugo+ design system — single source of truth.
+   Import this one file (mockups and React both do).
+   Sections are ordered to preserve the cascade of the original
+   single-file stylesheet (see tools/extract_design_system.py). */
+@import url("fonts.css");
+@import url("tokens.css");
+@import url("base.css");
+@import url("shell.css");
+@import url("components.css");
+@import url("pages.css");
+@import url("overlays.css");
+@import url("charts.css");
+@import url("public.css");
