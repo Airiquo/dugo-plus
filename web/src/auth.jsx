@@ -112,7 +112,13 @@ export function AuthProvider({ children }) {
       requireAuth()
       const credential = await createUserWithEmailAndPassword(auth, email, password)
       if (name) {
-        await updateProfile(credential.user, { displayName: name })
+        try {
+          await updateProfile(credential.user, { displayName: name })
+        } catch {
+          // The account exists and the session is live, so a profile write that
+          // fails (a flaky network) must not fail the whole sign-up. The shell
+          // falls back to the email local part.
+        }
       }
       // updateProfile() does not notify listeners, so publish the new snapshot.
       setUser(snapshot(credential.user))

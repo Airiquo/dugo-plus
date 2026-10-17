@@ -23,8 +23,10 @@ export default function Login() {
   // Where the guard sent them from; the dashboard by default.
   const from = state?.from?.pathname ?? '/admin/dashboard'
 
-  // Already signed in (e.g. a bookmark to /login) — go straight through.
-  if (user) return <Navigate to={from} replace />
+  // Already signed in (e.g. a bookmark to /login) — go straight through, but
+  // stay put while our own sign-in is still resolving so a failure can be shown
+  // instead of being overtaken by the redirect.
+  if (user && !busy) return <Navigate to={from} replace />
 
   const run = async (action) => {
     setBusy(true)

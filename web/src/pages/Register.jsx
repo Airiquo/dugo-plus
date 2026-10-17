@@ -30,7 +30,11 @@ export default function Register() {
   const requested = params.get('role')
   const role = AUTH_ROLES.some((item) => item.id === requested) ? requested : 'donor'
 
-  if (user) return <Navigate to="/admin/dashboard" replace />
+  // Already signed in — go straight through. `busy` keeps this form mounted
+  // while its own sign-up is in flight, so the redirect cannot overtake
+  // `updateProfile` (which would briefly greet the user by email prefix) and so
+  // a failure still has a form to report itself on.
+  if (user && !busy) return <Navigate to="/admin/dashboard" replace />
 
   const run = async (action) => {
     setBusy(true)
