@@ -25,6 +25,10 @@ Use these exact paths in your prompts to anchor the agent to the right context:
 | Component conventions | `web/src/components/CONVENTIONS.md` | Required patterns for new components |
 | App shell | `web/src/layout/AppShell.jsx` | Sidebar/topbar + `#app-shell` structure |
 | Theme | `web/src/theme.jsx` | Drives `[data-theme]` on `<html>` |
+| Firebase config | `web/src/firebase.js` | `VITE_FIREBASE_*` → `auth` / `googleProvider` (null when unset) |
+| Auth | `web/src/auth.jsx` | Session context + `useAuth()` — the only entry to the SDK |
+| Auth gate | `web/src/layout/RequireAuth.jsx` | Guards `/admin/*` when a project is configured |
+| Auth screens | `web/src/pages/Login.jsx`, `Register.jsx` | Built on `web/src/layout/AuthLayout.jsx` (public `.pub` chrome) |
 | Faithful dashboard | `web/src/pages/DashboardBody.jsx` | Generated body — do not edit; regenerate with `tools/gen_pages.py` |
 | Faithful landing | `web/src/pages/LandingBody.jsx` | Landing translation reference |
 | Gallery | `web/src/pages/Gallery.jsx` | Canonical usage examples for every component |
@@ -100,16 +104,22 @@ web/src/
 │   └── CONVENTIONS.md  # Component patterns
 ├── layout/             # App chrome/layout shells
 │   ├── AppShell.jsx    # Admin shell (sidebar/topbar/main)
+│   ├── RequireAuth.jsx # /admin/* gate (passes through when unconfigured)
+│   ├── AuthLayout.jsx  # Public `.pub` chrome for the auth screens
 │   └── shell.parts.txt # Reference material (generated)
 ├── pages/              # Route-level pages
 │   ├── *.jsx           # Page components (PascalCase, default export)
 │   ├── BloodRequests.jsx  # Worked example: a list screen built from components
 │   ├── DashboardBody.jsx  # Generated faithful body (do not hand-tidy)
-│   └── LandingBody.jsx    # Generated faithful body (do not hand-tidy)
+│   ├── LandingBody.jsx    # Generated faithful body (do not hand-tidy)
+│   ├── Login.jsx          # Sign in (reuses the landing's sign-in band)
+│   └── Register.jsx       # Create an account (?role= presets the role)
 ├── data/               # Sample data fixtures (the shape the API is expected to return)
 ├── App.jsx             # Routes
 ├── main.jsx            # Entry point (imports styles)
-└── theme.jsx           # Theme context/hook
+├── theme.jsx           # Theme context/hook
+├── auth.jsx            # Session context/hook (`useAuth`)
+└── firebase.js         # Firebase config from VITE_FIREBASE_* (null when unset)
 ```
 
 ### 4.3 Naming Conventions

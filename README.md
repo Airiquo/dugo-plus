@@ -97,9 +97,14 @@ npm run dev
 Then open <http://localhost:5173>:
 
 - `/` — landing page
+- `/login` — sign in; `/register` — create an account
 - `/admin/dashboard` — admin dashboard
 - `/admin/blood-requests` — blood requests list
 - `/gallery` — every component, in both themes (handy while building screens)
+
+Auth is optional locally: with no `web/.env.local` the app runs *unconfigured*
+and every admin screen still opens. To wire up real sign-in, see
+[Authentication](#authentication).
 
 While the dev server is running, the mockups are served from the same origin, so
 you can compare side by side:
@@ -121,20 +126,92 @@ for the scripts in `tools/`.
 
 ## What works today
 
-The design system is complete and every screen exists as a mockup. Three pages
+The design system is complete and every screen exists as a mockup. These routes
 are translated into React so far:
 
 | Route | Status |
 | --- | --- |
 | `/` | Landing page — translated |
+| `/login`, `/register` | Sign-in and registration — built from the landing's designed sign-in band, backed by Firebase Auth |
 | `/admin/dashboard` | Dashboard — translated |
 | `/admin/blood-requests` | Blood requests list — translated, renders from `web/src/data/requests.js` |
 | `/admin/donor-matching`, `/admin/donor-registry`, `/admin/inventory`, `/admin/donations-rewards`, `/admin/reports`, `/admin/audit-trail`, `/admin/settings` | Placeholder (`ScreenStub`) with a link to the live mockup |
 | `/gallery` | Component gallery — every component rendered in both themes |
 | anything else | Not found |
 
-The remaining work is one screen at a time — see
-[Building a screen](#building-a-screen).
+`/admin/*` is only gated when a Firebase project is configured — see
+[Authentication](#authentication). The remaining work is one screen at a time —
+see [Building a screen](#building-a-screen).
+
+## Authentication
+
+Sign-in has one path through the app, and it is deliberately the same shape as
+`web/src/theme.jsx` — a config module, one context, one hook:
+
+```
+web/.env.local ──► web/src/firebase.js   env-driven initializeApp (null when unset)
+                        │
+                        ▼
+                   web/src/auth.jsx      <AuthProvider> + useAuth() — the only way in
+                        │
+        ┌───────────────┼───────────────────────────┐
+        ▼               ▼                           ▼
+  layout/RequireAuth   pages/Login.jsx        layout/AppShell.jsx
+  gates /admin/*       pages/Register.jsx     sign-out (sidebar + topbar drawer)
+```
+
+### Configure a project
+
+1. In the [Firebase console](https://console.firebase.google.com) create a
+   project, add a **Web app**, and copy the config from *Project settings → Your
+   apps*.
+2. Copy `web/.env.example` to `web/.env.local` and fill in the six
+   `VITE_FIREBASE_*` values.
+3. Under *Authentication → Sign-in method*, enable **Email/Password** and
+   **Google**.
+4. Add `localhost` (and your deploy domain) under *Authentication → Settings →
+   Authorized domains*.
+
+`web/.env.local` is gitignored, so no project is baked into the repository.
+
+> The web API key is **not** a secret: it identifies the project and Firebase
+> enforces access with its own rules. It ships in the client bundle either way —
+> that is how every Firebase web app works.
+
+### With and without a project
+
+Someone who has just cloned this repository must still be able to review every
+screen, so **auth is only enforced when a project is configured**:
+
+| `web/.env.local` | `/admin/*` | Sign-in screens |
+| --- | --- | --- |
+| absent or empty | renders freely — the guard passes through and the shell keeps its demo identity | explain that Firebase is not configured |
+| filled in | `RequireAuth` waits for the session, then redirects to `/login`, remembering the URL you wanted | sign in, register, Google, and readable error messages all work |
+
+### What each piece does
+
+| File | Role |
+| --- | --- |
+| `web/src/firebase.js` | Reads the `VITE_FIREBASE_*` variables; exports `auth`, `googleProvider` and `isFirebaseConfigured`. |
+| `web/src/auth.jsx` | `AuthProvider` / `useAuth()` — `user`, `loading`, `configured`, `signIn`, `signUp`, `signInWithGoogle`, `signOut`, plus `authErrorMessage()` for failures. |
+| `web/src/layout/RequireAuth.jsx` | The `/admin/*` gate. |
+| `web/src/layout/AuthLayout.jsx` | The public (`.pub`) chrome shared by both auth screens: header, role selector, and the colour tokens `.pub` carries. |
+| `web/src/pages/Login.jsx`, `Register.jsx` | The two screens, reusing the landing's sign-in band (`.pub-card`, `.pub-form`, `.pub-btn`) — no new CSS. |
+| `web/src/layout/AppShell.jsx` | Shows the signed-in name and signs out from the sidebar (`$ exit`) or the topbar chip's drawer. |
+
+The landing page's own card posts to the same `signIn()`, and reports failures in
+the app's `Toast` layer, because the generated card has nowhere to put an inline
+message. Google sign-in lives on `/login` and `/register` — the landing's card has
+no room for a second button, and editing a mockup would invalidate the
+screenshots.
+
+The landing's three big CTAs are its "get started" affordances and open the
+register screen with a preset: *Become a donor* → `/register?role=donor`,
+*Request blood* → `?role=requester`, *Become a partner* → `?role=hospital`.
+
+> **The role selector is presentational.** Firebase Auth has no field for a role,
+> so the choice only drives the highlight and nothing is stored yet — see
+> [Planned: the API](#planned-the-api).
 
 ## Where to start
 
@@ -161,18 +238,24 @@ Four documents, in the order you should read them:
 ├── docs/screenshots/       # Rendered mockups for this README (see tools/screenshots.py)
 ├── tools/                  # Python helpers — build-time only
 └── web/                    # Vite + React app
+    ├── .env.example        # Firebase config template (copy to .env.local)
     ├── index.html          # App entry point
     ├── vite.config.js      # Also serves the mockups at /mockups/*
     └── src/
         ├── main.jsx        # Entry: imports the shared stylesheet, mounts <App>
-        ├── App.jsx         # Routes (translated slugs vs ScreenStub)
+        ├── App.jsx         # Routes (translated slugs vs ScreenStub) + the auth gate
         ├── theme.jsx       # Light/dark theme context (`useTheme`)
-        ├── layout/         # Admin shell (sidebar / topbar / main)
+        ├── firebase.js     # Firebase app/auth from VITE_FIREBASE_* (null when unset)
+        ├── auth.jsx        # Session context (`useAuth`) + readable auth errors
+        ├── layout/         # Admin shell (sidebar / topbar / main), RequireAuth, AuthLayout
         ├── pages/          # Route pages
         │   ├── BloodRequests.jsx  # Worked example: a list screen from components
         │   ├── Dashboard.jsx      # Wraps the generated DashboardBody
         │   ├── DashboardBody.jsx  # GENERATED — do not hand-tidy
-        │   └── LandingBody.jsx    # GENERATED — do not hand-tidy
+        │   ├── Landing.jsx        # Behaviour for the generated landing body
+        │   ├── LandingBody.jsx    # GENERATED — do not hand-tidy
+        │   ├── Login.jsx          # Sign in (reuses the landing's band)
+        │   └── Register.jsx       # Create an account
         ├── data/           # Sample data (the shape the API is expected to return)
         └── components/     # Reusable UI primitives + CONVENTIONS.md
 ```
@@ -259,6 +342,8 @@ python3 tools/gen_pages.py      # regenerate, then `git diff web/src/pages`
 ## Tech stack
 
 - **App:** JavaScript (`.jsx`) with React 19, React Router 7, built by Vite 8.
+- **Auth:** Firebase Authentication (`firebase` v13), configured from
+  `web/.env.local` — optional, so the app also runs without it.
 - **Mockups:** plain HTML + CSS + a little vanilla JavaScript, no build step.
 - **Design system:** one hand-written stylesheet, split into section files that
   `dugo.css` imports in cascade order.
@@ -277,6 +362,15 @@ API exists it will live in its own repository, and this app will:
 
 Because the screens are already data-driven, that swap should not require
 rewriting the pages.
+
+Two things that are stubbed against the API's arrival:
+
+- **Roles are not persisted.** The role chosen on `/register` is presentational
+  (see [Authentication](#authentication)); storing it needs a `users/{uid}`
+  document or a custom claim, so the shell can show the real role instead of the
+  demo label it shows today.
+- **Nothing is fetched.** `/admin/blood-requests` reads `web/src/data/requests.js`
+  as a stand-in for the response shape.
 
 ## License
 

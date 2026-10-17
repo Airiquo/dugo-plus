@@ -1,6 +1,10 @@
-import { Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { Drawer } from '../components/Overlay'
+import { Btn } from '../components/Btn'
 import { useTheme } from '../theme'
+import { useAuth, userName } from '../auth'
 export const NAV = [
   { slug: 'dashboard', screen: 'admin-dashboard', label: 'Dashboard', icon: 'grid' },
   {
@@ -30,6 +34,10 @@ export const NAV = [
 ]
 function Sidebar() {
   const { pathname } = useLocation()
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+  // Falls back to the mockup's demo identity while no project is configured.
+  const name = userName(user) || 'maria'
   return (
     <aside id="sidebar">
       <div id="sidebar-logo">
@@ -67,16 +75,29 @@ function Sidebar() {
         })}
       </nav>
       <div id="sidebar-signed-in">
-        ~/signed in as maria
-        <Link id="sidebar-sign-out" to="/">
+        ~/signed in as {name}
+        <button
+          id="sidebar-sign-out"
+          type="button"
+          onClick={async () => {
+            await signOut()
+            navigate('/')
+          }}
+        >
           $ exit
-        </Link>
+        </button>
       </div>
     </aside>
   )
 }
 function Topbar() {
   const { theme, toggle } = useTheme()
+  const { user, signOut } = useAuth()
+  const navigate = useNavigate()
+  const [accountOpen, setAccountOpen] = useState(false)
+  // Falls back to the mockup's demo identity while no project is configured.
+  const name = userName(user) || 'Maria Santos'
+  const provider = user?.providers?.includes('google.com') ? 'Google' : 'Email / password'
   const next = theme === 'light' ? 'dark' : 'light'
   return (
     <header id="topbar">
@@ -115,14 +136,51 @@ function Topbar() {
           5
         </span>
       </button>
-      <button id="topbar-profile" className="btn" type="button">
+      {/* The chip keeps the mockup's markup; the chevron opens the account drawer. */}
+      <button
+        id="topbar-profile"
+        className="btn"
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={accountOpen}
+        onClick={() => setAccountOpen(true)}
+      >
         <Icon name="user" />
         <span id="topbar-profile-text">
-          <span>Maria Santos</span>
+          <span>{name}</span>
           <span>Blood Bank Admin</span>
         </span>
         <Icon name="chevron-down" />
       </button>
+      <Drawer
+        name="profile"
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        title="Account"
+        className="card"
+      >
+        <p className="k">Signed in as</p>
+        <p style={{ margin: '4px 0 0' }}>
+          {user ? user.email : 'Demo identity — no Firebase project configured.'}
+        </p>
+        {user && (
+          <p className="k" style={{ margin: 0 }}>
+            {provider}
+          </p>
+        )}
+        <div className="row" style={{ gap: 8, marginTop: 4 }}>
+          <Btn
+            variant="primary"
+            onClick={async () => {
+              setAccountOpen(false)
+              await signOut()
+              navigate('/')
+            }}
+          >
+            Sign out
+          </Btn>
+        </div>
+      </Drawer>
     </header>
   )
 }

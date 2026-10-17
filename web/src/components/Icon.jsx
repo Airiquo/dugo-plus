@@ -67,6 +67,7 @@ const PATHS = {
   ),
   'chevron-down': <path d="M6 9l6 6 6-6" />,
   'chevron-right': <path d="M9 6l6 6-6 6" />,
+  'arrow-right': <path d="M4 12h16M14 6l6 6-6 6" />,
   search: (
     <>
       <circle cx="11" cy="11" r="7" />
