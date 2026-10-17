@@ -25,6 +25,7 @@
 ## Verification
 - `cd web && npx vite build`
 - Compare against `/mockups/light/<target>.html` for visual parity.
+- After editing anything in `light/`, `dark/` or `styles/`, re-run `python3 tools/screenshots.py` so the README images don't go stale.
 
 ## Cost/Context Rules
 - Read files, don't paste large blobs (>~2–3KB). Avoid dumping entire generated files.

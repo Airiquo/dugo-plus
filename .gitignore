@@ -4,5 +4,8 @@ node_modules/
 # Build output
 dist/
 
+# Python bytecode (tools/)
+__pycache__/
+
 # macOS
 .DS_Store

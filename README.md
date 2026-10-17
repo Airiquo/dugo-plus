@@ -40,6 +40,38 @@ Three things follow from that shape, and they explain most of the layout:
 - **The mockups are the source of truth.** The app is a translation of them; when
   they disagree, the mockup wins.
 
+## Screenshots
+
+Every screen exists twice, in light and dark, and the images below follow your
+GitHub theme. The dashboard:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dark/admin-dashboard.jpg">
+  <img src="docs/screenshots/light/admin-dashboard.jpg" width="1200" alt="Dugo+ admin dashboard: KPI row, urgent request list, inventory tiles and donation trend charts">
+</picture>
+
+<details>
+<summary><strong>All 10 screens, light and dark</strong></summary>
+
+| Screen | In the app | Light | Dark |
+| --- | --- | --- | --- |
+| `landing.html` | ✓ | <img src="docs/screenshots/light/landing.jpg" width="360" alt="Landing page, light theme"> | <img src="docs/screenshots/dark/landing.jpg" width="360" alt="Landing page, dark theme"> |
+| `admin-dashboard.html` | ✓ | <img src="docs/screenshots/light/admin-dashboard.jpg" width="360" alt="Dashboard, light theme"> | <img src="docs/screenshots/dark/admin-dashboard.jpg" width="360" alt="Dashboard, dark theme"> |
+| `admin-blood-requests.html` | ✓ | <img src="docs/screenshots/light/admin-blood-requests.jpg" width="360" alt="Blood requests, light theme"> | <img src="docs/screenshots/dark/admin-blood-requests.jpg" width="360" alt="Blood requests, dark theme"> |
+| `admin-donor-matching.html` | — | <img src="docs/screenshots/light/admin-donor-matching.jpg" width="360" alt="Donor matching, light theme"> | <img src="docs/screenshots/dark/admin-donor-matching.jpg" width="360" alt="Donor matching, dark theme"> |
+| `admin-donor-registry.html` | — | <img src="docs/screenshots/light/admin-donor-registry.jpg" width="360" alt="Donor registry, light theme"> | <img src="docs/screenshots/dark/admin-donor-registry.jpg" width="360" alt="Donor registry, dark theme"> |
+| `admin-inventory.html` | — | <img src="docs/screenshots/light/admin-inventory.jpg" width="360" alt="Inventory, light theme"> | <img src="docs/screenshots/dark/admin-inventory.jpg" width="360" alt="Inventory, dark theme"> |
+| `admin-donations-rewards.html` | — | <img src="docs/screenshots/light/admin-donations-rewards.jpg" width="360" alt="Donations and rewards, light theme"> | <img src="docs/screenshots/dark/admin-donations-rewards.jpg" width="360" alt="Donations and rewards, dark theme"> |
+| `admin-reports.html` | — | <img src="docs/screenshots/light/admin-reports.jpg" width="360" alt="Reports, light theme"> | <img src="docs/screenshots/dark/admin-reports.jpg" width="360" alt="Reports, dark theme"> |
+| `admin-audit-trail.html` | — | <img src="docs/screenshots/light/admin-audit-trail.jpg" width="360" alt="Audit trail, light theme"> | <img src="docs/screenshots/dark/admin-audit-trail.jpg" width="360" alt="Audit trail, dark theme"> |
+| `admin-settings.html` | — | <img src="docs/screenshots/light/admin-settings.jpg" width="360" alt="Settings, light theme"> | <img src="docs/screenshots/dark/admin-settings.jpg" width="360" alt="Settings, dark theme"> |
+
+</details>
+
+These are rendered straight from the mockups by
+[`tools/screenshots.py`](#tooling-tools) — so if you change a mockup, re-run it,
+or the README will show the old design.
+
 ## Quick start
 
 ### 1. Browse the mockups (no setup needed)
@@ -126,6 +158,7 @@ Four documents, in the order you should read them:
 │   └── dugo.extras.css     # App-only additions (overlays, toasts, KPI row)
 ├── fonts/                  # Self-hosted webfonts
 ├── assets/                 # Shared assets (favicon)
+├── docs/screenshots/       # Rendered mockups for this README (see tools/screenshots.py)
 ├── tools/                  # Python helpers — build-time only
 └── web/                    # Vite + React app
     ├── index.html          # App entry point
@@ -201,8 +234,10 @@ Two things worth knowing:
 ## Tooling (`tools/`)
 
 Python 3 scripts used to build this repo — **you do not need them to run or build
-the app**. They are kept because two of them are the reason the design system and
-the generated pages exist, and because the converter is a useful check.
+the app**. Two of them are the reason the design system and the generated pages
+exist, the converter doubles as a parity check, and the screenshot tool keeps this
+README in step with the mockups. Only the last one needs dependencies beyond the
+standard library.
 
 | Script | Purpose |
 | --- | --- |
@@ -211,6 +246,7 @@ the generated pages exist, and because the converter is a useful check.
 | `csslib.py` | Shared CSS parsing helpers for the two scripts above. |
 | `htmltojsx.py` | Exact HTML → JSX converter (used by `gen_pages.py`). |
 | `gen_pages.py` | Generate `DashboardBody.jsx`, `LandingBody.jsx` and `layout/shell.parts.txt` from the mockups. **Running it rewrites those files** — they are checked in, and regenerating must reproduce them byte for byte apart from edits to the generator itself. |
+| `screenshots.py` | Render every mockup to `docs/screenshots/` for this README. Needs a one-time `pip3 install --user playwright pillow` and `python3 -m playwright install chromium`. **Re-run it after changing any mockup**, or the README keeps showing the old design. |
 
 **Using the converter as a parity check.** Because the conversion is exact and
 deterministic, you can render a screen and diff its structure against the mockup
