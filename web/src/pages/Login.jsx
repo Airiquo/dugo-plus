@@ -5,11 +5,16 @@ import AuthLayout from '../layout/AuthLayout'
 import { Icon } from '../components'
 
 /**
- * Sign-in screen, built from the landing page's designed `#signin` band.
+ * Sign-in screen, wearing the shared `AuthLayout` chrome (the band the landing
+ * page's design used to carry, now owned by the app).
  *
  * Reached from the guard (`RequireAuth` sends the attempted URL in
  * `location.state.from`) or from a direct link. Google sign-in creates the
  * account on first use, so there is no separate provider to configure.
+ *
+ * The register switch sits directly under the primary button, and the provider
+ * button below an `or` divider — the order visitors expect from other sites
+ * (both dressed by `dugo.extras.css`).
  */
 export default function Login() {
   const { user, signIn, signInWithGoogle } = useAuth()
@@ -73,15 +78,19 @@ export default function Login() {
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
-        <button className="pub-btn pub-btn-wide" type="submit" disabled={busy}>
-          {busy ? 'Signing in…' : 'Sign In'}
-          <Icon name="arrow-right" size={14} />
-        </button>
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">
             {message}
           </p>
         )}
+        <button className="pub-btn pub-btn-wide" type="submit" disabled={busy}>
+          {busy ? 'Signing in…' : 'Sign In'}
+          <Icon name="arrow-right" size={14} />
+        </button>
+        <p className="pub-form-alt">
+          New to Dugo+? <Link to="/register">Create an account</Link>
+        </p>
+        <p className="pub-or">or</p>
         <button
           className="pub-btn pub-btn-ghost pub-btn-wide"
           type="button"
@@ -90,9 +99,6 @@ export default function Login() {
         >
           Continue with Google
         </button>
-        <p className="pub-msg" data-kind="ok">
-          No account yet? <Link to="/register">Create one</Link>
-        </p>
       </form>
     </AuthLayout>
   )

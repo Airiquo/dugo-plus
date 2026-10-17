@@ -71,13 +71,35 @@ def main():
         fh.write(component('DashboardBody', dash_jsx,
                            'Dashboard page content (from light/admin-dashboard.html)'))
 
-    # ---- landing
     pub = extract_by_id(landing, 'root')
     pub = strip_scripts(pub)
     # the mockup's theme link becomes a React-driven toggle
     pub, n = re.subn(r'<a class="pub-theme".*?</a>', '<PubThemeToggle />', pub, flags=re.S)
     assert n == 1, f'expected 1 pub-theme link, replaced {n}'
+    # The app has no sign-in band on the landing: signing in happens on /login,
+    # which the nav's button and the footer's "Admin Login" open. The band is
+    # dropped here (app-only; the mockup keeps the designed band) rather than in
+    # light/landing.html
+    pub, n = re.subn(r'<section id="signin".*?</section>', '', pub, count=1, flags=re.S)
+    assert n == 1, f'expected the sign-in band, dropped {n}'
+    assert 'id="signin"' not in pub, 'a #signin band survived the removal'
     pub_jsx = convert(pub)
+    # With the band gone its two entry points are re-pointed at /login: the nav
+    # button (was "Get started" scrolling to #signin) and the footer link. The
+    # nav's own "Sign in" section link went with the band.
+    pub_jsx, n = re.subn(
+        r'<button type="button" className="pub-btn">Get started</button>',
+        '<Link className="pub-btn" to="/login">Sign in</Link>',
+        pub_jsx, count=1)
+    assert n == 1, f'expected the nav "Get started" button, replaced {n}'
+    pub_jsx, n = re.subn(r'<a href="#signin">Sign in</a>', '', pub_jsx, count=1)
+    assert n == 1, f'expected the nav "Sign in" section link, removed {n}'
+    pub_jsx, n = re.subn(
+        r'<a href="#signin">Admin Login</a>',
+        '<Link to="/login">Admin Login</Link>',
+        pub_jsx, count=1)
+    assert n == 1, f'expected the footer "Admin Login" link, replaced {n}'
+    assert '#signin' not in pub_jsx, 'a #signin anchor survived the landing rewrites'
     # root wrapper carries the theme + a ref for the delegated event handlers
     pub_jsx, n = re.subn(r'data-theme="light"', 'data-theme={theme} ref={ref}', pub_jsx)
     assert n == 1, f'expected 1 data-theme placeholder, replaced {n}'
@@ -85,7 +107,8 @@ def main():
         fh.write(component(
             'LandingBody', pub_jsx,
             'Landing page (from light/landing.html)',
-            imports="import { PubThemeToggle } from '../components/PubThemeToggle'\n\n",
+            imports="import { Link } from 'react-router-dom'\n\n"
+            "import { PubThemeToggle } from '../components/PubThemeToggle'\n\n",
             props="{ theme, ref }"))
 
     for p in ('layout/shell.parts.txt', 'pages/DashboardBody.jsx', 'pages/LandingBody.jsx'):

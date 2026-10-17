@@ -16,7 +16,9 @@
 - Faithful bodies (`DashboardBody.jsx`, `LandingBody.jsx`) are generated — do not reformat.
 - Untranslated screens → `ScreenStub`. Translating replaces stub + wires route in `App.jsx`.
 - Route slugs must match mockup filenames (`admin-*.html`).
-- Auth screens (`/login`, `/register`) reuse the landing's sign-in band via `layout/AuthLayout.jsx`; `/admin/*` sits behind `layout/RequireAuth.jsx`.
+- Auth screens (`/login`, `/register`) own the sign-in band — the landing page
+  carries no form — via `layout/AuthLayout.jsx`; `/admin/*` sits behind
+  `layout/RequireAuth.jsx`.
 
 ## Auth Rules
 - One way in: `firebase.js` → `auth.jsx` (`useAuth()`) → `RequireAuth`. Pages never call the Firebase SDK directly.

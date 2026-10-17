@@ -8,12 +8,19 @@ import { Icon } from '../components'
  * Register screen.
  *
  * No mockup covers registration — the design only has a "Welcome back" card — so
- * this is the same `#signin` band with extra fields, composed from the public
- * classes that already exist. The landing page's three CTAs link here with a
- * preset: `/register?role=donor`, `?role=requester`, `?role=hospital`.
+ * this is `AuthLayout` with extra fields, composed from the public classes that
+ * already exist. It is also the only screen that asks which account is being
+ * made: `/login` renders no picker.
+ *
+ * The landing page's CTAs link here with a preset — `/register?role=donor`,
+ * `?role=hospital` — while "Request blood" opens the plain form, since there is
+ * no requester account type.
  *
  * The role is presentational (see `AuthLayout`); the account itself is created by
  * Firebase Auth, and a display name is set from the Name field.
+ *
+ * The sign-in switch sits directly under the primary button, and the provider
+ * button below an `or` divider, mirroring `Login` (dressed by `dugo.extras.css`).
  */
 export default function Register() {
   const { user, signUp, signInWithGoogle } = useAuth()
@@ -60,7 +67,7 @@ export default function Register() {
         }}
       >
         <h3>Create your account</h3>
-        <p className="pub-muted">Join Dugo+ to give, ask, or coordinate.</p>
+        <p className="pub-muted">Join Dugo+ as a donor, a hospital, or an admin.</p>
         <label>
           <span>Name</span>
           <input
@@ -91,15 +98,19 @@ export default function Register() {
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
-        <button className="pub-btn pub-btn-wide" type="submit" disabled={busy}>
-          {busy ? 'Creating account…' : 'Create account'}
-          <Icon name="arrow-right" size={14} />
-        </button>
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">
             {message}
           </p>
         )}
+        <button className="pub-btn pub-btn-wide" type="submit" disabled={busy}>
+          {busy ? 'Creating account…' : 'Create account'}
+          <Icon name="arrow-right" size={14} />
+        </button>
+        <p className="pub-form-alt">
+          Already have an account? <Link to="/login">Sign in</Link>
+        </p>
+        <p className="pub-or">or</p>
         <button
           className="pub-btn pub-btn-ghost pub-btn-wide"
           type="button"
@@ -108,9 +119,6 @@ export default function Register() {
         >
           Continue with Google
         </button>
-        <p className="pub-msg" data-kind="ok">
-          Already have an account? <Link to="/login">Sign in</Link>
-        </p>
       </form>
     </AuthLayout>
   )

@@ -70,7 +70,10 @@ GitHub theme. The dashboard:
 
 These are rendered straight from the mockups by
 [`tools/screenshots.py`](#tooling-tools) — so if you change a mockup, re-run it,
-or the README will show the old design.
+or the README will show the old design. The mockups are the design source; where
+the app deviates on purpose (the landing page no longer carries the designed
+sign-in band — that band now opens on `/login`) it is noted under
+[Authentication](#authentication).
 
 ## Quick start
 
@@ -132,7 +135,7 @@ are translated into React so far:
 | Route | Status |
 | --- | --- |
 | `/` | Landing page — translated |
-| `/login`, `/register` | Sign-in and registration — built from the landing's designed sign-in band, backed by Firebase Auth |
+| `/login`, `/register` | Sign-in and registration — the designed sign-in band, now owned by `AuthLayout`, backed by Firebase Auth |
 | `/admin/dashboard` | Dashboard — translated |
 | `/admin/blood-requests` | Blood requests list — translated, renders from `web/src/data/requests.js` |
 | `/admin/donor-matching`, `/admin/donor-registry`, `/admin/inventory`, `/admin/donations-rewards`, `/admin/reports`, `/admin/audit-trail`, `/admin/settings` | Placeholder (`ScreenStub`) with a link to the live mockup |
@@ -195,23 +198,27 @@ screen, so **auth is only enforced when a project is configured**:
 | `web/src/firebase.js` | Reads the `VITE_FIREBASE_*` variables; exports `auth`, `googleProvider` and `isFirebaseConfigured`. |
 | `web/src/auth.jsx` | `AuthProvider` / `useAuth()` — `user`, `loading`, `configured`, `signIn`, `signUp`, `signInWithGoogle`, `signOut`, plus `authErrorMessage()` for failures. |
 | `web/src/layout/RequireAuth.jsx` | The `/admin/*` gate. |
-| `web/src/layout/AuthLayout.jsx` | The public (`.pub`) chrome shared by both auth screens: header, role selector, and the colour tokens `.pub` carries. |
-| `web/src/pages/Login.jsx`, `Register.jsx` | The two screens, reusing the landing's sign-in band (`.pub-card`, `.pub-form`, `.pub-btn`) — no new CSS. |
+| `web/src/layout/AuthLayout.jsx` | The public (`.pub`) chrome shared by both auth screens: header, footer, the register-only account-type picker, and the colour tokens `.pub` carries. |
+| `web/src/pages/Login.jsx`, `Register.jsx` | The two screens, composed from the public classes (`.pub-card`, `.pub-form`, `.pub-btn`) — the only new CSS is the `.pub-auth` full-height hook and the switch hooks in `dugo.extras.css`. |
 | `web/src/layout/AppShell.jsx` | Shows the signed-in name and signs out from the sidebar (`$ exit`) or the topbar chip's drawer. |
 
-The landing page's own card posts to the same `signIn()`, and reports failures in
-the app's `Toast` layer, because the generated card has nowhere to put an inline
-message. Google sign-in lives on `/login` and `/register` — the landing's card has
-no room for a second button, and editing a mockup would invalidate the
-screenshots.
+Signing in happens on `/login`, and nowhere else. The landing page carries no
+form: `tools/gen_pages.py` drops the designed `#signin` band from the generated
+body and turns the nav's call to action and the footer's *Admin Login* into router
+links to `/login` (the mockups keep the designed band — they are the design
+source, the app just no longer renders it). Both screens render the landing's
+footer under the band, so the page fills the viewport and the card stays centred.
+
+Google sign-in lives on `/login` and `/register`.
 
 The landing's three big CTAs are its "get started" affordances and open the
-register screen with a preset: *Become a donor* → `/register?role=donor`,
-*Request blood* → `?role=requester`, *Become a partner* → `?role=hospital`.
+register screen: *Become a donor* → `/register?role=donor`, *Request blood* →
+plain `/register`, *Become a partner* → `/register?role=hospital`.
 
-> **The role selector is presentational.** Firebase Auth has no field for a role,
-> so the choice only drives the highlight and nothing is stored yet — see
-> [Planned: the API](#planned-the-api).
+> **The role selector is presentational**, and only `/register` asks: the three
+> account types are donor, hospital / blood bank, and system admin. Firebase Auth
+> has no field for a role, so the choice only drives the highlight and nothing is
+> stored yet — see [Planned: the API](#planned-the-api).
 
 ## Where to start
 

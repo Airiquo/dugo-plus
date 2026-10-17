@@ -112,8 +112,8 @@ web/src/
 │   ├── BloodRequests.jsx  # Worked example: a list screen built from components
 │   ├── DashboardBody.jsx  # Generated faithful body (do not hand-tidy)
 │   ├── LandingBody.jsx    # Generated faithful body (do not hand-tidy)
-│   ├── Login.jsx          # Sign in (reuses the landing's sign-in band)
-│   └── Register.jsx       # Create an account (?role= presets the role)
+│   ├── Login.jsx          # Sign in (layout/AuthLayout.jsx, no role picker)
+│   └── Register.jsx       # Create an account (?role= presets the account type)
 ├── data/               # Sample data fixtures (the shape the API is expected to return)
 ├── App.jsx             # Routes
 ├── main.jsx            # Entry point (imports styles)

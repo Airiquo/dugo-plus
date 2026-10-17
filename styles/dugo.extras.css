@@ -55,6 +55,74 @@
   display: none;
 }
 
+/* --- public forms: "other action" line + provider divider --------------- */
+/* The switch action that sits under a form's primary button (sign in ↔
+   register), and the hairline "or" that separates a provider button from the
+   rest of the form. Both are plain `.pub-form` children, so the card's own
+   16px gap does the spacing. */
+.pub-form-alt {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  text-align: center;
+  color: var(--muted);
+}
+.pub-form-alt a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pub-form-alt a:hover {
+  text-decoration-thickness: 2px;
+}
+.pub-form-alt a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.pub-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.pub-or::before,
+.pub-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+/* --- auth screens: full-height page with the footer on the bottom ------- */
+/* `.pub` is min-height:100vh but its content is short, so the band used to end
+   mid-screen with the footer (if any) floating underneath. Column layout lets
+   `main` absorb the slack: the band grows, its grid stays centred, and the
+   footer sits on the bottom edge. Scoped to `.pub-auth` so the landing, whose
+   sections run long, keeps its normal flow. */
+.pub-auth {
+  display: flex;
+  flex-direction: column;
+}
+.pub-auth > main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.pub-auth .pub-signin-band {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+.pub-auth .pub-signin-grid {
+  flex: 1;
+}
+
 /* --- toasts ------------------------------------------------------------- */
 #toast-root {
   position: fixed;
