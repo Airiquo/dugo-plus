@@ -1,7 +1,8 @@
 // Dashboard page content (from light/admin-dashboard.html)
 // GENERATED from DashboardBody mockup markup — faithful translation, do not hand-tidy
 // whitespace (inline spacing is significant). New work should compose the
-// components in web/src/components instead; see DESIGN.md.
+// components in web/src/components instead; see
+// web/src/components/CONVENTIONS.md (and web/src/pages/Gallery.jsx for usage).
 
 export function DashboardBody() {
   return (

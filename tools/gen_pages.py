@@ -41,7 +41,8 @@ def component(name: str, jsx: str, comment: str, props: str = '', imports: str =
     return (f'// {comment}\n'
             f'// GENERATED from {name} mockup markup — faithful translation, do not hand-tidy\n'
             f'// whitespace (inline spacing is significant). New work should compose the\n'
-            f'// components in web/src/components instead; see DESIGN.md.\n\n'
+            f'// components in web/src/components instead; see\n'
+            f'// web/src/components/CONVENTIONS.md (and web/src/pages/Gallery.jsx for usage).\n\n'
             + imports +
             f'export function {name}({props}) {{\n'
             f'  return (\n    <>{jsx}</>\n  )\n}}\n')

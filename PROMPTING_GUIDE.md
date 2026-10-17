@@ -25,7 +25,7 @@ Use these exact paths in your prompts to anchor the agent to the right context:
 | Component conventions | `web/src/components/CONVENTIONS.md` | Required patterns for new components |
 | App shell | `web/src/layout/AppShell.jsx` | Sidebar/topbar + `#app-shell` structure |
 | Theme | `web/src/theme.jsx` | Drives `[data-theme]` on `<html>` |
-| Faithful dashboard | `web/src/pages/DashboardBody.jsx` | Generated reference (how mockup → JSX, spacing preserved) |
+| Faithful dashboard | `web/src/pages/DashboardBody.jsx` | Generated body — do not edit; regenerate with `tools/gen_pages.py` |
 | Faithful landing | `web/src/pages/LandingBody.jsx` | Landing translation reference |
 | Gallery | `web/src/pages/Gallery.jsx` | Canonical usage examples for every component |
 | Stubs | `web/src/pages/ScreenStub.jsx` | Pattern for untranslated admin screens |
@@ -54,13 +54,12 @@ CONSTRAINTS
 - Preserve class names, IDs, data-* attributes, and visual structure. Do not rename semantic classes.
 - Forward arbitrary data-* props (stylesheet is data-attribute driven). Always spread {...rest} after data-attrs.
 - No changes to styles/*.css (verbatim). Only add to styles/dugo.extras.css if there's a generic, reusable gap — explain first.
-- Keep generated/faithful markup patterns (single-line spacing preserved where it affects inline layout). Follow DashboardBody.jsx style of fidelity.
+- New screens compose the components in web/src/components (see Gallery.jsx for usage) — do not hand-copy mockup markup. Only DashboardBody.jsx/LandingBody.jsx are generated; never hand-tidy their inline spacing, and if they must change, edit tools/gen_pages.py and regenerate.
 - Respect id-suffix conventions: modals/drawers/backdrops use <name>-modal/-drawer/-backdrop; KPI cards use <name>-label/-value/-trend/-chart and live inside #dashboard-kpi-row (or KpiRow).
 - Follow folder organization and naming conventions in this guide.
 - No hand-tweaks that change cascade order or introduce new global styles.
 
 ACCEPTANCE CRITERIA
-- Build passes: `cd web && npx vite build`
 - Build passes: `cd web && npx vite build`
 - Visually matches the mockup at /mockups/light/<screen>.html (structure, spacing, states)
 - Uses existing components where applicable (no unnecessary duplication)
@@ -80,7 +79,7 @@ Keep the repo predictable and low-context to minimize cost. Follow these rules s
 
 ### 4.1 Root Structure
 ```
-dugo_html_mockups/
+dugo-plus/
 ├── AGENTS.md           # Global agent rules (see §6)
 ├── light/              # HTML mockups (light theme)
 ├── dark/               # HTML mockups (dark theme)
@@ -104,8 +103,10 @@ web/src/
 │   └── shell.parts.txt # Reference material (generated)
 ├── pages/              # Route-level pages
 │   ├── *.jsx           # Page components (PascalCase, default export)
-│   ├── DashboardBody.jsx  # Generated faithful body
-│   └── LandingBody.jsx    # Generated faithful body
+│   ├── BloodRequests.jsx  # Worked example: a list screen built from components
+│   ├── DashboardBody.jsx  # Generated faithful body (do not hand-tidy)
+│   └── LandingBody.jsx    # Generated faithful body (do not hand-tidy)
+├── data/               # Sample data fixtures (the shape the API is expected to return)
 ├── App.jsx             # Routes
 ├── main.jsx            # Entry point (imports styles)
 └── theme.jsx           # Theme context/hook
@@ -159,7 +160,7 @@ GOAL
 Translate light/admin-inventory.html to a faithful React page at web/src/pages/Inventory.jsx, using AppShell and the component library. Replace the corresponding stub route (/admin/inventory).
 
 INPUTS (GROUND TRUTH)
-- Read: web/src/layout/AppShell.jsx, web/src/components/index.js, web/src/components/CONVENTIONS.md, web/src/pages/Gallery.jsx, web/src/pages/ScreenStub.jsx, web/src/pages/DashboardBody.jsx
+- Read: web/src/layout/AppShell.jsx, web/src/components/index.js, web/src/components/CONVENTIONS.md, web/src/pages/Gallery.jsx, web/src/pages/ScreenStub.jsx, web/src/pages/BloodRequests.jsx (worked example), web/src/data/requests.js (data shape)
 - Reference mockup: /mockups/light/admin-inventory.html and /mockups/dark/admin-inventory.html
 - Existing stub: ScreenStub renders for /admin/inventory (see web/src/App.jsx)
 
@@ -175,7 +176,6 @@ CONSTRAINTS
 ACCEPTANCE CRITERIA
 - web/src/pages/Inventory.jsx created and exported as default (PascalCase)
 - Route /admin/inventory renders Inventory (update App.jsx if needed)
-- cd web && npx vite build passes
 - cd web && npx vite build passes
 - Structure/spacing matches /mockups/light/admin-inventory.html
 - No unused imports/vars
@@ -206,7 +206,7 @@ CONSTRAINTS
 - No changes to styles/*.css.
 
 ACCEPTANCE CRITERIA
-- Component typed, forwards rest/data-*, no unused imports
+- Component documented in JSDoc, forwards rest/data-*, no unused imports
 - Added to barrel export
 - Demonstrated in Gallery.jsx (minimal example)
 - cd web && npx vite build passes
@@ -236,7 +236,7 @@ CONSTRAINTS
 
 ACCEPTANCE CRITERIA
 - Visual parity for target element/state
-- Typecheck + build pass
+- Build passes: `cd web && npx vite build`
 - No regression to other pages
 
 OUTPUT INSTRUCTIONS
@@ -246,7 +246,7 @@ OUTPUT INSTRUCTIONS
 
 ## 6. AGENTS.md (Global Rules) — Create This Once
 
-Create `/Users/pol/Documents/dugo_html_mockups/AGENTS.md` with these rules. opencode reads this for every session.
+Create `AGENTS.md` at the repo root with these rules. opencode reads this for every session.
 
 ```markdown
 # AGENTS.md — Dugo+ Repo Rules

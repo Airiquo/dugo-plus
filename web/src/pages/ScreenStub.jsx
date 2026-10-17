@@ -32,9 +32,9 @@ export default function ScreenStub({ slug }) {
             </a>
           </p>
           <p>
-            Reference implementation: <code>web/src/pages/DashboardBody.jsx</code> was generated
-            directly from <code>light/admin-dashboard.html</code> and wrapped by{' '}
-            <code>AppShell</code>.
+            Worked example: <code>web/src/pages/BloodRequests.jsx</code> builds a full list screen
+            from the components in <code>web/src/components</code> — see{' '}
+            <code>web/src/pages/Gallery.jsx</code> for usage of every component.
           </p>
         </Card>
       </div>
