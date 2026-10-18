@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { authErrorMessage, useAuth } from '../auth'
-import AuthLayout from '../layout/AuthLayout'
-import { Icon } from '../components'
+import { authErrorMessage, useAuth } from '../../auth'
+import AuthLayout from '../../layout/AuthLayout'
+import { Icon } from '../../components'
 
 /**
  * Sign-in screen, wearing the shared `AuthLayout` chrome (the band the landing

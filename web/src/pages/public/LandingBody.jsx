@@ -6,7 +6,7 @@
 
 import { Link } from 'react-router-dom'
 
-import { PubThemeToggle } from '../components/PubThemeToggle'
+import { PubThemeToggle } from '../../components/PubThemeToggle'
 
 export function LandingBody({ theme, ref }) {
   return (

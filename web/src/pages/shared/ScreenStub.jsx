@@ -1,6 +1,6 @@
-import { AppShell, NAV } from '../layout/AppShell'
-import { PageHeader } from '../components/PageHeader'
-import { Card } from '../components/Card'
+import { AppShell, NAV } from '../../layout/AppShell'
+import { PageHeader } from '../../components/PageHeader'
+import { Card } from '../../components/Card'
 /**
  * Stub page for admin screens not yet translated to React components. Shows the
  * mockup filename and a link to the live mockup served at `/mockups/*` so you

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { AppShell } from '../layout/AppShell'
-import { PageHeader } from '../components/PageHeader'
+import { AppShell } from '../../layout/AppShell'
+import { PageHeader } from '../../components/PageHeader'
 import {
   Card,
   CardHeader,
@@ -25,7 +25,7 @@ import {
   ToastStack,
   KpiRow,
   KpiCard,
-} from '../components'
+} from '../../components'
 /**
  * Gallery — renders the shipped React components and demonstrates live theme
  * switching (the app's `ThemeProvider` drives `[data-theme]` on <html>; the

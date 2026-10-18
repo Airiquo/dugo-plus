@@ -1,4 +1,4 @@
-import { AppShell } from '../layout/AppShell'
+import { AppShell } from '../../layout/AppShell'
 import { DashboardBody } from './DashboardBody'
 /**
  * Dashboard — the translated admin-dashboard mockup.

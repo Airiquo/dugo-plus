@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { authErrorMessage, useAuth } from '../auth'
-import AuthLayout, { AUTH_ROLES } from '../layout/AuthLayout'
-import { Icon } from '../components'
+import { authErrorMessage, useAuth } from '../../auth'
+import AuthLayout, { AUTH_ROLES } from '../../layout/AuthLayout'
+import { Icon } from '../../components'
 
 /**
  * Register screen.

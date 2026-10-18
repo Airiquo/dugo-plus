@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { AppShell } from '../layout/AppShell'
-import { Btn, Card, Chip, Field, Input, PageHeader, Select, Table } from '../components'
+import { AppShell } from '../../layout/AppShell'
+import { Btn, Card, Chip, Field, Input, PageHeader, Select, Table } from '../../components'
 import {
   BLOOD_TYPES,
   COMPONENTS,
@@ -8,7 +8,7 @@ import {
   REQUEST_PRIORITIES,
   REQUEST_STATUSES,
   componentLabel,
-} from '../data/requests'
+} from '../../data/requests'
 /**
  * Blood Requests — `/admin/blood-requests`.
  *
