@@ -95,9 +95,9 @@ Then open <http://localhost:5173>:
 - `/admin/blood-requests`: blood requests list
 - `/gallery`: every component, in both themes (useful while building screens)
 
-Auth is optional locally: with no `web/.env.local` the app runs *unconfigured*
-and every admin screen still opens. To wire up real sign-in, see
-[Authentication](#authentication).
+The app needs a Firebase project: with no `web/.env.local` it stops on a setup
+notice that names the missing values. Fill them in as described in
+[Authentication](#authentication) before the routes open.
 
 While the dev server is running, the mockups are served from the same origin, so
 you can compare side by side:
@@ -132,7 +132,9 @@ routes are built in React so far:
 | `/gallery` | Component gallery, every component rendered in both themes |
 | anything else | Not found |
 
-`/admin/*` is only gated when a Firebase project is configured; see
+The app needs a Firebase project: if no `web/.env.local` exists, every route
+shows `pages/shared/NotConfigured.jsx` with the variables to fill in. Once
+configured, `/admin/*` requires a signed-in account with `role: "admin"`; see
 [Authentication](#authentication). The remaining work is one screen at a time;
 see [Building a screen](#building-a-screen).
 
@@ -145,16 +147,22 @@ hook:
 ```
 web/.env.local ──► web/src/lib/firebase.js   env-driven initializeApp (null when unset)
                         │
+        ┌───────────────┴───────────────┐
+        ▼                               ▼
+web/src/services/auth.js       web/src/services/users.js
+the Auth SDK, the session      users/{uid} profiles: the account
+listener, authErrorMessage()   type the guards read back
+        │                               │
+        └───────────────┬───────────────┘
                         ▼
-                web/src/services/auth.js      the only module calling the SDK
-                        │
-                        ▼
-                web/src/hooks/useAuth.jsx     <AuthProvider> + useAuth() (the only way in)
+                web/src/hooks/useAuth.jsx
+              <AuthProvider> + useAuth() (the only way in)
                         │
         ┌───────────────┼───────────────────────────┐
         ▼               ▼                           ▼
-  layout/RequireAuth   pages/public/Login.jsx   layout/AppShell.jsx
-  gates /admin/*       pages/public/Register.jsx sign-out (sidebar + topbar drawer)
+  layout/RequireAuth  layout/RequireRole    pages/public/Login.jsx
+  gates /admin/*      checks the type       Register.jsx, PickRole.jsx
+                      (/admin/* → admin)    layout/AppShell.jsx (sign-out)
 ```
 
 ### Configure a project
@@ -168,6 +176,14 @@ web/.env.local ──► web/src/lib/firebase.js   env-driven initializeApp (nul
    **Google**.
 4. Add `localhost` (and your deploy domain) under *Authentication → Settings →
    Authorized domains*.
+5. Create a **Firestore database** (a good location, then start in test mode for
+   the moment) so `users/{uid}` can be written.
+6. Publish the security rules:
+   ```bash
+   npm install -g firebase-tools   # the CLI lives outside the repo
+   firebase login
+   firebase deploy --only firestore:rules
+   ```
 
 `web/.env.local` is gitignored, so no project is baked into the repository.
 
@@ -175,27 +191,26 @@ web/.env.local ──► web/src/lib/firebase.js   env-driven initializeApp (nul
 > enforces access with its own rules. It ships in the client bundle either way,
 > which is how every Firebase web app works.
 
-### With and without a project
+### Without a project
 
-Someone who has just cloned this repository must still be able to review every
-screen, so **auth is only enforced when a project is configured**:
-
-| `web/.env.local` | `/admin/*` | Sign-in screens |
-| --- | --- | --- |
-| absent or empty | renders freely: the guard passes through and the shell keeps its demo identity | explain that Firebase is not configured |
-| filled in | `RequireAuth` waits for the session, then redirects to `/login`, remembering the URL you wanted | sign in, register, Google, and readable error messages all work |
+The app does not run unconfigured. If any of the six values is missing or empty,
+every route renders `web/src/pages/shared/NotConfigured.jsx` instead of the app,
+naming the variables to fill in. A fresh clone is still reviewable: the mockups
+under `light/` and `dark/` need no setup at all.
 
 ### What each piece does
 
 | File | Role |
 | --- | --- |
-| `web/src/lib/firebase.js` | Reads the `VITE_FIREBASE_*` variables; exports `auth`, `googleProvider` and `isFirebaseConfigured`. |
+| `web/src/lib/firebase.js` | Reads the `VITE_FIREBASE_*` variables; exports `firebaseApp`, `auth`, `googleProvider`, `db`, `isFirebaseConfigured` and `missingFirebaseKeys`. |
 | `web/src/services/auth.js` | The only module that talks to the Firebase Auth SDK: sign-in/up/out, the Google pop-up, the session listener, and `authErrorMessage()`. |
-| `web/src/hooks/useAuth.jsx` | `AuthProvider` / `useAuth()`: `user`, `loading`, `configured`, `signIn`, `signUp`, `signInWithGoogle`, `signOut`, built on the service above. |
-| `web/src/layout/RequireAuth.jsx` | The `/admin/*` gate. |
-| `web/src/layout/AuthLayout.jsx` | The public (`.pub`) chrome shared by both auth screens: header, footer, the register-only account-type picker, and the colour tokens `.pub` carries. |
-| `web/src/pages/public/Login.jsx`, `Register.jsx` | The two screens, composed from the public classes (`.pub-card`, `.pub-form`, `.pub-btn`); the only new CSS is the `.pub-auth` full-height hook and the switch hooks in `dugo.extras.css`. |
-| `web/src/layout/AppShell.jsx` | Shows the signed-in name and signs out from the sidebar (`$ exit`) or the topbar chip's drawer. |
+| `web/src/services/users.js` | The only module that talks to Firestore: reads and writes `users/{uid}`, plus `roleLabel()`. |
+| `web/src/hooks/useAuth.jsx` | `AuthProvider` / `useAuth()`: `user`, `loading`, `role`, `profile`, `roleLoading`, `signIn`, `signUp`, `claimRole`, `signInWithGoogle`, `signOut`, built on the two services above. |
+| `web/src/layout/RequireAuth.jsx` | Is somebody signed in? Waits for the session, then redirects to `/login`, remembering the URL you wanted. |
+| `web/src/layout/RequireRole.jsx` | Is the signed-in account of the right type? Mounted inside `RequireAuth` for `/admin/*`, with `roles={['admin']}`; no account type yet sends the visitor to `/account/role`. |
+| `web/src/layout/AuthLayout.jsx` | The public (`.pub`) chrome shared by all three auth screens: header, footer, the account-type picker, and the colour tokens `.pub` carries. |
+| `web/src/pages/public/Login.jsx`, `Register.jsx`, `PickRole.jsx` | The three screens, composed from the public classes (`.pub-card`, `.pub-form`, `.pub-btn`); the only new CSS is the `.pub-auth` full-height hook and the switch hooks in `dugo.extras.css`. |
+| `web/src/layout/AppShell.jsx` | Shows the signed-in name and account type, and signs out from the sidebar (`$ exit`) or the topbar chip's drawer. |
 
 Signing in happens on `/login`, and nowhere else. The landing page carries no
 form: `tools/gen_pages.py` drops the designed `#signin` band from the seeded body
@@ -210,10 +225,26 @@ The landing's three big CTAs open the register screen: *Become a donor* →
 `/register?role=donor`, *Request blood* → plain `/register`, *Become a partner* →
 `/register?role=hospital`.
 
-> **The role selector is presentational**, and only `/register` asks: the three
-> account types are donor, hospital / blood bank, and system admin. Firebase Auth
-> has no field for a role, so the choice only drives the highlight and nothing is
-> stored yet. See [Planned: the API](#planned-the-api).
+### Account types
+
+Firebase Auth has no role field, so each account type is a document:
+`users/{uid}` with `{ role, name, email, createdAt }`, written through
+`web/src/services/users.js` and read back on every session change.
+
+- **Picking one.** `/register` offers **donor** and **hospital / blood bank**,
+  so `?role=admin` falls back to donor. Email/password accounts store the choice
+  during sign-up; a first Google sign-in has no sign-up step, so
+  `/account/role` (`pages/public/PickRole.jsx`) asks once.
+- **Granting admin.** In the Firebase console, open *Firestore → `users` →
+  `<uid>`* and set `role` to `admin`, then refresh the page. It never appears on
+  the register screen, and `firestore.rules` freezes `role` after the document
+  is created, so a profile cannot be upgraded from the client either.
+- **Known limitation.** The role is written from the browser, so it is a UI
+  boundary rather than a security boundary: a determined visitor could create
+  their own `users/{uid}` with `role: "admin"`. Real enforcement needs a server,
+  for example a custom claim set from a Cloud Function. Right now the rules
+  limit each account to *its own* document and validate the shape of what it
+  may contain, which is what the file is there to demonstrate.
 
 ## Where to start
 
@@ -250,17 +281,18 @@ Four documents, in the order you should read them:
         ├── hooks/          # React contexts/hooks
         │   ├── useTheme.jsx      # Light/dark theme context (`useTheme`)
         │   └── useAuth.jsx       # Session context (`useAuth`)
-        ├── services/       # Data + external access (never imported by components)
+        ├── services/       # Data + external access (the only place Firebase SDK code is called)
         │   ├── auth.js           # Firebase Auth calls + readable error messages
-        │   └── requests.js       # Sample data (the shape the API is expected to return)
-        ├── lib/firebase.js # Firebase app/auth from VITE_FIREBASE_* (null when unset)
+        │   ├── users.js          # Firestore `users/{uid}` profiles
+        │   └── requests.js       # Sample data (still the only source for the built admin list)
+        ├── lib/firebase.js # Firebase app/auth/db from VITE_FIREBASE_* (null when unset)
         ├── utils/cx.js     # `cx()` classnames join used by the components
-        ├── layout/         # Admin shell (sidebar / topbar / main), RequireAuth, AuthLayout
+        ├── layout/         # AppShell, RequireAuth, RequireRole, AuthLayout (app chrome)
         ├── pages/          # Route pages, grouped by role
         │   ├── admin/             # dashboard, blood-requests (+ seeded DashboardBody)
         │   ├── donor/             # planned: profile, alerts, rewards
         │   ├── hospital/          # planned: requests, inventory
-        │   ├── public/            # landing, login, register, not-found (+ seeded LandingBody)
+        │   ├── public/            # landing, login, register, pick-role, not-found (+ seeded LandingBody)
         │   └── shared/            # ScreenStub, Gallery
         └── components/     # Reusable UI primitives + CONVENTIONS.md
 ```
@@ -378,10 +410,10 @@ rewriting the pages.
 
 Two things are stubbed until the API arrives:
 
-- **Roles are not persisted.** The role chosen on `/register` is presentational
-  (see [Authentication](#authentication)); storing it needs a `users/{uid}`
-  document or a custom claim, so the shell can show the real role instead of the
-  demo label it shows today.
+- **Roles live in Firestore.** Each account's type is stored in
+  `users/{uid}`. `/register` offers donor and hospital only; admins are
+  granted by editing that document in the Firebase console. See
+  [Account types](#account-types).
 - **Nothing is fetched.** `/admin/blood-requests` reads `web/src/services/requests.js`
   as a stand-in for the response shape.
 
