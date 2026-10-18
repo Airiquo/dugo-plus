@@ -2,10 +2,10 @@ import { AppShell, NAV } from '../../layout/AppShell'
 import { PageHeader } from '../../components/PageHeader'
 import { Card } from '../../components/Card'
 /**
- * Stub page for admin screens not yet translated to React components. Shows the
- * mockup filename and a link to the live mockup served at `/mockups/*` so you
- * can compare side-by-side (the Vite server exposes the repo root via the
- * `dugo-mockups` plugin).
+ * Stub page for admin screens not yet built. Shows the mockup filename and a
+ * link to the live mockup served at `/mockups/*` so you can see the intended
+ * look (the Vite server exposes the repo root via the `dugo-mockups` plugin)
+ * while you design the real screen.
  */
 export default function ScreenStub({ slug }) {
   const item = NAV.find((i) => i.slug === slug) ?? { screen: `admin-${slug}`, label: slug }
@@ -15,11 +15,11 @@ export default function ScreenStub({ slug }) {
       <PageHeader title={item.label} />
       <div id="page-body">
         <Card>
-          <h2>Screen not translated yet</h2>
+          <h2>Screen not built yet</h2>
           <p>
-            This route is pointing to <code>{filename}</code>. Translate it by converting the
-            faithful mockup markup to React (using the components in <code>web/src/components</code>
-            ) and replace this stub with a real page.
+            This route points at the <code>{filename}</code> reference. Design and build the
+            screen with the components in <code>web/src/components</code>, then replace this
+            stub with the real page.
           </p>
           <p>
             Open the live mockup in dev:{' '}

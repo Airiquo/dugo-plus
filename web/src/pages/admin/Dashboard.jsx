@@ -1,12 +1,12 @@
 import { AppShell } from '../../layout/AppShell'
 import { DashboardBody } from './DashboardBody'
 /**
- * Dashboard — the translated admin-dashboard mockup.
+ * Dashboard — the admin dashboard.
  *
- * The body is a faithful, generated translation of `light/admin-dashboard.html`
- * (see tools/gen_pages.py) so it matches the mockup pixel-for-pixel. New screens
- * should be built from web/src/components instead; this one doubles as the
- * reference for what the design system looks like in full.
+ * The body was seeded from `light/admin-dashboard.html` (see tools/gen_pages.py)
+ * and is now normal, editable source: restructure or recompose it as the screen
+ * needs, keeping the look the design system defines. New screens can compose
+ * web/src/components directly; this one doubles as a full-page example.
  */
 export default function Dashboard() {
   return (

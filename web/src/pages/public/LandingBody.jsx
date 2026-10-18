@@ -1,9 +1,8 @@
 // Landing page (from light/landing.html)
-// GENERATED from LandingBody mockup markup — faithful translation, do not hand-tidy
-// whitespace (inline spacing is significant). New work should compose the
-// components in web/src/components instead; see
-// web/src/components/CONVENTIONS.md (and web/src/pages/shared/Gallery.jsx for usage).
-
+// Seeded from the mockup markup by tools/gen_pages.py — edit freely. This is
+// a starting point, not a spec: improve the layout and composition as the
+// screen needs, and prefer the components in web/src/components
+// (see CONVENTIONS.md and web/src/pages/shared/Gallery.jsx for usage).
 import { Link } from 'react-router-dom'
 
 import { PubThemeToggle } from '../../components/PubThemeToggle'

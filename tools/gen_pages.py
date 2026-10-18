@@ -1,4 +1,13 @@
-"""Generate the React page bodies from the mockups (exact markup, converted to JSX).
+"""One-time scaffold: seed the first React page bodies from the mockups.
+
+This was used once, to bootstrap `DashboardBody.jsx` and `LandingBody.jsx` as a
+close starting point from the mockups. Those files are now normal, hand-editable
+source — you do **not** need to run this, and re-running it will overwrite any
+changes you have made to them.
+
+Kept for reference (and in case a fresh screen is easier to start from converted
+markup). The mockups are a style reference, not a spec to reproduce; design the
+layout and composition as you see fit.
 
 Outputs:
   web/src/layout/shell.parts.txt   — sidebar + topbar JSX (raw material for AppShell.jsx)
@@ -40,10 +49,10 @@ def body_of(path: str) -> str:
 
 def component(name: str, jsx: str, comment: str, props: str = '', imports: str = '') -> str:
     return (f'// {comment}\n'
-            f'// GENERATED from {name} mockup markup — faithful translation, do not hand-tidy\n'
-            f'// whitespace (inline spacing is significant). New work should compose the\n'
-            f'// components in web/src/components instead; see\n'
-            f'// web/src/components/CONVENTIONS.md (and web/src/pages/shared/Gallery.jsx for usage).\n\n'
+            f'// Seeded from the mockup markup by tools/gen_pages.py — edit freely. This is\n'
+            f'// a starting point, not a spec: improve the layout and composition as the\n'
+            f'// screen needs, and prefer the components in web/src/components\n'
+            f'// (see CONVENTIONS.md and web/src/pages/shared/Gallery.jsx for usage).\n'
             + imports +
             f'export function {name}({props}) {{\n'
             f'  return (\n    <>{jsx}</>\n  )\n}}\n')
