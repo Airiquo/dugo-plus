@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Firebase project config — copy web/.env.example to web/.env.local
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python bytecode (tools/)
+__pycache__/
+
+# Firebase CLI output (firebase deploy / emulators)
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*.log
+
+# macOS
+.DS_Store
