@@ -1,0 +1,13 @@
+/* dugo+ — app-owned styling.
+   ---------------------------------------------------------------------------
+   This is where the React app's own CSS lives. The shared design system
+   (styles/dugo.css) and its React-only additions (styles/dugo.extras.css) are
+   the fixed base and are not edited here.
+
+   Put new app styling in this file. Keep it on-brand:
+     - reuse the tokens (custom properties) and data-* state hooks the base
+       already defines, rather than inventing colours or fonts;
+     - verify every rule in both light and dark themes;
+     - keep selectors scoped to the app so they can't leak into the mockups.
+
+   Imported from web/src/main.jsx, after the two base stylesheets. */

@@ -5,6 +5,8 @@ import { BrowserRouter } from 'react-router-dom'
 import '../../styles/dugo.css'
 // React-app-only additions: generic overlay/toast hooks and the KPI row utility.
 import '../../styles/dugo.extras.css'
+// App-owned styling (new UI); the two above are the fixed base.
+import './styles/app.css'
 import App from './App'
 createRoot(document.getElementById('root')).render(
   <StrictMode>
