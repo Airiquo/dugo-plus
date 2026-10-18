@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useTheme } from '../../theme'
+import { useTheme } from '../../hooks/useTheme'
 import { LandingBody } from './LandingBody'
 
 /**

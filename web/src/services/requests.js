@@ -3,7 +3,7 @@
  *
  * Screens read from here instead of copying mockup markup, so a page is a
  * mapping from data to components. When the backend lands these exports are
- * replaced by queries in `web/src/api` and the pages stay unchanged.
+ * replaced by queries in `web/src/services/` and the pages stay unchanged.
  *
  * Codes are the values the stylesheet targets (`data-status`, `data-priority`,
  * `data-blood-type`, `data-component`); labels are display text only.

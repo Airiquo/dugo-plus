@@ -1,4 +1,4 @@
-import { cx } from './types'
+import { cx } from '../utils/cx'
 /**
  * Data table (`.table`), optionally wrapped in `.table-scroll`.
  *

@@ -8,13 +8,13 @@ import {
   REQUEST_PRIORITIES,
   REQUEST_STATUSES,
   componentLabel,
-} from '../../data/requests'
+} from '../../services/requests'
 /**
  * Blood Requests — `/admin/blood-requests`.
  *
  * Translated from `light/admin-blood-requests.html` by composing the shared
  * components (see `Gallery.jsx` for usage) and rendering from
- * `web/src/data/requests.js` rather than hardcoded markup.
+ * `web/src/services/requests.js` rather than hardcoded markup.
  *
  * Behaviour:
  * - Search and the four filters narrow the table; "Clear filters" stays disabled

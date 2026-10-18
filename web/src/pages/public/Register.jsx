@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { authErrorMessage, useAuth } from '../../auth'
+import { useAuth } from '../../hooks/useAuth'
+import { authErrorMessage } from '../../services/auth'
 import AuthLayout, { AUTH_ROLES } from '../../layout/AuthLayout'
 import { Icon } from '../../components'
 

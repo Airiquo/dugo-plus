@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { cx } from './types'
+import { cx } from '../utils/cx'
 function useEscape(open, onClose) {
   useEffect(() => {
     if (!open) return

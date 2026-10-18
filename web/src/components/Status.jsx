@@ -1,4 +1,4 @@
-import { cx } from './types'
+import { cx } from '../utils/cx'
 function statusClass(cls, className) {
   return cx(cls, className)
 }

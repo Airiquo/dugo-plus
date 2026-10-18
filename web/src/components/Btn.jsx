@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Icon } from './Icon'
-import { cx } from './types'
+import { cx } from '../utils/cx'
 function btnClass(variant = 'default', className) {
   return cx('btn', variant === 'ghost' && 'tx', className)
 }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../components/Icon'
 import { PubThemeToggle } from '../components/PubThemeToggle'
-import { useTheme } from '../theme'
+import { useTheme } from '../hooks/useTheme'
 
 /**
  * The account types the register screen offers — donor, hospital, system admin.

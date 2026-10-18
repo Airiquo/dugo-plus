@@ -1,4 +1,4 @@
-import { cx } from './types'
+import { cx } from '../utils/cx'
 export function Card({ dark, as: Tag = 'div', className, children, ...rest }) {
   return (
     <Tag className={cx('card', dark && 'dk', className)} {...rest}>

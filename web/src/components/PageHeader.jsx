@@ -1,4 +1,4 @@
-import { cx } from './types'
+import { cx } from '../utils/cx'
 /**
  * Page header: the small "Dugo+ admin" kicker, the `<h1>`, an actions slot and
  * the dotted divider. The stylesheet targets it as `#page-content > #page-header`.

@@ -1,4 +1,4 @@
-import { cx } from './types'
+import { cx } from '../utils/cx'
 export function Tabs({ label, tabs, value, onChange, className, ...rest }) {
   return (
     <nav aria-label={label} className={cx(className)} role="tablist" {...rest}>

@@ -1,4 +1,4 @@
-import { useTheme } from '../theme'
+import { useTheme } from '../hooks/useTheme'
 import { Icon } from './Icon'
 /**
  * Landing-page theme switch. Replaces the mockup's `.pub-theme` anchor (which

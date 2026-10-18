@@ -1,7 +1,7 @@
 import { Card } from './Card'
 import { Chip } from './Status'
 import { Sparkline } from './Sparkline'
-import { cx } from './types'
+import { cx } from '../utils/cx'
 /**
  * KPI card + grid.
  *

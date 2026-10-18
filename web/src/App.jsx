@@ -1,6 +1,6 @@
 import { Outlet, Route, Routes } from 'react-router-dom'
-import { ThemeProvider } from './theme'
-import { AuthProvider } from './auth'
+import { ThemeProvider } from './hooks/useTheme'
+import { AuthProvider } from './hooks/useAuth'
 import RequireAuth from './layout/RequireAuth'
 import Landing from './pages/public/Landing'
 import Login from './pages/public/Login'

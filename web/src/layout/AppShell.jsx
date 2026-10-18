@@ -3,8 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/Icon'
 import { Drawer } from '../components/Overlay'
 import { Btn } from '../components/Btn'
-import { useTheme } from '../theme'
-import { useAuth, userName } from '../auth'
+import { useTheme } from '../hooks/useTheme'
+import { useAuth, userName } from '../hooks/useAuth'
 export const NAV = [
   { slug: 'dashboard', screen: 'admin-dashboard', label: 'Dashboard', icon: 'grid' },
   {

@@ -29,8 +29,9 @@ export const isFirebaseConfigured = Object.values(firebaseConfig).every(
 
 /**
  * The app and its auth service. Both are `null` until `VITE_FIREBASE_*` is set,
- * because `getAuth()` throws on an empty config. Always go through `useAuth()`
- * (`./auth`) rather than importing these directly.
+ * because `getAuth()` throws on an empty config. Always go through
+ * `services/auth.js` (and then `hooks/useAuth.jsx`) rather than importing these
+ * directly.
  */
 export const firebaseApp = isFirebaseConfigured ? initializeApp(firebaseConfig) : null
 export const auth = firebaseApp ? getAuth(firebaseApp) : null

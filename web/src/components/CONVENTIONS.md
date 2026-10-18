@@ -2,7 +2,7 @@
 
 ## Pattern A: Button-like
 ```jsx
-import { cx } from './types'
+import { cx } from '../utils/cx'
 import { Icon } from './Icon'
 
 /**
@@ -26,7 +26,7 @@ export function Btn({ variant, icon, className, children, type = 'button', ...re
 
 ## Pattern B: Surface-like (Card)
 ```jsx
-import { cx } from './types'
+import { cx } from '../utils/cx'
 
 /** `dark`: terminal-style panel (`.card.dk`); `as`: root tag, default 'div'. */
 export function Card({ dark, as: Tag = 'div', className, children, ...rest }) {
@@ -40,7 +40,7 @@ export function Card({ dark, as: Tag = 'div', className, children, ...rest }) {
 
 ## Pattern C: Inline/status-like
 ```jsx
-import { cx } from './types'
+import { cx } from '../utils/cx'
 
 export function Chip({ className, children, ...rest }) {
   return (

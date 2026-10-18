@@ -1,4 +1,4 @@
-import { cx } from './types'
+import { cx } from '../utils/cx'
 /**
  * Dot meter — a compact "filled dots out of total" gauge. Colour comes from
  * `data-tone` (`red` default accent, `blue`, `green`).

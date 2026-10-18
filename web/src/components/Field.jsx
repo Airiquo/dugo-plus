@@ -1,4 +1,4 @@
-import { cx } from './types'
+import { cx } from '../utils/cx'
 export function Field({ label, labelHidden, children, className, as: Tag = 'div', ...rest }) {
   if (labelHidden) {
     return (

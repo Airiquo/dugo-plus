@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../auth'
+import { useAuth } from '../hooks/useAuth'
 
 /**
  * Route guard for the admin shell.
