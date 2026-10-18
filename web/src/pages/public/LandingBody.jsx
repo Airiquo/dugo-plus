@@ -2,7 +2,7 @@
 // GENERATED from LandingBody mockup markup — faithful translation, do not hand-tidy
 // whitespace (inline spacing is significant). New work should compose the
 // components in web/src/components instead; see
-// web/src/components/CONVENTIONS.md (and web/src/pages/Gallery.jsx for usage).
+// web/src/components/CONVENTIONS.md (and web/src/pages/shared/Gallery.jsx for usage).
 
 import { Link } from 'react-router-dom'
 

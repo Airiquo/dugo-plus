@@ -2,7 +2,8 @@
 
 Outputs:
   web/src/layout/shell.parts.txt   — sidebar + topbar JSX (raw material for AppShell.jsx)
-  web/src/pages/DashboardBody.jsx  — <main id="page-content"> inner content  web/src/pages/LandingBody.jsx    — the whole .pub landing markup
+  web/src/pages/admin/DashboardBody.jsx   — <main id="page-content"> inner content
+  web/src/pages/public/LandingBody.jsx    — the whole .pub landing markup
 """
 import os
 import re
@@ -42,7 +43,7 @@ def component(name: str, jsx: str, comment: str, props: str = '', imports: str =
             f'// GENERATED from {name} mockup markup — faithful translation, do not hand-tidy\n'
             f'// whitespace (inline spacing is significant). New work should compose the\n'
             f'// components in web/src/components instead; see\n'
-            f'// web/src/components/CONVENTIONS.md (and web/src/pages/Gallery.jsx for usage).\n\n'
+            f'// web/src/components/CONVENTIONS.md (and web/src/pages/shared/Gallery.jsx for usage).\n\n'
             + imports +
             f'export function {name}({props}) {{\n'
             f'  return (\n    <>{jsx}</>\n  )\n}}\n')
@@ -65,9 +66,11 @@ def main():
 
     # ---- dashboard page content (inner of <main id="page-content">; AppShell owns <main>)
     dash_jsx = convert(extract_by_id(dash, 'page-content'))
-    pages_out = os.path.join(ROOT, 'web', 'src', 'pages')
-    os.makedirs(pages_out, exist_ok=True)
-    with open(os.path.join(pages_out, 'DashboardBody.jsx'), 'w', encoding='utf-8') as fh:
+    admin_out = os.path.join(ROOT, 'web', 'src', 'pages', 'admin')
+    public_out = os.path.join(ROOT, 'web', 'src', 'pages', 'public')
+    os.makedirs(admin_out, exist_ok=True)
+    os.makedirs(public_out, exist_ok=True)
+    with open(os.path.join(admin_out, 'DashboardBody.jsx'), 'w', encoding='utf-8') as fh:
         fh.write(component('DashboardBody', dash_jsx,
                            'Dashboard page content (from light/admin-dashboard.html)'))
 
@@ -103,15 +106,16 @@ def main():
     # root wrapper carries the theme + a ref for the delegated event handlers
     pub_jsx, n = re.subn(r'data-theme="light"', 'data-theme={theme} ref={ref}', pub_jsx)
     assert n == 1, f'expected 1 data-theme placeholder, replaced {n}'
-    with open(os.path.join(pages_out, 'LandingBody.jsx'), 'w', encoding='utf-8') as fh:
+    with open(os.path.join(public_out, 'LandingBody.jsx'), 'w', encoding='utf-8') as fh:
         fh.write(component(
             'LandingBody', pub_jsx,
             'Landing page (from light/landing.html)',
             imports="import { Link } from 'react-router-dom'\n\n"
-            "import { PubThemeToggle } from '../components/PubThemeToggle'\n\n",
+            "import { PubThemeToggle } from '../../components/PubThemeToggle'\n\n",
             props="{ theme, ref }"))
 
-    for p in ('layout/shell.parts.txt', 'pages/DashboardBody.jsx', 'pages/LandingBody.jsx'):
+    for p in ('layout/shell.parts.txt', 'pages/admin/DashboardBody.jsx',
+              'pages/public/LandingBody.jsx'):
         full = os.path.join(ROOT, 'web', 'src', p)
         print(f'{p:32s} {os.path.getsize(full):>9,} bytes')
 
