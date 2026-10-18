@@ -24,15 +24,19 @@ Use these exact paths in your prompts to anchor the agent to the right context:
 | Components dir | `web/src/components/` | Implementation of primitives (Btn, Card, Table, Field, etc.) |
 | Component conventions | `web/src/components/CONVENTIONS.md` | Required patterns for new components |
 | App shell | `web/src/layout/AppShell.jsx` | Sidebar/topbar + `#app-shell` structure |
-| Theme | `web/src/theme.jsx` | Drives `[data-theme]` on `<html>` |
-| Firebase config | `web/src/firebase.js` | `VITE_FIREBASE_*` → `auth` / `googleProvider` (null when unset) |
-| Auth | `web/src/auth.jsx` | Session context + `useAuth()` — the only entry to the SDK |
+| Theme hook | `web/src/hooks/useTheme.jsx` | `ThemeProvider`/`useTheme`; drives `[data-theme]` on `<html>` |
+| Firebase config | `web/src/lib/firebase.js` | `VITE_FIREBASE_*` → `auth` / `googleProvider` (null when unset) |
+| Auth service | `web/src/services/auth.js` | The only module importing the Firebase Auth SDK (+ `authErrorMessage`) |
+| Auth hook | `web/src/hooks/useAuth.jsx` | `AuthProvider` / `useAuth()` session context built on the service |
+| Data service | `web/src/services/requests.js` | Sample request data — the API shape pages render from |
+| Class helper | `web/src/utils/cx.js` | `cx()` classnames join used by every component |
+| Pages dir | `web/src/pages/` | Role folders: `admin/`, `donor/`, `hospital/`, `public/`, `shared/` |
 | Auth gate | `web/src/layout/RequireAuth.jsx` | Guards `/admin/*` when a project is configured |
-| Auth screens | `web/src/pages/Login.jsx`, `Register.jsx` | Built on `web/src/layout/AuthLayout.jsx` (public `.pub` chrome) |
-| Faithful dashboard | `web/src/pages/DashboardBody.jsx` | Generated body — do not edit; regenerate with `tools/gen_pages.py` |
-| Faithful landing | `web/src/pages/LandingBody.jsx` | Landing translation reference |
-| Gallery | `web/src/pages/Gallery.jsx` | Canonical usage examples for every component |
-| Stubs | `web/src/pages/ScreenStub.jsx` | Pattern for untranslated admin screens |
+| Auth screens | `web/src/pages/public/Login.jsx`, `Register.jsx` | Built on `web/src/layout/AuthLayout.jsx` (public `.pub` chrome) |
+| Faithful dashboard | `web/src/pages/admin/DashboardBody.jsx` | Generated body — do not edit; regenerate with `tools/gen_pages.py` |
+| Faithful landing | `web/src/pages/public/LandingBody.jsx` | Landing translation reference |
+| Gallery | `web/src/pages/shared/Gallery.jsx` | Canonical usage examples for every component |
+| Stubs | `web/src/pages/shared/ScreenStub.jsx` | Pattern for untranslated admin screens |
 | Routes | `web/src/App.jsx` | Route mapping |
 | Live mockups (dev) | `/mockups/light/*.html`, `/mockups/dark/*.html` | Compare side-by-side while developing |
 | Vite config | `web/vite.config.js` | Serves mockups at `/mockups/*` |
@@ -49,7 +53,7 @@ GOAL
 INPUTS (GROUND TRUTH)
 - Read: <file paths>
 - Reference mockup: /mockups/light/<screen>.html (and dark if relevant)
-- Reference usage: web/src/components/index.js, web/src/pages/Gallery.jsx
+- Reference usage: web/src/components/index.js, web/src/pages/shared/Gallery.jsx
 
 CONSTRAINTS
 - Use AppShell for admin screens. Landing must not use AppShell.
@@ -98,7 +102,6 @@ dugo-plus/
 ```
 web/src/
 ├── components/         # Reusable UI primitives (atomic + composed)
-│   ├── types.js        # Shared helper (cx); document prop contracts in JSDoc
 │   ├── *.jsx           # Component files (PascalCase)
 │   ├── index.js        # Barrel export
 │   └── CONVENTIONS.md  # Component patterns
@@ -107,19 +110,31 @@ web/src/
 │   ├── RequireAuth.jsx # /admin/* gate (passes through when unconfigured)
 │   ├── AuthLayout.jsx  # Public `.pub` chrome for the auth screens
 │   └── shell.parts.txt # Reference material (generated)
-├── pages/              # Route-level pages
-│   ├── *.jsx           # Page components (PascalCase, default export)
-│   ├── BloodRequests.jsx  # Worked example: a list screen built from components
-│   ├── DashboardBody.jsx  # Generated faithful body (do not hand-tidy)
-│   ├── LandingBody.jsx    # Generated faithful body (do not hand-tidy)
-│   ├── Login.jsx          # Sign in (layout/AuthLayout.jsx, no role picker)
-│   └── Register.jsx       # Create an account (?role= presets the account type)
-├── data/               # Sample data fixtures (the shape the API is expected to return)
+├── pages/              # Route-level pages, grouped by role
+│   ├── admin/          # The admin account type
+│   │   ├── BloodRequests.jsx  # Worked example: a list screen from components
+│   │   ├── Dashboard.jsx
+│   │   └── DashboardBody.jsx  # Generated faithful body (do not hand-tidy)
+│   ├── donor/          # Donor screens (README; none built yet)
+│   ├── hospital/       # Hospital/Blood Bank screens (README; none yet)
+│   ├── public/         # Role-agnostic entry
+│   │   ├── Landing.jsx, LandingBody.jsx  # (Body is generated)
+│   │   ├── Login.jsx       # Sign in (layout/AuthLayout.jsx, no role picker)
+│   │   ├── Register.jsx    # Create an account (?role= presets the account type)
+│   │   └── NotFound.jsx
+│   └── shared/         # ScreenStub (untranslated) + Gallery (component usage)
+├── hooks/              # React context/hooks
+│   ├── useTheme.jsx    # ThemeProvider/useTheme
+│   └── useAuth.jsx     # AuthProvider/useAuth (session over services/auth)
+├── services/           # Data + external access
+│   ├── auth.js         # Only module importing the Firebase Auth SDK
+│   └── requests.js     # Sample data fixtures (the shape the API should return)
+├── lib/                # Third-party setup
+│   └── firebase.js     # Firebase config from VITE_FIREBASE_* (null when unset)
+├── utils/              # Framework-free helpers
+│   └── cx.js           # Classnames join used by every component
 ├── App.jsx             # Routes
-├── main.jsx            # Entry point (imports styles)
-├── theme.jsx           # Theme context/hook
-├── auth.jsx            # Session context/hook (`useAuth`)
-└── firebase.js         # Firebase config from VITE_FIREBASE_* (null when unset)
+└── main.jsx            # Entry point (imports styles)
 ```
 
 ### 4.3 Naming Conventions
@@ -127,8 +142,10 @@ web/src/
 | Type | Convention | Examples | Notes |
 |---|---|---|---|
 | **Components** | `PascalCase.jsx` | `Btn.jsx`, `Card.jsx`, `KpiCard.jsx` | One component per file (or tightly-coupled pair). |
-| **Pages** | `PascalCase.jsx` | `Dashboard.jsx`, `Gallery.jsx`, `ScreenStub.jsx` | Route-level. Default export. |
-| **Hooks/Utils** | `camelCase.js` | `theme.jsx` has `useTheme()`; keep small helpers in `components/types.js` | Avoid over-abstracting. Prefer colocated helpers. |
+| **Pages** | `PascalCase.jsx` | `admin/Dashboard.jsx`, `shared/Gallery.jsx` | Route-level, grouped by role. Default export. |
+| **Hooks** | `camelCase.jsx` | `hooks/useTheme.jsx`, `hooks/useAuth.jsx` | One context + hook per file. |
+| **Services/Lib** | `camelCase.js` | `services/auth.js`, `lib/firebase.js` | External/data access; no React. |
+| **Utils** | `camelCase.js` | `utils/cx.js` | Framework-free helpers. |
 | **Prop contracts** | JSDoc above the component | `/** `name`: base id … */`, `@param` only when it helps | Plain JS — no type exports. |
 | **Barrel** | `index.js` | `web/src/components/index.js` | Re-export only public primitives. Keep stable names. |
 | **CSS** | `kebab-case.css` | `dugo.css`, `dugo.extras.css` | Verbatim files stay untouched unless justified. |
@@ -148,11 +165,12 @@ web/src/
 
 ### 4.5 Page Organization Rules
 
-- **Faithful first:** `DashboardBody.jsx`/`LandingBody.jsx` are **generated** and marked "do not hand-tidy". Do not reformat them.
+- **Faithful first:** `admin/DashboardBody.jsx`/`public/LandingBody.jsx` are **generated** and marked "do not hand-tidy". Do not reformat them.
+- **Role folders:** Pages live in the role folder that owns them (`admin/`, `donor/`, `hospital/`); landing/auth/not-found go in `public/`, and shared non-route pages (ScreenStub, Gallery) in `shared/`.
 - **Shelling:** Admin pages must be wrapped in `<AppShell>`. Landing must **not** use AppShell.
 - **Stubs:** Untranslated admin screens use `ScreenStub` (shows live mockup links). Translating = replace stub with real page + wire route.
 - **Route mapping:** Add routes in `App.jsx`. Keep slug mapping consistent with `NAV` in `AppShell`.
-- **Co-locate minimal logic:** Page-specific state/handlers live in the page component. Reusable logic moves to components or small hooks in `theme.jsx` style.
+- **Co-locate minimal logic:** Page-specific state/handlers live in the page component. Reusable logic moves to components or small hooks (`hooks/useTheme.jsx` style).
 
 ### 4.6 Style/CSS Rules
 
@@ -167,10 +185,10 @@ web/src/
 
 ```text
 GOAL
-Translate light/admin-inventory.html to a faithful React page at web/src/pages/Inventory.jsx, using AppShell and the component library. Replace the corresponding stub route (/admin/inventory).
+Translate light/admin-inventory.html to a faithful React page at web/src/pages/admin/Inventory.jsx, using AppShell and the component library. Replace the corresponding stub route (/admin/inventory).
 
 INPUTS (GROUND TRUTH)
-- Read: web/src/layout/AppShell.jsx, web/src/components/index.js, web/src/components/CONVENTIONS.md, web/src/pages/Gallery.jsx, web/src/pages/ScreenStub.jsx, web/src/pages/BloodRequests.jsx (worked example), web/src/data/requests.js (data shape)
+- Read: web/src/layout/AppShell.jsx, web/src/components/index.js, web/src/components/CONVENTIONS.md, web/src/pages/shared/Gallery.jsx, web/src/pages/shared/ScreenStub.jsx, web/src/pages/admin/BloodRequests.jsx (worked example), web/src/services/requests.js (data shape)
 - Reference mockup: /mockups/light/admin-inventory.html and /mockups/dark/admin-inventory.html
 - Existing stub: ScreenStub renders for /admin/inventory (see web/src/App.jsx)
 
@@ -184,7 +202,7 @@ CONSTRAINTS
 - Do not modify styles/*.css.
 
 ACCEPTANCE CRITERIA
-- web/src/pages/Inventory.jsx created and exported as default (PascalCase)
+- web/src/pages/admin/Inventory.jsx created and exported as default (PascalCase)
 - Route /admin/inventory renders Inventory (update App.jsx if needed)
 - cd web && npx vite build passes
 - Structure/spacing matches /mockups/light/admin-inventory.html
@@ -203,7 +221,7 @@ GOAL
 Create web/src/components/{{name}}.jsx (or extend existing) to encapsulate the [pattern] used in [mockup]. Keep it generic and reusable.
 
 INPUTS
-- Read: web/src/components/types.js, web/src/components/index.js, web/src/components/CONVENTIONS.md, web/src/pages/Gallery.jsx
+- Read: web/src/utils/cx.js, web/src/components/index.js, web/src/components/CONVENTIONS.md, web/src/pages/shared/Gallery.jsx
 - Closest matches: [list 2–3: e.g. Card.jsx, Btn.jsx]
 - Extract representative markup from: /mockups/light/<file>.html
 

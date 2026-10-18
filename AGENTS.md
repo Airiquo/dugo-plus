@@ -6,29 +6,47 @@
 ## Component Rules
 - Components live in `web/src/components/` (PascalCase). Export from `components/index.js`.
 - Accept arbitrary `data-*` and standard HTML props; forward `{...rest}` to root (last). Document non-obvious props in JSDoc.
-- Use `cx()` from `./types`. Never add new base CSS classes.
+- Use `cx()` from `utils/cx.js`. Never add new base CSS classes.
 - Modals/drawers: use `name` to derive `-modal/-drawer/-backdrop`. KPI: use `name` to derive `-label/-value/-trend/-chart`.
 - Respect stylesheet hooks: `.card`, `.btn`, `.chip`, `.badge`, `.pill`, `.field`, `.table`, `.tabs`, etc. Don't rename.
 - No changes to `styles/*.css` verbatim. Only `styles/dugo.extras.css` for generic, reusable hooks (justify first).
 
 ## Page Rules
 - Admin pages → `<AppShell>`. Landing → no AppShell.
-- Faithful bodies (`DashboardBody.jsx`, `LandingBody.jsx`) are generated — do not reformat.
-- Untranslated screens → `ScreenStub`. Translating replaces stub + wires route in `App.jsx`.
+- Pages live under `web/src/pages/` in role folders: `admin/`, `donor/`,
+  `hospital/` (the three account types), plus `public/` (landing + auth +
+  not-found) and `shared/` (ScreenStub, Gallery).
+- Faithful bodies (`admin/DashboardBody.jsx`, `public/LandingBody.jsx`) are generated — do not reformat.
+- Untranslated screens → `shared/ScreenStub`. Translating replaces stub + wires route in `App.jsx`.
 - Route slugs must match mockup filenames (`admin-*.html`).
 - Auth screens (`/login`, `/register`) own the sign-in band — the landing page
   carries no form — via `layout/AuthLayout.jsx`; `/admin/*` sits behind
   `layout/RequireAuth.jsx`.
 
 ## Auth Rules
-- One way in: `firebase.js` → `auth.jsx` (`useAuth()`) → `RequireAuth`. Pages never call the Firebase SDK directly.
+- One way in: `lib/firebase.js` → `services/auth.js` → `hooks/useAuth.jsx` (`useAuth()`) → `RequireAuth`. Pages never call the Firebase SDK directly.
 - `VITE_FIREBASE_*` lives in `web/.env.local` (gitignored); `web/.env.example` is the committed template. Never bake a project into source.
 - Keep the app usable *unconfigured*: with no project, `/admin/*` is ungated and the shell keeps its demo identity (`Maria Santos`).
 
 ## Folder/Organization Rules
 - Follow §4 of PROMPTING_GUIDE.md. Keep structure flat and predictable.
-- PascalCase for components/pages. camelCase for hooks/utils. kebab-case for slugs/filenames where existing.
+- `web/src/` is layered by responsibility:
+
+  ```text
+  web/src/
+  ├── components/   # reusable UI primitives (+ index.js barrel, CONVENTIONS.md)
+  ├── layout/       # AppShell, RequireAuth, AuthLayout (app chrome)
+  ├── pages/        # route screens, grouped by role (admin/donor/hospital/public/shared)
+  ├── hooks/        # React context/hooks (useAuth, useTheme)
+  ├── services/     # data + external access (auth, requests) — the only place the SDK is called
+  ├── lib/          # third-party setup (firebase config)
+  ├── utils/        # framework-free helpers (cx)
+  ├── App.jsx, main.jsx
+  ```
+
+- PascalCase for components/pages. camelCase for hooks/services/utils. kebab-case for slugs/filenames where existing.
 - One concern per file. Barrel exports minimal/stable.
+- Auth chain, always in this order: `lib/firebase.js` → `services/auth.js` → `hooks/useAuth.jsx` → pages. Pages never import the Firebase SDK.
 
 ## Verification
 - `cd web && npx vite build`

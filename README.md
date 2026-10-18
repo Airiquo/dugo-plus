@@ -137,7 +137,7 @@ are translated into React so far:
 | `/` | Landing page — translated |
 | `/login`, `/register` | Sign-in and registration — the designed sign-in band, now owned by `AuthLayout`, backed by Firebase Auth |
 | `/admin/dashboard` | Dashboard — translated |
-| `/admin/blood-requests` | Blood requests list — translated, renders from `web/src/data/requests.js` |
+| `/admin/blood-requests` | Blood requests list — translated, renders from `web/src/services/requests.js` |
 | `/admin/donor-matching`, `/admin/donor-registry`, `/admin/inventory`, `/admin/donations-rewards`, `/admin/reports`, `/admin/audit-trail`, `/admin/settings` | Placeholder (`ScreenStub`) with a link to the live mockup |
 | `/gallery` | Component gallery — every component rendered in both themes |
 | anything else | Not found |
@@ -149,18 +149,22 @@ see [Building a screen](#building-a-screen).
 ## Authentication
 
 Sign-in has one path through the app, and it is deliberately the same shape as
-`web/src/theme.jsx` — a config module, one context, one hook:
+`web/src/hooks/useTheme.jsx` — a config module, one service, one context, one
+hook:
 
 ```
-web/.env.local ──► web/src/firebase.js   env-driven initializeApp (null when unset)
+web/.env.local ──► web/src/lib/firebase.js   env-driven initializeApp (null when unset)
                         │
                         ▼
-                   web/src/auth.jsx      <AuthProvider> + useAuth() — the only way in
+                web/src/services/auth.js      the only module calling the SDK
+                        │
+                        ▼
+                web/src/hooks/useAuth.jsx     <AuthProvider> + useAuth() — the only way in
                         │
         ┌───────────────┼───────────────────────────┐
         ▼               ▼                           ▼
-  layout/RequireAuth   pages/Login.jsx        layout/AppShell.jsx
-  gates /admin/*       pages/Register.jsx     sign-out (sidebar + topbar drawer)
+  layout/RequireAuth   pages/public/Login.jsx   layout/AppShell.jsx
+  gates /admin/*       pages/public/Register.jsx sign-out (sidebar + topbar drawer)
 ```
 
 ### Configure a project
@@ -195,11 +199,12 @@ screen, so **auth is only enforced when a project is configured**:
 
 | File | Role |
 | --- | --- |
-| `web/src/firebase.js` | Reads the `VITE_FIREBASE_*` variables; exports `auth`, `googleProvider` and `isFirebaseConfigured`. |
-| `web/src/auth.jsx` | `AuthProvider` / `useAuth()` — `user`, `loading`, `configured`, `signIn`, `signUp`, `signInWithGoogle`, `signOut`, plus `authErrorMessage()` for failures. |
+| `web/src/lib/firebase.js` | Reads the `VITE_FIREBASE_*` variables; exports `auth`, `googleProvider` and `isFirebaseConfigured`. |
+| `web/src/services/auth.js` | The only module that talks to the Firebase Auth SDK: sign-in/up/out, the Google pop-up, the session listener, and `authErrorMessage()`. |
+| `web/src/hooks/useAuth.jsx` | `AuthProvider` / `useAuth()` — `user`, `loading`, `configured`, `signIn`, `signUp`, `signInWithGoogle`, `signOut`, built on the service above. |
 | `web/src/layout/RequireAuth.jsx` | The `/admin/*` gate. |
 | `web/src/layout/AuthLayout.jsx` | The public (`.pub`) chrome shared by both auth screens: header, footer, the register-only account-type picker, and the colour tokens `.pub` carries. |
-| `web/src/pages/Login.jsx`, `Register.jsx` | The two screens, composed from the public classes (`.pub-card`, `.pub-form`, `.pub-btn`) — the only new CSS is the `.pub-auth` full-height hook and the switch hooks in `dugo.extras.css`. |
+| `web/src/pages/public/Login.jsx`, `Register.jsx` | The two screens, composed from the public classes (`.pub-card`, `.pub-form`, `.pub-btn`) — the only new CSS is the `.pub-auth` full-height hook and the switch hooks in `dugo.extras.css`. |
 | `web/src/layout/AppShell.jsx` | Shows the signed-in name and signs out from the sidebar (`$ exit`) or the topbar chip's drawer. |
 
 Signing in happens on `/login`, and nowhere else. The landing page carries no
@@ -229,7 +234,7 @@ Four documents, in the order you should read them:
 | `AGENTS.md` | The repo rules. Read this first — it is short and load-bearing. |
 | `PROMPTING_GUIDE.md` | Structure, naming, and prompt templates for building a screen. |
 | `web/src/components/CONVENTIONS.md` | The three component patterns to copy, and the rules around them. |
-| `web/src/pages/Gallery.jsx` | Working examples of every component — the fastest way to see how to use one. |
+| `web/src/pages/shared/Gallery.jsx` | Working examples of every component — the fastest way to see how to use one. |
 
 ## Project layout
 
@@ -251,19 +256,21 @@ Four documents, in the order you should read them:
     └── src/
         ├── main.jsx        # Entry: imports the shared stylesheet, mounts <App>
         ├── App.jsx         # Routes (translated slugs vs ScreenStub) + the auth gate
-        ├── theme.jsx       # Light/dark theme context (`useTheme`)
-        ├── firebase.js     # Firebase app/auth from VITE_FIREBASE_* (null when unset)
-        ├── auth.jsx        # Session context (`useAuth`) + readable auth errors
+        ├── hooks/          # React contexts/hooks
+        │   ├── useTheme.jsx      # Light/dark theme context (`useTheme`)
+        │   └── useAuth.jsx       # Session context (`useAuth`)
+        ├── services/       # Data + external access (never imported by components)
+        │   ├── auth.js           # Firebase Auth calls + readable error messages
+        │   └── requests.js       # Sample data (the shape the API is expected to return)
+        ├── lib/firebase.js # Firebase app/auth from VITE_FIREBASE_* (null when unset)
+        ├── utils/cx.js     # `cx()` classnames join used by the components
         ├── layout/         # Admin shell (sidebar / topbar / main), RequireAuth, AuthLayout
-        ├── pages/          # Route pages
-        │   ├── BloodRequests.jsx  # Worked example: a list screen from components
-        │   ├── Dashboard.jsx      # Wraps the generated DashboardBody
-        │   ├── DashboardBody.jsx  # GENERATED — do not hand-tidy
-        │   ├── Landing.jsx        # Behaviour for the generated landing body
-        │   ├── LandingBody.jsx    # GENERATED — do not hand-tidy
-        │   ├── Login.jsx          # Sign in (reuses the landing's band)
-        │   └── Register.jsx       # Create an account
-        ├── data/           # Sample data (the shape the API is expected to return)
+        ├── pages/          # Route pages, grouped by role
+        │   ├── admin/             # dashboard, blood-requests (+ GENERATED DashboardBody)
+        │   ├── donor/             # planned: profile, alerts, rewards
+        │   ├── hospital/          # planned: requests, inventory
+        │   ├── public/            # landing, login, register, not-found (+ GENERATED LandingBody)
+        │   └── shared/            # ScreenStub, Gallery
         └── components/     # Reusable UI primitives + CONVENTIONS.md
 ```
 
@@ -303,10 +310,10 @@ screen sizes are roughly `settings` (4 KB) → `donor-registry` (7 KB) →
 
 1. **Read the mockup** — `light/<screen>.html`, and `dark/<screen>.html` to check
    the dark theme.
-2. **Read a worked example first** — `web/src/pages/BloodRequests.jsx` (a list
-   screen end to end), `web/src/pages/Gallery.jsx` (every component in use), and
-   `web/src/data/requests.js` (how the data is shaped).
-3. **Build the page** in `web/src/pages/` by composing the components, then add
+2. **Read a worked example first** — `web/src/pages/admin/BloodRequests.jsx` (a list
+   screen end to end), `web/src/pages/shared/Gallery.jsx` (every component in use), and
+   `web/src/services/requests.js` (how the data is shaped).
+3. **Build the page** in `web/src/pages/admin/` by composing the components, then add
    the slug to `TRANSLATED` in `web/src/App.jsx` so the route stops rendering the
    `ScreenStub`.
 4. **Verify** — `cd web && npx vite build` must pass, then compare against the
@@ -358,10 +365,10 @@ python3 tools/gen_pages.py      # regenerate, then `git diff web/src/pages`
 
 ## Planned: the API
 
-There is **no backend yet** — every screen renders from `web/src/data/`. When the
-API exists it will live in its own repository, and this app will:
+There is **no backend yet** — every screen renders from `web/src/services/`. When
+the API exists it will live in its own repository, and this app will:
 
-- replace `web/src/data/*` with requests in a `web/src/api/` client,
+- replace the fixtures in `web/src/services/*` with a `web/src/api/` client,
 - read the base URL from `VITE_API_URL` (baked in at build time, so one build per
   environment), and
 - proxy `/api` to the backend in `vite.config.js` during development, which keeps
@@ -376,7 +383,7 @@ Two things that are stubbed against the API's arrival:
   (see [Authentication](#authentication)); storing it needs a `users/{uid}`
   document or a custom claim, so the shell can show the real role instead of the
   demo label it shows today.
-- **Nothing is fetched.** `/admin/blood-requests` reads `web/src/data/requests.js`
+- **Nothing is fetched.** `/admin/blood-requests` reads `web/src/services/requests.js`
   as a stand-in for the response shape.
 
 ## License
