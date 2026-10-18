@@ -5,11 +5,13 @@ import { PubThemeToggle } from '../components/PubThemeToggle'
 import { useTheme } from '../hooks/useTheme'
 
 /**
- * The account types the register screen offers — donor, hospital, system admin.
+ * The three account types Dugo+ recognises: donor, hospital, system admin.
  *
- * Presentational only: Firebase Auth has no field for a role, so the selection
- * drives the highlight and nothing else. Storing it per user needs Firestore (or
- * custom claims via the Admin SDK) — see README, "Planned: the API".
+ * `selfServe: false` on admin means the register screen does not offer it.
+ * Roles are stored in Firestore (`users/{uid}`, see `services/users.js`), and a
+ * client can write whatever it likes there, so hiding admin is about intent, not
+ * security: an operator grants it by editing the document — see README,
+ * "Granting admin".
  */
 export const AUTH_ROLES = [
   { id: 'donor', n: '01', icon: 'user', label: 'Donor', note: 'Profile · Alerts · Rewards' },
@@ -26,8 +28,12 @@ export const AUTH_ROLES = [
     icon: 'settings',
     label: 'System admin',
     note: 'Users · Reports · Audit',
+    selfServe: false,
   },
 ]
+
+/** The account types a person can pick for themselves: donor and hospital. */
+export const SELF_SERVE_ROLES = AUTH_ROLES.filter((item) => item.selfServe !== false)
 
 /**
  * Chrome shared by the sign-in and register screens.
@@ -41,13 +47,21 @@ export const AUTH_ROLES = [
  * plus the `.pub-auth` full-height layout hook in `styles/dugo.extras.css`.
  *
  * `kicker`/`heading`: the band's left-column copy.
- * `role`: which account type starts selected. Only the register screen passes
- * one — with no `role` the picker is not rendered at all.
+ * `role`: which account type starts selected. Passed by the register screen and
+ * by the one-time `pages/public/PickRole.jsx` step; with no `role` the picker is
+ * not rendered at all.
+ * `onRoleChange`: reports a click back to the caller, which is what actually
+ * decides the role that gets stored. Without it the highlight is decorative.
  * `children`: the `.pub-card .pub-form` column.
  */
-export default function AuthLayout({ kicker, heading, role, children }) {
+export default function AuthLayout({ kicker, heading, role, onRoleChange, children }) {
   const { theme } = useTheme()
   const [selected, setSelected] = useState(role)
+
+  const pick = (id) => {
+    setSelected(id)
+    onRoleChange?.(id)
+  }
 
   return (
     <div className="pub pub-auth" data-theme={theme}>
@@ -77,7 +91,7 @@ export default function AuthLayout({ kicker, heading, role, children }) {
               </p>
               {role && (
                 <div className="pub-roles" role="radiogroup" aria-label="Account type">
-                  {AUTH_ROLES.map((item) => {
+                  {SELF_SERVE_ROLES.map((item) => {
                     const on = selected === item.id
                     return (
                       <button
@@ -86,7 +100,7 @@ export default function AuthLayout({ kicker, heading, role, children }) {
                         role="radio"
                         aria-checked={on}
                         data-on={on ? 'true' : 'false'}
-                        onClick={() => setSelected(item.id)}
+                        onClick={() => pick(item.id)}
                       >
                         <span className="pub-role-n">{item.n}</span>
                         <Icon name={item.icon} />

@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Account profiles: `users/{uid}` is written once when an account is made
+    // (services/users.js) and read back on every session change to decide which
+    // routes open. Everything else in the database stays closed until a screen
+    // needs it, which is why this pass uses Firestore only for roles — the data
+    // the screens show still comes from web/src/services/requests.js.
+    match /users/{uid} {
+      // The owner, and nobody else, may read their own profile.
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      // This validates shape, not intent. The account type is chosen in the
+      // browser, so a determined client can still claim admin; making that
+      // authoritative needs a Cloud Function setting a custom claim
+      // (README, "Known limitation").
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.role is string
+                    && request.resource.data.role in ['donor', 'hospital', 'admin']
+                    && request.resource.data.name is string
+                    && request.resource.data.email is string;
+
+      // Editable, but the role is frozen: allowing that would be the escalation
+      // path, since only an operator should grant it (README, "Granting admin").
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.role == resource.data.role;
+
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

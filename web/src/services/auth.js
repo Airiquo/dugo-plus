@@ -51,8 +51,9 @@ export function authErrorMessage(error) {
  *
  * `hooks/useAuth.jsx` (the context) and the pages above it never import
  * `firebase/auth` directly; they call these functions. When no project is
- * configured, `auth` is null and every action rejects with a readable message
- * so the app keeps working without a backend.
+ * configured `auth` is null and every action rejects with a readable message;
+ * in practice the shell renders `pages/shared/NotConfigured` first, so this is
+ * a safety net rather than a supported mode.
  */
 function requireAuth() {
   if (!auth) throw new Error(NOT_CONFIGURED)
@@ -76,6 +77,11 @@ export async function signIn(email, password) {
 /**
  * `onUser` is called with the fresh user after the profile write, because
  * `updateProfile()` does not notify `onAuthStateChanged`.
+ *
+ * Deliberately writes no Firestore document: account creation notifies
+ * `onAuthStateChanged` before this returns, so the hook that writes the profile
+ * has to be the same one that invalidates the in-flight read (see
+ * `hooks/useAuth.jsx`).
  */
 export async function signUp(name, email, password, onUser) {
   requireAuth()

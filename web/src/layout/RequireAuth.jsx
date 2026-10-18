@@ -2,20 +2,21 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
 /**
- * Route guard for the admin shell.
+ * Route guard for the admin shell: are you signed in at all?
  *
- * - **No project configured** → renders `children` untouched, so a fresh clone
- *   with no `web/.env.local` still reaches every screen (design review stays
- *   friction-free).
- * - Configured → waits for Firebase's first auth callback, then either renders
- *   the shell or bounces to `/login`, remembering the URL the visitor wanted in
- *   `location.state.from` so the sign-in screen can return them there.
+ * Waits for Firebase's first auth callback, then either renders `children` or
+ * bounces to `/login`, remembering the URL the visitor wanted in
+ * `location.state.from` so the sign-in screen can return them there.
+ *
+ * The account type is a second, separate gate: `layout/RequireRole.jsx` sits
+ * inside this one and checks `role` from `useAuth()`.
+ *
+ * There is no unconfigured pass-through. Without a project the shell renders
+ * `pages/shared/NotConfigured` instead of these routes (see `App.jsx`).
  */
 export default function RequireAuth({ children }) {
-  const { user, loading, configured } = useAuth()
+  const { user, loading } = useAuth()
   const location = useLocation()
-
-  if (!configured) return children
 
   if (loading) {
     return (

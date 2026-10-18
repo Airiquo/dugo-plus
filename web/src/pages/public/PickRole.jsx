@@ -1,0 +1,88 @@
+import { useState } from 'react'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../hooks/useAuth'
+import { authErrorMessage } from '../../services/auth'
+import AuthLayout from '../../layout/AuthLayout'
+import { Icon } from '../../components'
+
+/**
+ * Pick the account type for a signed-in account that has no profile yet.
+ *
+ * Email/password sign-up stores the role as part of registration, so most people
+ * never see this screen. Google sign-in has no register step — the session
+ * opens on first use — which leaves `users/{uid}` unwritten. `RequireRole`
+ * redirects here, the visitor picks once, and `useAuth.claimRole` writes the
+ * document, after which the guard lets them through.
+ *
+ * `/account/role` is a normal route rather than a modal so it can be reached
+ * directly and bookmarked; it bounces back to where the guard sent it from.
+ */
+export default function PickRole() {
+  const { user, loading, role, roleLoading, claimRole } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [selected, setSelected] = useState('donor')
+  const [message, setMessage] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  // Where the guard sent them from; the dashboard by default.
+  const from = location.state?.from?.pathname ?? '/admin/dashboard'
+
+  // Same one-off centring as `RequireRole` while the session/profile settles.
+  if (loading || roleLoading) {
+    return (
+      <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>
+        <p className="pub-msg">Checking account…</p>
+      </div>
+    )
+  }
+
+  if (!user) return <Navigate to="/login" replace state={{ from: location }} />
+  if (role) return <Navigate to={from} replace />
+
+  const submit = async (event) => {
+    event.preventDefault()
+    setBusy(true)
+    setMessage('')
+    try {
+      await claimRole(selected)
+      navigate(from, { replace: true })
+    } catch (error) {
+      setMessage(authErrorMessage(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <AuthLayout
+      kicker="One step left"
+      heading="Which account is this?"
+      role={selected}
+      onRoleChange={setSelected}
+    >
+      <form className="pub-card pub-form" noValidate onSubmit={submit}>
+        <h3>Pick an account type</h3>
+        <p className="pub-muted">
+          {user.email} is signed in, but Dugo+ does not know what this account is for yet. Choose
+          one to continue.
+        </p>
+        {message && (
+          <p className="pub-msg" data-kind="error" role="alert">
+            {message}
+          </p>
+        )}
+        <button className="pub-btn pub-btn-wide" type="submit" disabled={busy}>
+          {busy ? 'Saving…' : 'Continue'}
+          <Icon name="arrow-right" size={14} />
+        </button>
+        <p className="pub-form-alt">
+          Need admin access? Ask an operator to grant it to this account.
+        </p>
+        <p className="pub-form-alt">
+          Not you? <Link to="/login">Sign in as someone else</Link>
+        </p>
+      </form>
+    </AuthLayout>
+  )
+}

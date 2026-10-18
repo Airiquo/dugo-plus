@@ -5,6 +5,7 @@ import { Drawer } from '../components/Overlay'
 import { Btn } from '../components/Btn'
 import { useTheme } from '../hooks/useTheme'
 import { useAuth, userName } from '../hooks/useAuth'
+import { roleLabel } from '../services/users'
 export const NAV = [
   { slug: 'dashboard', screen: 'admin-dashboard', label: 'Dashboard', icon: 'grid' },
   {
@@ -34,10 +35,11 @@ export const NAV = [
 ]
 function Sidebar() {
   const { pathname } = useLocation()
-  const { user, signOut } = useAuth()
+  const { user, role, signOut } = useAuth()
   const navigate = useNavigate()
-  // Falls back to the mockup's demo identity while no project is configured.
-  const name = userName(user) || 'maria'
+  // `RequireAuth` guarantees a signed-in user; there is no demo identity to fall
+  // back to any more.
+  const name = userName(user)
   return (
     <aside id="sidebar">
       <div id="sidebar-logo">
@@ -49,7 +51,7 @@ function Sidebar() {
           Tagaytay City Blood Bank, Cavite
         </span>
       </div>
-      <div id="sidebar-section-label">hospital / blood bank</div>
+      <div id="sidebar-section-label">{roleLabel(role)}</div>
       <nav id="sidebar-nav" aria-label="Main">
         {NAV.map((item) => {
           const to = `/admin/${item.slug}`
@@ -92,11 +94,10 @@ function Sidebar() {
 }
 function Topbar() {
   const { theme, toggle } = useTheme()
-  const { user, signOut } = useAuth()
+  const { user, role, signOut } = useAuth()
   const navigate = useNavigate()
   const [accountOpen, setAccountOpen] = useState(false)
-  // Falls back to the mockup's demo identity while no project is configured.
-  const name = userName(user) || 'Maria Santos'
+  const name = userName(user)
   const provider = user?.providers?.includes('google.com') ? 'Google' : 'Email / password'
   const next = theme === 'light' ? 'dark' : 'light'
   return (
@@ -148,7 +149,7 @@ function Topbar() {
         <Icon name="user" />
         <span id="topbar-profile-text">
           <span>{name}</span>
-          <span>Blood Bank Admin</span>
+          <span>{roleLabel(role)}</span>
         </span>
         <Icon name="chevron-down" />
       </button>
@@ -160,11 +161,11 @@ function Topbar() {
         className="card"
       >
         <p className="k">Signed in as</p>
-        <p style={{ margin: '4px 0 0' }}>
-          {user ? user.email : 'Demo identity — no Firebase project configured.'}
-        </p>
+        <p style={{ margin: '4px 0 0' }}>{user?.email ?? 'Not signed in.'}</p>
         {user && (
           <p className="k" style={{ margin: 0 }}>
+            {roleLabel(role)}
+            {' · '}
             {provider}
           </p>
         )}

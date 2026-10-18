@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { authErrorMessage } from '../../services/auth'
-import AuthLayout, { AUTH_ROLES } from '../../layout/AuthLayout'
+import AuthLayout, { SELF_SERVE_ROLES } from '../../layout/AuthLayout'
 import { Icon } from '../../components'
 
 /**
@@ -17,8 +17,10 @@ import { Icon } from '../../components'
  * `?role=hospital` — while "Request blood" opens the plain form, since there is
  * no requester account type.
  *
- * The role is presentational (see `AuthLayout`); the account itself is created by
- * Firebase Auth, and a display name is set from the Name field.
+ * The chosen account type is written to `users/{uid}` in Firestore right after
+ * the account is created (`services/users.js`), and a display name is set from
+ * the Name field. The picker offers donor and hospital only; an operator grants
+ * admin.
  *
  * The sign-in switch sits directly under the primary button, and the provider
  * button below an `or` divider, mirroring `Login` (dressed by `dugo.extras.css`).
@@ -33,10 +35,14 @@ export default function Register() {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // Only honour a ?role= value that exists, so the band never starts with no
-  // selection.
-  const requested = params.get('role')
-  const role = AUTH_ROLES.some((item) => item.id === requested) ? requested : 'donor'
+  // Which account type starts selected: the one in ?role= when the picker
+  // actually offers it, donor otherwise. Held in state because clicking a card
+  // in `AuthLayout` reports back here and decides what gets stored. Admin is not
+  // on offer — it is granted, not picked (see `AuthLayout`).
+  const [role, setRole] = useState(() => {
+    const requested = params.get('role')
+    return SELF_SERVE_ROLES.some((item) => item.id === requested) ? requested : 'donor'
+  })
 
   // Already signed in — go straight through. `busy` keeps this form mounted
   // while its own sign-up is in flight, so the redirect cannot overtake
@@ -58,17 +64,22 @@ export default function Register() {
   }
 
   return (
-    <AuthLayout kicker="Create account" heading="One account, three roles" role={role}>
+    <AuthLayout
+      kicker="Create account"
+      heading="One account, three roles"
+      role={role}
+      onRoleChange={setRole}
+    >
       <form
         className="pub-card pub-form"
         noValidate
         onSubmit={(event) => {
           event.preventDefault()
-          run(() => signUp(name.trim(), email.trim(), password))
+          run(() => signUp(name.trim(), email.trim(), password, role))
         }}
       >
         <h3>Create your account</h3>
-        <p className="pub-muted">Join Dugo+ as a donor, a hospital, or an admin.</p>
+        <p className="pub-muted">Join Dugo+ as a donor or as a hospital.</p>
         <label>
           <span>Name</span>
           <input

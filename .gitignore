@@ -13,5 +13,12 @@ dist/
 # Python bytecode (tools/)
 __pycache__/
 
+# Firebase CLI output (firebase deploy / emulators)
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*.log
+
 # macOS
 .DS_Store
