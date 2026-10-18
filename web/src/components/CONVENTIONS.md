@@ -1,5 +1,14 @@
 # Component Conventions
 
+New components are expected and welcome — reach for an existing primitive first,
+and when the design needs something new, build it here following the patterns
+below, then export it from `index.js`.
+
+These patterns are about keeping components consistent (props, `{...rest}`
+forwarding, `cx()`), not about copying any particular screen. Layout and
+composition are yours to design; the look (palette, type, base class styling)
+is the part to keep.
+
 ## Pattern A: Button-like
 ```jsx
 import { cx } from '../utils/cx'

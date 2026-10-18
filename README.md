@@ -4,14 +4,14 @@ A blood bank and donor management web app: request blood, match donors, track
 inventory, and record donations.
 
 The design lives in this repository together with the app, and both run off the
-same stylesheet — so the mockups and the app cannot drift apart.
+same stylesheet — so the app keeps the look the mockups established.
 
 | Folder | What it is |
 | --- | --- |
-| `light/`, `dark/` | Clickable HTML mockups — one file per screen, in both themes. These are the design source of truth. |
-| `styles/` | The shared design system (CSS), consumed by the mockups **and** the app. |
-| `web/` | The React app that implements the mockups. |
-| `tools/` | Python scripts that produced `styles/` and the generated page bodies. Not needed to run the app. |
+| `light/`, `dark/` | Clickable HTML mockups — one file per screen, in both themes. The look-and-feel **style reference**. |
+| `styles/` | The shared design system (CSS base) — palette, type, and primitive styling. |
+| `web/` | The React app, built on that design system. |
+| `tools/` | Python scripts that produced `styles/` and seeded the first page bodies. Not needed to run the app. |
 
 The app is plain **JavaScript** (`.jsx` / `.js`) on **Vite + React** — there is no
 TypeScript in this repository.
@@ -19,7 +19,7 @@ TypeScript in this repository.
 ## How the repo fits together
 
 ```
-light/*.html, dark/*.html     the design source of truth — 20 mockups, 10 screens
+light/*.html, dark/*.html     the style reference — 20 mockups, 10 screens
         │                     (plain HTML + CSS, no build step)
         │  extracted verbatim, once, by tools/
         ▼
@@ -33,12 +33,13 @@ tools/  build-time only — nothing here is needed to run or build the app
 
 Three things follow from that shape, and they explain most of the layout:
 
-- **The mockups and the app share one stylesheet**, so a screen looks the same in
-  both and a CSS fix applies to both.
+- **The mockups and the app share one stylesheet**, so a screen looks on-brand in
+  both and a base-CSS change applies to both.
 - **`web/` reads `../styles`, `../fonts` and `../assets` by relative path.** That
   is why the app lives *inside* this repository rather than in its own.
-- **The mockups are the source of truth.** The app is a translation of them; when
-  they disagree, the mockup wins.
+- **The mockups are a reference, not a spec.** They define the look — palette,
+  type, component styling. The app matches that look; layout, composition, and UX
+  are designed as needed and may improve on the mockups.
 
 ## Screenshots
 
@@ -68,12 +69,11 @@ GitHub theme. The dashboard:
 
 </details>
 
-These are rendered straight from the mockups by
+These are rendered straight from the **mockups** by
 [`tools/screenshots.py`](#tooling-tools) — so if you change a mockup, re-run it,
-or the README will show the old design. The mockups are the design source; where
-the app deviates on purpose (the landing page no longer carries the designed
-sign-in band — that band now opens on `/login`) it is noted under
-[Authentication](#authentication).
+or the README will show the old reference. They document the look the app is
+built on; the app may differ from them in layout (e.g. the landing page no longer
+carries the designed sign-in band — that band now opens on `/login`).
 
 ## Quick start
 
@@ -129,18 +129,22 @@ for the scripts in `tools/`.
 
 ## What works today
 
-The design system is complete and every screen exists as a mockup. These routes
-are translated into React so far:
+The design system is complete and every screen exists as a look reference. These
+routes are built in React so far:
 
 | Route | Status |
 | --- | --- |
-| `/` | Landing page — translated |
-| `/login`, `/register` | Sign-in and registration — the designed sign-in band, now owned by `AuthLayout`, backed by Firebase Auth |
-| `/admin/dashboard` | Dashboard — translated |
-| `/admin/blood-requests` | Blood requests list — translated, renders from `web/src/services/requests.js` |
-| `/admin/donor-matching`, `/admin/donor-registry`, `/admin/inventory`, `/admin/donations-rewards`, `/admin/reports`, `/admin/audit-trail`, `/admin/settings` | Placeholder (`ScreenStub`) with a link to the live mockup |
+| `/` | Landing page — built |
+| `/login`, `/register` | Sign-in and registration — the public `.pub` band, owned by `AuthLayout`, backed by Firebase Auth |
+| `/admin/dashboard` | Dashboard — built |
+| `/admin/blood-requests` | Blood requests list — built, renders from `web/src/services/requests.js` |
+| `/admin/donor-matching`, `/admin/donor-registry`, `/admin/inventory`, `/admin/donations-rewards`, `/admin/reports`, `/admin/audit-trail`, `/admin/settings` | Placeholder (`ScreenStub`) linking the reference mockup — design and build these next |
 | `/gallery` | Component gallery — every component rendered in both themes |
 | anything else | Not found |
+
+`/admin/*` is only gated when a Firebase project is configured — see
+[Authentication](#authentication). The remaining work is one screen at a time —
+see [Building a screen](#building-a-screen).
 
 `/admin/*` is only gated when a Firebase project is configured — see
 [Authentication](#authentication). The remaining work is one screen at a time —
@@ -254,8 +258,9 @@ Four documents, in the order you should read them:
     ├── index.html          # App entry point
     ├── vite.config.js      # Also serves the mockups at /mockups/*
     └── src/
-        ├── main.jsx        # Entry: imports the shared stylesheet, mounts <App>
-        ├── App.jsx         # Routes (translated slugs vs ScreenStub) + the auth gate
+        ├── main.jsx        # Entry: imports the base stylesheets + app.css, mounts <App>
+        ├── App.jsx         # Routes (built slugs vs ScreenStub) + the auth gate
+        ├── styles/app.css  # App-owned styling (new UI); base lives in repo styles/
         ├── hooks/          # React contexts/hooks
         │   ├── useTheme.jsx      # Light/dark theme context (`useTheme`)
         │   └── useAuth.jsx       # Session context (`useAuth`)
@@ -266,18 +271,19 @@ Four documents, in the order you should read them:
         ├── utils/cx.js     # `cx()` classnames join used by the components
         ├── layout/         # Admin shell (sidebar / topbar / main), RequireAuth, AuthLayout
         ├── pages/          # Route pages, grouped by role
-        │   ├── admin/             # dashboard, blood-requests (+ GENERATED DashboardBody)
+        │   ├── admin/             # dashboard, blood-requests (+ seeded DashboardBody)
         │   ├── donor/             # planned: profile, alerts, rewards
         │   ├── hospital/          # planned: requests, inventory
-        │   ├── public/            # landing, login, register, not-found (+ GENERATED LandingBody)
+        │   ├── public/            # landing, login, register, not-found (+ seeded LandingBody)
         │   └── shared/            # ScreenStub, Gallery
         └── components/     # Reusable UI primitives + CONVENTIONS.md
 ```
 
 ## The design system at a glance
 
-One stylesheet (`styles/dugo.css`) drives the mockups and the app. Almost all
-state is expressed with **`data-*` attributes**, not new class names:
+One stylesheet (`styles/dugo.css`) defines the look the mockups and the app
+share. Almost all state is expressed with **`data-*` attributes**, not new class
+names:
 
 ```jsx
 <Chip data-status="urgent">urgent</Chip>
@@ -289,13 +295,19 @@ state is expressed with **`data-*` attributes**, not new class names:
 stylesheet maps attribute *values* to colours and states. Because the attributes
 sit on the real elements, the same markup styles itself in both themes.
 
-Two rules keep this stable:
+**What's locked:** the palette, the typography, and how the primitives
+(`.card`, `.btn`, `.chip`, `.badge`, `.pill`, `.field`, `.table`, `.tabs`) are
+styled. **What's free:** layout, composition, new components, and new screens.
 
-- **Never edit `styles/*.css`.** They were extracted from the mockups verbatim and
-  are shared. The only file for app-only additions is `styles/dugo.extras.css`,
-  and additions there should be generic and reusable.
-- **Compose, don't re-style.** Build pages from `web/src/components` rather than
-  adding classes or inline styles.
+Two rules keep this coherent:
+
+- **Don't edit the base stylesheets.** `styles/dugo.css` and
+  `styles/dugo.extras.css` are the shared base. New app styling goes in
+  `web/src/styles/app.css`, which only the React app loads.
+- **Compose first.** Build pages from `web/src/components`; when the design needs
+  something new, add a component (see `CONVENTIONS.md`) rather than ad-hoc markup.
+
+New styles must work in **both** themes.
 
 Some ids carry meaning too: overlays derive their ids from a `name`
 (`<name>-modal`, `<name>-drawer`, `<name>-backdrop`) and KPI cards derive
@@ -308,33 +320,44 @@ screen sizes are roughly `settings` (4 KB) → `donor-registry` (7 KB) →
 `blood-requests` (8 KB, done) → `audit-trail` → `reports` → `donations-rewards`
 → `donor-matching` → `inventory` (21 KB).
 
-1. **Read the mockup** — `light/<screen>.html`, and `dark/<screen>.html` to check
-   the dark theme.
+1. **Look at the reference** — `light/<screen>.html` and `dark/<screen>.html`
+   show the intended look for that screen.
 2. **Read a worked example first** — `web/src/pages/admin/BloodRequests.jsx` (a list
    screen end to end), `web/src/pages/shared/Gallery.jsx` (every component in use), and
    `web/src/services/requests.js` (how the data is shaped).
-3. **Build the page** in `web/src/pages/admin/` by composing the components, then add
-   the slug to `TRANSLATED` in `web/src/App.jsx` so the route stops rendering the
-   `ScreenStub`.
-4. **Verify** — `cd web && npx vite build` must pass, then compare against the
-   mockup side by side at `/mockups/light/<screen>.html`.
+3. **Design and build the page** in `web/src/pages/admin/`, composing components
+   (add a new one if the design needs it). Then add the slug to `TRANSLATED` in
+   `web/src/App.jsx` so the route stops rendering the `ScreenStub`.
+4. **Verify** — `cd web && npx vite build` must pass, and check both themes.
 
 Two things worth knowing:
 
-- **Match ids and `data-*` exactly.** The stylesheet targets them directly — for
+- **Reuse the `data-*` hooks.** The base stylesheet targets them directly — for
   example `#requests-table td[data-status=urgent]` bolds a whole cell, so the
-  attribute has to be on the `<td>`, not only on the chip inside it.
-- **Route slugs match mockup filenames** (`/admin/blood-requests` →
-  `light/admin-blood-requests.html`), and the `NAV` in `web/src/layout/AppShell.jsx`
-  is the single source for the sidebar order.
+  attribute has to be on the `<td>`, not only on the chip inside it. Your own new
+  styles go in `web/src/styles/app.css`.
+- **The mockup is a look reference, not a spec.** Keep the palette/type and the
+  feel; lay out and structure the screen however serves the user. Existing route
+  slugs stay as they are — the `NAV` in `web/src/layout/AppShell.jsx` is the
+  single source for the sidebar order; new screens can be named freely.
+
+## Adding styles
+
+The base stylesheets are shared with the mockups and are treated as read-only:
+
+- `styles/dugo.css` — the design system (palette, type, primitives).
+- `styles/dugo.extras.css` — shared app-only hooks (overlays/toasts).
+
+Anything new the app needs goes in **`web/src/styles/app.css`**, imported by
+`web/src/main.jsx`. Keep selectors app-scoped, reuse the CSS custom properties the
+base defines, and check the result in both themes.
 
 ## Tooling (`tools/`)
 
 Python 3 scripts used to build this repo — **you do not need them to run or build
-the app**. Two of them are the reason the design system and the generated pages
-exist, the converter doubles as a parity check, and the screenshot tool keeps this
-README in step with the mockups. Only the last one needs dependencies beyond the
-standard library.
+the app**. Two of them are the reason the design system exists, one seeded the
+first page bodies, and the screenshot tool keeps this README in step with the
+mockups. Only the last one needs dependencies beyond the standard library.
 
 | Script | Purpose |
 | --- | --- |
@@ -342,16 +365,8 @@ standard library.
 | `refactor_mockups.py` | One-time **phase 2**: point the 20 mockups at `styles/dugo.css` instead of the inline block. Verified reversible. |
 | `csslib.py` | Shared CSS parsing helpers for the two scripts above. |
 | `htmltojsx.py` | Exact HTML → JSX converter (used by `gen_pages.py`). |
-| `gen_pages.py` | Generate `DashboardBody.jsx`, `LandingBody.jsx` and `layout/shell.parts.txt` from the mockups. **Running it rewrites those files** — they are checked in, and regenerating must reproduce them byte for byte apart from edits to the generator itself. |
-| `screenshots.py` | Render every mockup to `docs/screenshots/` for this README. Needs a one-time `pip3 install --user playwright pillow` and `python3 -m playwright install chromium`. **Re-run it after changing any mockup**, or the README keeps showing the old design. |
-
-**Using the converter as a parity check.** Because the conversion is exact and
-deterministic, you can render a screen and diff its structure against the mockup
-to prove you did not drop an id or a `data-*` attribute:
-
-```bash
-python3 tools/gen_pages.py      # regenerate, then `git diff web/src/pages`
-```
+| `gen_pages.py` | The one-time scaffold that produced the first `DashboardBody.jsx`, `LandingBody.jsx` and `layout/shell.parts.txt` from the mockups. Those pages are now normal, editable source — you don't need to run this. |
+| `screenshots.py` | Render every mockup to `docs/screenshots/` for this README. Needs a one-time `pip3 install --user playwright pillow` and `python3 -m playwright install chromium`. **Re-run it after changing any mockup**, or the README keeps showing the old reference. |
 
 ## Tech stack
 

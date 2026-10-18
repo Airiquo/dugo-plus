@@ -1,24 +1,44 @@
 # AGENTS.md — Dugo+ Repo Rules
 
 ## Golden Rule
-**Mimic, don't invent.** Before creating/editing, read the nearest existing implementation and follow its exact pattern.
+**Match the look, design the rest.** Stay inside the design system's visual
+language (palette, typography, component styling); everything else — layout,
+composition, new components, new screens, UX flows — is yours to design well.
+The mockups in `light/` and `dark/` are a **style reference**, not a spec to
+reproduce.
+
+## Locked vs free
+
+| Locked (the look) | Free (design it) |
+| --- | --- |
+| Colour palette + `data-*` state tones (in `styles/dugo.css`) | Page layout, grid, ordering, IA |
+| Typography (Doto, Space Mono, DM Sans, Newsreader) + type scale | Which components you compose, or new ones |
+| How `.card`, `.btn`, `.chip`, `.badge`, `.pill`, `.field`, `.table`, `.tabs` are styled | New components, screens, interactions, UX flows |
+| Both themes (light + dark) must work | Spacing, density, new visual states within the palette |
 
 ## Component Rules
 - Components live in `web/src/components/` (PascalCase). Export from `components/index.js`.
+- **New components are welcome.** Reuse existing primitives first; when the design needs something new, build it following `CONVENTIONS.md`.
 - Accept arbitrary `data-*` and standard HTML props; forward `{...rest}` to root (last). Document non-obvious props in JSDoc.
-- Use `cx()` from `utils/cx.js`. Never add new base CSS classes.
+- Use `cx()` from `utils/cx.js`.
 - Modals/drawers: use `name` to derive `-modal/-drawer/-backdrop`. KPI: use `name` to derive `-label/-value/-trend/-chart`.
-- Respect stylesheet hooks: `.card`, `.btn`, `.chip`, `.badge`, `.pill`, `.field`, `.table`, `.tabs`, etc. Don't rename.
-- No changes to `styles/*.css` verbatim. Only `styles/dugo.extras.css` for generic, reusable hooks (justify first).
+- Reuse the stylesheet hooks: `.card`, `.btn`, `.chip`, `.badge`, `.pill`, `.field`, `.table`, `.tabs`, etc.
+
+## Styling Rules
+- `styles/dugo.css` and `styles/dugo.extras.css` are the shared base — **don't edit** them.
+- New app styling goes in `web/src/styles/app.css` (imported by `main.jsx`).
+- Prefer the existing tokens/classes. Keep light and dark themes working.
 
 ## Page Rules
 - Admin pages → `<AppShell>`. Landing → no AppShell.
 - Pages live under `web/src/pages/` in role folders: `admin/`, `donor/`,
   `hospital/` (the three account types), plus `public/` (landing + auth +
   not-found) and `shared/` (ScreenStub, Gallery).
-- Faithful bodies (`admin/DashboardBody.jsx`, `public/LandingBody.jsx`) are generated — do not reformat.
-- Untranslated screens → `shared/ScreenStub`. Translating replaces stub + wires route in `App.jsx`.
-- Route slugs must match mockup filenames (`admin-*.html`).
+- `admin/DashboardBody.jsx` and `public/LandingBody.jsx` were seeded from the
+  mockups — edit them freely now.
+- A screen with nothing built yet → `shared/ScreenStub` (links the reference
+  mockup). Building it = replace the stub and wire the route in `App.jsx`.
+- Existing route slugs stay as they are; name new routes however makes sense.
 - Auth screens (`/login`, `/register`) own the sign-in band — the landing page
   carries no form — via `layout/AuthLayout.jsx`; `/admin/*` sits behind
   `layout/RequireAuth.jsx`.
@@ -35,6 +55,7 @@
   ```text
   web/src/
   ├── components/   # reusable UI primitives (+ index.js barrel, CONVENTIONS.md)
+  ├── styles/       # app.css — app-owned styling (base lives in repo styles/)
   ├── layout/       # AppShell, RequireAuth, AuthLayout (app chrome)
   ├── pages/        # route screens, grouped by role (admin/donor/hospital/public/shared)
   ├── hooks/        # React context/hooks (useAuth, useTheme)
@@ -50,8 +71,9 @@
 
 ## Verification
 - `cd web && npx vite build`
-- Compare against `/mockups/light/<target>.html` for visual parity.
-- After editing anything in `light/`, `dark/` or `styles/`, re-run `python3 tools/screenshots.py` so the README images don't go stale.
+- New UI works in **both** light and dark, and stays inside the locked palette/type.
+- Mockups are a reference for the look — not a target to match pixel-for-pixel.
+- After editing anything in `light/`, `dark/` or `styles/`, re-run `python3 tools/screenshots.py` so the README reference images don't go stale.
 - Auth-touching changes: check **both** modes — unconfigured (no `web/.env.local`) and configured with placeholder values — because the guard and the screens change behaviour with the env.
 
 ## Cost/Context Rules
