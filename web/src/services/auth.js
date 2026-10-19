@@ -33,7 +33,7 @@ const NOT_CONFIGURED =
 const ERROR_INFO = {
   'auth/invalid-email': {
     field: 'email',
-    message: 'That does not look like an email address — check for a missing @ or a typo.',
+    message: 'That does not look like an email address. Check for a missing @ or a typo.',
   },
   'auth/missing-email': {
     field: 'email',

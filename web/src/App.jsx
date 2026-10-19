@@ -14,6 +14,7 @@ import NotFound from './pages/public/NotFound'
 import Welcome from './pages/shared/Welcome'
 import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
+import Profile from './pages/donor/Profile'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
@@ -65,6 +66,18 @@ export default function App() {
               pages/shared/Welcome.jsx); homeFor() in services/users.js points
               them here until those screens exist. */}
           <Route path="/welcome" element={<Welcome />} />
+          {/* Donor surface (FR-04). Donor accounts have no AppShell, so this
+              sits behind the session + account-type gates only. */}
+          <Route
+            path="/donor/profile"
+            element={
+              <RequireAuth>
+                <RequireRole roles={['donor']}>
+                  <Profile />
+                </RequireRole>
+              </RequireAuth>
+            }
+          />
           <Route
             element={
               <RequireAuth>

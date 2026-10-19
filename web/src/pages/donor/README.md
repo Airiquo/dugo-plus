@@ -4,9 +4,11 @@ Role **01 — Donor** (see `AUTH_ROLES` in `web/src/layout/AuthLayout.jsx`).
 A donor signs up from the landing page (`/register?role=donor`) and manages
 their own relationship with a facility.
 
-No screens are built yet. The role's intended surface, per the register band:
+No screens are built yet except **Profile**. The role's intended surface, per
+the register band:
 
 - **Profile** — donation history, blood type, eligibility, contact details.
+  Built as `Profile.jsx` (FR-04); the donor lands here after sign-in.
 - **Alerts** — urgent blood-type match notifications and request updates.
 - **Rewards** — points, tiers, and redeemable perks for repeat donations.
 

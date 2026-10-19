@@ -57,7 +57,7 @@ export default function VerifyEmail() {
     setInfo('')
     try {
       await resendVerification()
-      setInfo('Confirmation email sent again — check your inbox and spam folder.')
+      setInfo('Confirmation email sent again. Check your inbox and spam folder.')
     } catch (error) {
       setMessage(authErrorMessage(error))
     } finally {
@@ -94,7 +94,7 @@ export default function VerifyEmail() {
               if (fresh.emailVerified) navigate(homeFor(role), { replace: true })
               else {
                 setMessage(
-                  "That email is still not verified. Open the link in your inbox, then try again — and check your spam folder.",
+                  "That email is still not verified. Open the link in your inbox, then try again. Check your spam folder too.",
                 )
               }
             })

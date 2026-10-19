@@ -54,6 +54,95 @@
   border-radius: 4px;
 }
 
+/* --- donor profile -------------------------------------------------------
+   The donor surface, carrying the same `.pub` scope as the auth screens so both
+   themes come along unchanged. Sections separate the four groups of fields;
+   eligibility is a readout, not an input, and reads as one. */
+
+.profile-main {
+  display: grid;
+  justify-items: center;
+  padding: 32px 20px 56px;
+}
+.profile-card {
+  width: 100%;
+  max-width: 560px;
+}
+
+/* A group of fields with a quiet heading above it. */
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.profile-section:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+.profile-section-h {
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Read-only fields stay legible as values rather than looking disabled. */
+.pub .pub-form input:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* Coordinates are optional, so the state says which it is rather than showing
+   an empty box that looks like something is missing. */
+.profile-coords {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.profile-coords-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.profile-coords-state[data-state='set'] {
+  color: var(--ink);
+}
+.profile-coords-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* The derived eligibility readout. The badge's colour comes from the shared
+   `data-eligibility` tones, so this only lays the pair out. */
+.profile-elig {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--card-2);
+  border-radius: 8px;
+}
+.profile-elig-detail {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
 /* --- field errors --------------------------------------------------------
    Shown under the input they belong to. `--red` rather than `--accent`: these
    are failures, and in light mode the two are close hues, so the divider and

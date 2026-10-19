@@ -25,9 +25,41 @@ service cloud.firestore {
 
       // Editable, but the role is frozen: allowing that would be the escalation
       // path, since only an operator should grant it (README, "Granting admin").
+      // The donor profile fields (FR-04) are validated by type so a hand-written
+      // document cannot put a non-string where a screen expects one.
       allow update: if request.auth != null
                     && request.auth.uid == uid
-                    && request.resource.data.role == resource.data.role;
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.name is string
+                    && request.resource.data.email is string
+                    && (
+                         !('bloodType' in request.resource.data)
+                         || request.resource.data.bloodType in ['', 'O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']
+                       )
+                    && (
+                         !('contact' in request.resource.data)
+                         || (
+                              request.resource.data.contact.keys().hasOnly(['phone'])
+                              && request.resource.data.contact.phone is string
+                            )
+                       )
+                    && (
+                         !('location' in request.resource.data)
+                         || request.resource.data.location == null
+                         || (
+                              request.resource.data.location.keys().hasOnly(['coordinates', 'geohash', 'city', 'address'])
+                              && request.resource.data.location.city is string
+                              && request.resource.data.location.geohash is string
+                              && request.resource.data.location.address is string
+                              && (
+                                   request.resource.data.location.coordinates == null
+                                   || request.resource.data.location.coordinates is latlng
+                                 )
+                            )
+                       )
+                    // Eligibility is derived on read, never written: a donor
+                    // declaring themselves eligible would defeat FR-031.
+                    && !('eligibility' in request.resource.data);
 
       allow delete: if false;
     }
