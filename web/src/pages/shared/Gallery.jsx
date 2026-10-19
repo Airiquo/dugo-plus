@@ -27,6 +27,7 @@ import {
   KpiRow,
   KpiCard,
   GoogleMark,
+  FieldError,
 } from '../../components'
 /**
  * Gallery — renders the shipped React components and demonstrates live theme
@@ -80,6 +81,14 @@ export default function Gallery() {
             </Btn>
           </div>
           <Divider />
+        </Card>
+
+        <Card>
+          <CardHeader>Field error</CardHeader>
+          <FieldError>Enter your email address.</FieldError>
+          <FieldError id="gallery-field-error" showIcon={false}>
+            Shown without the leading glyph.
+          </FieldError>
         </Card>
 
         <Card>

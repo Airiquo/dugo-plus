@@ -15,7 +15,8 @@ import { Icon } from '../../components'
  * straight away, donor/hospital accounts go to `homeFor(role)`.
  *
  * The resend is rate-limited by Firebase; a failure is reported in plain
- * language rather than swallowed (NFR-21).
+ * language rather than swallowed (NFR-21). This screen has no input of its own,
+ * so its messages are card-level by design — there is no field to blame.
  */
 export default function VerifyEmail() {
   const { user, loading, role, reloadUser, resendVerification, signOut } = useAuth()
@@ -23,6 +24,9 @@ export default function VerifyEmail() {
   const [message, setMessage] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
+  // A faster poll is not offered: Firebase rate-limits the resend, so the
+  // button reports the state instead of the screen hiding it.
+  const [resendBusy, setResendBusy] = useState(false)
 
   if (loading) {
     return (
@@ -47,6 +51,20 @@ export default function VerifyEmail() {
     }
   }
 
+  const resend = async () => {
+    setResendBusy(true)
+    setMessage('')
+    setInfo('')
+    try {
+      await resendVerification()
+      setInfo('Confirmation email sent again — check your inbox and spam folder.')
+    } catch (error) {
+      setMessage(authErrorMessage(error))
+    } finally {
+      setResendBusy(false)
+    }
+  }
+
   return (
     <AuthLayout kicker="Verify email" heading="One account, three roles">
       <form className="pub-card pub-form" noValidate onSubmit={(event) => event.preventDefault()}>
@@ -61,16 +79,24 @@ export default function VerifyEmail() {
             {message}
           </p>
         )}
-        {info && <p className="pub-msg">{info}</p>}
+        {info && (
+          <p className="pub-msg" data-kind="info" role="status">
+            {info}
+          </p>
+        )}
         <button
           className="pub-btn pub-btn-wide"
           type="button"
-          disabled={busy}
+          disabled={busy || resendBusy}
           onClick={() =>
             run(async () => {
               const fresh = await reloadUser()
               if (fresh.emailVerified) navigate(homeFor(role), { replace: true })
-              else setMessage('That email is not verified yet. Open the link in your inbox first.')
+              else {
+                setMessage(
+                  "That email is still not verified. Open the link in your inbox, then try again — and check your spam folder.",
+                )
+              }
             })
           }
         >
@@ -80,29 +106,16 @@ export default function VerifyEmail() {
         <button
           className="pub-btn pub-btn-ghost pub-btn-wide"
           type="button"
-          disabled={busy}
-          onClick={() =>
-            run(async () => {
-              await resendVerification()
-              setInfo('Confirmation email sent again — check your inbox.')
-            })
-          }
+          disabled={busy || resendBusy}
+          onClick={resend}
         >
-          Resend confirmation email
+          {resendBusy ? 'Sending…' : 'Resend confirmation email'}
         </button>
         <p className="pub-form-alt">
           Wrong address?{' '}
           <button
             type="button"
-            style={{
-              background: 'none',
-              border: 0,
-              padding: 0,
-              color: 'inherit',
-              font: 'inherit',
-              cursor: 'pointer',
-              textDecoration: 'underline',
-            }}
+            className="auth-forgot"
             onClick={async () => {
               await signOut()
               navigate('/register', { replace: true })

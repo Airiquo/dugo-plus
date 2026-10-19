@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { authErrorMessage } from '../../services/auth'
 import { homeFor } from '../../services/users'
 import AuthLayout from '../../layout/AuthLayout'
 import { Icon } from '../../components'
@@ -48,7 +47,14 @@ export default function PickRole() {
       await claimRole(selected)
       navigate(homeFor(selected), { replace: true })
     } catch (error) {
-      setMessage(authErrorMessage(error))
+      // The role is chosen in `AuthLayout`, not in this form, so there is no
+      // field to pin a message to; say what failed and what to do next. A
+      // Firestore rejection is not an auth error, so its raw SDK text is not
+      // shown — it names a rule, not anything the visitor can act on.
+      setMessage(
+        'Your account type was not saved. Check your connection and try again, or ask the Dugo+ team for help.',
+      )
+      if (import.meta.env.DEV) console.error('claimRole failed:', error)
     } finally {
       setBusy(false)
     }

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { authErrorMessage } from '../../services/auth'
+import { authErrorDetail } from '../../services/auth'
+import { validateLogin } from '../../utils/validate'
 import AuthLayout from '../../layout/AuthLayout'
-import { Icon, GoogleMark } from '../../components'
+import { Icon, GoogleMark, FieldError } from '../../components'
 
 /**
  * Sign-in screen, wearing the shared `AuthLayout` chrome (the band the landing
@@ -12,6 +13,12 @@ import { Icon, GoogleMark } from '../../components'
  * Reached from the guard (`RequireAuth` sends the attempted URL in
  * `location.state.from`) or from a direct link. Google sign-in creates the
  * account on first use, so there is no separate provider to configure.
+ *
+ * Every field is checked on submit and each message renders under the input it
+ * belongs to; a Firebase rejection is routed to the field its code names, and
+ * only provider or configuration failures fall back to a card-level message.
+ * Unknown accounts and wrong passwords are reported separately, and each of
+ * those messages sits next to the "Forgot your password?" recovery link.
  *
  * Card layout: subline, email field, password field with a right-aligned
  * "Forgot your password?" on the label row and a show/hide reveal inside the
@@ -26,6 +33,7 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -42,14 +50,25 @@ export default function Login() {
   const run = async (action) => {
     setBusy(true)
     setMessage('')
+    setErrors({})
     try {
       await action()
       navigate(from, { replace: true })
     } catch (error) {
-      setMessage(authErrorMessage(error))
+      const detail = authErrorDetail(error)
+      if (detail?.field) setErrors({ [detail.field]: detail.message })
+      else setMessage(detail?.message ?? '')
     } finally {
       setBusy(false)
     }
+  }
+
+  const submit = () => {
+    const found = validateLogin({ email, password })
+    setErrors(found)
+    setMessage('')
+    if (Object.keys(found).length) return
+    run(() => signIn(email.trim(), password))
   }
 
   return (
@@ -59,7 +78,7 @@ export default function Login() {
         noValidate
         onSubmit={(event) => {
           event.preventDefault()
-          run(() => signIn(email.trim(), password))
+          submit()
         }}
       >
         <h3>Welcome back</h3>
@@ -71,8 +90,14 @@ export default function Login() {
             placeholder="name@email.com"
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            aria-invalid={Boolean(errors.email) || undefined}
+            aria-describedby={errors.email ? 'login-email-error' : undefined}
+            onChange={(event) => {
+              setEmail(event.target.value)
+              if (errors.email) setErrors((prev) => ({ ...prev, email: '' }))
+            }}
           />
+          <FieldError id="login-email-error">{errors.email}</FieldError>
         </label>
         <label>
           <div className="auth-label-row">
@@ -87,7 +112,12 @@ export default function Login() {
               placeholder="••••••••"
               type={showPassword ? 'text' : 'password'}
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              aria-invalid={Boolean(errors.password) || undefined}
+              aria-describedby={errors.password ? 'login-password-error' : undefined}
+              onChange={(event) => {
+                setPassword(event.target.value)
+                if (errors.password) setErrors((prev) => ({ ...prev, password: '' }))
+              }}
             />
             <button
               type="button"
@@ -99,6 +129,7 @@ export default function Login() {
               <Icon name={showPassword ? 'eye-off' : 'eye'} size={17} />
             </button>
           </div>
+          <FieldError id="login-password-error">{errors.password}</FieldError>
         </label>
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">

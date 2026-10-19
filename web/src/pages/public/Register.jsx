@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { authErrorMessage } from '../../services/auth'
+import { authErrorDetail } from '../../services/auth'
 import { homeFor } from '../../services/users'
-import { passwordProblem, PASSWORD_MIN } from '../../utils/password'
+import { PASSWORD_MIN } from '../../utils/password'
+import { validateRegister } from '../../utils/validate'
 import AuthLayout, { SELF_SERVE_ROLES } from '../../layout/AuthLayout'
-import { Icon, GoogleMark } from '../../components'
+import { Icon, GoogleMark, FieldError } from '../../components'
 
 /**
  * Register screen.
@@ -25,6 +26,10 @@ import { Icon, GoogleMark } from '../../components'
  * admin. If that write fails the account still exists, so the screen says so
  * and points at `/account/role` instead of pretending the sign-up finished.
  *
+ * Every field is checked on submit and each message renders under its own input,
+ * so one submission answers the whole form. The password rule is the same
+ * `utils/validate.js` function the policy in `utils/password.js` defines.
+ *
  * The sign-in switch sits directly under the primary button, and the provider
  * button below an `or` divider, mirroring `Login` (dressed by `dugo.extras.css`).
  */
@@ -37,6 +42,7 @@ export default function Register() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   // Set when the account was made but `users/{uid}` was not (see `run`): the
@@ -64,6 +70,7 @@ export default function Register() {
   const run = async (action) => {
     setBusy(true)
     setMessage('')
+    setErrors({})
     try {
       const created = await action()
       // A fresh email/password account still has to confirm its address
@@ -76,11 +83,21 @@ export default function Register() {
         setRoleMissing(true)
         setMessage('Your account was created, but its account type could not be saved.')
       } else {
-        setMessage(authErrorMessage(error))
+        const detail = authErrorDetail(error)
+        if (detail?.field) setErrors({ [detail.field]: detail.message })
+        else setMessage(detail?.message ?? '')
       }
     } finally {
       setBusy(false)
     }
+  }
+
+  const submit = () => {
+    const found = validateRegister({ name, email, password })
+    setErrors(found)
+    setMessage('')
+    if (Object.keys(found).length) return
+    run(() => signUp(name.trim(), email.trim(), password, role))
   }
 
   return (
@@ -95,14 +112,7 @@ export default function Register() {
         noValidate
         onSubmit={(event) => {
           event.preventDefault()
-          // Checked before the request so the rule reads in plain language and
-          // no round-trip is wasted (NFR-13, NFR-21).
-          const problem = passwordProblem(password, email.trim())
-          if (problem) {
-            setMessage(problem)
-            return
-          }
-          run(() => signUp(name.trim(), email.trim(), password, role))
+          submit()
         }}
       >
         <h3>Create your account</h3>
@@ -114,8 +124,14 @@ export default function Register() {
             placeholder="Maria Santos"
             type="text"
             value={name}
-            onChange={(event) => setName(event.target.value)}
+            aria-invalid={Boolean(errors.name) || undefined}
+            aria-describedby={errors.name ? 'register-name-error' : undefined}
+            onChange={(event) => {
+              setName(event.target.value)
+              if (errors.name) setErrors((prev) => ({ ...prev, name: '' }))
+            }}
           />
+          <FieldError id="register-name-error">{errors.name}</FieldError>
         </label>
         <label>
           <span>Email</span>
@@ -124,8 +140,14 @@ export default function Register() {
             placeholder="name@email.com"
             type="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            aria-invalid={Boolean(errors.email) || undefined}
+            aria-describedby={errors.email ? 'register-email-error' : undefined}
+            onChange={(event) => {
+              setEmail(event.target.value)
+              if (errors.email) setErrors((prev) => ({ ...prev, email: '' }))
+            }}
           />
+          <FieldError id="register-email-error">{errors.email}</FieldError>
         </label>
         <label>
           <span>Password</span>
@@ -134,8 +156,14 @@ export default function Register() {
             placeholder="••••••••"
             type="password"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            aria-invalid={Boolean(errors.password) || undefined}
+            aria-describedby={errors.password ? 'register-password-error' : undefined}
+            onChange={(event) => {
+              setPassword(event.target.value)
+              if (errors.password) setErrors((prev) => ({ ...prev, password: '' }))
+            }}
           />
+          <FieldError id="register-password-error">{errors.password}</FieldError>
         </label>
         <p className="pub-fine">
           At least {PASSWORD_MIN} characters, with a letter and a number.

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { authErrorMessage, sendPasswordReset } from '../../services/auth'
+import { authErrorDetail, sendPasswordReset } from '../../services/auth'
+import { validateForgot } from '../../utils/validate'
 import AuthLayout from '../../layout/AuthLayout'
-import { Icon } from '../../components'
+import { Icon, FieldError } from '../../components'
 
 /**
  * Password-reset screen (FR-48).
@@ -12,10 +13,14 @@ import { Icon } from '../../components'
  * deliberately generic — it never reveals whether the address has an account —
  * and system-admin accounts are excluded by design (they are premade and
  * managed by the development team, so no reset email is offered for them).
+ *
+ * The only local check is that the address is usable; a rejection from Firebase
+ * is routed to the email field.
  */
 export default function ForgotPassword() {
   const { user } = useAuth()
   const [email, setEmail] = useState('')
+  const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -25,13 +30,18 @@ export default function ForgotPassword() {
 
   const run = async (event) => {
     event.preventDefault()
-    setBusy(true)
+    const found = validateForgot({ email })
+    setErrors(found)
     setMessage('')
+    if (Object.keys(found).length) return
+    setBusy(true)
     try {
       await sendPasswordReset(email.trim())
       setSent(true)
     } catch (error) {
-      setMessage(authErrorMessage(error))
+      const detail = authErrorDetail(error)
+      if (detail?.field) setErrors({ [detail.field]: detail.message })
+      else setMessage(detail?.message ?? '')
     } finally {
       setBusy(false)
     }
@@ -66,8 +76,14 @@ export default function ForgotPassword() {
                 placeholder="name@email.com"
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                aria-invalid={Boolean(errors.email) || undefined}
+                aria-describedby={errors.email ? 'reset-email-error' : undefined}
+                onChange={(event) => {
+                  setEmail(event.target.value)
+                  if (errors.email) setErrors((prev) => ({ ...prev, email: '' }))
+                }}
               />
+              <FieldError id="reset-email-error">{errors.email}</FieldError>
             </label>
             {message && (
               <p className="pub-msg" data-kind="error" role="alert">
