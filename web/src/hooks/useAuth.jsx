@@ -110,8 +110,14 @@ export function AuthProvider({ children }) {
         await writeProfile(next.uid, data)
         publishProfile(data)
       } catch {
-        // Left unwritten, the guard sends them to `pages/public/PickRole.jsx`,
-        // which writes it properly rather than the app guessing a role.
+        // The account exists but `users/{uid}` was never written, so the guards
+        // will keep sending them to `pages/public/PickRole.jsx` until the role
+        // is saved. Rethrow with a marker the register screen recognises: it
+        // reports "account created, type not saved" and links to the picker —
+        // retrying the form would only hit "email already in use".
+        const error = new Error('The account type could not be saved.')
+        error.roleNotSaved = true
+        throw error
       }
       return next
     },

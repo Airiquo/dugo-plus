@@ -9,6 +9,7 @@ import Login from './pages/public/Login'
 import Register from './pages/public/Register'
 import PickRole from './pages/public/PickRole'
 import NotFound from './pages/public/NotFound'
+import Welcome from './pages/shared/Welcome'
 import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
 import Gallery from './pages/shared/Gallery'
@@ -52,6 +53,10 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/account/role" element={<PickRole />} />
+          {/* Self-forwarding landing for donor/hospital accounts (see
+              pages/shared/Welcome.jsx); homeFor() in services/users.js points
+              them here until those screens exist. */}
+          <Route path="/welcome" element={<Welcome />} />
           <Route
             element={
               <RequireAuth>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { authErrorMessage } from '../../services/auth'
+import { homeFor } from '../../services/users'
 import AuthLayout from '../../layout/AuthLayout'
 import { Icon } from '../../components'
 
@@ -15,7 +16,9 @@ import { Icon } from '../../components'
  * document, after which the guard lets them through.
  *
  * `/account/role` is a normal route rather than a modal so it can be reached
- * directly and bookmarked; it bounces back to where the guard sent it from.
+ * directly and bookmarked; it hands each account to `homeFor()`, so a claimed
+ * role lands on its own destination (the admin dashboard, or `/welcome` for
+ * donor and hospital) rather than back on whichever guard bounced here.
  */
 export default function PickRole() {
   const { user, loading, role, roleLoading, claimRole } = useAuth()
@@ -24,9 +27,6 @@ export default function PickRole() {
   const [selected, setSelected] = useState('donor')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
-
-  // Where the guard sent them from; the dashboard by default.
-  const from = location.state?.from?.pathname ?? '/admin/dashboard'
 
   // Same one-off centring as `RequireRole` while the session/profile settles.
   if (loading || roleLoading) {
@@ -38,7 +38,7 @@ export default function PickRole() {
   }
 
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />
-  if (role) return <Navigate to={from} replace />
+  if (role) return <Navigate to={homeFor(role)} replace />
 
   const submit = async (event) => {
     event.preventDefault()
@@ -46,7 +46,7 @@ export default function PickRole() {
     setMessage('')
     try {
       await claimRole(selected)
-      navigate(from, { replace: true })
+      navigate(homeFor(selected), { replace: true })
     } catch (error) {
       setMessage(authErrorMessage(error))
     } finally {

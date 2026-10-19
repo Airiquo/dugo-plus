@@ -26,8 +26,10 @@ export default function Login() {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // Where the guard sent them from; the dashboard by default.
-  const from = state?.from?.pathname ?? '/admin/dashboard'
+  // Where the guard sent them from; the role-aware welcome by default. Cold
+  // logins land on `/welcome`, which routes each account type itself — an
+  // admin is forwarded on to the dashboard there.
+  const from = state?.from?.pathname ?? '/welcome'
 
   // Already signed in (e.g. a bookmark to /login) — go straight through, but
   // stay put while our own sign-in is still resolving so a failure can be shown

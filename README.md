@@ -126,6 +126,7 @@ routes are built in React so far:
 | --- | --- |
 | `/` | Landing page, built |
 | `/login`, `/register` | Sign-in and registration: the public `.pub` band, owned by `AuthLayout`, backed by Firebase Auth |
+| `/welcome` | "You're in" notice — where donor and hospital accounts land (there are no screens for them yet); self-forwards admins to the dashboard and missing roles to the picker |
 | `/admin/dashboard` | Dashboard, built |
 | `/admin/blood-requests` | Blood requests list, built, renders from `web/src/services/requests.js` |
 | `/admin/donor-matching`, `/admin/donor-registry`, `/admin/inventory`, `/admin/donations-rewards`, `/admin/reports`, `/admin/audit-trail`, `/admin/settings` | Placeholder (`ScreenStub`) linking the reference mockup; design and build these next |

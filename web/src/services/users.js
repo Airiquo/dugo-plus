@@ -19,6 +19,21 @@ export function roleLabel(role) {
   return ROLE_LABELS[role] ?? ''
 }
 
+/**
+ * Where a signed-in account of this type lands. Admins get the built admin
+ * area; donor and hospital accounts have no screens yet and get the "you're
+ * in" notice (`pages/shared/Welcome.jsx`, which also forwards any account that
+ * ends up there wrongly). An account with no role yet goes to the picker.
+ *
+ * @param {string|null} role
+ * @returns {string} a route path
+ */
+export function homeFor(role) {
+  if (role === 'admin') return '/admin/dashboard'
+  if (ROLES.includes(role)) return '/welcome'
+  return '/account/role'
+}
+
 const NOT_CONFIGURED = 'Firestore is not available. Copy web/.env.example to web/.env.local.'
 
 /** Firestore's local copy of `request.auth.uid`; throws when unconfigured. */

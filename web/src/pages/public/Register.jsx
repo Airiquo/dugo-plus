@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { authErrorMessage } from '../../services/auth'
+import { homeFor } from '../../services/users'
 import AuthLayout, { SELF_SERVE_ROLES } from '../../layout/AuthLayout'
 import { Icon } from '../../components'
 
@@ -20,13 +21,16 @@ import { Icon } from '../../components'
  * The chosen account type is written to `users/{uid}` in Firestore right after
  * the account is created (`services/users.js`), and a display name is set from
  * the Name field. The picker offers donor and hospital only; an operator grants
- * admin.
+ * admin. If that write fails the account still exists, so the screen says so
+ * and points at `/account/role` instead of pretending the sign-up finished.
  *
  * The sign-in switch sits directly under the primary button, and the provider
  * button below an `or` divider, mirroring `Login` (dressed by `dugo.extras.css`).
  */
 export default function Register() {
-  const { user, signUp, signInWithGoogle } = useAuth()
+  // `sessionRole` drives the already-signed-in redirect (the form's own `role`
+  // is only what is being picked here, and would mis-route a returning admin).
+  const { user, role: sessionRole, signUp, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const [name, setName] = useState('')
@@ -34,6 +38,10 @@ export default function Register() {
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
+  // Set when the account was made but `users/{uid}` was not (see `run`): the
+  // form has to stay mounted to show the recovery, since retrying it would
+  // only hit "email already in use".
+  const [roleMissing, setRoleMissing] = useState(false)
 
   // Which account type starts selected: the one in ?role= when the picker
   // actually offers it, donor otherwise. Held in state because clicking a card
@@ -44,20 +52,27 @@ export default function Register() {
     return SELF_SERVE_ROLES.some((item) => item.id === requested) ? requested : 'donor'
   })
 
-  // Already signed in — go straight through. `busy` keeps this form mounted
-  // while its own sign-up is in flight, so the redirect cannot overtake
-  // `updateProfile` (which would briefly greet the user by email prefix) and so
-  // a failure still has a form to report itself on.
-  if (user && !busy) return <Navigate to="/admin/dashboard" replace />
+  // Already signed in — go straight to where this account type lives (`homeFor`
+  // sends admins on to the dashboard, donor/hospital accounts to `/welcome`).
+  // `busy` keeps this form mounted while its own sign-up is in flight, so the
+  // redirect cannot overtake `updateProfile` (which would briefly greet the
+  // user by email prefix) and so a failure still has a form to report itself
+  // on; `roleMissing` holds it for the recovery message below.
+  if (user && !busy && !roleMissing) return <Navigate to={homeFor(sessionRole)} replace />
 
   const run = async (action) => {
     setBusy(true)
     setMessage('')
     try {
       await action()
-      navigate('/admin/dashboard', { replace: true })
+      navigate(homeFor(role), { replace: true })
     } catch (error) {
-      setMessage(authErrorMessage(error))
+      if (error?.roleNotSaved) {
+        setRoleMissing(true)
+        setMessage('Your account was created, but its account type could not be saved.')
+      } else {
+        setMessage(authErrorMessage(error))
+      }
     } finally {
       setBusy(false)
     }
@@ -113,6 +128,12 @@ export default function Register() {
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">
             {message}
+            {roleMissing && (
+              <>
+                {' '}
+                <Link to="/account/role">Choose your account type again.</Link>
+              </>
+            )}
           </p>
         )}
         <button className="pub-btn pub-btn-wide" type="submit" disabled={busy}>
