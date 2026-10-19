@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { authErrorMessage } from '../../services/auth'
 import AuthLayout from '../../layout/AuthLayout'
-import { Icon } from '../../components'
+import { Icon, GoogleMark } from '../../components'
 
 /**
  * Sign-in screen, wearing the shared `AuthLayout` chrome (the band the landing
@@ -114,6 +114,7 @@ export default function Login() {
           disabled={busy}
           onClick={() => run(() => signInWithGoogle())}
         >
+          <GoogleMark />
           Continue with Google
         </button>
         <div className="auth-card-foot">

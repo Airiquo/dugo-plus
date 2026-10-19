@@ -26,6 +26,7 @@ import {
   ToastStack,
   KpiRow,
   KpiCard,
+  GoogleMark,
 } from '../../components'
 /**
  * Gallery — renders the shipped React components and demonstrates live theme
@@ -73,6 +74,10 @@ export default function Gallery() {
             <Btn variant="primary">Primary</Btn>
             <Btn variant="alert">Alert</Btn>
             <Btn variant="ghost">Ghost</Btn>
+            <Btn variant="ghost">
+              <GoogleMark />
+              Brand mark
+            </Btn>
           </div>
           <Divider />
         </Card>

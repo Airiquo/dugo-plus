@@ -5,7 +5,7 @@ import { authErrorMessage } from '../../services/auth'
 import { homeFor } from '../../services/users'
 import { passwordProblem, PASSWORD_MIN } from '../../utils/password'
 import AuthLayout, { SELF_SERVE_ROLES } from '../../layout/AuthLayout'
-import { Icon } from '../../components'
+import { Icon, GoogleMark } from '../../components'
 
 /**
  * Register screen.
@@ -165,6 +165,7 @@ export default function Register() {
           disabled={busy}
           onClick={() => run(() => signInWithGoogle())}
         >
+          <GoogleMark />
           Continue with Google
         </button>
       </form>

@@ -69,3 +69,6 @@ export function Chip({ className, children, ...rest }) {
 - Don't filter props; forward everything unknown via rest
 - Respect id-suffix conventions for overlays/KPI
 - Filename = PascalCase, matches export(s)
+- Colour comes from the design tokens. The one exception is a third-party brand
+  mark, which keeps its official colours in its own component (e.g.
+  `GoogleMark.jsx`) and is documented as such.
