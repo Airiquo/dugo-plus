@@ -8,6 +8,8 @@ import Landing from './pages/public/Landing'
 import Login from './pages/public/Login'
 import Register from './pages/public/Register'
 import PickRole from './pages/public/PickRole'
+import ForgotPassword from './pages/public/ForgotPassword'
+import VerifyEmail from './pages/public/VerifyEmail'
 import NotFound from './pages/public/NotFound'
 import Welcome from './pages/shared/Welcome'
 import Dashboard from './pages/admin/Dashboard'
@@ -52,7 +54,13 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          {/* Password recovery (FR-48): donor/hospital/recipient only — admin
+              accounts are premade and managed by the development team. */}
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/account/role" element={<PickRole />} />
+          {/* Email-confirmation notice for accounts that have not clicked the
+              link sent at registration (FR-01, NFR-12). */}
+          <Route path="/verify-email" element={<VerifyEmail />} />
           {/* Self-forwarding landing for donor/hospital accounts (see
               pages/shared/Welcome.jsx); homeFor() in services/users.js points
               them here until those screens exist. */}

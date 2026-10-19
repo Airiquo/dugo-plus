@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   observeAuth,
+  reloadCurrentUser,
+  sendVerificationEmail,
   signIn as signInWithEmail,
   signInWithGoogle as signInWithGooglePopup,
   signOut as signOutOfFirebase,
@@ -25,6 +27,7 @@ function snapshot(user) {
     email: user.email,
     displayName: user.displayName,
     photoURL: user.photoURL,
+    emailVerified: Boolean(user.emailVerified),
     providers: (user.providerData ?? []).map((provider) => provider.providerId),
   }
 }
@@ -147,6 +150,18 @@ export function AuthProvider({ children }) {
   const signInWithGoogle = useCallback(() => signInWithGooglePopup(), [])
   const signOut = useCallback(() => signOutOfFirebase(), [])
 
+  /**
+   * Re-read the user from Firebase (refreshing `emailVerified`) and publish it,
+   * so the verify screen can confirm the emailed link without a hard reload.
+   */
+  const reloadUser = useCallback(async () => {
+    const fresh = await reloadCurrentUser()
+    setUser(snapshot(fresh))
+    return snapshot(fresh)
+  }, [])
+
+  const resendVerification = useCallback(() => sendVerificationEmail(), [])
+
   const value = useMemo(
     () => ({
       user,
@@ -160,6 +175,8 @@ export function AuthProvider({ children }) {
       claimRole,
       signInWithGoogle,
       signOut,
+      reloadUser,
+      resendVerification,
     }),
     [
       user,
@@ -171,6 +188,8 @@ export function AuthProvider({ children }) {
       claimRole,
       signInWithGoogle,
       signOut,
+      reloadUser,
+      resendVerification,
     ],
   )
 

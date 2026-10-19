@@ -33,7 +33,7 @@ from the System Analysis spec has exactly one row here.
 
 | ID | Requirement | Class | Phase | Status | Where / evidence |
 | --- | --- | --- | --- | --- | --- |
-| FR-01 | Register with personal details, blood type, contact info + email verification link | app-code | P1 | partial | Register form built (`web/src/pages/public/Register.jsx`, `services/auth.js`); verification email not sent; blood type not in profile yet |
+| FR-01 | Register with personal details, blood type, contact info + email verification link | app-code | P1 | partial | Register form + verification email on signup (`services/auth.js` `sendEmailVerification`), `/verify-email` screen (`pages/public/VerifyEmail.jsx`); blood type still to move into the profile (FR-04) |
 | FR-02 | Log in with credentials, maintain secure session | app-code | — | done | `pages/public/Login.jsx`, `hooks/useAuth.jsx` |
 | FR-03 | Log out, ending the session | app-code | — | done | `hooks/useAuth.jsx`, `layout/AppShell.jsx` |
 | FR-04 | Create/edit profile: blood type, location, DOB, eligibility | app-code + firestore-rules | P1 | partial | `users/{uid}` holds `{role,name,email}` only; no profile screen |
@@ -105,7 +105,7 @@ from the System Analysis spec has exactly one row here.
 | FR-043 | Committed records unmodifiable; corrections append as linked entries | firestore-rules + cloud-function | P7 | not started | D2 |
 | FR-044 | Admin verifies a record's hash against the chain | app-code + cloud-function | P7 | not started | D2: verify walk |
 | FR-045 | Chain stores only hashed/non-identifying refs so PII deletion still works | cloud-function + firestore-rules | P7 | not started | D2 |
-| FR-048 | Donors/Recipients/Hospital reset password via verified channel; admins excluded (premade accounts) | app-code | P1 | not started | Forgot-password screen + Firebase reset email |
+| FR-048 | Donors/Recipients/Hospital reset password via verified channel; admins excluded (premade accounts) | app-code | P1 | done | `/forgot-password` (`pages/public/ForgotPassword.jsx`) + `sendPasswordReset` (`services/auth.js`); linked from `/login`; generic confirmation so no account is revealed |
 
 ## Non-Functional Requirements
 
@@ -123,8 +123,8 @@ from the System Analysis spec has exactly one row here.
 | NFR-09 | Reliability | Handle third-party outages (SMS/email/GPS) and inform the user | app-code + cloud-function | P5 | not started | D3 unavailable-state messaging |
 | NFR-10 | Security | Encrypt sensitive data at rest and in transit | ops-config + compliance-doc | P8 | not started | Verify Firestore default encryption + TLS; document |
 | NFR-11 | Security | Restrict donor data to authorized hospital users + admin (RBAC) | firestore-rules | P1/P8 | partial | Rules cover `users/*` only; per-collection RBAC pending |
-| NFR-12 | Security | Email verification on registration | app-code | P1 | not started | `sendEmailVerification` + verified gate |
-| NFR-13 | Security | Password ≥8 characters with complexity | app-code | P1 | not started | Register validation + Auth config |
+| NFR-12 | Security | Email verification on registration | app-code | P1 | done | `sendEmailVerification` in `signUp` (`services/auth.js`); `/verify-email` re-reads the user via `reloadCurrentUser` and forwards once verified |
+| NFR-13 | Security | Password ≥8 characters with complexity | app-code | P1 | done | `utils/password.js` `passwordProblem` (8+, letter + digit, not the email); enforced at Register before the request |
 | NFR-14 | Security | End session after inactivity | app-code | P1 | not started | Idle timer → signOut |
 | NFR-15 | Security | Tamper-evident blockchain-based audit trail | cloud-function + firestore-rules | P7 | not started | D2 hash chain |
 | NFR-16 | Security | Donor consent before hospital access to donor information | app-code + firestore-rules | P3/P8 | not started | FR-038 consent + rules gate |

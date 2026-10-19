@@ -1,6 +1,9 @@
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
+  reload as reloadUser,
+  sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut as signOutOfFirebase,
@@ -19,7 +22,7 @@ const ERROR_MESSAGES = {
   'auth/user-not-found': 'Email or password is incorrect.',
   'auth/wrong-password': 'Email or password is incorrect.',
   'auth/email-already-in-use': 'That email already has an account — sign in instead.',
-  'auth/weak-password': 'Use at least 6 characters for your password.',
+  'auth/weak-password': 'Use at least 8 characters for your password.',
   'auth/popup-closed-by-user': 'Google sign-in was closed before it finished.',
   'auth/popup-blocked': 'Your browser blocked the Google pop-up. Allow pop-ups and try again.',
   'auth/operation-not-allowed': 'That sign-in method is not enabled in the Firebase console.',
@@ -68,8 +71,14 @@ export function observeAuth(callback) {
   return onAuthStateChanged(auth, callback)
 }
 
-export async function signIn(email, password) {
+/** Send Firebase's password-reset email (FR-48). */
+export async function sendPasswordReset(email) {
   requireAuth()
+  if (!email) throw new Error('Enter your email address.')
+  await sendPasswordResetEmail(auth, email)
+}
+
+export async function signIn(email, password) {  requireAuth()
   const credential = await signInWithEmailAndPassword(auth, email, password)
   return credential.user
 }
@@ -95,6 +104,12 @@ export async function signUp(name, email, password, onUser) {
       // falls back to the email local part.
     }
   }
+  try {
+    await sendEmailVerification(credential.user)
+  } catch {
+    // The account and session are already live, so a verification email that
+    // does not go out must not fail the sign-up. `/verify-email` offers a resend.
+  }
   onUser?.(credential.user)
   return credential.user
 }
@@ -108,4 +123,24 @@ export async function signInWithGoogle() {
 export async function signOut() {
   if (!auth) return
   await signOutOfFirebase(auth)
+}
+
+/** Send the account-verification email (FR-01, NFR-12). */
+export async function sendVerificationEmail(target = auth?.currentUser) {
+  requireAuth()
+  if (!target) throw new Error('No account is signed in.')
+  await sendEmailVerification(target)
+}
+
+/**
+ * Ask Firebase for the latest user record and return the fresh object.
+ * `emailVerified` only changes when the SDK re-reads it, so the verify screen
+ * calls this before believing the link was clicked.
+ */
+export async function reloadCurrentUser() {
+  requireAuth()
+  const target = auth?.currentUser
+  if (!target) throw new Error('No account is signed in.')
+  await reloadUser(target)
+  return target
 }

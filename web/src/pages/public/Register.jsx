@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { authErrorMessage } from '../../services/auth'
 import { homeFor } from '../../services/users'
+import { passwordProblem, PASSWORD_MIN } from '../../utils/password'
 import AuthLayout, { SELF_SERVE_ROLES } from '../../layout/AuthLayout'
 import { Icon } from '../../components'
 
@@ -64,8 +65,12 @@ export default function Register() {
     setBusy(true)
     setMessage('')
     try {
-      await action()
-      navigate(homeFor(role), { replace: true })
+      const created = await action()
+      // A fresh email/password account still has to confirm its address
+      // (FR-01, NFR-12); the Google flow returns a verified email already, so
+      // it goes straight on. The verify screen forwards once the link is in.
+      if (created?.emailVerified === false) navigate('/verify-email', { replace: true })
+      else navigate(homeFor(role), { replace: true })
     } catch (error) {
       if (error?.roleNotSaved) {
         setRoleMissing(true)
@@ -90,6 +95,13 @@ export default function Register() {
         noValidate
         onSubmit={(event) => {
           event.preventDefault()
+          // Checked before the request so the rule reads in plain language and
+          // no round-trip is wasted (NFR-13, NFR-21).
+          const problem = passwordProblem(password, email.trim())
+          if (problem) {
+            setMessage(problem)
+            return
+          }
           run(() => signUp(name.trim(), email.trim(), password, role))
         }}
       >
@@ -125,6 +137,9 @@ export default function Register() {
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
+        <p className="pub-fine">
+          At least {PASSWORD_MIN} characters, with a letter and a number.
+        </p>
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">
             {message}

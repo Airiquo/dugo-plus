@@ -92,7 +92,7 @@ function Sidebar() {
     </aside>
   )
 }
-function Topbar() {
+function Topbar({ noticePrefix, noticeTo, noticeLabel, switcher }) {
   const { theme, toggle } = useTheme()
   const { user, role, signOut } = useAuth()
   const navigate = useNavigate()
@@ -113,15 +113,27 @@ function Topbar() {
           name="q"
         />
       </form>
-      <button
-        className="theme-toggle"
-        type="button"
-        onClick={toggle}
-        aria-label={`Switch to ${next} mode`}
-        title={`Switch to ${next} mode`}
-      >
-        <Icon name={theme === 'light' ? 'moon' : 'sun'} size={17} />
-      </button>
+      {switcher ? (
+        <button
+          className="theme-toggle"
+          type="button"
+          onClick={toggle}
+          aria-label={`Switch to ${next} mode`}
+          title={`Switch to ${next} mode`}
+        >
+          <Icon name={theme === 'light' ? 'moon' : 'sun'} size={17} />
+        </button>
+      ) : (
+        <span />
+      )}
+      {/* Bridge out of the admin area: donor/hospital accounts land on the
+          notice page from here (only admins can reach this shell). */}
+      {noticeTo ? (
+        <Link id="topbar-notice" className="btn" to={noticeTo}>
+          {noticePrefix ? `${noticePrefix} ` : ''}
+          {noticeLabel}
+        </Link>
+      ) : null}
       <button id="topbar-emergency-btn" className="btn" type="button" data-status="emergency">
         <Icon name="alert" />
         <span>emergency mode</span>
@@ -185,11 +197,22 @@ function Topbar() {
     </header>
   )
 }
-export function AppShell({ children }) {
+export function AppShell({
+  children,
+  noticePrefix = 'Signed in as',
+  noticeTo = '/welcome',
+  noticeLabel = "You're in",
+  switcher = true,
+}) {
   return (
     <div id="app-shell">
       <Sidebar />
-      <Topbar />
+      <Topbar
+        noticePrefix={noticePrefix}
+        noticeTo={noticeTo}
+        noticeLabel={noticeLabel}
+        switcher={switcher}
+      />
       <main id="page-content">{children}</main>
       <div id="overlay-root" />
       <div id="toast-root" />

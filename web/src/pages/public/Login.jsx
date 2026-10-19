@@ -81,6 +81,9 @@ export default function Login() {
             onChange={(event) => setPassword(event.target.value)}
           />
         </label>
+        <p className="pub-form-alt">
+          <Link to="/forgot-password">Forgot your password?</Link>
+        </p>
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">
             {message}
