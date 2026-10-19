@@ -75,6 +75,12 @@ reproduce.
 - Keep them short. JSDoc on components documents props and behaviour; prose block comments describe the file or block in one or two lines.
 - Docblocks at the top of a seeded/edited page say what the file holds and what it attaches — no "never hand-edit" or design-story narration.
 
+## Requirements Rules
+- `docs/REQUIREMENTS.md` is the FR/NFR traceability table (one row per requirement from the System Analysis spec).
+- Screens and features map to requirement IDs. A task that implements or changes behaviour covered by a requirement updates that row (Status + Where/evidence) in the same task.
+- The table's Status column is the source of truth for what's left; build against the next phase's rows, one screen/component per task.
+- Rows whose Class is not `app-code` (cloud-function, firestore-rules, external-service, ops-config, compliance-doc) need work outside the React app — don't mark them done from frontend code alone.
+
 ## Verification
 - `cd web && npx vite build`
 - New UI stays inside the locked palette/type and uses the design-system tokens/classes — that keeps both themes working without per-theme work. Spot-check the other theme only when a screen adds custom visuals (gradients, glows, overlays) or one-off inline styles; `/gallery` renders every component in both themes for the component-level check.
