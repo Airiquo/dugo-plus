@@ -2,7 +2,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 import { roleLabel } from '../../services/users'
-import { PubThemeToggle } from '../../components/PubThemeToggle'
+import { PubThemeToggle } from '../../components'
 
 /**
  * "You're in" notice — where donor and hospital accounts land.

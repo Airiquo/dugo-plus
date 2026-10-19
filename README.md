@@ -294,7 +294,7 @@ Four documents, in the order you should read them:
         │   ├── donor/             # planned: profile, alerts, rewards
         │   ├── hospital/          # planned: requests, inventory
         │   ├── public/            # landing, login, register, pick-role, not-found (+ seeded LandingBody)
-        │   └── shared/            # ScreenStub, Gallery
+        │   └── shared/            # ScreenStub, Gallery, Welcome
         └── components/     # Reusable UI primitives + CONVENTIONS.md
 ```
 
@@ -345,7 +345,10 @@ screen sizes are roughly `settings` (4 KB) → `donor-registry` (7 KB) →
 3. **Design and build the page** in `web/src/pages/admin/`, composing components
    (add a new one if the design needs it). Then add the slug to `TRANSLATED` in
    `web/src/App.jsx` so the route stops rendering the `ScreenStub`.
-4. **Verify:** `cd web && npx vite build` must pass, and check both themes.
+4. **Verify:** `cd web && npx vite build` must pass. Build with the design-system
+   components/tokens and both themes come along for free; spot-check the other
+   theme only if the screen adds custom visuals or one-off inline styles
+   (`/gallery` renders every component in both themes).
 
 Two things worth knowing:
 
@@ -382,7 +385,7 @@ the last one needs dependencies beyond the standard library.
 | `refactor_mockups.py` | One-time **phase 2**: point the 20 mockups at `styles/dugo.css` instead of the inline block. Verified reversible. |
 | `csslib.py` | Shared CSS parsing helpers for the two scripts above. |
 | `htmltojsx.py` | Exact HTML → JSX converter (used by `gen_pages.py`). |
-| `gen_pages.py` | The one-time scaffold that produced the first `DashboardBody.jsx`, `LandingBody.jsx` and `layout/shell.parts.txt` from the mockups. Those pages are now normal, editable source, so you don't need to run this. |
+| `gen_pages.py` | The one-time scaffold that produced the first `DashboardBody.jsx` and `LandingBody.jsx` from the mockups. Those pages are now normal, editable source, so you don't need to run this. |
 | `screenshots.py` | Render every mockup to `docs/screenshots/` for this README. Needs a one-time `pip3 install --user playwright pillow` and `python3 -m playwright install chromium`. **Re-run it after changing any mockup**, or the README keeps showing the old reference. |
 
 ## Tech stack

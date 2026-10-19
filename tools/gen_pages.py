@@ -10,7 +10,6 @@ markup). The mockups are a style reference, not a spec to reproduce; design the
 layout and composition as you see fit.
 
 Outputs:
-  web/src/layout/shell.parts.txt   — sidebar + topbar JSX (raw material for AppShell.jsx)
   web/src/pages/admin/DashboardBody.jsx   — <main id="page-content"> inner content
   web/src/pages/public/LandingBody.jsx    — the whole .pub landing markup
 """
@@ -62,17 +61,6 @@ def main():
     dash = body_of(os.path.join(ROOT, 'light', 'admin-dashboard.html'))
     landing = body_of(os.path.join(ROOT, 'light', 'landing.html'))
 
-    # ---- admin shell parts (sidebar + topbar) for AppShell.jsx
-    sidebar_jsx = convert('<aside id="sidebar">' + extract_by_id(dash, 'sidebar') + '</aside>')
-    topbar_jsx = convert('<header id="topbar">' + extract_by_id(dash, 'topbar') + '</header>')
-    shell_out = os.path.join(ROOT, 'web', 'src', 'layout')
-    os.makedirs(shell_out, exist_ok=True)
-    with open(os.path.join(shell_out, 'shell.parts.txt'), 'w', encoding='utf-8') as fh:
-        fh.write('/* Sidebar (from light/admin-dashboard.html #sidebar) */\n')
-        fh.write(sidebar_jsx + '\n\n')
-        fh.write('/* Topbar (from light/admin-dashboard.html #topbar) */\n')
-        fh.write(topbar_jsx + '\n')
-
     # ---- dashboard page content (inner of <main id="page-content">; AppShell owns <main>)
     dash_jsx = convert(extract_by_id(dash, 'page-content'))
     admin_out = os.path.join(ROOT, 'web', 'src', 'pages', 'admin')
@@ -123,8 +111,7 @@ def main():
             "import { PubThemeToggle } from '../../components/PubThemeToggle'\n\n",
             props="{ theme, ref }"))
 
-    for p in ('layout/shell.parts.txt', 'pages/admin/DashboardBody.jsx',
-              'pages/public/LandingBody.jsx'):
+    for p in ('pages/admin/DashboardBody.jsx', 'pages/public/LandingBody.jsx'):
         full = os.path.join(ROOT, 'web', 'src', p)
         print(f'{p:32s} {os.path.getsize(full):>9,} bytes')
 

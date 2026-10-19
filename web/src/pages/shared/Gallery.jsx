@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { AppShell } from '../../layout/AppShell'
-import { PageHeader } from '../../components/PageHeader'
 import {
+  PageHeader,
+  Divider,
   Card,
   CardHeader,
   Chip,
@@ -73,6 +74,7 @@ export default function Gallery() {
             <Btn variant="alert">Alert</Btn>
             <Btn variant="ghost">Ghost</Btn>
           </div>
+          <Divider />
         </Card>
 
         <Card>

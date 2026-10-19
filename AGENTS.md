@@ -14,7 +14,7 @@ reproduce.
 | Colour palette + `data-*` state tones (in `styles/dugo.css`) | Page layout, grid, ordering, IA |
 | Typography (Doto, Space Mono, DM Sans, Newsreader) + type scale | Which components you compose, or new ones |
 | How `.card`, `.btn`, `.chip`, `.badge`, `.pill`, `.field`, `.table`, `.tabs` are styled | New components, screens, interactions, UX flows |
-| Both themes (light + dark) must work | Spacing, density, new visual states within the palette |
+| Both themes (light + dark) keep working — they switch off tokens, so no per-page theme work | Spacing, density, new visual states within the palette |
 
 ## Component Rules
 - Components live in `web/src/components/` (PascalCase). Export from `components/index.js`.
@@ -27,13 +27,13 @@ reproduce.
 ## Styling Rules
 - `styles/dugo.css` and `styles/dugo.extras.css` are the shared base — **don't edit** them.
 - New app styling goes in `web/src/styles/app.css` (imported by `main.jsx`).
-- Prefer the existing tokens/classes. Keep light and dark themes working.
+- Prefer the existing tokens/classes — for a screen built from them, that *is* light/dark support. Raw colours or theme-specific values are what break the other theme.
 
 ## Page Rules
 - Admin pages → `<AppShell>`. Landing → no AppShell.
 - Pages live under `web/src/pages/` in role folders: `admin/`, `donor/`,
   `hospital/` (the three account types), plus `public/` (landing + auth +
-  not-found) and `shared/` (ScreenStub, Gallery).
+  not-found) and `shared/` (ScreenStub, Gallery, Welcome).
 - `admin/DashboardBody.jsx` and `public/LandingBody.jsx` were seeded from the
   mockups — edit them freely now.
 - A screen with nothing built yet → `shared/ScreenStub` (links the reference
@@ -70,9 +70,14 @@ reproduce.
 - One concern per file. Barrel exports minimal/stable.
 - Auth chain, always in this order: `lib/firebase.js` → `services/auth.js` (and `services/users.js`) → `hooks/useAuth.jsx` → pages/layout. Pages never import the Firebase SDK.
 
+## Comment Rules
+- Comments describe **what** the code does, not **why** a decision was made. State facts about the code; leave the history and justification out.
+- Keep them short. JSDoc on components documents props and behaviour; prose block comments describe the file or block in one or two lines.
+- Docblocks at the top of a seeded/edited page say what the file holds and what it attaches — no "never hand-edit" or design-story narration.
+
 ## Verification
 - `cd web && npx vite build`
-- New UI works in **both** light and dark, and stays inside the locked palette/type.
+- New UI stays inside the locked palette/type and uses the design-system tokens/classes — that keeps both themes working without per-theme work. Spot-check the other theme only when a screen adds custom visuals (gradients, glows, overlays) or one-off inline styles; `/gallery` renders every component in both themes for the component-level check.
 - Mockups are a reference for the look — not a target to match pixel-for-pixel.
 - After editing anything in `light/`, `dark/` or `styles/`, re-run `python3 tools/screenshots.py` so the README reference images don't go stale.
 - Auth-touching changes: verify the two modes work: configured (with placeholder or real credentials) and the NotConfigured screen (missing values). No demo/fallback account exists any more.

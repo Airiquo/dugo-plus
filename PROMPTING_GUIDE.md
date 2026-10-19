@@ -58,7 +58,7 @@ INPUTS
 CONSTRAINTS
 - Use AppShell for admin screens. Landing must not use AppShell.
 - Prefer components from web/src/components; create new primitives when the design needs them (read 2–3 similar ones first, follow CONVENTIONS.md, export from the barrel).
-- Stay inside the locked look: existing palette, typography, and data-* state tones. Keep both themes working.
+- Stay inside the locked look: existing palette, typography, and data-* state tones. Build from the shared tokens/classes, which is what keeps both themes working.
 - New CSS only in web/src/styles/app.css. Don't edit styles/dugo.css or styles/dugo.extras.css.
 - Forward arbitrary data-* props: always spread {...rest} last.
 - Layout, IA, and UX are yours to design — the mockup is a reference, not a spec.
@@ -67,7 +67,7 @@ CONSTRAINTS
 
 ACCEPTANCE CRITERIA
 - Build passes: `cd web && npx vite build`
-- Looks on-brand (palette/type/states) and works in both themes
+- Looks on-brand (palette/type/states) and is built from the design-system components/tokens, so both themes hold without per-theme work
 - Composes existing components, or adds a documented new one (barrel updated)
 - Route wired correctly in web/src/App.jsx
 - No unused imports/vars, no console errors
@@ -106,9 +106,9 @@ web/src/
 │   └── app.css         # App-owned styling (new UI lives here)
 ├── layout/             # App chrome/layout shells
 │   ├── AppShell.jsx    # Admin shell (sidebar/topbar/main)
-│   ├── RequireAuth.jsx # /admin/* gate (passes through when unconfigured)
-│   ├── AuthLayout.jsx  # Public `.pub` chrome for the auth screens
-│   └── shell.parts.txt # Reference material (generated)
+│   ├── RequireAuth.jsx # /admin/* gate (session + role check)
+│   ├── RequireRole.jsx # Account-type gate behind RequireAuth
+│   └── AuthLayout.jsx  # Public `.pub` chrome for the auth screens
 ├── pages/              # Route-level pages, grouped by role
 │   ├── admin/          # The admin account type
 │   │   ├── BloodRequests.jsx  # Worked example: a list screen from components
@@ -177,7 +177,7 @@ web/src/
 - **Base is fixed:** `styles/dugo.css` and `styles/dugo.extras.css` are the shared base — do not edit them.
 - **App styling in `app.css`:** All new CSS goes in `web/src/styles/app.css`, imported by `main.jsx`. Keep selectors app-scoped and reusable.
 - **Data-driven:** Reuse the `data-*` attributes the stylesheet already maps to states/colors before inventing new ones.
-- **Both themes:** Verify new styling in light and dark.
+- **Themes come from tokens:** build from the shared tokens/classes and both themes hold; verify the other theme only when you add custom visuals or one-off values.
 - **Palette/type locked:** Don't introduce new brand colours or fonts; compose from what exists.
 
 ## 5. Prompt Templates (Copy-Paste Ready)
@@ -209,7 +209,7 @@ ACCEPTANCE CRITERIA
 - /admin/inventory renders it (update App.jsx, drop the stub)
 - cd web && npx vite build passes
 - Reads as the same product as light/admin-inventory.html (look), improved where it helps (layout)
-- Works in both themes; no unused imports/vars
+- Built from the shared components/tokens, so both themes hold; no unused imports/vars
 
 OUTPUT INSTRUCTIONS
 - Read the required files first.
@@ -241,7 +241,7 @@ ACCEPTANCE CRITERIA
 - Added to the barrel export
 - Shown in Gallery.jsx (minimal example)
 - cd web && npx vite build passes
-- Works in both themes; visually consistent with existing primitives
+- Stays visually consistent with existing primitives via the shared tokens (both themes hold)
 
 OUTPUT INSTRUCTIONS
 - Show the component file + barrel change + Gallery addition (full paths)
@@ -262,12 +262,12 @@ INPUTS
 
 CONSTRAINTS
 - Prefer composing/creating components over ad-hoc markup.
-- Stay inside the existing palette/type/data-* states; keep both themes working.
+- Stay inside the existing palette/type/data-* states; the shared tokens keep both themes working.
 - New CSS only in web/src/styles/app.css.
 - Keep changes focused; don't refactor unrelated code.
 
 ACCEPTANCE CRITERIA
-- The change reads as on-brand and works in both themes
+- The change reads as on-brand and is built from the shared tokens (both themes hold)
 - cd web && npx vite build passes
 - No unused imports/vars, no regressions
 

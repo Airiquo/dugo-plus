@@ -1,6 +1,5 @@
 import { AppShell, NAV } from '../../layout/AppShell'
-import { PageHeader } from '../../components/PageHeader'
-import { Card } from '../../components/Card'
+import { PageHeader, Card } from '../../components'
 /**
  * Stub page for admin screens not yet built. Shows the mockup filename and a
  * link to the live mockup served at `/mockups/*` so you can see the intended

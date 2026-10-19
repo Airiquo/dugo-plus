@@ -5,7 +5,7 @@
 // (see CONVENTIONS.md and web/src/pages/shared/Gallery.jsx for usage).
 import { Link } from 'react-router-dom'
 
-import { PubThemeToggle } from '../../components/PubThemeToggle'
+import { PubThemeToggle } from '../../components'
 
 export function LandingBody({ theme, ref }) {
   return (

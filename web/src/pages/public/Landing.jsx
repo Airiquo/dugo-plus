@@ -6,17 +6,15 @@ import { LandingBody } from './LandingBody'
 /**
  * Landing page.
  *
- * The markup is generated (`LandingBody.jsx` — never hand-edit it); this file
- * owns the page's behaviour by delegating from the wrapper element, because the
- * generated markup carries no handlers of its own.
+ * The markup lives in `LandingBody.jsx` (seeded from the mockup, editable);
+ * this file attaches the behaviour — delegation from the wrapper element,
+ * since the body carries no handlers of its own.
  *
- * - The page carries no form: signing in happens on `/login`, which the nav's
- *   "Sign in" button and the footer's "Admin Login" link open through the router.
- *   `tools/gen_pages.py` rewrites both into the generated body.
- * - The three designed CTAs are the page's "get started" affordances and open the
- *   register screen: "Become a donor" and "Become a partner" preselect their
- *   account type, while "Request blood" opens the plain form — the account types
- *   are donor / hospital / system admin, so there is no requester role to preset.
+ * - No form here: the nav's "Sign in" button and the footer's "Admin Login"
+ *   link open `/login` through the router.
+ * - The three CTAs open the register screen: "Become a donor" and "Become a
+ *   partner" preselect their account type, "Request blood" opens the plain
+ *   form (there is no requester role to preset).
  */
 const CTA_ROLES = [
   ['.pub-bigcta-actions .pub-btn-light', 'donor'],
