@@ -75,11 +75,13 @@ export default function Login() {
           />
         </label>
         <label>
-          <span className="auth-label-row">
+          <div className="auth-label-row">
             <span>Password</span>
-            <Link to="/forgot-password">Forgot your password?</Link>
-          </span>
-          <span className="auth-field">
+            <Link className="auth-forgot" to="/forgot-password">
+              Forgot your password?
+            </Link>
+          </div>
+          <div className="auth-field">
             <input
               autoComplete="current-password"
               placeholder="••••••••"
@@ -96,7 +98,7 @@ export default function Login() {
             >
               <Icon name={showPassword ? 'eye-off' : 'eye'} size={17} />
             </button>
-          </span>
+          </div>
         </label>
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">
