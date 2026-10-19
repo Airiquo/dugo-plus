@@ -28,8 +28,7 @@
   font-size: 12.5px;
   letter-spacing: 0;
   text-transform: none;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
 }
 .pub .pub-form .auth-label-row a:focus-visible {
   outline: 2px solid var(--accent);
