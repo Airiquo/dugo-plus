@@ -1,20 +1,40 @@
 # AGENTS.md — Dugo+ Repo Rules
 
 ## Golden Rule
-**Match the look, design the rest.** Stay inside the design system's visual
-language (palette, typography, component styling); everything else — layout,
-composition, new components, new screens, UX flows — is yours to design well.
-The mockups in `light/` and `dark/` are a **style reference**, not a spec to
-reproduce.
+**The design system is a reference, not a spec.** Tokens and primitives are
+shared defaults — extend or override them deliberately, keeping one concept to
+one value so both themes keep working. **Layout and composition are yours
+entirely.** The mockups in `light/` and `dark/` are examples of the style, not
+design targets; matching them is not a goal.
 
-## Locked vs free
+Visual quality is a requirement, not a byproduct of consistency. A screen built
+from the right tokens that still looks unappealing has failed.
 
-| Locked (the look) | Free (design it) |
+## Shared defaults vs yours
+
+| Shared defaults (extend or override deliberately) | Yours to design |
 | --- | --- |
 | Colour palette + `data-*` state tones (in `styles/dugo.css`) | Page layout, grid, ordering, IA |
 | Typography (Doto, Space Mono, DM Sans, Newsreader) + type scale | Which components you compose, or new ones |
 | How `.card`, `.btn`, `.chip`, `.badge`, `.pill`, `.field`, `.table`, `.tabs` are styled | New components, screens, interactions, UX flows |
 | Both themes (light + dark) keep working — they switch off tokens, so no per-page theme work | Spacing, density, new visual states within the palette |
+
+## Owner instructions
+- An explicit instruction from the project owner wins over any default in this
+  file. State the trade-off once, then implement it — no re-arguing, no asking
+  the same thing twice.
+- A deliberate deviation from a shared default is recorded in `app.css` with a
+  short comment saying it is intentional.
+
+## Unanswered questions
+- If a question goes unanswered, **do not pick a default and proceed**. Restate
+  the question, and what is blocked on it, on every turn until it is answered or
+  explicitly withdrawn by the owner.
+- Never record an assumption in place of an answer. "I'll assume X" is not an
+  acceptable resolution.
+- A question stops being asked only by being answered, by explicit withdrawal,
+  or because the work it blocked is cancelled or descoped — and that drop is
+  stated, never silent.
 
 ## Component Rules
 - Components live in `web/src/components/` (PascalCase). Export from `components/index.js`.
@@ -27,7 +47,10 @@ reproduce.
 ## Styling Rules
 - `styles/dugo.css` and `styles/dugo.extras.css` are the shared base — **don't edit** them.
 - New app styling goes in `web/src/styles/app.css` (imported by `main.jsx`).
-- Prefer the existing tokens/classes — for a screen built from them, that *is* light/dark support. Raw colours or theme-specific values are what break the other theme.
+- Build from the shared tokens/classes where they fit, and override them where the
+  design needs better. Keep one concept to one value: raw colours or
+  theme-specific values for something the tokens already define are what break
+  the other theme.
 
 ## Page Rules
 - Admin pages → `<AppShell>`. Landing → no AppShell.
@@ -83,10 +106,20 @@ reproduce.
 
 ## Verification
 - `cd web && npx vite build`
-- New UI stays inside the locked palette/type and uses the design-system tokens/classes — that keeps both themes working without per-theme work. Spot-check the other theme only when a screen adds custom visuals (gradients, glows, overlays) or one-off inline styles; `/gallery` renders every component in both themes for the component-level check.
-- Mockups are a reference for the look — not a target to match pixel-for-pixel.
+- **Done means designed.** Before calling a screen finished, check it against:
+  - **Hierarchy** — the eye lands somewhere, and it is the right place.
+  - **Spacing rhythm** — deliberate and consistent, not default browser gaps.
+  - **States** — empty, loading, error, disabled and focus, not just the happy path.
+  - **Would this look at home on a good production site?** Consistency with the
+    mockups is *not* the bar.
+- Both themes keep working off the tokens, so no per-page theme work is needed.
+  Spot-check the other theme when a screen adds custom visuals (gradients, glows,
+  overlays) or one-off inline styles; `/gallery` renders every component in both
+  themes for the component-level check.
 - After editing anything in `light/`, `dark/` or `styles/`, re-run `python3 tools/screenshots.py` so the README reference images don't go stale.
 - Auth-touching changes: verify the two modes work: configured (with placeholder or real credentials) and the NotConfigured screen (missing values). No demo/fallback account exists any more.
+- When a change is claimed to affect compiled output (CSS values, icons, routes),
+  confirm it in `dist/` rather than only in the source file.
 
 ## Cost/Context Rules
 - Read files, don't paste large blobs (>~2–3KB). Avoid dumping entire generated files.
