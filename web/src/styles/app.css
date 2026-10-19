@@ -11,3 +11,94 @@
      - keep selectors scoped to the app so they can't leak into the mockups.
 
    Imported from web/src/main.jsx, after the two base stylesheets. */
+
+/* --- auth card: label row, password reveal, card footer -------------------
+   Scoped to `.pub-form` inside the `.pub` auth scope. Every value is a design
+   token, so light and dark both come along unchanged. */
+
+.pub .pub-form .auth-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pub .pub-form .auth-label-row a {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0;
+  text-transform: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pub .pub-form .auth-label-row a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* The reveal sits inside the field, so the input keeps its own surface and
+   only gains the room the button needs. */
+.pub .pub-form .auth-field {
+  position: relative;
+  display: block;
+}
+.pub .pub-form .auth-field input {
+  padding-right: 46px;
+}
+.pub .pub-form .auth-reveal {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.pub .pub-form .auth-reveal:hover {
+  color: var(--ink);
+}
+.pub .pub-form .auth-reveal:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  color: var(--ink);
+}
+
+/* Hairline footer: the register switch plus who can self-register. */
+.pub .pub-form .auth-card-foot {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.pub .pub-form .auth-card-foot a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pub .pub-form .auth-card-foot a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.pub .pub-form .auth-card-foot .pub-fine {
+  margin-top: 6px;
+}
+
+/* --- field placeholder contrast ------------------------------------------
+   The base sets placeholders to 70% of the muted colour, which falls under
+   4.5:1 on the input surface in both themes. Full `--muted` clears it. */
+.pub input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}

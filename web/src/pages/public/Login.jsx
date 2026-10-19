@@ -13,9 +13,11 @@ import { Icon } from '../../components'
  * `location.state.from`) or from a direct link. Google sign-in creates the
  * account on first use, so there is no separate provider to configure.
  *
- * The register switch sits directly under the primary button, and the provider
- * button below an `or` divider — the order visitors expect from other sites
- * (both dressed by `dugo.extras.css`).
+ * Card layout: subline, email field, password field with a right-aligned
+ * "Forgot your password?" on the label row and a show/hide reveal inside the
+ * field, then the primary action, the `or` divider, the Google secondary, and
+ * a hairline footer carrying the register link and who can self-register.
+ * Class hooks live in `web/src/styles/app.css`.
  */
 export default function Login() {
   const { user, signIn, signInWithGoogle } = useAuth()
@@ -23,6 +25,7 @@ export default function Login() {
   const { state } = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -60,7 +63,7 @@ export default function Login() {
         }}
       >
         <h3>Welcome back</h3>
-        <p className="pub-muted">Sign in to continue to Dugo+</p>
+        <p className="pub-muted">Sign in with the email linked to your account.</p>
         <label>
           <span>Email</span>
           <input
@@ -72,18 +75,29 @@ export default function Login() {
           />
         </label>
         <label>
-          <span>Password</span>
-          <input
-            autoComplete="current-password"
-            placeholder="••••••••"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
+          <span className="auth-label-row">
+            <span>Password</span>
+            <Link to="/forgot-password">Forgot your password?</Link>
+          </span>
+          <span className="auth-field">
+            <input
+              autoComplete="current-password"
+              placeholder="••••••••"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <button
+              type="button"
+              className="auth-reveal"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              aria-pressed={showPassword}
+              onClick={() => setShowPassword((on) => !on)}
+            >
+              <Icon name={showPassword ? 'eye-off' : 'eye'} size={17} />
+            </button>
+          </span>
         </label>
-        <p className="pub-form-alt">
-          <Link to="/forgot-password">Forgot your password?</Link>
-        </p>
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">
             {message}
@@ -93,9 +107,6 @@ export default function Login() {
           {busy ? 'Signing in…' : 'Sign In'}
           <Icon name="arrow-right" size={14} />
         </button>
-        <p className="pub-form-alt">
-          New to Dugo+? <Link to="/register">Create an account</Link>
-        </p>
         <p className="pub-or">or</p>
         <button
           className="pub-btn pub-btn-ghost pub-btn-wide"
@@ -105,6 +116,12 @@ export default function Login() {
         >
           Continue with Google
         </button>
+        <div className="auth-card-foot">
+          New to Dugo+? <Link to="/register">Create an account</Link>
+          <p className="pub-fine">
+            Hospital and admin accounts are provided by the Dugo+ team.
+          </p>
+        </div>
       </form>
     </AuthLayout>
   )

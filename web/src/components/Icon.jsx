@@ -80,6 +80,19 @@ const PATHS = {
   download: <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
   refresh: <path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5" />,
   droplet: <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />,
+  eye: (
+    <>
+      <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </>
+  ),
+  'eye-off': (
+    <>
+      <path d="M4 5l16 14" />
+      <path d="M9.6 6.4A10.6 10.6 0 0 1 12 6c6.4 0 10 6 10 6a17 17 0 0 1-3.3 3.8" />
+      <path d="M6.5 8.2A16.7 16.7 0 0 0 2 12s3.6 6 10 6c1.3 0 2.5-.2 3.5-.6" />
+    </>
+  ),
 }
 export function Icon({ name, size = 16, className, ...rest }) {
   return (

@@ -131,8 +131,8 @@ from the System Analysis spec has exactly one row here.
 | NFR-17 | Compliance | Data Privacy Act of 2012 (RA 10173) compliance | compliance-doc + app-code | P8 | not started | Consent/privacy copy + data rights flows |
 | NFR-18 | Compliance | DOH AO 2020-0030 health-data privacy guidelines | compliance-doc | P8 | not started | Privacy copy + handling rules |
 | NFR-19 | Compliance | Mechanism to request access/correction/deletion of personal data | app-code | P6/P8 | not started | FR-039 flow |
-| NFR-20 | Usability | Simple/intuitive for first-time users with low technical literacy | app-code | P9 | not started | Usability pass evidence |
-| NFR-21 | Usability | Clear, immediate error messages in plain language | app-code | P9 | partial | Auth errors mapped (`services/auth.js`); full-screen audit pending |
+| NFR-20 | Usability | Simple/intuitive for first-time users with low technical literacy | app-code | P9 | partial | Auth card restructured (`/login`): clearer subline, in-field password reveal, and a footer note stating hospital/admin accounts are team-provided — usability pass still pending |
+| NFR-21 | Usability | Clear, immediate error messages in plain language | app-code | P9 | partial | Auth errors mapped (`services/auth.js`); placeholder contrast raised to ≥4.5:1 in both themes (`web/src/styles/app.css`); full-screen audit pending |
 | NFR-22 | Usability | Low-connectivity support with clear messaging | app-code | P5/P9 | not started | Offline/error states |
 | NFR-23 | Usability | Hospital dashboard scannable for time-pressured staff | app-code | P4 | not started | Hospital dashboard layout |
 | NFR-24 | Scalability | Expand to more hospitals/areas without redesigning matcher | cloud-function + compliance-doc | P9 | not started | Architecture note + load evidence |
