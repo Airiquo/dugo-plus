@@ -115,11 +115,15 @@ committing; an unfilled row fails the check rather than passing silently.
 - Auth chain, always in this order: `lib/firebase.js` → `services/auth.js` (and `services/users.js`) → `hooks/useAuth.jsx` → pages/layout. Pages never import the Firebase SDK.
 
 ## Workflow
-- Work lives on `feat/*` branches off `main`; details in `CONTRIBUTING.md`.
+- Work lives on `feat/*` branches off `integration`; feature PRs target
+  `integration`, and `integration` is merged into `main`. Details in
+  `CONTRIBUTING.md`.
 - Three files are touched by nearly every feature and take **one writer at a
   time**: `web/src/App.jsx`, `firestore.rules`, `docs/REQUIREMENTS.md`.
-- `prod` is a release mirror, fast-forwarded from `main` only. Nobody commits to
-  it. Deploys go through `tools/deploy.sh` from `prod`; see `docs/DEPLOY.md`.
+- `main` and `integration` are protected (PR, passing `checks`, up to date);
+  `prod` is a release mirror, fast-forwarded from `main` only, and nobody
+  commits to it. Deploys go through `tools/deploy.sh` from `prod`; see
+  `docs/DEPLOY.md`.
 
 ## Comment Rules
 - Comments describe **what** the code does, not **why** a decision was made. State facts about the code; leave the history and justification out.
