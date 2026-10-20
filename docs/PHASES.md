@@ -290,7 +290,7 @@ frontend code alone.
 
 | Needs | Rows (examples) | Requirement outside the app |
 | --- | --- | --- |
-| Cloud Functions | FR-007, FR-021, FR-036, FR-041, FR-042-045, NFR-27 half | **the Blaze plan**: Functions cannot be deployed on Spark |
+| Cloud Functions | FR-007, FR-021, FR-036, FR-041, FR-042-045 | **the Blaze plan**: Functions cannot be deployed on Spark |
 | SMS / email provider keys | FR-007, NFR-02, NFR-07, NFR-09 | a paid provider account |
 | Firebase console / ops | NFR-08, NFR-10, NFR-25 | project configuration |
 | Written policy | NFR-17, NFR-18 | compliance text |
@@ -340,8 +340,7 @@ is cancelled. An assumption is never recorded in place of an answer.
 
 - **NFR-14, idle session timeout**: deferred (D9). No timeout value, no policy
   on what counts as activity, no decision on whether it applies to all roles.
-- **NFR-27, the Cloud Function half**: needs Blaze. No decision on when Blaze is
-  enabled, or whether a Function should take over writing `errorLogs`.
+- **NFR-27**: client-written to `errorLogs` (create-only). No Cloud Function planned.
 - **`firestore.rules` is not deployed.** The file is committed but not live, so
   profile saves ride on whatever rules the console currently holds, and
   `errorLogs` writes are silently rejected. Fix: `firebase deploy --only
