@@ -8,8 +8,9 @@ mechanics of getting a change into `main`.
 
 | Branch | Role |
 | --- | --- |
-| `main` | integration. Everything merges here, and it should always build. |
-| `feat/<short-name>` | one feature. Branch off `main`, merge back with a PR. |
+| `main` | release truth. Only receives `integration`, and it should always build. |
+| `integration` | the collect branch. Feature PRs target this, and it is merged into `main` when it is known good. |
+| `feat/<short-name>` | one feature. Branch off `integration`, PR back into `integration`. |
 | `prod` | release mirror. **Nobody commits to it.** |
 | `staging` | the owner's personal experiment branch, unrelated to `main` and never merged. Do not build on it unless it is yours. |
 
@@ -17,15 +18,18 @@ Name a feature branch for the feature, not the phase: `feat/hospital-requests`,
 not `feat/p2`. Phases are a reporting structure, not a unit of work.
 
 ```bash
-git checkout main && git pull
+git checkout integration && git pull
 git checkout -b feat/hospital-requests
 ```
 
-Rebase on `main` each morning while the branch is open:
+Rebase on `integration` each morning while the branch is open:
 
 ```bash
-git pull --rebase origin main
+git pull --rebase origin integration
 ```
+
+Branch off `integration` rather than `main`, so your work is built on top of
+whatever is already collected instead of on top of an older tree.
 
 ## Before opening a PR
 
@@ -43,7 +47,7 @@ git pull --rebase origin main
 
 ## Opening the PR
 
-- Target `main`.
+- Target `integration`, unless you are the owner merging `integration` into `main`.
 - Say which requirement rows the PR moves, and to what status.
 - Say what you checked, and what you could not check.
 
@@ -60,7 +64,16 @@ git pull --rebase origin main
 
 ## Shipping
 
-Manual, and only from `main` once it is known good:
+Two steps. First get `integration` onto `main`, once the collected work is known
+good and the checks are green:
+
+```bash
+git checkout integration && git pull
+git checkout main && git pull
+git merge --no-ff integration && git push
+```
+
+Then `main` to `prod`, which is manual and fast-forward only:
 
 ```bash
 git checkout main && git pull

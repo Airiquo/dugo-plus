@@ -11,12 +11,16 @@ name: checks
 # until its requirement row is updated, and the script enforces that. Without
 # this workflow the script only runs when someone remembers to run it, so a
 # PR with an unfilled row would pass review.
+#
+# Runs on `main` and `integration`, because both are protected and both require
+# this check. A PR targeting a branch that does not run this workflow would sit
+# blocked forever waiting for a status that never arrives.
 
 on:
   push:
-    branches: [main]
+    branches: [main, integration]
   pull_request:
-    branches: [main]
+    branches: [main, integration]
 
 jobs:
   checks:
