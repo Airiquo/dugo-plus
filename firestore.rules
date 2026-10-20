@@ -1,0 +1,94 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Account profiles: `users/{uid}` is written once when an account is made
+    // (services/users.js) and read back on every session change to decide which
+    // routes open. Everything else in the database stays closed until a screen
+    // needs it, which is why this pass uses Firestore only for roles — the data
+    // the screens show still comes from web/src/services/requests.js.
+    match /users/{uid} {
+      // The owner, and nobody else, may read their own profile.
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      // This validates shape, not intent. The account type is chosen in the
+      // browser, so a determined client can still claim admin; making that
+      // authoritative needs a Cloud Function setting a custom claim
+      // (README, "Known limitation").
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.role is string
+                    && request.resource.data.role in ['donor', 'hospital', 'admin']
+                    && request.resource.data.name is string
+                    && request.resource.data.email is string;
+
+      // Editable, but the role is frozen: allowing that would be the escalation
+      // path, since only an operator should grant it (README, "Granting admin").
+      // The donor profile fields (FR-04) are validated by type so a hand-written
+      // document cannot put a non-string where a screen expects one.
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.role == resource.data.role
+                    && request.resource.data.name is string
+                    && request.resource.data.email is string
+                    && (
+                         !('bloodType' in request.resource.data)
+                         || request.resource.data.bloodType in ['', 'O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']
+                       )
+                    && (
+                         !('contact' in request.resource.data)
+                         || (
+                              request.resource.data.contact.keys().hasOnly(['phone'])
+                              && request.resource.data.contact.phone is string
+                            )
+                       )
+                    && (
+                         !('location' in request.resource.data)
+                         || request.resource.data.location == null
+                         || (
+                              request.resource.data.location.keys().hasOnly(['coordinates', 'geohash', 'city', 'address'])
+                              && request.resource.data.location.city is string
+                              && request.resource.data.location.geohash is string
+                              && request.resource.data.location.address is string
+                              && (
+                                   request.resource.data.location.coordinates == null
+                                   || request.resource.data.location.coordinates is latlng
+                                 )
+                            )
+                       )
+                    // Eligibility is derived on read, never written: a donor
+                    // declaring themselves eligible would defeat FR-031.
+                    && !('eligibility' in request.resource.data);
+
+      allow delete: if false;
+    }
+
+    // Error records written by the app (NFR-27, services/log.js). Create-only,
+    // and nobody may read them back through the client: the record is a report,
+    // not data any screen shows, so keeping reads closed stops a visitor using
+    // the collection as a directory of other people's failures. Shape and size
+    // are checked because the writer is a browser and the web config is public,
+    // so anyone could otherwise post arbitrary documents.
+    match /errorLogs/{entryId} {
+      allow create: if request.resource.data.keys().hasOnly(
+                        ['message', 'stack', 'route', 'uid', 'build', 'createdAt']
+                      )
+                    && request.resource.data.message is string
+                    && request.resource.data.message.size() <= 4000
+                    && request.resource.data.stack is string
+                    && request.resource.data.stack.size() <= 4000
+                    && request.resource.data.route is string
+                    && request.resource.data.route.size() <= 4000
+                    && request.resource.data.uid is string
+                    && request.resource.data.uid.size() <= 4000
+                    && request.resource.data.build is string
+                    && request.resource.data.build.size() <= 4000;
+      allow read, update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
