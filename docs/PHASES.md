@@ -216,7 +216,8 @@ appear in `docs/REQUIREMENTS.md`; that table tracks `main`.
 ## 6. Guardrails
 
 - **`main` must build.** `cd web && npx vite build`, then
-  `node tools/check-docs.mjs`. Run both before every PR.
+  `node tools/check-docs.mjs`. Both run in CI on every PR
+  (`.github/workflows/checks.yml`), so a green PR means both passed.
 - **One requirement row per PR, updated in that PR.** A PR that changes behaviour
   covered by a row, without updating the row (Status, Notes, Where/evidence), is
   incomplete.
@@ -307,8 +308,12 @@ is cancelled. An assumption is never recorded in place of an answer.
   profile saves ride on whatever rules the console currently holds, and
   `errorLogs` writes are silently rejected. Fix: `firebase deploy --only
   firestore:rules`.
-- **CI deploy workflow**: not written. Needs a service-account secret and the
-  six `VITE_FIREBASE_*` values as GitHub secrets.
+- **No CI deploy.** The `checks` workflow (`.github/workflows/checks.yml`) runs
+  `check-docs` and the build on every PR and push to `main`, and needs no
+  secrets. Auto-deploying to Hosting is deliberately not part of it: shipping is
+  manual from `prod` (D11). An automatic deploy would need a
+  `FIREBASE_SERVICE_ACCOUNT` secret and the six `VITE_FIREBASE_*` values, and
+  would make going live a side effect of a push.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
 - **No test suite**: recorded as a gap, not scheduled.
