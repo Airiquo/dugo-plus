@@ -65,7 +65,14 @@ export default function Register() {
   // redirect cannot overtake `updateProfile` (which would briefly greet the
   // user by email prefix) and so a failure still has a form to report itself
   // on; `roleMissing` holds it for the recovery message below.
-  if (user && !busy && !roleMissing) return <Navigate to={homeFor(sessionRole)} replace />
+  //
+  // An unverified session goes to the notice screen instead: without this the
+  // redirect would overtake the post-submit `navigate('/verify-email')` in
+  // `run`, since the session event fires before that call.
+  if (user && !busy && !roleMissing) {
+    if (!user.emailVerified) return <Navigate to="/verify-email" replace />
+    return <Navigate to={homeFor(sessionRole)} replace />
+  }
 
   const run = async (action) => {
     setBusy(true)

@@ -3,6 +3,7 @@ import { ThemeProvider } from './hooks/useTheme'
 import { AuthProvider } from './hooks/useAuth'
 import RequireAuth from './layout/RequireAuth'
 import RequireRole from './layout/RequireRole'
+import RequireVerified from './layout/RequireVerified'
 import { isFirebaseConfigured, missingFirebaseKeys } from './lib/firebase'
 import Landing from './pages/public/Landing'
 import Login from './pages/public/Login'
@@ -33,10 +34,11 @@ const TRANSLATED = new Set(['dashboard', 'blood-requests'])
  * Known admin screens: 9. `dashboard` and `blood-requests` are built; the rest
  * render a `ScreenStub` pointing at the live mockups served from `/mockups/*`.
  *
- * `/admin/*` sits behind two gates, in order: `RequireAuth` checks there is a
- * session, `RequireRole` checks the account type is `admin`. Accounts with no
- * role yet are sent to `/account/role` rather than refused. `/login` and
- * `/register` have no mockup of their own and are built on `AuthLayout`.
+ * `/admin/*` sits behind three gates, in order: `RequireAuth` checks there is a
+ * session, `RequireVerified` checks the address is confirmed (D5), and
+ * `RequireRole` checks the account type is `admin`. Accounts with no role yet
+ * are sent to `/account/role` rather than refused. `/login` and `/register` have
+ * no mockup of their own and are built on `AuthLayout`.
  */
 export default function App() {
   // `NotConfigured` wears `AuthLayout`, so it still needs the theme context even
@@ -72,18 +74,22 @@ export default function App() {
             path="/donor/profile"
             element={
               <RequireAuth>
-                <RequireRole roles={['donor']}>
-                  <Profile />
-                </RequireRole>
+                <RequireVerified>
+                  <RequireRole roles={['donor']}>
+                    <Profile />
+                  </RequireRole>
+                </RequireVerified>
               </RequireAuth>
             }
           />
           <Route
             element={
               <RequireAuth>
-                <RequireRole roles={['admin']}>
-                  <Outlet />
-                </RequireRole>
+                <RequireVerified>
+                  <RequireRole roles={['admin']}>
+                    <Outlet />
+                  </RequireRole>
+                </RequireVerified>
               </RequireAuth>
             }
           >

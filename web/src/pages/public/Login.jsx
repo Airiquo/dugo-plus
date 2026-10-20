@@ -45,15 +45,23 @@ export default function Login() {
   // Already signed in (e.g. a bookmark to /login) — go straight through, but
   // stay put while our own sign-in is still resolving so a failure can be shown
   // instead of being overtaken by the redirect.
-  if (user && !busy) return <Navigate to={from} replace />
+  //
+  // An unverified session is sent to the notice screen, not to `from`: the
+  // built screens sit behind `RequireVerified`, which would only bounce them
+  // here and back. `from` is kept for after they confirm the link.
+  if (user && !busy) {
+    return <Navigate to={user.emailVerified ? from : '/verify-email'} replace />
+  }
 
   const run = async (action) => {
     setBusy(true)
     setMessage('')
     setErrors({})
     try {
-      await action()
-      navigate(from, { replace: true })
+      const signedIn = await action()
+      // An unverified account cannot open a built screen (D5), so it goes to
+      // the notice instead of the URL the guard remembered.
+      navigate(signedIn?.emailVerified === false ? '/verify-email' : from, { replace: true })
     } catch (error) {
       const detail = authErrorDetail(error)
       if (detail?.field) setErrors({ [detail.field]: detail.message })

@@ -7,19 +7,20 @@ import AuthLayout from '../../layout/AuthLayout'
 import { Icon } from '../../components'
 
 /**
- * Email-verification notice (FR-01, NFR-12).
+ * Email-verification notice (FR-01, NFR-12; gate per D5).
  *
- * Registration sends the confirmation link and lands here. "I've verified"
- * re-reads the user from Firebase, so clicking the emailed link can be
- * confirmed without signing out and back in; an admin reaches the dashboard
- * straight away, donor/hospital accounts go to `homeFor(role)`.
+ * Registration sends the confirmation link and lands here, and `RequireVerified`
+ * routes any unverified session here, so this is the only screen such an account
+ * can use. Three things it offers: re-read the user from Firebase ("I've
+ * verified"), resend the link, and sign out — the escape hatch for an address
+ * the visitor cannot open.
  *
  * The resend is rate-limited by Firebase; a failure is reported in plain
  * language rather than swallowed (NFR-21). This screen has no input of its own,
  * so its messages are card-level by design — there is no field to blame.
  */
 export default function VerifyEmail() {
-  const { user, loading, role, reloadUser, resendVerification, signOut } = useAuth()
+  const { user, loading, role, roleLoading, reloadUser, resendVerification, signOut } = useAuth()
   const navigate = useNavigate()
   const [message, setMessage] = useState('')
   const [info, setInfo] = useState('')
@@ -37,6 +38,18 @@ export default function VerifyEmail() {
   }
 
   if (!user) return <Navigate to="/login" replace />
+
+  // Already confirmed (this screen can be reached by direct URL) — no reason to
+  // hold a verified account here. Waits for the profile read so `homeFor` is
+  // given a real account type rather than routing through the picker.
+  if (user.emailVerified && !roleLoading) return <Navigate to={homeFor(role)} replace />
+
+  /**
+   * Where a just-confirmed account goes. `homeFor(null)` is the picker, so when
+   * the profile read is still in flight this returns null and the caller leaves
+   * the move to the redirect above, which fires once the role lands.
+   */
+  const home = () => (roleLoading ? null : homeFor(role))
 
   const run = async (action) => {
     setBusy(true)
@@ -91,12 +104,16 @@ export default function VerifyEmail() {
           onClick={() =>
             run(async () => {
               const fresh = await reloadUser()
-              if (fresh.emailVerified) navigate(homeFor(role), { replace: true })
-              else {
+              if (!fresh.emailVerified) {
                 setMessage(
                   "That email is still not verified. Open the link in your inbox, then try again. Check your spam folder too.",
                 )
+                return
               }
+              // A null `home()` means the account type is still loading; the
+              // screen's own redirect takes over from there.
+              const target = home()
+              if (target) navigate(target, { replace: true })
             })
           }
         >
@@ -112,16 +129,14 @@ export default function VerifyEmail() {
           {resendBusy ? 'Sending…' : 'Resend confirmation email'}
         </button>
         <p className="pub-form-alt">
-          Wrong address?{' '}
+          Wrong address, or cannot open the link?{' '}
           <button
             type="button"
             className="auth-forgot"
-            onClick={async () => {
-              await signOut()
-              navigate('/register', { replace: true })
-            }}
+            disabled={busy || resendBusy}
+            onClick={() => signOut()}
           >
-            Start over
+            Sign out and use a different email
           </button>
         </p>
       </form>
