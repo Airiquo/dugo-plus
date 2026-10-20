@@ -3,11 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Dugo+ web app skeleton — consumes the shared design system in ../styles.",
+  "description": "Dugo+ web app skeleton \u2014 consumes the shared design system in ../styles.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check:docs": "node ../tools/check-docs.mjs"
   },
   "dependencies": {
     "firebase": "^13.0.0",

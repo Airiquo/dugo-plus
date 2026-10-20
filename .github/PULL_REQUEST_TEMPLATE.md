@@ -13,7 +13,8 @@
 ## Checks
 
 - [ ] `cd web && npx vite build` passes
-- [ ] Requirement rows above are updated in this PR
+- [ ] `npm run check:docs` passes
+- [ ] Requirement rows above are updated in this PR (Status, Notes, Where/evidence)
 - [ ] Smoke list run (`docs/PHASES.md`) if `services/`, `lib/`, or `firestore.rules` changed
 - [ ] Screen checked against the verification list (`docs/PHASES.md` §7)
 - [ ] The feature works when used, not only when compiled
