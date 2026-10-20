@@ -190,12 +190,49 @@ are worth the same treatment while several features are in flight.
 
 ### Branches
 
+Five branches. Only three matter for day-to-day work.
+
 | Branch | Role | Who writes to it |
 | --- | --- | --- |
-| `main` | integration, and the branch that should always build | feature branches merge here via PR |
-| `feat/*` | one per feature | the feature owner |
+| `main` | release truth. Always builds. Only receives `integration`. | nobody directly; merges come from `integration` |
+| `integration` | the collect branch. Feature branches merge here via PR, and it is merged into `main` when it is known good. | feature owners, via PR |
+| `feat/*` | one per feature, cut from `integration` | the feature owner |
 | `prod` | **release mirror**, only ever fast-forwarded from `main` | nobody directly |
 | `staging` | the owner's personal experiment branch, where unrelated ideas are tried together. An unrelated root to `main`; never merged. | the owner only |
+
+**The flow for a feature:**
+
+```
+integration ──> feat/<feature> ──PR──> integration ──PR──> main
+                (you build here)      (owner reviews)   (owner merges)
+```
+
+```bash
+git checkout integration && git pull
+git checkout -b feat/hospital-requests
+# ...build, run the build and check-docs...
+git push -u origin feat/hospital-requests
+# open the PR against integration
+```
+
+Branch `feat/*` off `integration`, not off `main`. Both would work, but branching
+off `integration` means your work is built on top of whatever else is already
+collected, so it integrates before it is reviewed rather than after.
+
+**`integration` has to be kept rebased on `main`.** This is the one thing Option
+B costs: if `main` moves and `integration` does not, every feature merged into
+`integration` is built on stale ground and the eventual merge back is a conflict
+pile. Merge `integration` into `main` often rather than saving it up.
+
+```bash
+git checkout integration
+git pull --rebase origin main
+git push
+```
+
+Both `main` and `integration` are protected: they require a pull request, a
+passing `checks` run, and an up-to-date branch. Feature branches are not
+protected, since only their owner works on them.
 
 Shipping is manual, and deliberately so: the decision to put something live
 should be a decision, not a side effect of a merge.
@@ -222,8 +259,9 @@ appear in `docs/REQUIREMENTS.md`; that table tracks `main`.
   covered by a row, without updating the row (Status, Notes, Where/evidence), is
   incomplete.
 - **Nobody commits to `prod`.** It mirrors `main` or it is wrong.
-- **Daily rebase.** `git pull --rebase origin main` each morning. Conflicts found
-  hours after they appear are minutes of work; found days later, they are hours.
+- **Daily rebase.** `git pull --rebase origin integration` each morning while
+  your branch is open. Conflicts found hours after they appear are minutes of
+  work; found days later, they are hours.
 - **The build catches signature changes, not behaviour changes.** Renaming an
   export or removing an import fails the build. Changing what a function *means*
   while keeping its signature does not, and that is the failure mode to watch
