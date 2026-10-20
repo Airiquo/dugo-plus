@@ -1,0 +1,240 @@
+/* dugo+ — app-owned styling.
+   ---------------------------------------------------------------------------
+   This is where the React app's own CSS lives. The shared design system
+   (styles/dugo.css) and its React-only additions (styles/dugo.extras.css) are
+   the fixed base and are not edited here.
+
+   Put new app styling in this file. Keep it on-brand:
+     - reuse the tokens (custom properties) and data-* state hooks the base
+       already defines, rather than inventing colours or fonts;
+     - verify every rule in both light and dark themes;
+     - keep selectors scoped to the app so they can't leak into the mockups.
+
+   Imported from web/src/main.jsx, after the two base stylesheets. */
+
+/* --- auth card ------------------------------------------------------------
+   Deliberate deviations from the shared form defaults, all here in one block
+   rather than layered overrides. Values are design tokens.
+
+   The base rule `.pub-form label span` uppercases every span inside a label.
+   The card's label row and field wrapper are divs, so they do not inherit it
+   and no counter-rule is needed. */
+
+.pub .pub-form .auth-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* The forgot-password link owns its look; it does not depend on the base's
+   underlined-link convention or on selector specificity. `button.auth-forgot`
+   inherits the same look, for a link-shaped action that is not a navigation. */
+.pub .pub-form .auth-forgot {
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.pub .pub-form button.auth-forgot {
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+.pub .pub-form .auth-forgot:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pub .pub-form .auth-forgot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --- donor profile -------------------------------------------------------
+   The donor surface, carrying the same `.pub` scope as the auth screens so both
+   themes come along unchanged. Sections separate the four groups of fields;
+   eligibility is a readout, not an input, and reads as one. */
+
+.profile-main {
+  display: grid;
+  justify-items: center;
+  padding: 32px 20px 56px;
+}
+.profile-card {
+  width: 100%;
+  max-width: 560px;
+}
+
+/* A group of fields with a quiet heading above it. */
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.profile-section:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+.profile-section-h {
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Read-only fields stay legible as values rather than looking disabled. */
+.pub .pub-form input:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+/* Coordinates are optional, so the state says which it is rather than showing
+   an empty box that looks like something is missing. */
+.profile-coords {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.profile-coords-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.profile-coords-state[data-state='set'] {
+  color: var(--ink);
+}
+.profile-coords-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* The derived eligibility readout. The badge's colour comes from the shared
+   `data-eligibility` tones, so this only lays the pair out. */
+.profile-elig {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--card-2);
+  border-radius: 8px;
+}
+.profile-elig-detail {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* --- field errors --------------------------------------------------------
+   Shown under the input they belong to. `--red` rather than `--accent`: these
+   are failures, and in light mode the two are close hues, so the divider and
+   text use a colour already reserved for destructive timing. Every value is a
+   token, so both themes come along unchanged. */
+
+.pub .pub-form .field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 2px;
+  color: var(--red);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.pub .pub-form .field-error svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* The invalid input is marked on the field itself, not only in the text
+   beneath it, so the mistake is findable at a glance. */
+.pub .pub-form input[aria-invalid='true'] {
+  border-color: var(--red);
+}
+.pub .pub-form input[aria-invalid='true']:focus-visible {
+  outline-color: var(--red);
+}
+
+/* The reveal sits inside the field, so the input keeps its own surface and
+   only gains the room the button needs. */
+.pub .pub-form .auth-field {
+  position: relative;
+  display: block;
+}
+.pub .pub-form .auth-field input {
+  padding-right: 46px;
+}
+.pub .pub-form .auth-reveal {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.pub .pub-form .auth-reveal:hover {
+  color: var(--ink);
+}
+.pub .pub-form .auth-reveal:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  color: var(--ink);
+}
+
+/* Hairline footer: the register switch plus who can self-register. */
+.pub .pub-form .auth-card-foot {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.pub .pub-form .auth-card-foot a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pub .pub-form .auth-card-foot a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.pub .pub-form .auth-card-foot .pub-fine {
+  margin-top: 6px;
+}
+
+/* --- field placeholder contrast ------------------------------------------
+   The base sets placeholders to 70% of the muted colour, which falls under
+   4.5:1 on the input surface in both themes. Full `--muted` clears it. */
+.pub input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
