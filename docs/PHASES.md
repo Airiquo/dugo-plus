@@ -72,6 +72,11 @@ naming the feature that completes it, or features, where a row is finished acros
 several. This is that list. A feature is the unit of work: one person, taken to
 working.
 
+Rows also carry a **Notes** column, holding the deviation or change for that row
+(a `D*` reference, a descope, stricter or looser than spec). It is required once
+a row reaches `done` or `partial`, and it is the one place a decision is stated:
+Where/evidence points at files, it does not repeat the decision.
+
 | ID | Feature | Phase(s) | Rows |
 | --- | --- | --- | --- |
 | F1 | Donor and hospital account, profile, sign-in | P1 | FR-01, FR-02, FR-03, FR-04, FR-012, FR-046, FR-048 |
@@ -95,6 +100,21 @@ F1 and F2 are built. Everything else is open. Row-level status stays in
 `docs/REQUIREMENTS.md`; this table is who finishes what, not what is done.
 
 ## 5. How the work is split
+
+### Write-back
+
+A task is not complete until three things are updated in the same commit:
+
+| File | What |
+| --- | --- |
+| `docs/REQUIREMENTS.md` | the row(s) it moved: Status, Notes, Where/evidence |
+| `docs/PHASES.md` §2 | the phase's status line, if a count changed |
+| `docs/PHASES.md` §10 | any open question raised, and any answered |
+
+`node tools/check-docs.mjs` enforces the table half of this: a missing Feature,
+an `F*` or `D*` reference that does not resolve, or a `done`/`partial` row with
+no Notes fails the check. Tracking stays honest because skipping it fails
+loudly rather than passing silently.
 
 **One feature, one person, taken all the way to working.** Not one layer per
 person, and not one phase per person.
@@ -175,7 +195,7 @@ are worth the same treatment while several features are in flight.
 | `main` | integration, and the branch that should always build | feature branches merge here via PR |
 | `feat/*` | one per feature | the feature owner |
 | `prod` | **release mirror**, only ever fast-forwarded from `main` | nobody directly |
-| `staging` | one person's scratch branch, built without feature branches | that person only |
+| `staging` | the owner's personal experiment branch, where unrelated ideas are tried together. An unrelated root to `main`; never merged. | the owner only |
 
 Shipping is manual, and deliberately so: the decision to put something live
 should be a decision, not a side effect of a merge.
@@ -188,17 +208,18 @@ git checkout prod && git merge --ff-only main && git push
 `--ff-only` is not decoration: it makes the command fail loudly if `prod` has
 drifted, instead of quietly creating a merge commit that hides the problem.
 
-**`staging` note:** it is an unrelated root to `main` (it holds the pre-rewrite
-history), so it cannot be fast-forwarded and a merge would need
-`--allow-unrelated-histories`. Build on it freely; syncing it with `main` is the
-awkward part, and that is unresolved.
+**`staging` note:** it is deliberately unrelated to `main` and is never merged
+into it. Code that proves out there graduates by cherry-pick or by copying the
+change across, not by merging the branch. Nothing on `staging` is expected to
+appear in `docs/REQUIREMENTS.md`; that table tracks `main`.
 
 ## 6. Guardrails
 
-- **`main` must build.** `cd web && npx vite build` is the only automated check
-  there is. Run it before every PR.
+- **`main` must build.** `cd web && npx vite build`, then
+  `node tools/check-docs.mjs`. Run both before every PR.
 - **One requirement row per PR, updated in that PR.** A PR that changes behaviour
-  covered by a row, without updating the row, is incomplete.
+  covered by a row, without updating the row (Status, Notes, Where/evidence), is
+  incomplete.
 - **Nobody commits to `prod`.** It mirrors `main` or it is wrong.
 - **Daily rebase.** `git pull --rebase origin main` each morning. Conflicts found
   hours after they appear are minutes of work; found days later, they are hours.
@@ -290,6 +311,4 @@ is cancelled. An assumption is never recorded in place of an answer.
   six `VITE_FIREBASE_*` values as GitHub secrets.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
-- **`staging` is an unrelated root to `main`**: merges need
-  `--allow-unrelated-histories`.
 - **No test suite**: recorded as a gap, not scheduled.

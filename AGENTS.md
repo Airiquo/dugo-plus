@@ -20,9 +20,25 @@ from the right tokens that still looks unappealing has failed.
 | Both themes (light + dark) keep working — they switch off tokens, so no per-page theme work | Spacing, density, new visual states within the palette |
 
 ## Handoff
-- `docs/PHASES.md` is the handoff document: phase status, the feature roster
-  (`F1`–`F12`), how work is split, the branch model, and open questions.
-- `CONTRIBUTING.md` covers branch, PR and shipping mechanics.
+**Read these before starting work, in this order:**
+1. `docs/REQUIREMENTS.md` — the FR/NFR table. Status, Notes and the Feature
+   column are the source of truth for what is left and which feature owns it.
+2. `docs/PHASES.md` — how work is split (one feature, one person, taken to
+   working), the feature roster (`F1`–`F12`), the branch model, the manual
+   smoke list, and §10's open questions.
+3. `CONTRIBUTING.md` — branches, the PR checklist, and shipping.
+
+Do not restate process here. If a branch, shipping or ownership rule is needed,
+it belongs in one of those three files.
+
+## Write-back
+A task is not complete until these are updated **in the same commit**:
+- `docs/REQUIREMENTS.md` — the row(s) it moved: Status, Notes, Where/evidence.
+- `docs/PHASES.md` §2 — the phase's status line, if a count changed.
+- `docs/PHASES.md` §10 — any open question it raised, and any it answered.
+
+`node tools/check-docs.mjs` enforces the table half of this. Run it before
+committing; an unfilled row fails the check rather than passing silently.
 
 ## Owner instructions
 - An explicit instruction from the project owner wins over any default in this
@@ -98,6 +114,13 @@ from the right tokens that still looks unappealing has failed.
 - One concern per file. Barrel exports minimal/stable.
 - Auth chain, always in this order: `lib/firebase.js` → `services/auth.js` (and `services/users.js`) → `hooks/useAuth.jsx` → pages/layout. Pages never import the Firebase SDK.
 
+## Workflow
+- Work lives on `feat/*` branches off `main`; details in `CONTRIBUTING.md`.
+- Three files are touched by nearly every feature and take **one writer at a
+  time**: `web/src/App.jsx`, `firestore.rules`, `docs/REQUIREMENTS.md`.
+- `prod` is a release mirror, fast-forwarded from `main` only. Nobody commits to
+  it. Deploys go through `tools/deploy.sh` from `prod`; see `docs/DEPLOY.md`.
+
 ## Comment Rules
 - Comments describe **what** the code does, not **why** a decision was made. State facts about the code; leave the history and justification out.
 - Keep them short. JSDoc on components documents props and behaviour; prose block comments describe the file or block in one or two lines.
@@ -105,12 +128,21 @@ from the right tokens that still looks unappealing has failed.
 
 ## Requirements Rules
 - `docs/REQUIREMENTS.md` is the FR/NFR traceability table (one row per requirement from the System Analysis spec).
-- Screens and features map to requirement IDs. A task that implements or changes behaviour covered by a requirement updates that row (Status + Where/evidence) in the same task.
+- Screens and features map to requirement IDs. A task that implements or changes behaviour covered by a requirement updates that row (Status + Notes + Where/evidence) in the same task.
+- **Notes** records deviations and changes (a `D*` reference, a descope, stricter or looser than spec) and is required whenever Status moves to `done` or `partial`. Where/evidence does not restate a decision: state it once, in Notes.
+- **Feature** names the feature that completes the row (`F1`–`F12`, roster in `docs/PHASES.md` §4). A row finished across several features names each one.
 - The table's Status column is the source of truth for what's left; build against the next phase's rows, one screen/component per task.
 - Rows whose Class is not `app-code` (cloud-function, firestore-rules, external-service, ops-config, compliance-doc) need work outside the React app — don't mark them done from frontend code alone.
+- `node tools/check-docs.mjs` validates the table (Feature present, `F*`/`D*` refs resolve, Notes present on `done`/`partial`). It must pass.
 
 ## Verification
 - `cd web && npx vite build`
+- `node tools/check-docs.mjs` — validates the traceability table.
+- **Smoke list.** There is no test suite. For anything touching `services/`,
+  `lib/` or `firestore.rules`, run the four manual checks in `docs/PHASES.md`
+  §6: sign in lands on `/donor/profile`; reload shows saved values; a save
+  persists across reload; an unverified account is still held at `/verify-email`.
+  The build catches signature changes, not behaviour changes.
 - **Done means designed.** Before calling a screen finished, check it against:
   - **Hierarchy** — the eye lands somewhere, and it is the right place.
   - **Spacing rhythm** — deliberate and consistent, not default browser gaps.

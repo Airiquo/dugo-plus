@@ -11,7 +11,7 @@ mechanics of getting a change into `main`.
 | `main` | integration. Everything merges here, and it should always build. |
 | `feat/<short-name>` | one feature. Branch off `main`, merge back with a PR. |
 | `prod` | release mirror. **Nobody commits to it.** |
-| `staging` | one person's scratch branch. Do not build on it unless it is yours. |
+| `staging` | the owner's personal experiment branch, unrelated to `main` and never merged. Do not build on it unless it is yours. |
 
 Name a feature branch for the feature, not the phase: `feat/hospital-requests`,
 not `feat/p2`. Phases are a reporting structure, not a unit of work.
@@ -30,8 +30,10 @@ git pull --rebase origin main
 ## Before opening a PR
 
 - [ ] `cd web && npx vite build` passes.
+- [ ] `node tools/check-docs.mjs` passes.
 - [ ] Any requirement row this change affects is updated in
-      `docs/REQUIREMENTS.md`, in this same PR.
+      `docs/REQUIREMENTS.md` in this same PR: Status, Notes, Where/evidence.
+      Notes is required once a row reaches `done` or `partial`.
 - [ ] The smoke list in `docs/PHASES.md` has been run if the change touched
       `web/src/services/`, `web/src/lib/`, or `firestore.rules`.
 - [ ] The screen has been checked against the verification list in
@@ -50,6 +52,8 @@ git pull --rebase origin main
 - Does the diff match the stated requirement rows?
 - Does `docs/REQUIREMENTS.md` now describe reality? A row marked `done` that a
   user cannot actually walk through is the thing to catch here.
+- Does a row whose behaviour deviated carry a Notes entry, rather than burying
+  the deviation in Where/evidence?
 - For anything touching `web/src/services/`, `web/src/lib/`, or
   `firestore.rules`: is there anything that compiles but changes behaviour for
   existing callers? The build will not catch that.
