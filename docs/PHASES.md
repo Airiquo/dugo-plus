@@ -37,7 +37,7 @@ numbers rather than trusting this section.
 | **P9** | Non-functional hardening (responsiveness, scale, compatibility) | not started |
 
 Phase numbers order the table. They are not a build order and not a work
-assignment: see §4.
+assignment: see §5.
 
 ## 3. Pick up a phase
 
@@ -46,10 +46,10 @@ For any phase:
 1. Open `docs/REQUIREMENTS.md` and read its rows. The **Class** column says what
    kind of work each row needs.
 2. Anything whose Class is not `app-code` needs work outside the React app.
-   `cloud-function` rows cannot be finished from frontend code (see §6).
+   `cloud-function` rows cannot be finished from frontend code (see §7).
 3. Build the smallest thing that makes a row genuinely work, then update that
    row in the same task.
-4. Verify against §7 before calling it done.
+4. Verify against §8 before calling it done.
 
 ### P1 in detail, since it is the one with history
 
@@ -65,7 +65,36 @@ For any phase:
 - **Still open in P1:** NFR-14 (idle session timeout, deferred), and the Cloud
   Function half of NFR-27.
 
-## 4. How the work is split
+## 4. The feature list
+
+Every requirement row in `docs/REQUIREMENTS.md` carries a **Feature** column
+naming the feature that completes it, or features, where a row is finished across
+several. This is that list. A feature is the unit of work: one person, taken to
+working.
+
+| ID | Feature | Phase(s) | Rows |
+| --- | --- | --- | --- |
+| F1 | Donor and hospital account, profile, sign-in | P1 | FR-01, FR-02, FR-03, FR-04, FR-012, FR-046, FR-048 |
+| F2 | Auth hardening: verification gate, password policy, error logging | P1 | NFR-12, NFR-13, NFR-27 (app half) |
+| F3 | Hospital posts and manages blood requests | P2 | FR-011, FR-016, FR-017, FR-037 (list half), FR-021 (form half) |
+| F4 | Donor browses and responds to compatible requests | P3 | FR-005, FR-006, FR-028, FR-029, FR-030, FR-022, FR-023, FR-038 (collect half) |
+| F5 | Donor history, rewards and health tracker | P3 | FR-008, FR-009, FR-010 |
+| F6 | Hospital dashboard, inventory and map | P4 | FR-013, FR-014, FR-015, FR-018, FR-020, FR-034 |
+| F7 | Matching and notifications | P5 | FR-007, FR-021 (matcher half), FR-037 (queue half), FR-041 (reader half), NFR-01, NFR-02, NFR-05, NFR-07, NFR-09 |
+| F8 | Donor screening and donation confirmation | P4 | FR-024, FR-025, FR-026, FR-027, FR-031, FR-032, FR-033, FR-036 |
+| F9 | Admin account management and data requests | P6 | FR-019, FR-039, FR-040, FR-041 (settings half), FR-047 |
+| F10 | Hash-chain audit trail | P7 | FR-035, FR-042, FR-043, FR-044, FR-045, NFR-15 |
+| F11 | Compliance and privacy | P8 | FR-038 (consent half), NFR-10, NFR-16, NFR-17, NFR-18, NFR-19 (process half) |
+| F12 | Non-functional hardening | P9 | NFR-03, NFR-04, NFR-06, NFR-08a, NFR-08b, NFR-11, NFR-14, NFR-20, NFR-21, NFR-22, NFR-23, NFR-24, NFR-25, NFR-26, NFR-28, NFR-29 |
+
+Rows finished across more than one feature name both, for example FR-037 is
+F3 (the hospital list sorts by urgency) and F7 (the matcher queues by urgency),
+and FR-010 is F1 (shown on the profile today) and F5 (its own tracker screen).
+
+F1 and F2 are built. Everything else is open. Row-level status stays in
+`docs/REQUIREMENTS.md`; this table is who finishes what, not what is done.
+
+## 5. How the work is split
 
 **One feature, one person, taken all the way to working.** Not one layer per
 person, and not one phase per person.
@@ -94,25 +123,25 @@ Stubs are for genuinely external or unbuilt work (SMS, Cloud Functions, the
 matcher). A stub is **not** acceptable for a flow a user walks through: if a user
 can click it, it has to work.
 
-### Three sample features
+### Worked examples
 
-Worked examples of the size a single person should take.
+Three of the open features in full, showing the size a single person should take.
 
-**A. A hospital posts a blood request.** P2; FR-011, FR-016, FR-017, and the
+**F3. A hospital posts a blood request.** P2: FR-011, FR-016, FR-017, and the
 hospital half of FR-037.
 Builds `pages/hospital/Requests.jsx` and `pages/hospital/NewRequest.jsx`, the
 `createRequest()` / `listHospitalRequests()` pair in `services/requests.js`, and
 the `requests/*` rules. The routing half of FR-021 is stubbed (P5).
 *Done when:* a hospital can post a request, reload, and still see it.
 
-**B. A donor sees and accepts a compatible request.** P3; FR-005, FR-006,
-FR-028, FR-029, FR-030, and it completes FR-010.
+**F4. A donor sees and accepts a compatible request.** P3: FR-005, FR-006,
+FR-028, FR-029, FR-030.
 Builds `pages/donor/Requests.jsx`, a compatibility helper, the
 eligibility-before-accepting gate, and the acknowledgment record.
 *Done when:* a matching donor sees the request, a non-matching donor does not,
 and someone inside their donation interval is blocked with a reason.
 
-**C. An admin manages accounts.** P6; FR-040, FR-047, part of FR-039.
+**F9. An admin manages accounts.** P6: FR-040, FR-047, part of FR-039.
 Builds `pages/admin/Accounts.jsx` and `pages/admin/Profile.jsx`, plus cross-user
 reads and a status write in `services/users.js`.
 This is the feature that **widens the rules**: `users/*` is owner-read only
@@ -164,7 +193,7 @@ history), so it cannot be fast-forwarded and a merge would need
 `--allow-unrelated-histories`. Build on it freely; syncing it with `main` is the
 awkward part, and that is unresolved.
 
-## 5. Guardrails
+## 6. Guardrails
 
 - **`main` must build.** `cd web && npx vite build` is the only automated check
   there is. Run it before every PR.
@@ -194,7 +223,7 @@ Library) would cover this class of breakage automatically on every PR. That work
 is not scoped or scheduled; it is recorded here so the smoke list is not mistaken
 for the real thing.
 
-## 6. What needs work outside the app
+## 7. What needs work outside the app
 
 Some rows cannot be finished from `web/src`. Do not mark them `done` from
 frontend code alone.
@@ -206,7 +235,7 @@ frontend code alone.
 | Firebase console / ops | NFR-08, NFR-10, NFR-25 | project configuration |
 | Written policy | NFR-17, NFR-18 | compliance text |
 
-## 7. Verifying a change
+## 8. Verifying a change
 
 Before calling a screen finished, from `AGENTS.md`:
 
@@ -223,7 +252,7 @@ Before calling a screen finished, from `AGENTS.md`:
 
 Deploying is covered in `docs/DEPLOY.md`.
 
-## 8. Setup on a new machine
+## 9. Setup on a new machine
 
 ```bash
 git clone https://github.com/Airiquo/dugo-plus.git
@@ -244,7 +273,7 @@ firebase use dugo-plus
 The app does not run unconfigured: with any `VITE_FIREBASE_*` missing, every
 route renders `pages/shared/NotConfigured`.
 
-## 9. Open questions
+## 10. Open questions
 
 Stated every session until answered, explicitly withdrawn, or the work they block
 is cancelled. An assumption is never recorded in place of an answer.

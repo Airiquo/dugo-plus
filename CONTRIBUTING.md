@@ -35,7 +35,7 @@ git pull --rebase origin main
 - [ ] The smoke list in `docs/PHASES.md` has been run if the change touched
       `web/src/services/`, `web/src/lib/`, or `firestore.rules`.
 - [ ] The screen has been checked against the verification list in
-      `docs/PHASES.md` §7 (hierarchy, spacing, states, both themes).
+      `docs/PHASES.md` §8 (hierarchy, spacing, states, both themes).
 - [ ] The feature works when used, not only when compiled. A stub is not an
       acceptable end state for anything a user can click.
 

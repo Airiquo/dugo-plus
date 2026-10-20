@@ -19,6 +19,11 @@ from the right tokens that still looks unappealing has failed.
 | How `.card`, `.btn`, `.chip`, `.badge`, `.pill`, `.field`, `.table`, `.tabs` are styled | New components, screens, interactions, UX flows |
 | Both themes (light + dark) keep working — they switch off tokens, so no per-page theme work | Spacing, density, new visual states within the palette |
 
+## Handoff
+- `docs/PHASES.md` is the handoff document: phase status, the feature roster
+  (`F1`–`F12`), how work is split, the branch model, and open questions.
+- `CONTRIBUTING.md` covers branch, PR and shipping mechanics.
+
 ## Owner instructions
 - An explicit instruction from the project owner wins over any default in this
   file. State the trade-off once, then implement it — no re-arguing, no asking
