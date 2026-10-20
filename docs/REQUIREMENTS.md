@@ -28,12 +28,18 @@ from the System Analysis spec has exactly one row here.
 | D2 | "Blockchain" = **hash chain stored in Firestore**, appended by Cloud Functions (`prevHash + payloadHash + timestamp`), rules deny update/delete, admin verifies by walking the chain. | FR-035, FR-042–045, NFR-15 |
 | D3 | Notifications behind a **pluggable provider**: email path live, SMS activates when provider keys exist; until then the UI reports the service unavailable. | FR-007, NFR-02, NFR-07, NFR-09 |
 | D4 | Maps = **Leaflet + OpenStreetMap** (no API key); locations stored as GeoPoint + geohash, feeding both the map and the tiered-radius matcher. | FR-015, FR-022, FR-023, NFR-05 |
+| D5 | **Email verification is a gate, not an advisory link.** An unverified session cannot reach a built screen; `layout/RequireVerified.jsx` sends it to `/verify-email`, which offers resend, "I've verified", and sign out. Stricter than the requirement text asks (FR-01/NFR-12 say "link"). | FR-01, NFR-12 |
+| D6 | **Admins bypass the gate by construction, not by a role check.** Console-created accounts are verified by Firebase on creation, so `RequireVerified` reads only `emailVerified`. | D5 |
+| D7 | **"Start over" removed.** The notice screen offers resend, "I've verified", and sign out; an unverified account stays blocked on that screen rather than being re-registered. | D5 |
+| D8 | **NFR-27 split**: `app-code` half (logging seam + error boundary) built now; `cloud-function` half deferred. | NFR-27 |
+| D9 | **NFR-14 deferred** (idle session timeout) — descoped for now, not dropped. | NFR-14 |
+| D10 | **Error records are written by the client** to `errorLogs` (create-only rules), not by a Cloud Function: Spark-compatible, at the cost of the writer not being a trusted boundary. | NFR-27 |
 
 ## Functional Requirements — Account Management (Donor & Recipient)
 
 | ID | Requirement | Class | Phase | Status | Where / evidence |
 | --- | --- | --- | --- | --- | --- |
-| FR-01 | Register with personal details, blood type, contact info + email verification link | app-code | P1 | done | Register form + verification email on signup (`services/auth.js` `sendEmailVerification`), `/verify-email` screen (`pages/public/VerifyEmail.jsx`); personal details, blood type and contact are captured on `/donor/profile` (`pages/donor/Profile.jsx`, FR-04). Verification is advisory by decision: the link is sent and re-checked, but unverified accounts still reach the app |
+| FR-01 | Register with personal details, blood type, contact info + email verification link | app-code | P1 | done | Register form + verification email on signup (`services/auth.js` `sendEmailVerification`), `/verify-email` screen (`pages/public/VerifyEmail.jsx`); personal details, blood type and contact are captured on `/donor/profile` (`pages/donor/Profile.jsx`, FR-04). **D5: verification is a gate** — `layout/RequireVerified.jsx` (mounted in `App.jsx` over `/donor/profile` and `/admin/*`) holds an unverified session on `/verify-email`; `Register.jsx`/`Login.jsx` route unverified sessions there. Mail delivery not yet verified end to end (see `checklist_dugo`) |
 | FR-02 | Log in with credentials, maintain secure session | app-code | — | done | `pages/public/Login.jsx`, `hooks/useAuth.jsx` |
 | FR-03 | Log out, ending the session | app-code | — | done | `hooks/useAuth.jsx`, `layout/AppShell.jsx` |
 | FR-04 | Create/edit profile: blood type, location, DOB, eligibility | app-code + firestore-rules | P1 | done | `/donor/profile` (`pages/donor/Profile.jsx`); `users/{uid}` holds `{role,name,email,bloodType,dateOfBirth,contact.phone,location{GeoPoint,geohash,city,address},lastDonationAt,updatedAt}` (`services/users.js` `readProfile`/`saveProfile`); rules freeze `role` and validate field types (`firestore.rules`) |
@@ -123,9 +129,9 @@ from the System Analysis spec has exactly one row here.
 | NFR-09 | Reliability | Handle third-party outages (SMS/email/GPS) and inform the user | app-code + cloud-function | P5 | not started | D3 unavailable-state messaging |
 | NFR-10 | Security | Encrypt sensitive data at rest and in transit | ops-config + compliance-doc | P8 | not started | Verify Firestore default encryption + TLS; document |
 | NFR-11 | Security | Restrict donor data to authorized hospital users + admin (RBAC) | firestore-rules | P1/P8 | partial | `users/*` is owner-read, owner-write with `role` frozen and profile fields type-checked (`firestore.rules`); per-collection RBAC for hospital/admin reads pending |
-| NFR-12 | Security | Email verification on registration | app-code | P1 | done | `sendEmailVerification` in `signUp` (`services/auth.js`); `/verify-email` re-reads the user via `reloadCurrentUser` and forwards once verified. Advisory by decision: the notice shows but does not gate the app (FR-01 wording requires a link, not a gate) |
+| NFR-12 | Security | Email verification on registration | app-code | P1 | done | `sendEmailVerification` in `signUp` (`services/auth.js`); `/verify-email` re-reads the user via `reloadCurrentUser` and forwards once verified. **D5: enforced as a gate** — `layout/RequireVerified.jsx` holds an unverified session on `/verify-email`; admins pass by construction (D6). Stricter than the requirement text, which asks for a link, not a gate. Mail delivery not yet verified end to end (see `checklist_dugo`) |
 | NFR-13 | Security | Password ≥8 characters with complexity | app-code | P1 | done | `utils/password.js` `passwordProblem` (8+, letter + digit, not the email); enforced at Register before the request |
-| NFR-14 | Security | End session after inactivity | app-code | P1 | not started | Idle timer → signOut |
+| NFR-14 | Security | End session after inactivity | app-code | P1 | not started | **Deferred by D9** — idle timer → signOut; restated each session until answered, withdrawn, or cancelled |
 | NFR-15 | Security | Tamper-evident blockchain-based audit trail | cloud-function + firestore-rules | P7 | not started | D2 hash chain |
 | NFR-16 | Security | Donor consent before hospital access to donor information | app-code + firestore-rules | P3/P8 | not started | FR-038 consent + rules gate |
 | NFR-17 | Compliance | Data Privacy Act of 2012 (RA 10173) compliance | compliance-doc + app-code | P8 | not started | Consent/privacy copy + data rights flows |
@@ -138,7 +144,7 @@ from the System Analysis spec has exactly one row here.
 | NFR-24 | Scalability | Expand to more hospitals/areas without redesigning matcher | cloud-function + compliance-doc | P9 | not started | Architecture note + load evidence |
 | NFR-25 | Scalability | Donor database grows without significant performance loss | ops-config + app-code | P9 | not started | Indexes + load evidence |
 | NFR-26 | Maintainability | Modular architecture, features updatable independently | app-code | P9 | partial | Layered `web/src/` layout exists; evidence write-up pending |
-| NFR-27 | Maintainability | Log system errors and exceptions | app-code + cloud-function | P1 | not started | Error-logging util + Function logging |
+| NFR-27 | Maintainability | Log system errors and exceptions | app-code + cloud-function | P1 | partial | **D8: row split.** `app-code` half done: `services/log.js` (`errorRecord`+`logError`, message/stack/route/uid/build), `layout/ErrorBoundary.jsx` wired in `main.jsx`, plus `error`/`unhandledrejection` hooks; records go to `errorLogs`, create-only and shape/size capped in `firestore.rules` (**D10**: client-written). `cloud-function` half still to do: Function-side logging needs the Blaze plan |
 | NFR-28 | Compatibility | Donor/Recipient access via Android/iOS mobile web | app-code | P9 | partial | Responsive design system; verification pass pending |
 | NFR-29 | Compatibility | Hospital/Admin access via browser dashboard | app-code | P9 | partial | `AppShell` desktop layout; verification pass pending |
 
