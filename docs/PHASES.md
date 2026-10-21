@@ -342,15 +342,20 @@ is cancelled. An assumption is never recorded in place of an answer.
   on what counts as activity, no decision on whether it applies to all roles.
 - **NFR-27**: client-written to `errorLogs` (create-only, open to signed-out
   writers by design — D17). No Cloud Function planned.
-- **New `firestore.rules` + `firestore.indexes.json` are committed but not yet
-  deployed.** Correction: an earlier version of this note claimed rules were
-  never deployed — that was false. The live ruleset (53e56872…, deployed
-  2026-10-20) matches `firestore.rules` as of `c5c99d4`, verified by ruleset
-  MD5 and a live `errorLogs` write probe on 2026-10-21. The 15-collection
-  ruleset deploys only after merge, the owner's review of the diff, then
-  `firebase deploy --only firestore:rules,firestore:indexes --project
-  dugo-plus`, followed by `npm run seed` (needs the service-account key, kept
-  outside the repo).
+- **`firestore.rules` + `firestore.indexes.json` deployed 2026-10-21.** The
+  15-collection ruleset went live after the owner reviewed the diff
+  (`firebase deploy --only firestore:rules,firestore:indexes --project
+  dugo-plus`; rules released, 12 composite indexes confirmed live via
+  `firebase firestore:indexes`). The follow-up commit fixed two deploy gaps
+  found during it: `firebase.json` did not declare the `indexes` path, so the
+  CLI skipped index deployment silently, and the collection-group `logs` index
+  was rejected by the API as unnecessary (single-field CG queries use the
+  automatic index). **`npm run seed` ran 2026-10-22** against the live
+  `dugo-plus` project (9 docs: 4 donation types, 4 guidelines, `systemConfig/
+  global` with the D18 5-tier radius ladder), via the service-account key kept
+  outside the repo at `~/.config/dugo-plus/sa-key.json`. Whether the key is
+  deleted from the console (and disk) after this session, or kept for
+  re-seeding, is still open with the owner.
 - **Custom claims are not set anywhere yet** (D15): every admin/staff rule
   matches no session until `{ role, hospitalId }` claims are issued — a server
   step (Cloud Function or console), owned by F9/F12. Until then only
@@ -365,17 +370,25 @@ is cancelled. An assumption is never recorded in place of an answer.
 - **TTL policy on `emailVerifications.expiresAt`** (schema §4) is not
   deployable from `firebase.json`/the CLI — it needs a console or `gcloud`
   firestore field-ttl configuration. Not done.
-- **`auditBlocks.sequence` has no entry in `firestore.indexes.json`**: it is a
-  single-field sort, covered by Firestore's automatic single-field index. The
-  file carries the 13 multi-field indexes from schema §4.
+- **Two schema §4 indexes are not in `firestore.indexes.json`, both
+  deliberately**: `auditBlocks.sequence` is a single-field sort, and the
+  collection-group `logs` index was rejected by the Firestore API ("this index
+  is not necessary, configure using single field index controls") — both are
+  served by the automatic single-field index. The file carries the other 12
+  multi-field indexes from schema §4, all confirmed live 2026-10-21.
 - **No CI deploy.** The `checks` workflow (`.github/workflows/checks.yml`) runs
   `check-docs`, the build, and the Firestore rules suite (`rules` job, D19) on
   every PR and push to `main`, and needs no secrets. Auto-deploying to Hosting
   is deliberately not part of it: shipping is
   manual from `prod` (D11). An automatic deploy would need a
   `FIREBASE_SERVICE_ACCOUNT` secret and the six `VITE_FIREBASE_*` values, and
-  would make going live a side effect of a push. The `rules` job must be added
-  to branch protection's required checks to count.
+  would make going live a side effect of a push. **Answered 2026-10-22:**
+  branch protection on `integration` and `main` now requires both status
+  checks, `checks` and `rules` (strict, re-run after merge).
+- **Formspree activation pending.** The `/partner` intake posts to
+  `VITE_FORMSPREE_ENDPOINT` (D21); Formspree's first submission triggers an
+  activation email to the form owner, which must be clicked before live tests
+  pass. Test the form twice after activating.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
 - **No app test suite**: recorded as a gap, not scheduled. The exception is the

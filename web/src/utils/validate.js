@@ -53,6 +53,30 @@ export function validateForgot({ email } = {}) {
 }
 
 /**
+ * Partner request (D21, `/partner`). A facility asks for a hospital/blood
+ * bank account; the form posts to Formspree, so every field is checked here
+ * before the request leaves the browser.
+ */
+export function validatePartner({ facility, contactPerson, email, phone, message } = {}) {
+  const errors = {}
+  if (!(facility ?? '').trim()) errors.facility = 'Enter the facility or organization name.'
+  if (!(contactPerson ?? '').trim()) errors.contactPerson = 'Enter the name we should reply to.'
+  const emailIssue = emailProblem(email)
+  if (emailIssue) errors.email = emailIssue
+
+  const digits = (phone ?? '').replace(/[\s()-]/g, '')
+  if (digits && !/^(\+?\d{7,15})$/.test(digits)) {
+    errors.phone = 'Enter a phone number in digits, for example 044 791 0000.'
+  }
+
+  if (!(message ?? '').trim()) {
+    errors.message = 'Tell us a little about the partnership you are asking for.'
+  }
+
+  return errors
+}
+
+/**
  * Donor profile (FR-04). Only the fields the user typed are checked; blood type
  * and date of birth are optional at this stage, so a donor can save contact
  * details before deciding.

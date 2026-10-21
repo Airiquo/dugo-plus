@@ -1,30 +1,26 @@
 import { useState } from 'react'
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { authErrorDetail } from '../../services/auth'
 import { homeFor } from '../../services/users'
 import { PASSWORD_MIN } from '../../utils/password'
 import { validateRegister } from '../../utils/validate'
-import AuthLayout, { SELF_SERVE_ROLES } from '../../layout/AuthLayout'
+import AuthLayout from '../../layout/AuthLayout'
 import { Icon, GoogleMark, FieldError } from '../../components'
 
 /**
- * Register screen.
+ * Register screen — donor accounts only (D20).
  *
  * No mockup covers registration — the design only has a "Welcome back" card — so
  * this is `AuthLayout` with extra fields, composed from the public classes that
- * already exist. It is also the only screen that asks which account is being
- * made: `/login` renders no picker.
+ * already exist. Self-registration creates a donor account and nothing else:
+ * hospital and admin accounts are made by the Dugo+ team (the partner page,
+ * `/partner`, is how a facility asks to be set up).
  *
- * The landing page's CTAs link here with a preset — `/register?role=donor`,
- * `?role=hospital` — while "Request blood" opens the plain form, since there is
- * no requester account type.
- *
- * The chosen account type is written to `users/{uid}` in Firestore right after
- * the account is created (`services/users.js`), and a display name is set from
- * the Name field. The picker offers donor and hospital only; an operator grants
- * admin. If that write fails the account still exists, so the screen says so
- * and points at `/account/role` instead of pretending the sign-up finished.
+ * The donor profile (`users/{uid}`, role `donor`) is written right after the
+ * account is created (`hooks/useAuth.jsx`), and a display name is set from the
+ * Name field. If that write fails the account still exists, so the screen says
+ * so and points at sign-in — signing in again auto-provisions the profile.
  *
  * Every field is checked on submit and each message renders under its own input,
  * so one submission answers the whole form. The password rule is the same
@@ -34,11 +30,8 @@ import { Icon, GoogleMark, FieldError } from '../../components'
  * button below an `or` divider, mirroring `Login` (dressed by `dugo.extras.css`).
  */
 export default function Register() {
-  // `sessionRole` drives the already-signed-in redirect (the form's own `role`
-  // is only what is being picked here, and would mis-route a returning admin).
   const { user, role: sessionRole, signUp, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
-  const [params] = useSearchParams()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -48,28 +41,19 @@ export default function Register() {
   // Set when the account was made but `users/{uid}` was not (see `run`): the
   // form has to stay mounted to show the recovery, since retrying it would
   // only hit "email already in use".
-  const [roleMissing, setRoleMissing] = useState(false)
-
-  // Which account type starts selected: the one in ?role= when the picker
-  // actually offers it, donor otherwise. Held in state because clicking a card
-  // in `AuthLayout` reports back here and decides what gets stored. Admin is not
-  // on offer — it is granted, not picked (see `AuthLayout`).
-  const [role, setRole] = useState(() => {
-    const requested = params.get('role')
-    return SELF_SERVE_ROLES.some((item) => item.id === requested) ? requested : 'donor'
-  })
+  const [profileMissing, setProfileMissing] = useState(false)
 
   // Already signed in — go straight to where this account type lives (`homeFor`
-  // sends admins on to the dashboard, donor/hospital accounts to `/welcome`).
-  // `busy` keeps this form mounted while its own sign-up is in flight, so the
-  // redirect cannot overtake `updateProfile` (which would briefly greet the
-  // user by email prefix) and so a failure still has a form to report itself
-  // on; `roleMissing` holds it for the recovery message below.
+  // sends admins on to the dashboard, donor accounts to the profile). `busy`
+  // keeps this form mounted while its own sign-up is in flight, so the redirect
+  // cannot overtake `updateProfile` (which would briefly greet the user by
+  // email prefix) and so a failure still has a form to report itself on;
+  // `profileMissing` holds it for the recovery message below.
   //
   // An unverified session goes to the notice screen instead: without this the
   // redirect would overtake the post-submit `navigate('/verify-email')` in
   // `run`, since the session event fires before that call.
-  if (user && !busy && !roleMissing) {
+  if (user && !busy && !profileMissing) {
     if (!user.emailVerified) return <Navigate to="/verify-email" replace />
     return <Navigate to={homeFor(sessionRole)} replace />
   }
@@ -84,11 +68,11 @@ export default function Register() {
       // (FR-01, NFR-12); the Google flow returns a verified email already, so
       // it goes straight on. The verify screen forwards once the link is in.
       if (created?.emailVerified === false) navigate('/verify-email', { replace: true })
-      else navigate(homeFor(role), { replace: true })
+      else navigate(homeFor('donor'), { replace: true })
     } catch (error) {
       if (error?.roleNotSaved) {
-        setRoleMissing(true)
-        setMessage('Your account was created, but its account type could not be saved.')
+        setProfileMissing(true)
+        setMessage('Your account was created, but its donor profile could not be saved.')
       } else {
         const detail = authErrorDetail(error)
         if (detail?.field) setErrors({ [detail.field]: detail.message })
@@ -104,15 +88,14 @@ export default function Register() {
     setErrors(found)
     setMessage('')
     if (Object.keys(found).length) return
-    run(() => signUp(name.trim(), email.trim(), password, role))
+    run(() => signUp(name.trim(), email.trim(), password))
   }
 
   return (
     <AuthLayout
       kicker="Create account"
-      heading="One account, three roles"
-      role={role}
-      onRoleChange={setRole}
+      heading="Become a donor"
+      blurb="Donor accounts are open to anyone. Hospital, blood bank, and admin accounts are set up by the Dugo+ team — partners can request one on the Partner page."
     >
       <form
         className="pub-card pub-form"
@@ -123,7 +106,7 @@ export default function Register() {
         }}
       >
         <h3>Create your account</h3>
-        <p className="pub-muted">Join Dugo+ as a donor or as a hospital.</p>
+        <p className="pub-muted">Join Dugo+ as a blood donor.</p>
         <label>
           <span>Name</span>
           <input
@@ -178,10 +161,10 @@ export default function Register() {
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">
             {message}
-            {roleMissing && (
+            {profileMissing && (
               <>
                 {' '}
-                <Link to="/account/role">Choose your account type again.</Link>
+                <Link to="/login">Sign in again to finish setting up.</Link>
               </>
             )}
           </p>
@@ -203,6 +186,9 @@ export default function Register() {
           <GoogleMark />
           Continue with Google
         </button>
+        <p className="pub-fine">
+          Hospital or blood bank? <Link to="/partner">Request a partnership</Link>
+        </p>
       </form>
     </AuthLayout>
   )

@@ -12,14 +12,15 @@ import { LandingBody } from './LandingBody'
  *
  * - No form here: the nav's "Sign in" button and the footer's "Admin Login"
  *   link open `/login` through the router.
- * - The three CTAs open the register screen: "Become a donor" and "Become a
- *   partner" preselect their account type, "Request blood" opens the plain
- *   form (there is no requester role to preset).
+ * - "Become a donor" (and "Request blood", since D1 merged receiving into the
+ *   donor account) opens the donor-only register screen; "Become a partner"
+ *   opens the partnership intake at `/partner` — facilities do not self-
+ *   sign-up (D20/D21).
  */
-const CTA_ROLES = [
-  ['.pub-bigcta-actions .pub-btn-light', 'donor'],
-  ['.pub-bigcta-actions .pub-btn-line', null],
-  ['.pub-partners-band .pub-btn-ghost', 'hospital'],
+const CTA_LINKS = [
+  ['.pub-bigcta-actions .pub-btn-light', '/register'],
+  ['.pub-bigcta-actions .pub-btn-line', '/register'],
+  ['.pub-partners-band .pub-btn-ghost', '/partner'],
 ]
 
 export default function Landing() {
@@ -31,10 +32,10 @@ export default function Landing() {
     const el = ref.current
     if (!el) return undefined
     const onClick = (event) => {
-      const cta = CTA_ROLES.find(([selector]) => event.target.closest(selector))
+      const cta = CTA_LINKS.find(([selector]) => event.target.closest(selector))
       if (!cta) return
-      const [, role] = cta
-      navigate(role ? `/register?role=${role}` : '/register')
+      const [, to] = cta
+      navigate(to)
     }
     el.addEventListener('click', onClick)
     return () => el.removeEventListener('click', onClick)

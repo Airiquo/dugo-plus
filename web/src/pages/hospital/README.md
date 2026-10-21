@@ -1,10 +1,11 @@
 # Hospital / Blood Bank screens
 
-Role **02 — Hospital / Blood Bank** (see `AUTH_ROLES` in
-`web/src/layout/AuthLayout.jsx`). A facility signs up from the landing page
-(`/register?role=hospital`) and acts on behalf of its blood bank.
+Role **02 — Hospital / Blood Bank** (see `ROLES` in
+`web/src/services/users.js`). There is no self sign-up for facilities (D20):
+a hospital account is created by the Dugo+ team from a request on
+`/partner` (D21) and acts on behalf of its blood bank.
 
-No screens are built yet. The role's intended surface, per the register band:
+No screens are built yet. The role's intended surface:
 
 - **Requests** — raise and track blood requests for the facility.
 - **Inventory** — stock levels per blood component, expiry, and transfers.
