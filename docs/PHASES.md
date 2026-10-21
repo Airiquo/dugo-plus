@@ -340,17 +340,45 @@ is cancelled. An assumption is never recorded in place of an answer.
 
 - **NFR-14, idle session timeout**: deferred (D9). No timeout value, no policy
   on what counts as activity, no decision on whether it applies to all roles.
-- **NFR-27**: client-written to `errorLogs` (create-only). No Cloud Function planned.
-- **`firestore.rules` is not deployed.** The file is committed but not live, so
-  profile saves ride on whatever rules the console currently holds, and
-  `errorLogs` writes are silently rejected. Fix: `firebase deploy --only
-  firestore:rules`.
+- **NFR-27**: client-written to `errorLogs` (create-only, open to signed-out
+  writers by design — D17). No Cloud Function planned.
+- **New `firestore.rules` + `firestore.indexes.json` are committed but not yet
+  deployed.** Correction: an earlier version of this note claimed rules were
+  never deployed — that was false. The live ruleset (53e56872…, deployed
+  2026-10-20) matches `firestore.rules` as of `c5c99d4`, verified by ruleset
+  MD5 and a live `errorLogs` write probe on 2026-10-21. The 15-collection
+  ruleset deploys only after merge, the owner's review of the diff, then
+  `firebase deploy --only firestore:rules,firestore:indexes --project
+  dugo-plus`, followed by `npm run seed` (needs the service-account key, kept
+  outside the repo).
+- **Custom claims are not set anywhere yet** (D15): every admin/staff rule
+  matches no session until `{ role, hospitalId }` claims are issued — a server
+  step (Cloud Function or console), owned by F9/F12. Until then only
+  owner-scoped paths are exercisable in production.
+- **`users` rules diverge from schema §2.1** (D16): the built shape
+  (`role/name/email` + profile fields, owner+admin) is kept; schema's
+  fullName/status/dateOfBirth model and "staff of same hospital (limited)"
+  read are not implemented. The rules deliberately grant NO staff read of
+  `users` — schema §6 allows a limited one, and hospital screens (F3/F6) will
+  need to decide what it exposes before it is added. Migration of `users` to
+  the schema shape is an open decision, not a silent default.
+- **TTL policy on `emailVerifications.expiresAt`** (schema §4) is not
+  deployable from `firebase.json`/the CLI — it needs a console or `gcloud`
+  firestore field-ttl configuration. Not done.
+- **`auditBlocks.sequence` has no entry in `firestore.indexes.json`**: it is a
+  single-field sort, covered by Firestore's automatic single-field index. The
+  file carries the 13 multi-field indexes from schema §4.
 - **No CI deploy.** The `checks` workflow (`.github/workflows/checks.yml`) runs
-  `check-docs` and the build on every PR and push to `main`, and needs no
-  secrets. Auto-deploying to Hosting is deliberately not part of it: shipping is
+  `check-docs`, the build, and the Firestore rules suite (`rules` job, D19) on
+  every PR and push to `main`, and needs no secrets. Auto-deploying to Hosting
+  is deliberately not part of it: shipping is
   manual from `prod` (D11). An automatic deploy would need a
   `FIREBASE_SERVICE_ACCOUNT` secret and the six `VITE_FIREBASE_*` values, and
-  would make going live a side effect of a push.
+  would make going live a side effect of a push. The `rules` job must be added
+  to branch protection's required checks to count.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
-- **No test suite**: recorded as a gap, not scheduled.
+- **No app test suite**: recorded as a gap, not scheduled. The exception is the
+  Firestore rules — `firestore.rules.test.mjs` runs ~100 asserts in the
+  emulator, locally (`npm run test:rules`) and in CI (D19). The React app has
+  no tests; the smoke list below is its check.
