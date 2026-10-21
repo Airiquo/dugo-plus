@@ -31,9 +31,8 @@ export default function ScreenStub({ slug }) {
             </a>
           </p>
           <p>
-            Worked example: <code>web/src/pages/admin/BloodRequests.jsx</code> builds a full list
-            screen from the components in <code>web/src/components</code> — see{' '}
-            <code>web/src/pages/shared/Gallery.jsx</code> for usage of every component.
+            Worked example: <code>web/src/pages/shared/Gallery.jsx</code> renders every component
+            in <code>web/src/components</code> with usage notes.
           </p>
         </Card>
       </div>

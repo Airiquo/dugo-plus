@@ -1,8 +1,5 @@
-import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/Icon'
-import { Drawer } from '../components/Overlay'
-import { Btn } from '../components/Btn'
 import { useTheme } from '../hooks/useTheme'
 import { useAuth, userName } from '../hooks/useAuth'
 import { roleLabel } from '../services/users'
@@ -36,10 +33,12 @@ export const NAV = [
 function Sidebar() {
   const { pathname } = useLocation()
   const { user, role, signOut } = useAuth()
+  const { theme, toggle } = useTheme()
   const navigate = useNavigate()
   // `RequireAuth` guarantees a signed-in user; there is no demo identity to fall
   // back to any more.
   const name = userName(user)
+  const next = theme === 'light' ? 'dark' : 'light'
   return (
     <aside id="sidebar">
       <div id="sidebar-logo">
@@ -78,141 +77,44 @@ function Sidebar() {
       </nav>
       <div id="sidebar-signed-in">
         ~/signed in as {name}
-        <button
-          id="sidebar-sign-out"
-          type="button"
-          onClick={async () => {
-            await signOut()
-            navigate('/')
-          }}
-        >
-          $ exit
-        </button>
-      </div>
-    </aside>
-  )
-}
-function Topbar({ noticePrefix, noticeTo, noticeLabel, switcher }) {
-  const { theme, toggle } = useTheme()
-  const { user, role, signOut } = useAuth()
-  const navigate = useNavigate()
-  const [accountOpen, setAccountOpen] = useState(false)
-  const name = userName(user)
-  const provider = user?.providers?.includes('google.com') ? 'Google' : 'Email / password'
-  const next = theme === 'light' ? 'dark' : 'light'
-  return (
-    <header id="topbar">
-      <form id="topbar-search" className="field" role="search">
-        <label className="sr-only" htmlFor="topbar-search-input">
-          Search Dugo+
-        </label>
-        <input
-          id="topbar-search-input"
-          placeholder="search requests, donors, inventory"
-          type="search"
-          name="q"
-        />
-      </form>
-      {switcher ? (
-        <button
-          className="theme-toggle"
-          type="button"
-          onClick={toggle}
-          aria-label={`Switch to ${next} mode`}
-          title={`Switch to ${next} mode`}
-        >
-          <Icon name={theme === 'light' ? 'moon' : 'sun'} size={17} />
-        </button>
-      ) : (
-        <span />
-      )}
-      {/* Bridge out of the admin area: donor/hospital accounts land on the
-          notice page from here (only admins can reach this shell). */}
-      {noticeTo ? (
-        <Link id="topbar-notice" className="btn" to={noticeTo}>
-          {noticePrefix ? `${noticePrefix} ` : ''}
-          {noticeLabel}
-        </Link>
-      ) : null}
-      <button id="topbar-emergency-btn" className="btn" type="button" data-status="emergency">
-        <Icon name="alert" />
-        <span>emergency mode</span>
-      </button>
-      <button
-        id="topbar-notifications"
-        className="btn"
-        type="button"
-        aria-label="Notifications, 5 unread"
-      >
-        <Icon name="bell" />
-        <span className="badge" data-status="new">
-          5
-        </span>
-      </button>
-      {/* The chip keeps the mockup's markup; the chevron opens the account drawer. */}
-      <button
-        id="topbar-profile"
-        className="btn"
-        type="button"
-        aria-haspopup="dialog"
-        aria-expanded={accountOpen}
-        onClick={() => setAccountOpen(true)}
-      >
-        <Icon name="user" />
-        <span id="topbar-profile-text">
-          <span>{name}</span>
-          <span>{roleLabel(role)}</span>
-        </span>
-        <Icon name="chevron-down" />
-      </button>
-      <Drawer
-        name="profile"
-        open={accountOpen}
-        onClose={() => setAccountOpen(false)}
-        title="Account"
-        className="card"
-      >
-        <p className="k">Signed in as</p>
-        <p style={{ margin: '4px 0 0' }}>{user?.email ?? 'Not signed in.'}</p>
-        {user && (
-          <p className="k" style={{ margin: 0 }}>
-            {roleLabel(role)}
-            {' · '}
-            {provider}
-          </p>
-        )}
-        <div className="row" style={{ gap: 8, marginTop: 4 }}>
-          <Btn
-            variant="primary"
+        <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+          <button
+            className="theme-toggle"
+            type="button"
+            onClick={toggle}
+            aria-label={`Switch to ${next} mode`}
+            title={`Switch to ${next} mode`}
+          >
+            <Icon name={theme === 'light' ? 'moon' : 'sun'} size={17} />
+          </button>
+          <button
+            id="sidebar-sign-out"
+            type="button"
             onClick={async () => {
-              setAccountOpen(false)
               await signOut()
               navigate('/')
             }}
           >
-            Sign out
-          </Btn>
+            $ exit
+          </button>
         </div>
-      </Drawer>
-    </header>
+      </div>
+    </aside>
   )
 }
-export function AppShell({
-  children,
-  noticePrefix = 'Signed in as',
-  noticeTo = '/welcome',
-  noticeLabel = "You're in",
-  switcher = true,
-}) {
+/**
+ * Admin app chrome: the left sidebar only.
+ *
+ * The mockup's top toolbar (search, emergency, notifications, account chip) is
+ * deliberately not carried here — the owner's direction is sidebar-only admin
+ * chrome; the account drawer went with it, and sign-out lives in the sidebar.
+ * The theme toggle moved down to the sign-out block so both themes stay
+ * reachable from the shell.
+ */
+export function AppShell({ children }) {
   return (
     <div id="app-shell">
       <Sidebar />
-      <Topbar
-        noticePrefix={noticePrefix}
-        noticeTo={noticeTo}
-        noticeLabel={noticeLabel}
-        switcher={switcher}
-      />
       <main id="page-content">{children}</main>
       <div id="overlay-root" />
       <div id="toast-root" />
