@@ -103,7 +103,9 @@ export default function Profile() {
   }
 
   if (!user) return <Navigate to="/login" replace />
-  if (!role) return <Navigate to="/account/role" replace />
+  // Guards above already bounce a roleless session; this only renders with a
+  // role, so the fallback is a plain home link rather than another redirect.
+  if (!role) return <Navigate to="/" replace />
 
   const set = (key) => (event) => {
     const value = event.target.value

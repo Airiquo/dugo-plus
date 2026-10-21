@@ -8,7 +8,7 @@ import { isFirebaseConfigured, missingFirebaseKeys } from './lib/firebase'
 import Landing from './pages/public/Landing'
 import Login from './pages/public/Login'
 import Register from './pages/public/Register'
-import PickRole from './pages/public/PickRole'
+import Partner from './pages/public/Partner'
 import ForgotPassword from './pages/public/ForgotPassword'
 import VerifyEmail from './pages/public/VerifyEmail'
 import NotFound from './pages/public/NotFound'
@@ -36,9 +36,11 @@ const TRANSLATED = new Set(['dashboard', 'blood-requests'])
  *
  * `/admin/*` sits behind three gates, in order: `RequireAuth` checks there is a
  * session, `RequireVerified` checks the address is confirmed (D5), and
- * `RequireRole` checks the account type is `admin`. Accounts with no role yet
- * are sent to `/account/role` rather than refused. `/login` and `/register` have
- * no mockup of their own and are built on `AuthLayout`.
+ * `RequireRole` checks the account type is `admin`. Self-registration is
+ * donor-only (D20): a session with no profile document is provisioned as a
+ * donor in `hooks/useAuth.jsx`, and `/partner` is how a facility requests a
+ * hospital account. `/login` and `/register` have no mockup of their own and
+ * are built on `AuthLayout`.
  */
 export default function App() {
   // `NotConfigured` wears `AuthLayout`, so it still needs the theme context even
@@ -57,10 +59,13 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          {/* Public partnership intake (D21): the form posts to Formspree and
+              emails the partners mailbox; hospital accounts are created by the
+              Dugo+ team from those requests. */}
+          <Route path="/partner" element={<Partner />} />
           {/* Password recovery (FR-48): donor/hospital/recipient only — admin
               accounts are premade and managed by the development team. */}
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/account/role" element={<PickRole />} />
           {/* Email-confirmation notice for accounts that have not clicked the
               link sent at registration (FR-01, NFR-12). */}
           <Route path="/verify-email" element={<VerifyEmail />} />

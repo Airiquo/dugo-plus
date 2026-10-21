@@ -350,9 +350,12 @@ is cancelled. An assumption is never recorded in place of an answer.
   found during it: `firebase.json` did not declare the `indexes` path, so the
   CLI skipped index deployment silently, and the collection-group `logs` index
   was rejected by the API as unnecessary (single-field CG queries use the
-  automatic index). **`npm run seed` has not run yet** — it needs the
-  service-account key (kept outside the repo, deleted from the console after)
-  and an existing admin account (`users/{uid}.role = "admin"`).
+  automatic index). **`npm run seed` ran 2026-10-22** against the live
+  `dugo-plus` project (9 docs: 4 donation types, 4 guidelines, `systemConfig/
+  global` with the D18 5-tier radius ladder), via the service-account key kept
+  outside the repo at `~/.config/dugo-plus/sa-key.json`. Whether the key is
+  deleted from the console (and disk) after this session, or kept for
+  re-seeding, is still open with the owner.
 - **Custom claims are not set anywhere yet** (D15): every admin/staff rule
   matches no session until `{ role, hospitalId }` claims are issued — a server
   step (Cloud Function or console), owned by F9/F12. Until then only
@@ -379,8 +382,13 @@ is cancelled. An assumption is never recorded in place of an answer.
   is deliberately not part of it: shipping is
   manual from `prod` (D11). An automatic deploy would need a
   `FIREBASE_SERVICE_ACCOUNT` secret and the six `VITE_FIREBASE_*` values, and
-  would make going live a side effect of a push. The `rules` job must be added
-  to branch protection's required checks to count.
+  would make going live a side effect of a push. **Answered 2026-10-22:**
+  branch protection on `integration` and `main` now requires both status
+  checks, `checks` and `rules` (strict, re-run after merge).
+- **Formspree activation pending.** The `/partner` intake posts to
+  `VITE_FORMSPREE_ENDPOINT` (D21); Formspree's first submission triggers an
+  activation email to the form owner, which must be clicked before live tests
+  pass. Test the form twice after activating.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
 - **No app test suite**: recorded as a gap, not scheduled. The exception is the

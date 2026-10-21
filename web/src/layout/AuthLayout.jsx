@@ -1,39 +1,6 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Icon } from '../components/Icon'
 import { PubThemeToggle } from '../components/PubThemeToggle'
 import { useTheme } from '../hooks/useTheme'
-
-/**
- * The three account types Dugo+ recognises: donor, hospital, system admin.
- *
- * `selfServe: false` on admin means the register screen does not offer it.
- * Roles are stored in Firestore (`users/{uid}`, see `services/users.js`), and a
- * client can write whatever it likes there, so hiding admin is about intent, not
- * security: an operator grants it by editing the document — see README,
- * "Granting admin".
- */
-export const AUTH_ROLES = [
-  { id: 'donor', n: '01', icon: 'user', label: 'Donor', note: 'Profile · Alerts · Rewards' },
-  {
-    id: 'hospital',
-    n: '02',
-    icon: 'box',
-    label: 'Hospital / Blood Bank',
-    note: 'Requests · Inventory',
-  },
-  {
-    id: 'admin',
-    n: '03',
-    icon: 'settings',
-    label: 'System admin',
-    note: 'Users · Reports · Audit',
-    selfServe: false,
-  },
-]
-
-/** The account types a person can pick for themselves: donor and hospital. */
-export const SELF_SERVE_ROLES = AUTH_ROLES.filter((item) => item.selfServe !== false)
 
 /**
  * Chrome shared by the sign-in and register screens.
@@ -46,22 +13,17 @@ export const SELF_SERVE_ROLES = AUTH_ROLES.filter((item) => item.selfServe !== f
  * Everything is composed from classes that already exist in `styles/public.css`,
  * plus the `.pub-auth` full-height layout hook in `styles/dugo.extras.css`.
  *
+ * There is no account-type picker here any more: self-registration is donor-
+ * only (D20), so the register screen's card carries only its form, and the
+ * band's left column is copy the screen supplies.
+ *
  * `kicker`/`heading`: the band's left-column copy.
- * `role`: which account type starts selected. Passed by the register screen and
- * by the one-time `pages/public/PickRole.jsx` step; with no `role` the picker is
- * not rendered at all.
- * `onRoleChange`: reports a click back to the caller, which is what actually
- * decides the role that gets stored. Without it the highlight is decorative.
+ * `blurb`: the paragraph under the heading; screens pass their own, since the
+ * account types on offer differ per screen.
  * `children`: the `.pub-card .pub-form` column.
  */
-export default function AuthLayout({ kicker, heading, role, onRoleChange, children }) {
+export default function AuthLayout({ kicker, heading, blurb, children }) {
   const { theme } = useTheme()
-  const [selected, setSelected] = useState(role)
-
-  const pick = (id) => {
-    setSelected(id)
-    onRoleChange?.(id)
-  }
 
   return (
     <div className="pub pub-auth" data-theme={theme}>
@@ -74,6 +36,7 @@ export default function AuthLayout({ kicker, heading, role, onRoleChange, childr
         </Link>
         <nav aria-label="Sections">
           <Link to="/">Home</Link>
+          <Link to="/partner">Partner</Link>
         </nav>
         <div className="pub-nav-end">
           <PubThemeToggle />
@@ -86,31 +49,9 @@ export default function AuthLayout({ kicker, heading, role, onRoleChange, childr
               <p className="pub-kicker">{kicker}</p>
               <h2 className="pub-mono-h">{heading}</h2>
               <p className="pub-muted pub-measure">
-                Whether you give blood, coordinate a blood bank, or administer the platform, one
-                account covers it.
+                {blurb ??
+                  'Donor accounts are open to anyone. Hospital, blood bank, and admin accounts are set up by the Dugo+ team.'}
               </p>
-              {role && (
-                <div className="pub-roles" role="radiogroup" aria-label="Account type">
-                  {SELF_SERVE_ROLES.map((item) => {
-                    const on = selected === item.id
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={on}
-                        data-on={on ? 'true' : 'false'}
-                        onClick={() => pick(item.id)}
-                      >
-                        <span className="pub-role-n">{item.n}</span>
-                        <Icon name={item.icon} />
-                        <strong>{item.label}</strong>
-                        <em>{item.note}</em>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
             </div>
             {children}
           </div>
@@ -142,7 +83,9 @@ export default function AuthLayout({ kicker, heading, role, onRoleChange, childr
           <div>
             <p className="pub-kicker">Hospital partnerships</p>
             <p>partners@dugoplus.ph</p>
-            <p>Become a Partner</p>
+            <p>
+              <Link to="/partner">Become a Partner</Link>
+            </p>
           </div>
           <form noValidate onSubmit={(event) => event.preventDefault()}>
             <label className="pub-kicker" htmlFor="pub-sub-email">
