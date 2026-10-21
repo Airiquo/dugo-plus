@@ -26,7 +26,11 @@ from the right tokens that still looks unappealing has failed.
 2. `docs/PHASES.md` — how work is split (one feature, one person, taken to
    working), the feature roster (`F1`–`F12`), the branch model, the manual
    smoke list, and §10's open questions.
-3. `CONTRIBUTING.md` — branches, the PR checklist, and shipping.
+3. `docs/firestore_schema.md` — the data model: collections and fields (§2),
+   composite indexes (§4), the rules outline (§6), seed data (§8). Anything
+   touching `firestore.rules`, `firestore.indexes.json` or Firestore writes
+   checks against this file first.
+4. `CONTRIBUTING.md` — branches, the PR checklist, and shipping.
 
 Do not restate process here. If a branch, shipping or ownership rule is needed,
 it belongs in one of those three files.

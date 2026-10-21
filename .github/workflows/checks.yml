@@ -1,16 +1,20 @@
 name: checks
 #
-# Build the app and validate the requirement traceability table.
+# Build the app, validate the requirement traceability table, and run the
+# Firestore security-rules suite against the emulator.
 #
-# Both checks run offline: no Firebase credentials are needed, because the
-# build only needs the app to compile and check-docs only reads two markdown
-# files. Deploying is out of scope here on purpose; shipping is manual, from
-# `prod`, via tools/deploy.sh (see docs/DEPLOY.md).
+# The build and check-docs run offline: no Firebase credentials are needed,
+# because the build only needs the app to compile and check-docs only reads two
+# markdown files. The rules job downloads the emulator on first run but still
+# needs no credentials — it runs under a demo project. Deploying is out of
+# scope here on purpose; shipping is manual, from `prod`, via tools/deploy.sh
+# (see docs/DEPLOY.md).
 #
 # check-docs is the reason this exists. AGENTS.md says a task is not complete
 # until its requirement row is updated, and the script enforces that. Without
 # this workflow the script only runs when someone remembers to run it, so a
-# PR with an unfilled row would pass review.
+# PR with an unfilled row would pass review. The rules job (D19) fails a PR
+# that weakens a security boundary in firestore.rules.
 #
 # Runs on `main` and `integration`, because both are protected and both require
 # this check. A PR targeting a branch that does not run this workflow would sit
@@ -44,3 +48,24 @@ jobs:
       - name: Build
         working-directory: web
         run: npm run build
+
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install
+        run: npm ci
+
+      - name: Firestore security-rules suite
+        run: npm run test:rules
