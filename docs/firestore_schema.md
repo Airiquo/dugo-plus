@@ -571,9 +571,11 @@ interface AuditBlock {
 
 ## 8. Seed data the agent should create
 
-- `systemConfig/global` with a sensible default, e.g. `radiusTiers: [{1, 5, 10}, {2, 15, 15}, {3, 30, 20}]`, `notifRetryLimit: 3`, `notifRetryInterval: 5`.
-- `donationTypes`: Whole Blood (`intervalDays` 56), Platelets (7), Plasma (28), each with at least one guideline. (Typical values. Confirm with the owner.)
-- One Admin user.
+- `systemConfig/global` with a sensible default: `radiusTiers: [{1, 5, 10}, {2, 10, 15}, {3, 15, 20}, {4, 20, 25}, {5, 25, 30}]`, `notifRetryLimit: 3`, `notifRetryInterval: 5`. The radii follow NFR-05's 5→10→15→20–25 km ladder (D18); `waitMinutes` extends the original 10/15/20 pattern and stays tunable (FR-041).
+- `donationTypes`: Whole Blood (`intervalDays` 56), Platelets (7), Plasma (28), Double Red Cells (112), each with at least one guideline. Intervals are D13's per-component deferrals; guideline copy is a placeholder for the owner to edit.
+- One Admin user — created in the Firebase console. The seed script
+  (`scripts/seed-reference-data.mjs`) requires one to already exist and
+  attributes `systemConfig/global.updatedBy` to it.
 
 ---
 

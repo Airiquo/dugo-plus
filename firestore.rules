@@ -3,65 +3,374 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ---- Claim helpers (D15) -------------------------------------------
+    // Admin and staff authority comes from Firebase Auth custom claims
+    // (`request.auth.token.role`, `.hospitalId`) set by the server, never from
+    // the client-written `users.role` field. Until claims exist (PHASES §10),
+    // these match no session and the admin/staff paths sit closed.
+    function me() {
+      return request.auth.uid;
+    }
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.role == 'admin';
+    }
+
+    function isStaff() {
+      return signedIn() && request.auth.token.role == 'staff';
+    }
+
+    function isStaffOf(hospitalId) {
+      return isStaff() && request.auth.token.hospitalId == hospitalId;
+    }
+
+    function isBloodType(value) {
+      return value in ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
+    }
+
+    // A profile may hold '' for "not registered yet" (services/users.js).
+    function isOptionalBloodType(value) {
+      return value in ['', 'O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
+    }
+
     // Account profiles: `users/{uid}` is written once when an account is made
     // (services/users.js) and read back on every session change to decide which
-    // routes open. Everything else in the database stays closed until a screen
-    // needs it, which is why this pass uses Firestore only for roles — the data
-    // the screens show still comes from web/src/services/requests.js.
+    // routes open. Owners touch their own document; admins are claim-based.
+    // The field set is the shipped shape — schema §2.1's fullName/status/
+    // claims model is a later migration (D16, PHASES §10).
     match /users/{uid} {
-      // The owner, and nobody else, may read their own profile.
-      allow read: if request.auth != null && request.auth.uid == uid;
+      // The owner, and an admin claim, may read the profile.
+      allow read: if isAdmin() || (signedIn() && me() == uid);
 
       // This validates shape, not intent. The account type is chosen in the
-      // browser, so a determined client can still claim admin; making that
-      // authoritative needs a Cloud Function setting a custom claim
-      // (README, "Known limitation").
-      allow create: if request.auth != null
-                    && request.auth.uid == uid
+      // browser, so a determined client can still write role: 'admin'; the
+      // claim is what opens admin rules (D15). A profile also starts with no
+      // donation history: only F8's server transaction writes lastDonationAt
+      // (D14), so a client may not create it.
+      allow create: if (isAdmin() || (signedIn() && me() == uid))
                     && request.resource.data.role is string
                     && request.resource.data.role in ['donor', 'hospital', 'admin']
                     && request.resource.data.name is string
-                    && request.resource.data.email is string;
-
-      // Editable, but the role is frozen: allowing that would be the escalation
-      // path, since only an operator should grant it (README, "Granting admin").
-      // The donor profile fields (FR-04) are validated by type so a hand-written
-      // document cannot put a non-string where a screen expects one.
-      allow update: if request.auth != null
-                    && request.auth.uid == uid
-                    && request.resource.data.role == resource.data.role
-                    && request.resource.data.name is string
                     && request.resource.data.email is string
-                    && (
-                         !('bloodType' in request.resource.data)
-                         || request.resource.data.bloodType in ['', 'O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']
-                       )
-                    && (
-                         !('contact' in request.resource.data)
-                         || (
-                              request.resource.data.contact.keys().hasOnly(['phone'])
-                              && request.resource.data.contact.phone is string
+                    && !('lastDonationAt' in request.resource.data);
+
+      // Editable, but the role is frozen for the owner: allowing that would be
+      // the escalation path (README, "Granting admin"). An admin claim may
+      // update any profile — that is how suspensions land (FR-040). Donor
+      // profile fields (FR-04) are validated by type so a hand-written
+      // document cannot put a non-string where a screen expects one.
+      // lastDonationAt is frozen by presence AND value (D14): clearing it
+      // would restart the deferral clock and defeat FR-031.
+      allow update: if isAdmin()
+                    || (
+                         signedIn() && me() == uid
+                         && request.resource.data.role == resource.data.role
+                         && request.resource.data.name is string
+                         && request.resource.data.email is string
+                         && (
+                              !('bloodType' in request.resource.data)
+                              || isOptionalBloodType(request.resource.data.bloodType)
                             )
-                       )
-                    && (
-                         !('location' in request.resource.data)
-                         || request.resource.data.location == null
-                         || (
-                              request.resource.data.location.keys().hasOnly(['coordinates', 'geohash', 'city', 'address'])
-                              && request.resource.data.location.city is string
-                              && request.resource.data.location.geohash is string
-                              && request.resource.data.location.address is string
-                              && (
-                                   request.resource.data.location.coordinates == null
-                                   || request.resource.data.location.coordinates is latlng
+                         && (
+                              !('contact' in request.resource.data)
+                              || (
+                                   request.resource.data.contact.keys().hasOnly(['phone'])
+                                   && request.resource.data.contact.phone is string
                                  )
                             )
-                       )
-                    // Eligibility is derived on read, never written: a donor
-                    // declaring themselves eligible would defeat FR-031.
-                    && !('eligibility' in request.resource.data);
+                         && (
+                              !('location' in request.resource.data)
+                              || request.resource.data.location == null
+                              || (
+                                   request.resource.data.location.keys().hasOnly(['coordinates', 'geohash', 'city', 'address'])
+                                   && request.resource.data.location.city is string
+                                   && request.resource.data.location.geohash is string
+                                   && request.resource.data.location.address is string
+                                   && (
+                                        request.resource.data.location.coordinates == null
+                                        || request.resource.data.location.coordinates is latlng
+                                      )
+                                 )
+                            )
+                         // Eligibility is derived on read, never written: a
+                         // donor declaring themselves eligible would defeat FR-031.
+                         && !('eligibility' in request.resource.data)
+                         && ('lastDonationAt' in request.resource.data)
+                              == ('lastDonationAt' in resource.data)
+                         && (
+                              !('lastDonationAt' in request.resource.data)
+                              || request.resource.data.lastDonationAt
+                                   == resource.data.lastDonationAt
+                            )
+                       );
 
       allow delete: if false;
+    }
+
+    // Verification codes (schema §2.2): minted and consumed server-side only.
+    match /emailVerifications/{verificationId} {
+      allow read, write: if false;
+    }
+
+    match /hospitals/{hospitalId} {
+      // Donors need the hospital list for the map and the request form
+      // (FR-015, FR-023).
+      allow read: if signedIn();
+
+      // Facilities arrive through the partner intake or the console, both
+      // admin (D15).
+      allow create: if isAdmin();
+
+      // Staff of this hospital may edit contact details only; `status` is an
+      // admin action (FR-040 suspensions).
+      allow update: if isAdmin()
+                    || (
+                         isStaffOf(hospitalId)
+                         && request.resource.data.diff(resource.data).affectedKeys()
+                              .hasOnly(['name', 'address', 'contactNumber', 'latitude', 'longitude', 'geohash'])
+                         && request.resource.data.name is string
+                         && request.resource.data.address is string
+                         && request.resource.data.contactNumber is string
+                       );
+
+      allow delete: if false;
+
+      match /subscriptions/{subscriptionId} {
+        allow read: if isAdmin() || isStaffOf(hospitalId);
+        allow create, update: if isAdmin();
+        allow delete: if false;
+      }
+
+      // Stock counts: staff of this hospital and admins read and write. The
+      // confirmation screen batches its increment with the log write below
+      // (schema §2.3.3).
+      match /inventory/{bloodType} {
+        allow read: if isAdmin() || isStaffOf(hospitalId);
+        allow create, update: if (isAdmin() || isStaffOf(hospitalId))
+                              && request.resource.data.bloodType == bloodType
+                              && request.resource.data.unitsAvailable is int
+                              && request.resource.data.lastUpdated is timestamp;
+        allow delete: if false;
+
+        // Change log: append-only, written by the session that moved stock.
+        match /logs/{logId} {
+          allow read: if isAdmin() || isStaffOf(hospitalId);
+          allow create: if (isAdmin() || isStaffOf(hospitalId))
+                        && request.resource.data.keys().hasOnly(
+                             ['donationId', 'userId', 'changeType', 'unitsChanged', 'createdAt']
+                           )
+                        && (
+                             request.resource.data.donationId == null
+                             || request.resource.data.donationId is string
+                           )
+                        && request.resource.data.userId is string
+                        && request.resource.data.changeType is string
+                        && request.resource.data.unitsChanged is int
+                        && request.resource.data.createdAt == request.time;
+          allow update, delete: if false;
+        }
+      }
+    }
+
+    match /bloodRequests/{requestId} {
+      // The donor feed reads across hospitals (FR-005).
+      allow read: if signedIn();
+
+      // Any signed-in account may post a request: D1 merged recipient into the
+      // donor role. Blood type, quantity and the denormalized hospital fields
+      // are checked so the matcher's query shape stays sound; urgencyLevel and
+      // status keep open enums until their feature decides them (schema §9.5).
+      allow create: if signedIn()
+                    && request.resource.data.hospitalId is string
+                    && (
+                         request.resource.data.recipientId == null
+                         || request.resource.data.recipientId is string
+                       )
+                    && (
+                         request.resource.data.createdBy == null
+                         || request.resource.data.createdBy is string
+                       )
+                    && isBloodType(request.resource.data.bloodType)
+                    && request.resource.data.quantity is int
+                    && request.resource.data.quantity > 0
+                    && request.resource.data.urgencyLevel is string
+                    && request.resource.data.status is string
+                    && request.resource.data.hospitalName is string
+                    && request.resource.data.latitude is number
+                    && request.resource.data.longitude is number
+                    && request.resource.data.geohash is string
+                    && request.resource.data.createdAt is timestamp;
+
+      // Status changes belong to the hospital's staff and admins (schema §6);
+      // the request may not be re-pointed at another hospital or blood type.
+      allow update: if isAdmin()
+                    || (
+                         isStaffOf(resource.data.hospitalId)
+                         && request.resource.data.hospitalId == resource.data.hospitalId
+                         && request.resource.data.bloodType == resource.data.bloodType
+                       );
+
+      allow delete: if false;
+    }
+
+    match /donorMatches/{matchId} {
+      // Staff reach a match through the hospital that owns its request; rules
+      // fetch that hospitalId server-side (get() bypasses these rules).
+      function requestHospital(requestId) {
+        return get(/databases/$(database)/documents/bloodRequests/$(requestId)).data.hospitalId;
+      }
+
+      allow read: if isAdmin()
+                  || (signedIn() && resource.data.donorId == me())
+                  || isStaffOf(requestHospital(resource.data.requestId));
+
+      // Creation is matcher-only (schema §5.2).
+      allow create: if false;
+
+      // The donor answers: response and acknowledgment fields only (schema §6).
+      allow update: if isAdmin()
+                    || (
+                         signedIn() && resource.data.donorId == me()
+                         && request.resource.data.donorId == resource.data.donorId
+                         && request.resource.data.diff(resource.data).affectedKeys()
+                              .hasOnly(['responseStatus', 'guidelinesAcknowledged', 'acknowledgedAt'])
+                         && request.resource.data.responseStatus is string
+                         && request.resource.data.guidelinesAcknowledged is bool
+                         && (
+                              request.resource.data.acknowledgedAt == null
+                              || request.resource.data.acknowledgedAt is timestamp
+                            )
+                       )
+                    // Staff record the screening result: those fields only
+                    // (schema §6). ScreeningStatus is a decided enum.
+                    || (
+                         isStaffOf(requestHospital(resource.data.requestId))
+                         && request.resource.data.diff(resource.data).affectedKeys()
+                              .hasOnly(['screenedByUserId', 'screeningStatus'])
+                         && (
+                              request.resource.data.screenedByUserId == null
+                              || request.resource.data.screenedByUserId is string
+                            )
+                         && (
+                              request.resource.data.screeningStatus == null
+                              || request.resource.data.screeningStatus
+                                   in ['Cleared', 'Deferred', 'Rejected']
+                            )
+                       );
+
+      allow delete: if false;
+    }
+
+    match /donorConsents/{consentId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.donorId == me());
+
+      // The donor consents for themself and nothing is ever deleted: revoking
+      // sets revokedAt (schema §6).
+      allow create: if signedIn()
+                    && request.resource.data.donorId == me()
+                    && request.resource.data.consentType is string
+                    && (
+                         request.resource.data.matchId == null
+                         || request.resource.data.matchId is string
+                       )
+                    && request.resource.data.grantedAt is timestamp
+                    && request.resource.data.revokedAt == null;
+
+      allow update: if signedIn()
+                    && resource.data.donorId == me()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['revokedAt'])
+                    && request.resource.data.revokedAt is timestamp;
+
+      allow delete: if false;
+    }
+
+    // Reference data (schema §8): read by any signed-in session, written by an
+    // admin claim. The seed script writes these with the Admin SDK, which
+    // bypasses the rules — the supported writer for first-run data (D15).
+    match /donationTypes/{donationTypeId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+
+      match /guidelines/{guidelineId} {
+        allow read: if signedIn();
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
+    // Server-side fan-out (D3, F7): owners read their own inbox, nothing
+    // client-side writes it.
+    match /notifications/{notificationId} {
+      allow read: if signedIn() && resource.data.userId == me();
+      allow write: if false;
+    }
+
+    // One record per completed match (schema §2.9). Staff of the owning
+    // hospital confirm; points and lastDonationAt are written by the F8 server
+    // transaction (D12, D14).
+    match /donations/{matchId} {
+      allow read: if isAdmin()
+                  || (signedIn() && resource.data.donorId == me())
+                  || isStaffOf(resource.data.hospitalId);
+
+      allow create: if (isAdmin() || isStaffOf(request.resource.data.hospitalId))
+                    && request.resource.data.matchId == matchId
+                    && request.resource.data.confirmedBy is string
+                    && request.resource.data.donationDate is timestamp
+                    && request.resource.data.units is int
+                    && request.resource.data.units > 0
+                    && request.resource.data.confirmedAt is timestamp
+                    && request.resource.data.donorId is string
+                    && request.resource.data.bloodType is string;
+
+      // Corrections are an admin action; the record is never removed.
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Points, one record per donation; a donor's total is summed on read (D12).
+    // Server-only: F8 writes these alongside lastDonationAt.
+    match /rewardTransactions/{donationId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.donorId == me());
+      allow write: if false;
+    }
+
+    // Tiers and retry settings: signed-in sessions read (the matcher and donor
+    // screens need radiusTiers), only an admin claim writes (schema §6).
+    match /systemConfig/{configId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Data-subject requests (schema §2.12): the requester opens and reads
+    // their own; the admin queue processes it.
+    match /dataSubjectRequests/{dsrId} {
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == me());
+
+      allow create: if signedIn()
+                    && request.resource.data.userId == me()
+                    && request.resource.data.requestType is string
+                    && request.resource.data.status is string
+                    && request.resource.data.createdAt is timestamp
+                    && (
+                         request.resource.data.processedBy == null
+                         || request.resource.data.processedBy is string
+                       )
+                    && request.resource.data.resolvedAt == null;
+
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // Hash-chained audit log (D2): appended server-side, read by admins
+    // walking the chain. No client write path at all (schema §2.13).
+    match /auditBlocks/{blockId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // Error records written by the app (NFR-27, services/log.js). Create-only,
@@ -69,7 +378,8 @@ service cloud.firestore {
     // not data any screen shows, so keeping reads closed stops a visitor using
     // the collection as a directory of other people's failures. Shape and size
     // are checked because the writer is a browser and the web config is public,
-    // so anyone could otherwise post arbitrary documents.
+    // so anyone could otherwise post arbitrary documents. The writer is a
+    // browser, often signed out — open create is deliberate (D17).
     match /errorLogs/{entryId} {
       allow create: if request.resource.data.keys().hasOnly(
                         ['message', 'stack', 'route', 'uid', 'build', 'createdAt']

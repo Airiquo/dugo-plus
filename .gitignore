@@ -20,5 +20,9 @@ firestore-debug.log
 ui-debug.log
 *.log
 
+# Service-account keys (seed script, scripts/seed-reference-data.mjs)
+*-firebase-adminsdk-*.json
+sa-key.json
+
 # macOS
 .DS_Store
