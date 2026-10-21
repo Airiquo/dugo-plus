@@ -31,7 +31,8 @@ export function roleLabel(role) {
  * area; donors get their profile screen; hospital accounts have no screens yet
  * and get the "you're in" notice (`pages/shared/Welcome.jsx`, which also
  * forwards any account that ends up there wrongly). An account with no role yet
- * goes to the picker.
+ * goes to the landing page — self-registration is donor-only (D20), so a
+ * missing role means the auto-provision write failed, not a choice to make.
  *
  * @param {string|null} role
  * @returns {string} a route path
@@ -40,7 +41,7 @@ export function homeFor(role) {
   if (role === 'admin') return '/admin/dashboard'
   if (role === 'donor') return '/donor/profile'
   if (ROLES.includes(role)) return '/welcome'
-  return '/account/role'
+  return '/'
 }
 
 const NOT_CONFIGURED = 'Firestore is not available. Copy web/.env.example to web/.env.local.'

@@ -1,8 +1,8 @@
 # Donor screens
 
-Role **01 — Donor** (see `AUTH_ROLES` in `web/src/layout/AuthLayout.jsx`).
-A donor signs up from the landing page (`/register?role=donor`) and manages
-their own relationship with a facility.
+Role **01 — Donor** (see `ROLES` in `web/src/services/users.js`).
+A donor signs up from the landing page (`/register` — self-registration is
+donor-only, D20) and manages their own relationship with a facility.
 
 No screens are built yet except **Profile**. The role's intended surface, per
 the register band:

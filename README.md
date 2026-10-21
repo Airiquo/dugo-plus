@@ -90,7 +90,8 @@ npm run dev
 Then open <http://localhost:5173>:
 
 - `/`: landing page
-- `/login`: sign in; `/register`: create an account
+- `/login`: sign in; `/register`: create a donor account
+- `/partner`: partnership intake form (emails the partners mailbox)
 - `/admin/dashboard`: admin dashboard
 - `/admin/blood-requests`: blood requests list
 - `/gallery`: every component, in both themes (useful while building screens)
@@ -125,8 +126,9 @@ routes are built in React so far:
 | Route | Status |
 | --- | --- |
 | `/` | Landing page, built |
-| `/login`, `/register` | Sign-in and registration: the public `.pub` band, owned by `AuthLayout`, backed by Firebase Auth |
-| `/welcome` | "You're in" notice — where donor and hospital accounts land (there are no screens for them yet); self-forwards admins to the dashboard and missing roles to the picker |
+| `/login`, `/register` | Sign-in and donor-only registration: the public `.pub` band, owned by `AuthLayout`, backed by Firebase Auth |
+| `/partner` | Partnership intake form, posts to Formspree (`VITE_FORMSPREE_ENDPOINT`) and emails the partners mailbox |
+| `/welcome` | "You're in" notice — where donor and hospital accounts land (there are no screens for them yet); self-forwards admins to the dashboard |
 | `/admin/dashboard` | Dashboard, built |
 | `/admin/blood-requests` | Blood requests list, built, renders from `web/src/services/requests.js` |
 | `/admin/donor-matching`, `/admin/donor-registry`, `/admin/inventory`, `/admin/donations-rewards`, `/admin/reports`, `/admin/audit-trail`, `/admin/settings` | Placeholder (`ScreenStub`) linking the reference mockup; design and build these next |
@@ -162,7 +164,7 @@ listener, authErrorMessage()   type the guards read back
         ┌───────────────┼───────────────────────────┐
         ▼               ▼                           ▼
   layout/RequireAuth  layout/RequireRole    pages/public/Login.jsx
-  gates /admin/*      checks the type       Register.jsx, PickRole.jsx
+  gates /admin/*      checks the type       Register.jsx, Partner.jsx
                       (/admin/* → admin)    layout/AppShell.jsx (sign-out)
 ```
 
@@ -206,11 +208,11 @@ under `light/` and `dark/` need no setup at all.
 | `web/src/lib/firebase.js` | Reads the `VITE_FIREBASE_*` variables; exports `firebaseApp`, `auth`, `googleProvider`, `db`, `isFirebaseConfigured` and `missingFirebaseKeys`. |
 | `web/src/services/auth.js` | The only module that talks to the Firebase Auth SDK: sign-in/up/out, the Google pop-up, the session listener, and `authErrorMessage()`. |
 | `web/src/services/users.js` | The only module that talks to Firestore: reads and writes `users/{uid}`, plus `roleLabel()`. |
-| `web/src/hooks/useAuth.jsx` | `AuthProvider` / `useAuth()`: `user`, `loading`, `role`, `profile`, `roleLoading`, `signIn`, `signUp`, `claimRole`, `signInWithGoogle`, `signOut`, built on the two services above. |
+| `web/src/hooks/useAuth.jsx` | `AuthProvider` / `useAuth()`: `user`, `loading`, `role`, `profile`, `roleLoading`, `signIn`, `signUp`, `signInWithGoogle`, `signOut`, built on the two services above. A session whose profile document is missing is auto-provisioned as a donor. |
 | `web/src/layout/RequireAuth.jsx` | Is somebody signed in? Waits for the session, then redirects to `/login`, remembering the URL you wanted. |
-| `web/src/layout/RequireRole.jsx` | Is the signed-in account of the right type? Mounted inside `RequireAuth` for `/admin/*`, with `roles={['admin']}`; no account type yet sends the visitor to `/account/role`. |
-| `web/src/layout/AuthLayout.jsx` | The public (`.pub`) chrome shared by all three auth screens: header, footer, the account-type picker, and the colour tokens `.pub` carries. |
-| `web/src/pages/public/Login.jsx`, `Register.jsx`, `PickRole.jsx` | The three screens, composed from the public classes (`.pub-card`, `.pub-form`, `.pub-btn`); the only new CSS is the `.pub-auth` full-height hook and the switch hooks in `dugo.extras.css`. |
+| `web/src/layout/RequireRole.jsx` | Is the signed-in account of the right type? Mounted inside `RequireAuth` for `/admin/*`, with `roles={['admin']}`; a profile that failed to load reports the error with a sign-out button. |
+| `web/src/layout/AuthLayout.jsx` | The public (`.pub`) chrome shared by the auth screens and `/partner`: header, footer, the copy column, and the colour tokens `.pub` carries. |
+| `web/src/pages/public/Login.jsx`, `Register.jsx`, `Partner.jsx` | The screens, composed from the public classes (`.pub-card`, `.pub-form`, `.pub-btn`); the only new CSS is the `.pub-auth` full-height hook and the switch hooks in `dugo.extras.css`. |
 | `web/src/layout/AppShell.jsx` | Shows the signed-in name and account type, and signs out from the sidebar (`$ exit`) or the topbar chip's drawer. |
 
 Signing in happens on `/login`, and nowhere else. The landing page carries no
@@ -222,9 +224,9 @@ band, so the page fills the viewport and the card stays centred.
 
 Google sign-in lives on `/login` and `/register`.
 
-The landing's three big CTAs open the register screen: *Become a donor* →
-`/register?role=donor`, *Request blood* → plain `/register`, *Become a partner* →
-`/register?role=hospital`.
+The landing's three big CTAs: *Become a donor* and *Request blood* (D1 merged
+receiving into the donor account) → `/register`, *Become a partner* → `/partner`
+(the Formspree intake; facilities do not self sign-up).
 
 ### Account types
 
@@ -232,10 +234,12 @@ Firebase Auth has no role field, so each account type is a document:
 `users/{uid}` with `{ role, name, email, createdAt }`, written through
 `web/src/services/users.js` and read back on every session change.
 
-- **Picking one.** `/register` offers **donor** and **hospital / blood bank**,
-  so `?role=admin` falls back to donor. Email/password accounts store the choice
-  during sign-up; a first Google sign-in has no sign-up step, so
-  `/account/role` (`pages/public/PickRole.jsx`) asks once.
+- **Donor-only sign-up.** `/register` creates donor accounts only. A first
+  Google sign-in (or any session whose profile document is missing) is
+  auto-provisioned as a donor in `hooks/useAuth.jsx` — there is no role-picker
+  screen, and `firestore.rules` freezing `role` means that write cannot demote
+  an existing hospital or admin document. Hospital accounts are created by the
+  Dugo+ team from a request on `/partner`; admins are granted as below.
 - **Granting admin.** In the Firebase console, open *Firestore → `users` →
   `<uid>`* and set `role` to `admin`, then refresh the page. It never appears on
   the register screen, and `firestore.rules` freezes `role` after the document

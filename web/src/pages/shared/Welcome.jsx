@@ -14,8 +14,8 @@ import { PubThemeToggle } from '../../components'
  *
  * A normal route rather than a guarded one, so it can forward itself: an admin
  * who ends up here goes straight on to the dashboard, a donor to their profile,
- * an account with no type goes to the picker, and signing out drops back on the
- * public landing page rather than the sign-in form.
+ * and signing out drops back on the public landing page rather than the
+ * sign-in form.
  *
  * No `AppShell`: that chrome is the admin area's. Composed from the same
  * public classes the auth screens use, inside the `.pub` theme scope, so both
@@ -36,7 +36,9 @@ export default function Welcome() {
   }
 
   if (!user) return <Navigate to="/" replace />
-  if (!role) return <Navigate to="/account/role" replace />
+  // No profile document: the auto-provision write failed (D20). Land on the
+  // landing page rather than looping between guards.
+  if (!role) return <Navigate to="/" replace />
   if (role === 'admin') return <Navigate to="/admin/dashboard" replace />
   if (role === 'donor') return <Navigate to="/donor/profile" replace />
 

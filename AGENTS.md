@@ -87,15 +87,16 @@ committing; an unfilled row fails the check rather than passing silently.
 - A screen with nothing built yet → `shared/ScreenStub` (links the reference
   mockup). Building it = replace the stub and wire the route in `App.jsx`.
 - Existing route slugs stay as they are; name new routes however makes sense.
-- Auth screens (`/login`, `/register`, `/account/role`) own the sign-in band — the landing page
-  carries no form — via `layout/AuthLayout.jsx`; `/admin/*` sits behind
+- Auth screens (`/login`, `/register`) own the sign-in band — the landing page
+  carries no form — via `layout/AuthLayout.jsx`; `/partner` (partnership intake)
+  uses the same chrome. `/admin/*` sits behind
   `layout/RequireAuth.jsx` and `layout/RequireRole.jsx` (admin only).
 
 ## Auth Rules
 - One way in: `lib/firebase.js` → `services/auth.js` → `hooks/useAuth.jsx` (`useAuth()`) → `RequireAuth`. Pages never call the Firebase SDK directly.
 - `VITE_FIREBASE_*` lives in `web/.env.local` (gitignored); `web/.env.example` is the committed template. Never bake a project into source.
 - **App requires Firebase:** without a configured project, every route renders `pages/shared/NotConfigured.jsx`. Don't add an unconfigured pass-through.
-- **Account types:** `users/{uid}` in Firestore stores `{ role, name, email, createdAt }` (donor | hospital | admin). `/admin/*` needs `role === 'admin'`. Register offers donor and hospital only; admins are granted by editing that document. The role is client-written (a UI boundary, not a security boundary).
+- **Account types:** `users/{uid}` in Firestore stores `{ role, name, email, createdAt }` (donor | hospital | admin). `/admin/*` needs `role === 'admin'`. Register is donor-only (D20); hospital accounts come from a `/partner` request and admins are granted by editing that document. The role is client-written (a UI boundary, not a security boundary).
 
 ## Folder/Organization Rules
 - Follow §4 of PROMPTING_GUIDE.md. Keep structure flat and predictable.
