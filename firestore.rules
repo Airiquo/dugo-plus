@@ -94,6 +94,8 @@ service cloud.firestore {
                              || request.resource.data.longitude is number)
                          // Eligibility is derived on read, never written: a
                          // donor declaring themselves eligible would defeat FR-031.
+                         // The name here is the key a client would try, not a
+                         // field — keep it plain or the guard stops matching.
                          && !('eligibility' in request.resource.data)
                          // Status is an admin decision, not a self-service field.
                          && (!('status' in request.resource.data)

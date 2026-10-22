@@ -256,7 +256,7 @@ Four documents, in the order you should read them:
 | Doc | Contents |
 | --- | --- |
 | `AGENTS.md` | The repo rules. Read this first; it is short and important. |
-| `docs/firestore_schema.md` | **The data model** — every collection and field (§2), the composite indexes (§4), where a transaction is required (§5), the security-rules outline (§6), and the seed data (§8). Any screen or service that reads or writes Firestore is built against this file; where the build deliberately differs, the `D*` row in `docs/REQUIREMENTS.md` says why. |
+| `docs/firestore_schema.md` | **The data model of record** — every collection and field (§2), the composite indexes (§4), where a transaction is required (§5), the security-rules outline (§6), and the seed data (§8). Any screen or service that reads or writes Firestore is built against this file; where the build deliberately differs, the `D*` row in `docs/REQUIREMENTS.md` says why. Adding a collection or field the design needs is allowed — write it here and add a changelog entry (`docs/SCHEMA_CHANGELOG.md`) in the same task (D23). |
 | `PROMPTING_GUIDE.md` | Structure, naming, and prompt templates for building a screen. |
 | `web/src/components/CONVENTIONS.md` | The three component patterns to copy, and the rules around them. |
 | `web/src/pages/shared/Gallery.jsx` | Working examples of every component. |

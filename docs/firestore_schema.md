@@ -1,8 +1,9 @@
 # Firestore Schema Specification — Blood Donation Platform
 
 Source: `ERD.drawio` (19 tables, 23 relationships), converted to Firestore collections.
-Single source of truth for the data model — see §0 for where the shipped build
-deliberately differs, and §9 for the questions that are still open.
+**Model of record** for the data model: what the build holds today, updated as the
+build moves. It is not a cap on the model — see §0 for how additions and
+deviations are handled, and §9 for the questions that are still open.
 
 ---
 
@@ -20,7 +21,7 @@ and do not "correct" the live code back to the text below:
 | Reward points | an ERD-side total | one record per donation, summed on read | D12 |
 | Deferral intervals | one interval | per component, in `donationTypes.intervalDays` | D13 |
 | `users.lastDonationAt` | writable | frozen for the owner; only F8's server transaction writes it | D14 |
-| `errorLogs` (not in this file) | – | client-written, open-create | D8, D10, D17 |
+| `errorLogs` | an ERD-free collection §1 lists as [ADDED] | client-written, open-create | D8, D10, D17 |
 | `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
 | `users.address` | an ERD postal address | not collected; no field | D22 |
 
@@ -32,10 +33,10 @@ re-stated in `docs/PHASES.md` §10 until they are settled.
 
 ## 0.1 Instructions for the AI agent
 
-- Implement **exactly** the collections and fields below. Do not invent collections.
-- Anything marked **[ADDED]** is not in the ERD; it was added because Firestore needs it (no joins, no unique constraints, no auto-increment). Keep these.
+- Implement the collections and fields below. **You may add a collection or field the design needs** — the schema is a model of record, not a cap. When you add one, write it into this file (and `docs/SCHEMA_CHANGELOG.md`) in the same task, and add a `D*` row in `docs/REQUIREMENTS.md` when it departs from what is written here or from the ERD. Nothing is forbidden; everything is visible.
+- Anything marked **[ADDED]** is not in the ERD — the build put it there, either because Firestore needs it (no joins, no unique constraints, no auto-increment) or because the design does. Keep these.
 - Anything marked **[DECISION]** is a design choice where the ERD was ambiguous. Follow the choice stated here unless the owner says otherwise.
-- Section 9 lists open questions. Do not silently guess on those; surface them.
+- Section 9 lists open questions. Do not silently guess on those; surface them — same as an addition: record the answer, do not assume it.
 
 ### Conventions
 
@@ -55,8 +56,8 @@ re-stated in `docs/PHASES.md` §10 until they are settled.
 ### Shared enums
 
 ```
-Role            : "Donor" | "Recipient" | "Staff" | "Admin"
-EntityStatus    : "Active" | "Suspended" | "Removed"          (users, hospitals, subscriptions, bloodRequests per ERD)
+Role            : "donor" | "hospital" | "admin"        (lowercase; D1 — Recipient merges into donor, no separate Staff role)
+EntityStatus    : "Active" | "Suspended" | "Removed"    (users, hospitals, subscriptions, bloodRequests per ERD)
 BloodType       : "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-"   [ADDED: ERD doesn't list values]
 ScreeningStatus : "Cleared" | "Deferred" | "Rejected"
 VerificationPurpose : "Registration" | "Password reset"
@@ -81,9 +82,10 @@ donationTypes/{donationTypeId}
 notifications/{notificationId}
 donations/{matchId}                                  ← doc ID = matchId (enforces 1:1 with match)
 rewardTransactions/{donationId}                      ← doc ID = donationId (enforces UK donation_id, 1:1)
-systemConfig/global                                  ← single doc; radius tiers embedded
+systemConfig/global                                  ← single doc in practice; the rules allow any configId
 dataSubjectRequests/{dsrId}
 auditBlocks/{blockId}                                (server-only, append-only)
+errorLogs/{logId}                                    [ADDED] client-written, open-create (D8, D10, D17)
 ```
 
 ### ERD table → Firestore mapping
@@ -104,10 +106,11 @@ auditBlocks/{blockId}                                (server-only, append-only)
 | Reward_Transaction | `rewardTransactions/{donationId}` | 1:1 with donation |
 | Blood_Inventory | `hospitals/{id}/inventory/{bloodType}` | Unique per hospital+bloodType |
 | Inventory_Logs | `hospitals/{id}/inventory/{bt}/logs/{id}` | Child of an inventory row |
-| System_Config | `systemConfig/global` | Singleton |
+| System_Config | `systemConfig/global` | Singleton in practice — the app only ever writes `global`; the rules match `{configId}` |
 | Radius_Tiler (sic) | embedded in `systemConfig/global.radiusTiers[]` | Small ordered list, always read with config |
 | Data_Subject_Request | `dataSubjectRequests/{id}` | Top-level |
 | Audit_Block | `auditBlocks/{id}` | Top-level, server-only |
+| *(no ERD table)* | `errorLogs/{id}` | [ADDED] Client error records, create-only (D8, D10, D17) |
 
 ---
 
@@ -136,7 +139,7 @@ Legend: **R** = required, **O** = optional/nullable.
 | lastDonationAt | Timestamp | O | Used for eligibility interval checks. Owner-frozen (D14) |
 | bloodType | string | O | `BloodType`. ERD `?` |
 | dateOfBirth | Timestamp | R | |
-| eligibilityInfo | map | O | ERD `?`, structure unspecified. Free-form map for now |
+| ~~eligibilityInfo~~ | – | – | **Removed from the model of record** (D25). The ERD's field was never implemented and eligibility is computed, not stored |
 | ~~isVerified~~ | – | – | **[DECISION]** Do NOT store. Firebase Auth owns email verification (`user.emailVerified`); a copy would need a writer to stay true. See D5 |
 | status | string | R | `Active \| Suspended \| Removed`. Admin-writable (FR-040); no screen reads it yet (D22) |
 | createdAt | Timestamp | R | |
@@ -145,6 +148,11 @@ Role/hospital claims: also set Firebase Auth **custom claims** `{ role, hospital
 
 > Note: `address` is deliberately **not** collected on a donor profile (D22), so it is
 > not part of this shape even though the ERD implies a postal address.
+
+> Note: **eligibility is derived on read**, never stored. `utils/eligibility.js`
+> computes it from `dateOfBirth` and `lastDonationAt`, and `firestore.rules`
+> refuses a write containing an `eligibility` key — that rule name is the key it
+> blocks, not a field, so the guard must keep the name a client would try (FR-031).
 
 ### 2.2 `emailVerifications/{verificationId}` — server-only
 
@@ -210,11 +218,16 @@ Write the log and the inventory update in **one transaction/batch**.
 | hospitalId | string | R | FK → `hospitals` |
 | createdBy | string | O | FK → `users` (ERD `?`) |
 | bloodType | string | R | `BloodType` |
+| component | string | R | FK → `donationTypes/{id}` — `whole-blood \| rbc \| platelets \| plasma \| cryoprecipitate`. **[ADDED]** (D24) |
 | quantity | number (int) | R | Units needed |
-| urgencyLevel | string | R | Values not in ERD. Suggested: `Low \| Medium \| High \| Critical` |
-| status | string | R | ERD says `Active \| Suspended \| Removed` (see §9) |
+| urgencyLevel | string | R | `urgent \| stat \| routine` — the `.chip[data-priority]` tones the UI renders (D24) |
+| status | string | R | `urgent \| collecting \| matched \| fulfilled \| cancelled` — the shipped `.chip[data-status]` set (D24). The ERD's `Active \| Suspended \| Removed` was a copy-paste error (see §9) |
 | createdAt | Timestamp | R | |
 | hospitalName, latitude, longitude, geohash | string / number | R | **[ADDED, denormalized]** copied from the hospital at creation, so matching by radius needs no extra read |
+
+> Note: `urgent` appears in **both** `status` and `urgencyLevel`. That is the
+> shipped vocabulary, not an accident to normalise away (D24) — an urgent request
+> is also urgent priority.
 
 ### 2.5 `donorMatches/{requestId}_{donorId}`
 
@@ -432,7 +445,7 @@ Use custom claims `request.auth.token.role` and `request.auth.token.hospitalId`.
 | `dataSubjectRequests` | Owner, Admin | Owner create; Admin update |
 | `auditBlocks` | Admin | server-only, no update/delete |
 
-Sensitive/health data (`bloodType`, `eligibilityInfo`, `dateOfBirth`, screening results) should never be readable by other donors.
+Sensitive/health data (`bloodType`, `dateOfBirth`, screening results) should never be readable by other donors.
 
 ---
 
@@ -455,11 +468,10 @@ interface User {
   geohash?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  city?: string | null;
   lastDonationAt?: Timestamp | null;
   bloodType?: BloodType | null;
   dateOfBirth: Timestamp;
-  eligibilityInfo?: Record<string, unknown> | null;
-  isVerified: boolean;
   status: EntityStatus;
   createdAt: Timestamp;
 }
@@ -613,12 +625,15 @@ interface AuditBlock {
 
 ## 9. Open questions / ERD inconsistencies (agent: flag, don't guess)
 
+> **Answered:** 2 (requests — D24; subscriptions still open), 5's `urgencyLevel` (D24), 6 (D25).
+> The rest are open and re-stated in `docs/PHASES.md` §10.
+
 1. **Passwords and verification**: ERD stores `hashed_password` and an `Email_Verification` table. With Firebase Auth both are normally handled by Auth. I omitted `hashedPassword` and kept `emailVerifications` in case you use custom OTP codes. Confirm.
-2. **Copy-pasted status enum**: `Blood_Requests.status` and `Subscriptions.status` show `Active, Suspended, Removed` like Users/Hospitals. For requests you probably want something like `Open | Matched | Fulfilled | Cancelled | Expired`; for subscriptions `Active | Expired | Cancelled`.
+2. **Copy-pasted status enum**: `Blood_Requests.status` and `Subscriptions.status` show `Active, Suspended, Removed` like Users/Hospitals. **Answered for requests:** the build's set is `urgent | collecting | matched | fulfilled | cancelled` (D24). **Still open for subscriptions**: `Active | Expired | Cancelled` is the suggestion, not a decision.
 3. **Missing FK edges in the diagram**: `Hospitals.created_by`, `Donor_Matches.screened_by_user_id`, `Donations.confirmed_by`, `Data_Subject_Request.processed_by`, `Blood_Requests.created_by` — all assumed → `users`.
 4. **`Donations` has no `donor_id`** — derived via match. I added `donorId`, `hospitalId`, `bloodType` as denormalized fields.
-5. **Unspecified enum values** (suggested values given above): `urgencyLevel`, `responseStatus`, `consentType`, `channel`, `deliveryStatus`, `changeType`, `requestType`, DSR `status`, subscription `plan`.
-6. **`eligibility_info`** type unknown. Treated as a free-form map.
+5. **Unspecified enum values** (suggested values given above): `urgencyLevel` **answered** — `urgent | stat | routine` (D24). Still open: `responseStatus`, `consentType`, `channel`, `deliveryStatus`, `changeType`, `requestType`, DSR `status`, subscription `plan`.
+6. **`eligibility_info`** type unknown. **Answered (D25):** the field was never implemented, eligibility is computed on read, and it was removed from the model of record. If a screening record is ever needed, it gets a purpose-designed field in that feature.
 7. **`notif_retry_interval`** unit unknown. Assumed minutes.
 8. **Radius_Tiler** is spelled "Tiler" in the ERD; treated as "Tiers".
 9. **Embedding vs. collection** for radius tiers and guidelines: chosen for read efficiency. If admins need to edit tiers individually with history, make them subcollections instead.
