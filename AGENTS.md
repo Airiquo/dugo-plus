@@ -27,9 +27,10 @@ from the right tokens that still looks unappealing has failed.
    working), the feature roster (`F1`–`F12`), the branch model, the manual
    smoke list, and §10's open questions.
 3. `docs/firestore_schema.md` — the data model: collections and fields (§2),
-   composite indexes (§4), the rules outline (§6), seed data (§8). Anything
-   touching `firestore.rules`, `firestore.indexes.json` or Firestore writes
-   checks against this file first.
+   composite indexes (§4), transactions (§5), the rules outline (§6), seed data
+   (§8), and §0's record of where the shipped build deliberately differs.
+   Anything touching `firestore.rules`, `firestore.indexes.json` or Firestore
+   reads/writes checks against this file first.
 4. `CONTRIBUTING.md` — branches, the PR checklist, and shipping.
 
 Do not restate process here. If a branch, shipping or ownership rule is needed,
@@ -82,8 +83,9 @@ committing; an unfilled row fails the check rather than passing silently.
 - Pages live under `web/src/pages/` in role folders: `admin/`, `donor/`,
   `hospital/` (the three account types), plus `public/` (landing + auth +
   not-found) and `shared/` (ScreenStub, Gallery, Welcome).
-- `admin/DashboardBody.jsx` and `public/LandingBody.jsx` were seeded from the
-  mockups — edit them freely now.
+- `admin/Dashboard.jsx`/`admin/BloodRequests.jsx` and `public/LandingBody.jsx`:
+  the landing body was seeded from the mockup and is free to edit; the two admin
+  pages are route + shell only, their content still to build.
 - A screen with nothing built yet → `shared/ScreenStub` (links the reference
   mockup). Building it = replace the stub and wire the route in `App.jsx`.
 - Existing route slugs stay as they are; name new routes however makes sense.

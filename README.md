@@ -256,6 +256,7 @@ Four documents, in the order you should read them:
 | Doc | Contents |
 | --- | --- |
 | `AGENTS.md` | The repo rules. Read this first; it is short and important. |
+| `docs/firestore_schema.md` | **The data model** — every collection and field (§2), the composite indexes (§4), where a transaction is required (§5), the security-rules outline (§6), and the seed data (§8). Any screen or service that reads or writes Firestore is built against this file; where the build deliberately differs, the `D*` row in `docs/REQUIREMENTS.md` says why. |
 | `PROMPTING_GUIDE.md` | Structure, naming, and prompt templates for building a screen. |
 | `web/src/components/CONVENTIONS.md` | The three component patterns to copy, and the rules around them. |
 | `web/src/pages/shared/Gallery.jsx` | Working examples of every component. |
@@ -336,18 +337,26 @@ Some ids carry meaning too: overlays derive their ids from a `name`
 
 Every remaining admin screen is the same job. Take the smallest one first. The
 screen sizes are roughly `settings` (4 KB) → `donor-registry` (7 KB) →
-`blood-requests` (8 KB, done) → `audit-trail` → `reports` → `donations-rewards`
-→ `donor-matching` → `inventory` (21 KB).
+`blood-requests` (8 KB) → `audit-trail` → `reports` → `donations-rewards`
+→ `donor-matching` → `inventory` (21 KB). The two screens already wired
+(`dashboard`, `blood-requests`) render the shell only, so they are open too.
 
 1. **Look at the reference:** `light/<screen>.html` and `dark/<screen>.html`
    show the intended look for that screen.
-2. **Read a worked example first:** `web/src/pages/shared/Gallery.jsx` (every
+2. **Read the data model first:** open `docs/firestore_schema.md` §2 and read the
+   collection this screen works on — its fields, required/optional, enums, and
+   which parts are server-only (§5 transactions). If the screen writes, check §6
+   for the rules path. Where the build deliberately differs from the file, the
+   `D*` row in `docs/REQUIREMENTS.md` says why — follow the deviation, not the
+   file.
+3. **Read a worked example:** `web/src/pages/shared/Gallery.jsx` (every
    component in use) and `web/src/services/requests.js` (how request data is
-   shaped for a list screen).
-3. **Design and build the page** in `web/src/pages/admin/`, composing components
+   shaped for a list screen today; it is a stand-in, not the `bloodRequests`
+   shape).
+4. **Design and build the page** in `web/src/pages/admin/`, composing components
    (add a new one if the design needs it). Then add the slug to `TRANSLATED` in
    `web/src/App.jsx` so the route stops rendering the `ScreenStub`.
-4. **Verify:** `cd web && npx vite build` must pass. Build with the design-system
+5. **Verify:** `cd web && npx vite build` must pass. Build with the design-system
    components/tokens and both themes come along for free; spot-check the other
    theme only if the screen adds custom visuals or one-off inline styles
    (`/gallery` renders every component in both themes).
@@ -387,7 +396,7 @@ the last one needs dependencies beyond the standard library.
 | `refactor_mockups.py` | One-time **phase 2**: point the 20 mockups at `styles/dugo.css` instead of the inline block. Verified reversible. |
 | `csslib.py` | Shared CSS parsing helpers for the two scripts above. |
 | `htmltojsx.py` | Exact HTML → JSX converter (used by `gen_pages.py`). |
-| `gen_pages.py` | The one-time scaffold that produced the first `DashboardBody.jsx` and `LandingBody.jsx` from the mockups. Those pages are now normal, editable source, so you don't need to run this. |
+| `gen_pages.py` | The one-time scaffold that produced the first seeded page bodies (the admin dashboard's and the landing's) from the mockups. `LandingBody.jsx` is still normal, editable source; `DashboardBody.jsx` was removed with the shell strip, so the dashboard body is to be rebuilt against `docs/firestore_schema.md`. You don't need to run this. |
 | `screenshots.py` | Render every mockup to `docs/screenshots/` for this README. Needs a one-time `pip3 install --user playwright pillow` and `python3 -m playwright install chromium`. **Re-run it after changing any mockup**, or the README keeps showing the old reference. |
 
 ## Tech stack

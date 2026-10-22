@@ -1,11 +1,37 @@
 # Firestore Schema Specification — Blood Donation Platform
 
 Source: `ERD.drawio` (19 tables, 23 relationships), converted to Firestore collections.
-Hand this file to your AI agent as the single source of truth for the data model.
+Single source of truth for the data model — see §0 for where the shipped build
+deliberately differs, and §9 for the questions that are still open.
 
 ---
 
-## 0. Instructions for the AI agent
+## 0. Status of this file (read before §0's instructions)
+
+This is the **data model of record** for the repo: collections, fields, indexes,
+transactions, the rules outline, and the seed data. Build against it.
+
+Where the shipped build deliberately differs, the `D*` row in
+`docs/REQUIREMENTS.md` is the authority — follow the deviation, not this file,
+and do not "correct" the live code back to the text below:
+
+| Area | This file says | The build does | Why |
+|---|---|---|---|
+| `users` fields | §2.1 `fullName`/`phoneNumber`/`status`/`isVerified`, flat `latitude`/`longitude` | the shipped shape (`name`, `email`, `contact.phone`, `location{GeoPoint,geohash,…}`) | D16 — schema-exact rules would break the shipped FR-01/FR-04 flows; alignment is a tracked follow-up |
+| `users.role` enum | `Donor \| Recipient \| Staff \| Admin` | `donor \| hospital \| admin` | D1 — Recipient is merged into donor; the build has no separate Staff role |
+| Reward points | an ERD-side total | one record per donation, summed on read | D12 |
+| Deferral intervals | one interval | per component, in `donationTypes.intervalDays` | D13 |
+| `users.lastDonationAt` | writable | frozen for the owner; only F8's server transaction writes it | D14 |
+| `errorLogs` (not in this file) | – | client-written, open-create | D8, D10, D17 |
+| `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
+
+§9 below is the file's own list of ERD inconsistencies. **They are open questions,
+not defaults**: an owner answer is recorded as a `D*` row, and unanswered ones are
+re-stated in `docs/PHASES.md` §10 until they are settled.
+
+---
+
+## 0.1 Instructions for the AI agent
 
 - Implement **exactly** the collections and fields below. Do not invent collections.
 - Anything marked **[ADDED]** is not in the ERD; it was added because Firestore needs it (no joins, no unique constraints, no auto-increment). Keep these.
@@ -89,6 +115,9 @@ auditBlocks/{blockId}                                (server-only, append-only)
 ## 2. Collections in detail
 
 Legend: **R** = required, **O** = optional/nullable.
+
+> Reminder: `users/{uid}` (§2.1) is the one collection whose shipped shape differs
+> from the table below — see §0 and D16 before changing how profiles are written.
 
 ### 2.1 `users/{uid}`
 

@@ -117,7 +117,7 @@ from the System Analysis spec has exactly one row here.
 | FR-040 | Create hospital accounts; suspend/remove hospital + donor accounts (self-registration stays per FR-01) | app-code + firestore-rules | P6 | partial | D1 recipient merged into donor; D20 self-registration is donor-only — hospital accounts are created by the team from `/partner` requests (D21, Formspree → partners mailbox) | F9 | Admin role gate exists (`RequireRole`); no account-management UI. Intake: `/partner` (`pages/public/Partner.jsx`) — account creation itself still manual |
 | FR-041 | Configure system parameters: tiered radius, notification retry | app-code + cloud-function | P5/P6 | not started | — | F7, F9 | Settings screen in P6 reads by matcher in P5 |
 | FR-046 | Admin log in/out with role-based credentials | app-code | — | done | built as written | F1 | `Login.jsx`, `RequireRole` `roles={['admin']}`, `App.jsx` |
-| FR-047 | Admin views own account profile | app-code | P6 | partial | no profile page yet; name/email shown in topbar only | F9 | Name/email shown in `AppShell` topbar; no profile page |
+| FR-047 | Admin views own account profile | app-code | P6 | partial | no profile page; the sidebar shows the signed-in name only | F9 | `AppShell` sidebar (`#sidebar-signed-in`); the page itself is not built |
 
 ## Functional Requirements — System Wide / Cross Cutting
 

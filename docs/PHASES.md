@@ -45,11 +45,15 @@ For any phase:
 
 1. Open `docs/REQUIREMENTS.md` and read its rows. The **Class** column says what
    kind of work each row needs.
-2. Anything whose Class is not `app-code` needs work outside the React app.
+2. Open `docs/firestore_schema.md` and read the collection(s) that row touches
+   (§2 for fields and enums, §5 for what must be a transaction, §6 for the rules
+   path, §4 for an index). Its §0 lists where the shipped build deliberately
+   differs — that table wins over the section text.
+3. Anything whose Class is not `app-code` needs work outside the React app.
    `cloud-function` rows cannot be finished from frontend code (see §7).
-3. Build the smallest thing that makes a row genuinely work, then update that
+4. Build the smallest thing that makes a row genuinely work, then update that
    row in the same task.
-4. Verify against §8 before calling it done.
+5. Verify against §8 before calling it done.
 
 ### P1 in detail, since it is the one with history
 
@@ -110,6 +114,12 @@ A task is not complete until three things are updated in the same commit:
 | `docs/REQUIREMENTS.md` | the row(s) it moved: Status, Notes, Where/evidence |
 | `docs/PHASES.md` §2 | the phase's status line, if a count changed |
 | `docs/PHASES.md` §10 | any open question raised, and any answered |
+
+A Firestore change also updates `docs/firestore_schema.md` when it moves the
+model itself (a new collection or field), or records the difference as a `D*` row
+when it deliberately departs from it. Schema §9's own open questions are handled
+the same way as §10's: answered by an owner, recorded as a `D*` row, and
+re-stated until then — never resolved by an assumption.
 
 `node tools/check-docs.mjs` enforces the table half of this: a missing Feature,
 an `F*` or `D*` reference that does not resolve, or a `done`/`partial` row with
@@ -389,6 +399,21 @@ is cancelled. An assumption is never recorded in place of an answer.
   `VITE_FORMSPREE_ENDPOINT` (D21); Formspree's first submission triggers an
   activation email to the form owner, which must be clicked before live tests
   pass. Test the form twice after activating.
+- **The data model now has one entry point.** `docs/firestore_schema.md` is cited
+  as the source of truth from `AGENTS.md`, `README.md`, `PROMPTING_GUIDE.md`,
+  `CONTRIBUTING.md`, `docs/PHASES.md` §3/§11, and the service/page comments that
+  touch Firestore. Its §0 carries the divergence table (D1, D8/D10/D17, D12–D14,
+  D16, D18) so the shipped build is not "corrected" back to the text, and its §9
+  open questions are handled like the ones below — owner answers only. Still
+  open from §9: `bloodRequests.status`'s enum, `urgencyLevel`'s values, and
+  whether `bloodRequests` gains the `component` field the UI shows today.
+- **`users` diverges from schema §2.1** (D16): the built shape is kept
+  (`role | name | email | contact.phone | location{GeoPoint,geohash,city,address}`)
+  rather than the schema's `fullName`/`phoneNumber`/`status`/`isVerified` and flat
+  latitude/longitude, and the role set is the three the app has
+  (`donor | hospital | admin`) rather than the ERD's four. Aligning the shape is a
+  tracked follow-up task with its own branch and backfill; it is not folded into
+  the docs sweep that added the pointer.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
 - **No app test suite**: recorded as a gap, not scheduled. The exception is the

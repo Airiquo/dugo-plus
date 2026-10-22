@@ -2,6 +2,18 @@ import { GeoPoint, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firesto
 import { db } from '../lib/firebase'
 import { geohash, isCoordinate } from '../utils/geohash'
 
+/**
+ * `users/{uid}` profiles — the account type the guards read back.
+ *
+ * The data model is `docs/firestore_schema.md` §2.1. This module implements the
+ * shipped shape rather than that table exactly: `name`/`email`/`contact.phone`
+ * and a nested `location` (GeoPoint + geohash) instead of the schema's
+ * `fullName`/`phoneNumber` and flat latitude/longitude, and the role set is
+ * `donor | hospital | admin` rather than the schema's four. Those differences are
+ * deliberate (D1, D16 — `docs/REQUIREMENTS.md`); the alignment is a tracked
+ * follow-up. `firestore.rules` freezes `role` and `lastDonationAt`.
+ */
+
 /** Every account type that exists. */
 export const ROLES = ['donor', 'hospital', 'admin']
 
