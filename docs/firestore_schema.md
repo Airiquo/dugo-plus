@@ -17,13 +17,12 @@ and do not "correct" the live code back to the text below:
 
 | Area | This file says | The build does | Why |
 |---|---|---|---|
-| `users` fields | §2.1 `fullName`/`phoneNumber`/`status`/`isVerified`, flat `latitude`/`longitude` | the shipped shape (`name`, `email`, `contact.phone`, `location{GeoPoint,geohash,…}`) | D16 — schema-exact rules would break the shipped FR-01/FR-04 flows; alignment is a tracked follow-up |
-| `users.role` enum | `Donor \| Recipient \| Staff \| Admin` | `donor \| hospital \| admin` | D1 — Recipient is merged into donor; the build has no separate Staff role |
 | Reward points | an ERD-side total | one record per donation, summed on read | D12 |
 | Deferral intervals | one interval | per component, in `donationTypes.intervalDays` | D13 |
 | `users.lastDonationAt` | writable | frozen for the owner; only F8's server transaction writes it | D14 |
 | `errorLogs` (not in this file) | – | client-written, open-create | D8, D10, D17 |
 | `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
+| `users.address` | an ERD postal address | not collected; no field | D22 |
 
 §9 below is the file's own list of ERD inconsistencies. **They are open questions,
 not defaults**: an owner answer is recorded as a `D*` row, and unanswered ones are
@@ -116,8 +115,8 @@ auditBlocks/{blockId}                                (server-only, append-only)
 
 Legend: **R** = required, **O** = optional/nullable.
 
-> Reminder: `users/{uid}` (§2.1) is the one collection whose shipped shape differs
-> from the table below — see §0 and D16 before changing how profiles are written.
+> Reminder: `users/{uid}` (§2.1) now matches this table, including the lowercase
+> role set. `isVerified` is not stored (D5) and `address` is not collected (D22).
 
 ### 2.1 `users/{uid}`
 
@@ -125,7 +124,7 @@ Legend: **R** = required, **O** = optional/nullable.
 |---|---|---|---|
 | (doc ID) | string | R | = Firebase Auth UID (ERD `user_id`) |
 | hospitalId | string | O | FK → `hospitals`. Only for Staff (and possibly Admin) |
-| role | string | R | `Donor \| Recipient \| Staff \| Admin` |
+| role | string | R | `donor \| hospital \| admin` |
 | fullName | string | R | |
 | email | string | R | **UK**. Uniqueness enforced by Firebase Auth |
 | phoneNumber | string | R | |
@@ -133,15 +132,19 @@ Legend: **R** = required, **O** = optional/nullable.
 | geohash | string | O | Geohash of the user's location, for proximity queries |
 | latitude | number | O | |
 | longitude | number | O | |
-| lastDonationAt | Timestamp | O | Used for eligibility interval checks |
+| city | string | O | City name; what makes a donor matchable without coordinates |
+| lastDonationAt | Timestamp | O | Used for eligibility interval checks. Owner-frozen (D14) |
 | bloodType | string | O | `BloodType`. ERD `?` |
 | dateOfBirth | Timestamp | R | |
 | eligibilityInfo | map | O | ERD `?`, structure unspecified. Free-form map for now |
-| isVerified | boolean | R | Email verified. Default `false` |
-| status | string | R | `Active \| Suspended \| Removed` |
+| ~~isVerified~~ | – | – | **[DECISION]** Do NOT store. Firebase Auth owns email verification (`user.emailVerified`); a copy would need a writer to stay true. See D5 |
+| status | string | R | `Active \| Suspended \| Removed`. Admin-writable (FR-040); no screen reads it yet (D22) |
 | createdAt | Timestamp | R | |
 
 Role/hospital claims: also set Firebase Auth **custom claims** `{ role, hospitalId }` for security rules **[ADDED]**.
+
+> Note: `address` is deliberately **not** collected on a donor profile (D22), so it is
+> not part of this shape even though the ERD implies a postal address.
 
 ### 2.2 `emailVerifications/{verificationId}` — server-only
 

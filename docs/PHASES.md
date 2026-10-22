@@ -363,20 +363,23 @@ is cancelled. An assumption is never recorded in place of an answer.
   automatic index). **`npm run seed` ran 2026-10-22** against the live
   `dugo-plus` project (9 docs: 4 donation types, 4 guidelines, `systemConfig/
   global` with the D18 5-tier radius ladder), via the service-account key kept
-  outside the repo at `~/.config/dugo-plus/sa-key.json`. Whether the key is
-  deleted from the console (and disk) after this session, or kept for
-  re-seeding, is still open with the owner.
+  outside the repo at `~/.config/dugo-plus/sa-key.json`. The key is **kept for
+  the `users` backfill** (`scripts/backfill-users-shape.mjs`, D22) and deleted
+  from disk with its console access revoked once that has run and the
+  read-time fallbacks are out.
+- **The `users` backfill has not run on the live project.** `npm run
+  backfill:users` (dry by default; `--apply` writes) must run once before the
+  fallbacks in `readProfile` are removed. Until then the app reads either shape
+  correctly, so a missed document degrades to an empty field rather than an
+  error.
 - **Custom claims are not set anywhere yet** (D15): every admin/staff rule
   matches no session until `{ role, hospitalId }` claims are issued — a server
   step (Cloud Function or console), owned by F9/F12. Until then only
   owner-scoped paths are exercisable in production.
-- **`users` rules diverge from schema §2.1** (D16): the built shape
-  (`role/name/email` + profile fields, owner+admin) is kept; schema's
-  fullName/status/dateOfBirth model and "staff of same hospital (limited)"
-  read are not implemented. The rules deliberately grant NO staff read of
-  `users` — schema §6 allows a limited one, and hospital screens (F3/F6) will
-  need to decide what it exposes before it is added. Migration of `users` to
-  the schema shape is an open decision, not a silent default.
+- **No staff read of `users`** — the rules grant an owner read plus an admin
+  claim, and nothing else. Schema §6 allows a limited "staff of same hospital"
+  read; hospital screens (F3/F6) will need to decide what it exposes before it
+  is added. The shape itself is aligned (D22); this is about who may read it.
 - **TTL policy on `emailVerifications.expiresAt`** (schema §4) is not
   deployable from `firebase.json`/the CLI — it needs a console or `gcloud`
   firestore field-ttl configuration. Not done.
@@ -402,18 +405,22 @@ is cancelled. An assumption is never recorded in place of an answer.
 - **The data model now has one entry point.** `docs/firestore_schema.md` is cited
   as the source of truth from `AGENTS.md`, `README.md`, `PROMPTING_GUIDE.md`,
   `CONTRIBUTING.md`, `docs/PHASES.md` §3/§11, and the service/page comments that
-  touch Firestore. Its §0 carries the divergence table (D1, D8/D10/D17, D12–D14,
-  D16, D18) so the shipped build is not "corrected" back to the text, and its §9
+  touch Firestore. Its §0 carries the divergence table (D8/D10/D17, D12–D14,
+  D18, D22) so the shipped build is not "corrected" back to the text, and its §9
   open questions are handled like the ones below — owner answers only. Still
   open from §9: `bloodRequests.status`'s enum, `urgencyLevel`'s values, and
   whether `bloodRequests` gains the `component` field the UI shows today.
-- **`users` diverges from schema §2.1** (D16): the built shape is kept
-  (`role | name | email | contact.phone | location{GeoPoint,geohash,city,address}`)
-  rather than the schema's `fullName`/`phoneNumber`/`status`/`isVerified` and flat
-  latitude/longitude, and the role set is the three the app has
-  (`donor | hospital | admin`) rather than the ERD's four. Aligning the shape is a
-  tracked follow-up task with its own branch and backfill; it is not folded into
-  the docs sweep that added the pointer.
+- **`users` now matches schema §2.1** (D22, resolving D16). The shape is
+  `role | fullName | email | phoneNumber | bloodType | dateOfBirth |
+  latitude | longitude | geohash | city | hospitalId | status | lastDonationAt`,
+  with the lowercase role set; `address` is not collected and `isVerified` is not
+  stored (Firebase Auth owns it, D5). `scripts/backfill-users-shape.mjs` migrates
+  existing documents, and `readProfile`'s temporary old-name fallbacks are
+  deleted once it has run on the live project.
+- **`status`/`hospitalId` are written but not read.** The rules accept `status`
+  (admin-only change, FR-040) and `hospitalId`, and both are stored, but no
+  screen consumes them yet: a suspended account still works. The admin
+  donor-registry screen (F9/F10) is what reads and sets them.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
 - **No app test suite**: recorded as a gap, not scheduled. The exception is the
