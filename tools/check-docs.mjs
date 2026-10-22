@@ -323,3 +323,50 @@ console.log(
     // The warning is a convenience, never a gate.
   }
 }
+
+// --- Warning: a retired field name survives in the traceability table ------
+// Also soft, for the same reason: it is a blocklist, so it catches the names
+// someone remembered to add and nothing more. Scoped to docs/REQUIREMENTS.md —
+// the changelog's whole job is to name old shapes, and a decision row that
+// records a retirement has to be able to say what was retired. Those rows are
+// exempt, so the write-up the rule asks for is never the thing it blocks.
+{
+  // Each entry: a pattern for the retired spelling, and what replaced it (for
+  // the message). Order matters only for the dedupe below.
+  const RETIRED = [
+    [/contact\.phone/, 'contact.phone', 'phoneNumber'],
+    [/location\{GeoPoint/, 'location{GeoPoint', 'flat latitude/longitude'],
+    [/location\{/, 'location{', 'flat latitude/longitude/geohash/city'],
+  ];
+  // Decision rows carry the history on purpose: D4 states what locations are
+  // stored as, D16/D22 state what the old shape was. Naming a retired field in
+  // one of those is the record, not the rot.
+  const EXEMPT_DECISIONS = /^\|\s*(D4|D16|D22)\s*\|/;
+
+  const stale = [];
+  for (let i = 0; i < reqLines.length; i++) {
+    const line = reqLines[i];
+    if (EXEMPT_DECISIONS.test(line)) continue;
+    // Only requirement rows and decisions are scanned; section headings, prose
+    // and the file's own explanatory notes are not claims about the shape.
+    if (!/^\|\s*(?:FR|NFR)-\d+[a-z]?\s*\|/.test(line) && !/^\|\s*D\d+\s*\|/.test(line)) {
+      continue;
+    }
+    // Longest pattern first, so `location{GeoPoint` reports once, not twice.
+    const hit = RETIRED.find(([re]) => re.test(line));
+    if (hit) {
+      stale.push({ line: i + 1, retired: hit[1], replacement: hit[2] });
+    }
+  }
+
+  if (stale.length > 0) {
+    console.warn(
+      'check-docs: warning — docs/REQUIREMENTS.md names a retired field shape:\n' +
+        stale
+          .map((s) => `  line ${s.line}: "${s.retired}" (now ${s.replacement})`)
+          .join('\n') +
+        '\n  If this is a decision row recording the retirement, add it to ' +
+        'EXEMPT_DECISIONS in tools/check-docs.mjs.\n',
+    );
+  }
+}
