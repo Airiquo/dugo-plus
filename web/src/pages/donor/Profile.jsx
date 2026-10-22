@@ -19,13 +19,15 @@ function dateInputValue(value) {
 /** The form's state shape, from a profile read. */
 function formFrom(profile) {
   return {
-    name: profile?.name ?? '',
+    fullName: profile?.fullName ?? '',
     bloodType: profile?.bloodType ?? '',
     dateOfBirth: dateInputValue(profile?.dateOfBirth),
-    phone: profile?.contact?.phone ?? '',
-    city: profile?.location?.city ?? '',
-    address: profile?.location?.address ?? '',
-    coordinates: profile?.location?.coordinates ?? null,
+    phoneNumber: profile?.phoneNumber ?? '',
+    city: profile?.city ?? '',
+    coordinates:
+      profile?.latitude && profile?.longitude
+        ? { lat: profile.latitude, lng: profile.longitude }
+        : null,
     lastDonationAt: profile?.lastDonationAt ?? null,
   }
 }
@@ -168,10 +170,10 @@ export default function Profile() {
     setNote('')
     try {
       await saveProfile(user.uid, {
-        name: form.name,
+        fullName: form.fullName,
         bloodType: form.bloodType,
         dateOfBirth: form.dateOfBirth ? new Date(form.dateOfBirth) : null,
-        contact: { phone: form.phone },
+        phoneNumber: form.phoneNumber,
         // Sent only when the donor changed location details, so a save that
         // touches nothing else never rewrites the stored coordinates.
         ...(locChanged(form, saved)
@@ -179,7 +181,6 @@ export default function Profile() {
               location: {
                 coordinates: form.coordinates,
                 city: form.city,
-                address: form.address,
               },
             }
           : {}),
@@ -240,12 +241,12 @@ export default function Profile() {
               <input
                 autoComplete="name"
                 type="text"
-                value={form.name}
-                aria-invalid={Boolean(errors.name) || undefined}
-                aria-describedby={errors.name ? 'profile-name-error' : undefined}
-                onChange={set('name')}
+                value={form.fullName}
+                aria-invalid={Boolean(errors.fullName) || undefined}
+                aria-describedby={errors.fullName ? 'profile-name-error' : undefined}
+                onChange={set('fullName')}
               />
-              <FieldError id="profile-name-error">{errors.name}</FieldError>
+              <FieldError id="profile-name-error">{errors.fullName}</FieldError>
             </label>
             <label>
               <span>Email</span>
@@ -299,12 +300,12 @@ export default function Profile() {
                 autoComplete="tel"
                 placeholder="0917 000 0000"
                 type="tel"
-                value={form.phone}
-                aria-invalid={Boolean(errors.phone) || undefined}
-                aria-describedby={errors.phone ? 'profile-phone-error' : undefined}
-                onChange={set('phone')}
+                value={form.phoneNumber}
+                aria-invalid={Boolean(errors.phoneNumber) || undefined}
+                aria-describedby={errors.phoneNumber ? 'profile-phone-error' : undefined}
+                onChange={set('phoneNumber')}
               />
-              <FieldError id="profile-phone-error">{errors.phone}</FieldError>
+              <FieldError id="profile-phone-error">{errors.phoneNumber}</FieldError>
             </label>
           </div>
 
@@ -326,16 +327,6 @@ export default function Profile() {
                 onChange={set('city')}
               />
               <FieldError id="profile-city-error">{errors.city}</FieldError>
-            </label>
-            <label>
-              <span>Address</span>
-              <input
-                autoComplete="street-address"
-                placeholder="Optional"
-                type="text"
-                value={form.address}
-                onChange={set('address')}
-              />
             </label>
 
             <div className="profile-coords">
@@ -431,9 +422,9 @@ function eligibilityTone(status) {
 }
 
 /** True when any location field differs from what was loaded. */
-function locChanged(form, saved) {  return (
+function locChanged(form, saved) {
+  return (
     form.city !== saved.city ||
-    form.address !== saved.address ||
     JSON.stringify(form.coordinates) !== JSON.stringify(saved.coordinates)
   )
 }

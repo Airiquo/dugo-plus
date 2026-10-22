@@ -100,7 +100,7 @@ export function AuthProvider({ children }) {
           if (!current()) return
           const data = {
             role: DEFAULT_ROLE,
-            name: snap.displayName ?? '',
+            fullName: snap.displayName ?? '',
             email: snap.email ?? '',
           }
           try {
@@ -146,7 +146,7 @@ export function AuthProvider({ children }) {
       )
       const data = {
         role: DEFAULT_ROLE,
-        name: name ?? '',
+        fullName: name ?? '',
         email: next.email ?? '',
       }
       try {
