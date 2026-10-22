@@ -8,8 +8,8 @@ No screens are built yet except **Profile**. The role's intended surface, and th
 collections each screen reads or writes (`docs/firestore_schema.md` §2):
 
 - **Profile** — blood type, date of birth, eligibility, contact details.
-  Built as `Profile.jsx` (FR-04); reads/writes `users/{uid}` (§2.1 — the built
-  shape, D16). The donor lands here after sign-in.
+  Built as `Profile.jsx` (FR-04); reads/writes `users/{uid}` (§2.1, aligned
+  under D22). The donor lands here after sign-in.
 - **Alerts** — urgent blood-type match notifications and request updates.
   `notifications` (§2.8), plus their `donorMatches` (§2.5) and `bloodRequests`
   (§2.4) rows.

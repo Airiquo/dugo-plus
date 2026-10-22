@@ -128,7 +128,7 @@ web/src/
 │   └── useAuth.jsx     # AuthProvider/useAuth (session over services/auth)
 ├── services/           # Data + external access
 │   ├── auth.js         # Only module importing the Firebase Auth SDK
-│   ├── users.js        # users/{uid} profiles (schema §2.1; built shape, D16)
+│   ├── users.js        # users/{uid} profiles (schema §2.1, aligned — D22)
 │   └── requests.js     # Sample data fixtures (stand-in for schema §2.4 bloodRequests)
 ├── lib/                # Third-party setup
 │   └── firebase.js     # Firebase config from VITE_FIREBASE_* (null when unset)

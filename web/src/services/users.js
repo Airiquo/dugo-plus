@@ -1,21 +1,23 @@
-import { GeoPoint, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { geohash, isCoordinate } from '../utils/geohash'
 
 /**
  * `users/{uid}` profiles — the account type the guards read back.
  *
- * The data model is `docs/firestore_schema.md` §2.1. This module implements the
- * shipped shape rather than that table exactly: `name`/`email`/`contact.phone`
- * and a nested `location` (GeoPoint + geohash) instead of the schema's
- * `fullName`/`phoneNumber` and flat latitude/longitude, and the role set is
- * `donor | hospital | admin` rather than the schema's four. Those differences are
- * deliberate (D1, D16 — `docs/REQUIREMENTS.md`); the alignment is a tracked
- * follow-up. `firestore.rules` freezes `role` and `lastDonationAt`.
+ * The data model is `docs/firestore_schema.md` §2.1, and the stored shape now
+ * matches it: `fullName`, `phoneNumber`, flat `latitude`/`longitude`, and the
+ * lowercase role set. `address` is not collected, and `isVerified` is not
+ * stored — Firebase Auth owns email verification (D5). `status` and `hospitalId`
+ * are written but not yet read (D22). `firestore.rules` freezes `role` and
+ * `lastDonationAt`.
  */
 
 /** Every account type that exists. */
 export const ROLES = ['donor', 'hospital', 'admin']
+
+/** Every account status. Written by an admin screen; nothing reads it yet (D22). */
+export const STATUSES = ['Active', 'Suspended', 'Removed']
 
 /** The eight blood types, in the order a picker should read them. */
 export const BLOOD_TYPES = ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']
@@ -74,24 +76,22 @@ function text(value) {
  * browser location prompt (or the browser may refuse it), and that is a valid
  * profile rather than an error.
  *
- * @param {{ coordinates?: { lat: number, lng: number }|null, city?: string,
- *           address?: string }} [location]
- * @returns {{ coordinates: GeoPoint, geohash: string, city: string,
- *             address: string } | null}
+ * @param {{ coordinates?: { lat: number, lng: number }|null, city?: string }} [location]
+ * @returns {{ latitude: number, longitude: number, geohash: string,
+ *             city: string } | null}
  */
 function normaliseLocation(location) {
   if (!location) return null
   const city = text(location.city)
-  const address = text(location.address)
   const lat = Number(location.coordinates?.lat)
   const lng = Number(location.coordinates?.lng)
   const hasPoint = isCoordinate(lat, lng)
-  if (!hasPoint && !city && !address) return null
+  if (!hasPoint && !city) return null
   return {
-    coordinates: hasPoint ? new GeoPoint(lat, lng) : null,
+    latitude: hasPoint ? lat : 0,
+    longitude: hasPoint ? lng : 0,
     geohash: hasPoint ? geohash(lat, lng, GEOHASH_PRECISION) : '',
     city,
-    address,
   }
 }
 
@@ -100,11 +100,11 @@ function normaliseLocation(location) {
  * so a caller never touches a raw document.
  *
  * @typedef {{
- *   role: string, name: string, email: string, bloodType: string,
- *   dateOfBirth: Date|null, location: { coordinates: GeoPoint|null,
- *   geohash: string, city: string, address: string }|null,
- *   contact: { phone: string }, lastDonationAt: Date|null,
- *   updatedAt: Date|null,
+ *   role: string, fullName: string, email: string, phoneNumber: string,
+ *   bloodType: string, dateOfBirth: Date|null,
+ *   latitude: number, longitude: number, geohash: string, city: string,
+ *   hospitalId: string, status: string,
+ *   lastDonationAt: Date|null, updatedAt: Date|null,
  * }} Profile
  */
 
@@ -126,14 +126,16 @@ function normaliseLocation(location) {
  * so `request.auth.uid` already matches, which is what the rules check.
  *
  * @param {string} uid - the freshly created account's uid
- * @param {{ role: string, name?: string, email?: string }} profile
+ * @param {{ role: string, fullName?: string, email?: string }} profile
  */
 export async function writeProfile(uid, profile) {
   requireDb()
   await setDoc(doc(db, 'users', uid), {
     role: profile.role,
-    name: profile.name ?? '',
+    fullName: profile.fullName ?? '',
     email: profile.email ?? '',
+    phoneNumber: '',
+    status: 'Active',
     createdAt: serverTimestamp(),
   })
 }
@@ -150,18 +152,17 @@ export async function writeProfile(uid, profile) {
  *
  * @param {string} uid
  * @param {{
- *   name?: string, bloodType?: string, dateOfBirth?: Date|null,
- *   lastDonationAt?: Date|null,
- *   contact?: { phone?: string },
+ *   fullName?: string, bloodType?: string, dateOfBirth?: Date|null,
+ *   lastDonationAt?: Date|null, phoneNumber?: string,
  *   location?: { coordinates?: { lat: number, lng: number }|null,
- *                city?: string, address?: string }|null,
+ *                city?: string }|null,
  * }} changes
  */
 export async function saveProfile(uid, changes) {
   requireDb()
   const data = { updatedAt: serverTimestamp() }
 
-  if ('name' in changes) data.name = text(changes.name)
+  if ('fullName' in changes) data.fullName = text(changes.fullName)
 
   if ('bloodType' in changes) {
     const type = text(changes.bloodType)
@@ -173,14 +174,15 @@ export async function saveProfile(uid, changes) {
 
   if ('dateOfBirth' in changes) data.dateOfBirth = changes.dateOfBirth || null
   if ('lastDonationAt' in changes) data.lastDonationAt = changes.lastDonationAt || null
-
-  if ('contact' in changes) {
-    data.contact = { phone: text(changes.contact?.phone) }
-  }
+  if ('phoneNumber' in changes) data.phoneNumber = text(changes.phoneNumber)
 
   if ('location' in changes) {
-    // Stored as the normalised shape, or null when the donor cleared it.
-    data.location = normaliseLocation(changes.location)
+    // Stored flat, or cleared to the empty strings when the donor cleared it.
+    const next = normaliseLocation(changes.location)
+    data.latitude = next?.latitude ?? 0
+    data.longitude = next?.longitude ?? 0
+    data.geohash = next?.geohash ?? ''
+    data.city = next?.city ?? ''
   }
 
   await setDoc(doc(db, 'users', uid), data, { merge: true })
@@ -210,29 +212,30 @@ export async function readProfile(uid) {
   if (!snap.exists()) return null
   const data = snap.data() ?? {}
 
+  // Bridge for documents written before the shape alignment (D22): read the old
+  // field names when the new ones are absent. Remove once
+  // `scripts/backfill-users-shape.mjs` has run.
   const rawLocation = data.location ?? null
   const rawCoordinates = rawLocation?.coordinates ?? null
-  const lat = Number(rawCoordinates?.latitude)
-  const lng = Number(rawCoordinates?.longitude)
+  const latitude = Number(data.latitude ?? rawCoordinates?.latitude)
+  const longitude = Number(data.longitude ?? rawCoordinates?.longitude)
 
   return {
     // Only trusted values survive: an unknown or absent role reads as absent,
-    // so the picker runs again rather than the app guessing.
+    // so the guards do not open a route for it.
     role: ROLES.includes(data.role) ? data.role : null,
-    name: text(data.name),
+    fullName: text(data.fullName ?? data.name),
     email: text(data.email),
+    phoneNumber: text(data.phoneNumber ?? data.contact?.phone),
     bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : '',
     dateOfBirth: asDate(data.dateOfBirth),
     lastDonationAt: asDate(data.lastDonationAt),
-    contact: { phone: text(data.contact?.phone) },
-    location: rawLocation
-      ? {
-          coordinates: isCoordinate(lat, lng) ? { lat, lng } : null,
-          geohash: text(rawLocation.geohash),
-          city: text(rawLocation.city),
-          address: text(rawLocation.address),
-        }
-      : null,
+    latitude: isCoordinate(latitude, longitude) ? latitude : 0,
+    longitude: isCoordinate(latitude, longitude) ? longitude : 0,
+    geohash: text(data.geohash ?? rawLocation?.geohash),
+    city: text(data.city ?? rawLocation?.city),
+    hospitalId: text(data.hospitalId),
+    status: STATUSES.includes(data.status) ? data.status : 'Active',
     updatedAt: asDate(data.updatedAt),
   }
 }

@@ -40,8 +40,9 @@ service cloud.firestore {
     // Account profiles: `users/{uid}` is written once when an account is made
     // (services/users.js) and read back on every session change to decide which
     // routes open. Owners touch their own document; admins are claim-based.
-    // The field set is the shipped shape — schema §2.1's fullName/status/
-    // claims model is a later migration (D16, PHASES §10).
+    // The field set is schema §2.1's shape minus `isVerified` (Firebase Auth
+    // owns email verification, D5); `status` and `hospitalId` are written but
+    // nothing reads them yet (D22).
     match /users/{uid} {
       // The owner, and an admin claim, may read the profile.
       allow read: if isAdmin() || (signedIn() && me() == uid);
@@ -54,51 +55,51 @@ service cloud.firestore {
       allow create: if (isAdmin() || (signedIn() && me() == uid))
                     && request.resource.data.role is string
                     && request.resource.data.role in ['donor', 'hospital', 'admin']
-                    && request.resource.data.name is string
+                    && request.resource.data.fullName is string
                     && request.resource.data.email is string
+                    && (!('phoneNumber' in request.resource.data)
+                        || request.resource.data.phoneNumber is string)
+                    && (!('status' in request.resource.data)
+                        || request.resource.data.status in ['Active', 'Suspended', 'Removed'])
                     && !('lastDonationAt' in request.resource.data);
 
       // Editable, but the role is frozen for the owner: allowing that would be
       // the escalation path (README, "Granting admin"). An admin claim may
-      // update any profile — that is how suspensions land (FR-040). Donor
-      // profile fields (FR-04) are validated by type so a hand-written
-      // document cannot put a non-string where a screen expects one.
+      // update any profile — that is how suspensions land (FR-040), which is
+      // the one path that may change `status`. Donor profile fields (FR-04) are
+      // validated by type so a hand-written document cannot put a non-string
+      // where a screen expects one.
       // lastDonationAt is frozen by presence AND value (D14): clearing it
       // would restart the deferral clock and defeat FR-031.
       allow update: if isAdmin()
                     || (
                          signedIn() && me() == uid
                          && request.resource.data.role == resource.data.role
-                         && request.resource.data.name is string
+                         && request.resource.data.fullName is string
                          && request.resource.data.email is string
+                         && (!('phoneNumber' in request.resource.data)
+                             || request.resource.data.phoneNumber is string)
                          && (
                               !('bloodType' in request.resource.data)
                               || isOptionalBloodType(request.resource.data.bloodType)
                             )
-                         && (
-                              !('contact' in request.resource.data)
-                              || (
-                                   request.resource.data.contact.keys().hasOnly(['phone'])
-                                   && request.resource.data.contact.phone is string
-                                 )
-                            )
-                         && (
-                              !('location' in request.resource.data)
-                              || request.resource.data.location == null
-                              || (
-                                   request.resource.data.location.keys().hasOnly(['coordinates', 'geohash', 'city', 'address'])
-                                   && request.resource.data.location.city is string
-                                   && request.resource.data.location.geohash is string
-                                   && request.resource.data.location.address is string
-                                   && (
-                                        request.resource.data.location.coordinates == null
-                                        || request.resource.data.location.coordinates is latlng
-                                      )
-                                 )
-                            )
+                         // Flat location fields; `address` is not collected.
+                         && (!('city' in request.resource.data)
+                             || request.resource.data.city is string)
+                         && (!('geohash' in request.resource.data)
+                             || request.resource.data.geohash is string)
+                         && (!('latitude' in request.resource.data)
+                             || request.resource.data.latitude is number)
+                         && (!('longitude' in request.resource.data)
+                             || request.resource.data.longitude is number)
                          // Eligibility is derived on read, never written: a
                          // donor declaring themselves eligible would defeat FR-031.
                          && !('eligibility' in request.resource.data)
+                         // Status is an admin decision, not a self-service field.
+                         && (!('status' in request.resource.data)
+                             || request.resource.data.status == resource.data.status)
+                         && (!('hospitalId' in request.resource.data)
+                             || request.resource.data.hospitalId == resource.data.hospitalId)
                          && ('lastDonationAt' in request.resource.data)
                               == ('lastDonationAt' in resource.data)
                          && (
