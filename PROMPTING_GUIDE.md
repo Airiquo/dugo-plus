@@ -25,7 +25,7 @@ composition, and UX — and to avoid common context/token pitfalls.
 | Component library | `web/src/components/index.js` | Barrel of reusable primitives |
 | Components dir | `web/src/components/` | Implementations (Btn, Card, Table, Field, …) |
 | Component conventions | `web/src/components/CONVENTIONS.md` | Patterns for components, new ones included |
-| **Data model (source of truth)** | `docs/firestore_schema.md` | Every collection/field (§2), indexes (§4), transactions (§5), rules outline (§6), seed data (§8). Build screens and services against it; §0 lists where the shipped build deliberately differs (`D*` in `docs/REQUIREMENTS.md`) |
+| **Data model (model of record)** | `docs/firestore_schema.md` | Every collection/field (§2), indexes (§4), transactions (§5), rules outline (§6), seed data (§8). Build screens and services against it; §0 lists where the shipped build deliberately differs (`D*` in `docs/REQUIREMENTS.md`). New collections/fields the design needs are allowed — record them here and in `docs/SCHEMA_CHANGELOG.md` (D23) |
 | App shell | `web/src/layout/AppShell.jsx` | Sidebar-only admin chrome + `#app-shell` structure |
 | Theme hook | `web/src/hooks/useTheme.jsx` | `ThemeProvider`/`useTheme`; drives `[data-theme]` on `<html>` |
 | Firebase config | `web/src/lib/firebase.js` | `VITE_FIREBASE_*` → `auth` / `googleProvider` (null when unset) |

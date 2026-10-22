@@ -403,13 +403,46 @@ is cancelled. An assumption is never recorded in place of an answer.
   activation email to the form owner, which must be clicked before live tests
   pass. Test the form twice after activating.
 - **The data model now has one entry point.** `docs/firestore_schema.md` is cited
-  as the source of truth from `AGENTS.md`, `README.md`, `PROMPTING_GUIDE.md`,
+  as the model of record from `AGENTS.md`, `README.md`, `PROMPTING_GUIDE.md`,
   `CONTRIBUTING.md`, `docs/PHASES.md` §3/§11, and the service/page comments that
   touch Firestore. Its §0 carries the divergence table (D8/D10/D17, D12–D14,
   D18, D22) so the shipped build is not "corrected" back to the text, and its §9
-  open questions are handled like the ones below — owner answers only. Still
-  open from §9: `bloodRequests.status`'s enum, `urgencyLevel`'s values, and
-  whether `bloodRequests` gains the `component` field the UI shows today.
+  open questions are handled like the ones below — owner answers only.
+- **The schema is the model of record, not a cap (D23).** Adding a collection or
+  field the design needs is allowed; the obligation is visibility — write it into
+  the schema and `docs/SCHEMA_CHANGELOG.md` in the same task, and add a `D*` row
+  when it departs from what is written. §0.1's "do not invent collections" is
+  gone, `[ADDED]` no longer means "Firestore mechanics only", and a new
+  collection always gets a `D*` row (a new field only when it contradicts).
+- **§9's ERD inconsistencies are answered where the build had already decided.**
+  `bloodRequests.status` is `urgent | collecting | matched | fulfilled |
+  cancelled` and `urgencyLevel` is `urgent | stat | routine` — both are the
+  shipped `.chip[data-status]`/`.chip[data-priority]` codes, not chosen for the
+  schema (D24); `component` is added as an FK to `donationTypes` (D24).
+  `eligibilityInfo` was removed from the model of record — the ERD field was
+  never implemented and eligibility is computed on read (D25). Still open from
+  §9: `Subscriptions.status`, `responseStatus`, `consentType`, `channel`,
+  `deliveryStatus`, `changeType`, `requestType`, DSR `status`, subscription
+  `plan`, and the `notif_retry_interval` unit.
+- **Write-up is now enforced, not just requested.** `node tools/check-docs.mjs`
+  gained mechanical cross-checks: every `D*` in `docs/` resolves, the changelog's
+  refs resolve, schema §1 collections and `firestore.rules` match paths agree in
+  both directions, and field names the rules validate on `users` appear in §2.1.
+  A change to `firestore.rules`/indexes/services with no `docs/` change warns
+  (not fails — it cannot judge relevance). The cross-checks caught real drift on
+  their first run: `errorLogs` was in the rules but missing from §1, and the
+  rules' `eligibility` guard was not explained anywhere.
+- **The one-shot Admin key is retired.** `npm run seed` and
+  `npm run backfill:users` both need `GOOGLE_APPLICATION_CREDENTIALS`; the key
+  lived outside the repo at `~/.config/dugo-plus/sa-key.json`. Both jobs ran
+  (seed 2026-10-22; backfill 2026-10-22), after which the file was deleted and
+  the key revoked in the console. A future re-seed generates a fresh key and
+  revokes it after — no standing credential.
+- **PR #13 merged without the §6 smoke list, on the owner's call.** The change
+  touched `services/` and `firestore.rules`, so the list was required; the owner
+  overrode it to merge, and then ran it — sign in, reload, save-then-reload, the
+  unverified hold — all passing. Recorded because "merged unverified" and
+  "verified late" are different states, and the reason is only in this note.
 - **`users` now matches schema §2.1** (D22, resolving D16). The shape is
   `role | fullName | email | phoneNumber | bloodType | dateOfBirth |
   latitude | longitude | geohash | city | hospitalId | status | lastDonationAt`,

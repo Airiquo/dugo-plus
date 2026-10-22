@@ -212,28 +212,23 @@ export async function readProfile(uid) {
   if (!snap.exists()) return null
   const data = snap.data() ?? {}
 
-  // Bridge for documents written before the shape alignment (D22): read the old
-  // field names when the new ones are absent. Remove once
-  // `scripts/backfill-users-shape.mjs` has run.
-  const rawLocation = data.location ?? null
-  const rawCoordinates = rawLocation?.coordinates ?? null
-  const latitude = Number(data.latitude ?? rawCoordinates?.latitude)
-  const longitude = Number(data.longitude ?? rawCoordinates?.longitude)
+  const latitude = Number(data.latitude)
+  const longitude = Number(data.longitude)
 
   return {
     // Only trusted values survive: an unknown or absent role reads as absent,
     // so the guards do not open a route for it.
     role: ROLES.includes(data.role) ? data.role : null,
-    fullName: text(data.fullName ?? data.name),
+    fullName: text(data.fullName),
     email: text(data.email),
-    phoneNumber: text(data.phoneNumber ?? data.contact?.phone),
+    phoneNumber: text(data.phoneNumber),
     bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : '',
     dateOfBirth: asDate(data.dateOfBirth),
     lastDonationAt: asDate(data.lastDonationAt),
     latitude: isCoordinate(latitude, longitude) ? latitude : 0,
     longitude: isCoordinate(latitude, longitude) ? longitude : 0,
-    geohash: text(data.geohash ?? rawLocation?.geohash),
-    city: text(data.city ?? rawLocation?.city),
+    geohash: text(data.geohash),
+    city: text(data.city),
     hospitalId: text(data.hospitalId),
     status: STATUSES.includes(data.status) ? data.status : 'Active',
     updatedAt: asDate(data.updatedAt),
