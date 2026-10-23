@@ -8,8 +8,24 @@
  * to the facility (FR-031), so this is guidance, not a medical determination.
  */
 
-/** Whole blood deferral. Philippine Red Cross uses three months between donations. */
-export const DONATION_INTERVAL_DAYS = 90
+/**
+ * Per-component deferral intervals (D13), keyed by the `donationTypes` doc ID.
+ * `scripts/seed-reference-data.mjs` seeds the same values, and a read of that
+ * collection overrides them when it is available.
+ */
+export const DEFAULT_INTERVALS = {
+  'whole-blood': 56,
+  platelets: 7,
+  plasma: 28,
+  'double-red-cells': 112,
+}
+
+/**
+ * The interval used when the last donation's type is unknown: the longest one,
+ * so guidance never tells a donor they can give sooner than a facility would
+ * allow. The screen states that the facility confirms the exact date.
+ */
+export const UNKNOWN_INTERVAL_DAYS = 112
 
 /** Donor age window. */
 export const MIN_AGE = 18
@@ -38,13 +54,18 @@ export function daysBetween(from, to) {
 }
 
 /**
- * The deferral date: the first day a donation is possible again. `null` when
- * there has been no donation to count from.
+ * The deferral date: the first day a donation is possible again, counting
+ * `intervalDays` from the last donation (D13). `null` when there has been no
+ * donation to count from.
+ *
+ * @param {unknown} lastDonationAt
+ * @param {number} [intervalDays] deferral for that component; the longest
+ *   interval applies when the component is unknown.
  */
-export function nextEligibleDate(lastDonationAt) {
+export function nextEligibleDate(lastDonationAt, intervalDays = UNKNOWN_INTERVAL_DAYS) {
   const last = toDate(lastDonationAt)
   if (!last) return null
-  return new Date(last.getTime() + DONATION_INTERVAL_DAYS * DAY_MS)
+  return new Date(last.getTime() + intervalDays * DAY_MS)
 }
 
 /** `Date`, a Firestore Timestamp, a millisecond number, or an ISO string. */
@@ -63,7 +84,11 @@ export function toDate(value) {
 /**
  * Eligibility for a profile.
  *
- * @param {{ dateOfBirth?: unknown, lastDonationAt?: unknown }} profile
+ * @param {{ dateOfBirth?: unknown, lastDonationAt?: unknown,
+ *           intervalDays?: number }} profile
+ *   `intervalDays` is the deferral for the component last donated (D13). Leave it
+ *   out when that is unknown: the longest interval then applies and the detail
+ *   says a facility confirms the exact date.
  * @param {Date} [now]
  * @returns {{
  *   status: 'unknown'|'underage'|'overage'|'eligible'|'deferred',
@@ -77,7 +102,22 @@ export function toDate(value) {
  * screen renders. `unknown` means the profile is missing the dates needed to
  * decide, which is the normal state for a new account.
  */
-export function eligibilityFor({ dateOfBirth, lastDonationAt } = {}, now = new Date()) {
+/**
+ * Map a derived status onto the shared `data-eligibility` tone vocabulary the
+ * stylesheet colours for both themes: `eligible` green, `deferred` and the
+ * refusals red, `unknown` neutral.
+ */
+export function eligibilityTone(status) {
+  if (status === 'eligible') return 'eligible'
+  if (status === 'unknown') return 'unknown'
+  if (status === 'deferred') return 'deferred'
+  return 'permanently-deferred'
+}
+
+export function eligibilityFor(
+  { dateOfBirth, lastDonationAt, intervalDays } = {},
+  now = new Date(),
+) {
   const age = ageOn(dateOfBirth, now)
 
   if (age === null) {
@@ -110,7 +150,10 @@ export function eligibilityFor({ dateOfBirth, lastDonationAt } = {}, now = new D
     }
   }
 
-  const next = nextEligibleDate(lastDonationAt)
+  // D13: the wait is per component. Without a known component the longest
+  // interval applies, and the copy says the facility confirms the exact date.
+  const knownInterval = Number.isFinite(intervalDays) && intervalDays > 0
+  const next = nextEligibleDate(lastDonationAt, knownInterval ? intervalDays : undefined)
   if (next) {
     const daysLeft = daysBetween(now, next)
     if (daysLeft > 0) {
@@ -118,7 +161,11 @@ export function eligibilityFor({ dateOfBirth, lastDonationAt } = {}, now = new D
         status: 'deferred',
         eligible: false,
         label: 'Deferred',
-        detail: `You can donate again in ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}.`,
+        detail:
+          `You can donate again in ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}.` +
+          (knownInterval
+            ? ''
+            : ' The wait depends on what you last donated; a facility confirms the exact date.'),
         nextEligibleOn: next,
       }
     }

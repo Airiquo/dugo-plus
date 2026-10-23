@@ -16,6 +16,7 @@ import Welcome from './pages/shared/Welcome'
 import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
 import Profile from './pages/donor/Profile'
+import Activity from './pages/donor/Activity'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
@@ -82,6 +83,20 @@ export default function App() {
                 <RequireVerified>
                   <RequireRole roles={['donor']}>
                     <Profile />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          />
+          {/* History, points and the deferral readout (FR-008–FR-010). The
+              reads are donor-scoped, so it sits behind the same gates. */}
+          <Route
+            path="/donor/activity"
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['donor']}>
+                    <Activity />
                   </RequireRole>
                 </RequireVerified>
               </RequireAuth>

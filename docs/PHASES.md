@@ -28,7 +28,7 @@ numbers rather than trusting this section.
 | --- | --- | --- |
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13 done; NFR-14 deferred, NFR-27 partially done |
 | **P2** | Blood request submission and listing | not started |
-| **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
+| **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-008–FR-010 done; FR-005/FR-006/FR-022/FR-023/FR-028–FR-030 not started) |
 | **P4** | Hospital dashboard, inventory, screening | not started |
 | **P5** | Matching and notifications | not started; needs Cloud Functions (Blaze) |
 | **P6** | Admin account management, data-request queue | partial (admin gate and FR-040/FR-047 beginnings) |
@@ -456,6 +456,7 @@ is cancelled. An assumption is never recorded in place of an answer.
   donor-registry screen (F9/F10) is what reads and sets them.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
+- **F5 (2026-10-23): donor history, rewards, health tracker built.** `/donor/activity` (FR-008–FR-010) reads `donations`, `donorMatches`, `donationTypes`, `rewardTransactions` and `hospitals`; D13 per-component deferral intervals with a longest-interval fallback stating the facility confirms the exact date; D26 rewards = points only (no tiers/perks/redemption), summed on read. `scripts/seed-demo-world.mjs` seeds a demo hospital/requests/matches/donations/reward transactions/inventory logs (`npm run seed:demo`), prefixed `demo-`, refuses live without `--allow-live`. Profile passes the latest donation's interval to eligibility. **Spark has no Cloud Functions:** F8/F7/F10 cannot be real Cloud Functions — they'll need an Admin SDK/script path or Blaze; the fixture is wired to be script-connected later. `firestore.rules` unchanged.
 - **No app test suite**: recorded as a gap, not scheduled. The exception is the
   Firestore rules — `firestore.rules.test.mjs` runs ~100 asserts in the
   emulator, locally (`npm run test:rules`) and in CI (D19). The React app has

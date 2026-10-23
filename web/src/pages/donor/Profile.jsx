@@ -3,7 +3,8 @@ import { Link, Navigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 import { readProfile, saveProfile, BLOOD_TYPES, roleLabel } from '../../services/users'
-import { eligibilityFor, toDate } from '../../utils/eligibility'
+import { latestDonorDonation } from '../../services/donations'
+import { eligibilityFor, eligibilityTone, toDate } from '../../utils/eligibility'
 import { validateProfile } from '../../utils/validate'
 import { FieldError, Badge, Icon, PubThemeToggle } from '../../components'
 
@@ -89,9 +90,33 @@ export default function Profile() {
     }
   }, [user?.uid])
 
+  // D13: the wait is per component, and only the donation record knows which
+  // component was last given. A failed read falls back to the longest interval
+  // rather than blocking the screen; it never makes a deferral look shorter.
+  const [lastDonation, setLastDonation] = useState(null)
+  useEffect(() => {
+    if (!user?.uid || !saved.lastDonationAt) return
+    let current = true
+    latestDonorDonation(user.uid)
+      .then((found) => {
+        if (current) setLastDonation(found)
+      })
+      .catch(() => {
+        if (current) setLastDonation(null)
+      })
+    return () => {
+      current = false
+    }
+  }, [user?.uid, saved.lastDonationAt])
+
   const eligibility = useMemo(
-    () => eligibilityFor({ dateOfBirth: form.dateOfBirth, lastDonationAt: saved.lastDonationAt }),
-    [form.dateOfBirth, saved.lastDonationAt],
+    () =>
+      eligibilityFor({
+        dateOfBirth: form.dateOfBirth,
+        lastDonationAt: saved.lastDonationAt,
+        intervalDays: lastDonation?.intervalDays || undefined,
+      }),
+    [form.dateOfBirth, saved.lastDonationAt, lastDonation],
   )
 
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved])
@@ -208,6 +233,7 @@ export default function Profile() {
           </span>
         </Link>
         <nav aria-label="Sections">
+          <Link to="/donor/activity">Activity</Link>
           <Link to="/welcome">Home</Link>
         </nav>
         <div className="pub-nav-end">
@@ -407,18 +433,6 @@ export default function Profile() {
       </main>
     </div>
   )
-}
-
-/**
- * Map a derived eligibility status onto the shared `data-eligibility` tone
- * vocabulary, which the stylesheet already colours for both themes: `eligible`
- * green, `deferred` and the refusals red, `unknown` neutral.
- */
-function eligibilityTone(status) {
-  if (status === 'eligible') return 'eligible'
-  if (status === 'unknown') return 'unknown'
-  if (status === 'deferred') return 'deferred'
-  return 'permanently-deferred'
 }
 
 /** True when any location field differs from what was loaded. */

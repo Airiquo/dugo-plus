@@ -289,3 +289,251 @@
 .pub .pub-form.pub-form-wide {
   max-width: 520px;
 }
+
+/* --- donor activity ------------------------------------------------------
+   History, points and the deferral readout (FR-008–FR-010), carrying the same
+   `.pub` scope as the profile so both themes come along unchanged. The tiles
+   are a glance; the cards below are the detail they summarise. */
+
+.activity-main {
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 40px 20px 72px;
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+
+.activity-head {
+  display: grid;
+  gap: 8px;
+  max-width: 56ch;
+}
+.activity-title {
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+/* Three summary tiles. Fixed columns rather than auto-fit so the numbers line
+   up between visits; they stack on a phone. */
+.activity-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.activity-tile {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px 20px;
+}
+.activity-tile-label {
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.activity-tile-value {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.05;
+}
+/* A word or a date rather than a count, so it needs less size. */
+.activity-tile-value[data-small] {
+  font-size: 17px;
+  line-height: 1.3;
+}
+.activity-tile-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.activity-card {
+  display: grid;
+  gap: 16px;
+  padding: 26px 28px;
+}
+.activity-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+.activity-card-head .pub-kicker {
+  margin: 0 0 4px;
+}
+.activity-card-head h3 {
+  font-size: 21px;
+}
+.activity-total {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Status + the donation the deferral counts from, side by side when there is
+   room for it. */
+.activity-status {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+}
+.activity-next {
+  display: grid;
+  gap: 2px;
+  padding: 14px 16px;
+  background: var(--card-2);
+  border-radius: 12px;
+}
+.activity-next-label {
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.activity-next-value {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.activity-last {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.activity-last strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.activity-elig-detail {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.activity-retry {
+  justify-self: start;
+}
+
+/* History rows: date, what and where, then the figures. A list rather than the
+   admin table — this sits in a rounded card, not a data grid. */
+.activity-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+}
+.activity-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.activity-row:first-child {
+  border-top: 0;
+  padding-top: 4px;
+}
+.activity-when {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.activity-when strong {
+  display: block;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.activity-what {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.activity-what strong {
+  font-weight: 600;
+}
+.activity-what span {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-figures {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  white-space: nowrap;
+}
+.activity-points {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.activity-units {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+/* Empty history: a statement, not a blank table. */
+.activity-empty {
+  display: grid;
+  gap: 6px;
+  padding: 10px 0 4px;
+}
+.activity-empty strong {
+  font-weight: 600;
+}
+.activity-empty p {
+  max-width: 52ch;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+@media (max-width: 700px) {
+  .activity-main {
+    padding: 28px 16px 56px;
+  }
+  .activity-tiles {
+    grid-template-columns: 1fr;
+  }
+  .activity-tile {
+    grid-template-columns: 1fr auto;
+    align-items: baseline;
+    gap: 2px 12px;
+    padding: 14px 18px;
+  }
+  .activity-tile-value {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+  }
+  .activity-card {
+    padding: 22px 20px;
+  }
+  .activity-status {
+    grid-template-columns: 1fr;
+  }
+  .activity-row {
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+}

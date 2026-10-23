@@ -15,7 +15,8 @@ collections each screen reads or writes (`docs/firestore_schema.md` §2):
   (§2.4) rows.
 - **History** — past donations and the facilities they were at.
   `donations` (§2.9, doc ID = match ID) joined to `donorMatches` (§2.5).
-- **Rewards** — points, tiers, and redeemable perks for repeat donations.
+- **Rewards** — points only (D12, D26). Tiers and redeemable perks are not in
+  scope.
   `rewardTransactions` (§2.10) — one row per donation, summed on read (D12).
 
 When one is built, drop it here as a `PascalCase.jsx` page and wire its route in
