@@ -156,7 +156,7 @@ export default function Register() {
           <FieldError id="register-password-error">{errors.password}</FieldError>
         </label>
         <p className="pub-fine">
-          At least {PASSWORD_MIN} characters, with a letter and a number.
+          At least {PASSWORD_MIN} characters, with upper and lower case letters and a number.
         </p>
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">
