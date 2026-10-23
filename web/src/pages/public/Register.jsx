@@ -20,7 +20,7 @@ import { Icon, GoogleMark, FieldError } from '../../components'
  * The donor profile (`users/{uid}`, role `donor`) is written right after the
  * account is created (`hooks/useAuth.jsx`), and a display name is set from the
  * Name field. If that write fails the account still exists, so the screen says
- * so and points at sign-in — signing in again auto-provisions the profile.
+ * so and offers a full reload — the session then auto-provisions the profile.
  *
  * Every field is checked on submit and each message renders under its own input,
  * so one submission answers the whole form. The password rule is the same
@@ -164,7 +164,9 @@ export default function Register() {
             {profileMissing && (
               <>
                 {' '}
-                <Link to="/login">Sign in again to finish setting up.</Link>
+                <Link to="/register" reloadDocument>
+                  Reload the page to finish setting up.
+                </Link>
               </>
             )}
           </p>
