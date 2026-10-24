@@ -206,7 +206,23 @@ service cloud.firestore {
                     && request.resource.data.latitude is number
                     && request.resource.data.longitude is number
                     && request.resource.data.geohash is string
-                    && request.resource.data.createdAt is timestamp;
+                    && request.resource.data.createdAt is timestamp
+                    // Recipient location is denormalized here because a donor
+                    // cannot read `users/{recipientId}` (D27).
+                    && (
+                         request.resource.data.recipientCity == null
+                         || request.resource.data.recipientCity is string
+                       )
+                    && (
+                         (
+                              request.resource.data.recipientLatitude == null
+                              && request.resource.data.recipientLongitude == null
+                         )
+                         || (
+                              request.resource.data.recipientLatitude is number
+                              && request.resource.data.recipientLongitude is number
+                         )
+                       );
 
       // Status changes belong to the hospital's staff and admins (schema §6);
       // the request may not be re-pointed at another hospital or blood type.
@@ -235,17 +251,36 @@ service cloud.firestore {
       allow create: if false;
 
       // The donor answers: response and acknowledgment fields only (schema §6).
+      // The donor's coordinates are written at accept, so the request's
+      // hospital staff can see where the donation is coming from (D27). They
+      // live on the match rather than on `users` so the existing read rule —
+      // donor, that hospital's staff, admin — is the whole boundary.
       allow update: if isAdmin()
                     || (
                          signedIn() && resource.data.donorId == me()
                          && request.resource.data.donorId == resource.data.donorId
                          && request.resource.data.diff(resource.data).affectedKeys()
-                              .hasOnly(['responseStatus', 'guidelinesAcknowledged', 'acknowledgedAt'])
+                              .hasOnly([
+                                'responseStatus',
+                                'guidelinesAcknowledged',
+                                'acknowledgedAt',
+                                'donorLatitude',
+                                'donorLongitude',
+                                'locationSharedAt',
+                              ])
                          && request.resource.data.responseStatus is string
                          && request.resource.data.guidelinesAcknowledged is bool
                          && (
                               request.resource.data.acknowledgedAt == null
                               || request.resource.data.acknowledgedAt is timestamp
+                            )
+                         && (
+                              request.resource.data.donorLatitude == null
+                              || (
+                                   request.resource.data.donorLatitude is number
+                                   && request.resource.data.donorLongitude is number
+                                   && request.resource.data.locationSharedAt is timestamp
+                                 )
                             )
                        )
                     // Staff record the screening result: those fields only
@@ -288,6 +323,25 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['revokedAt'])
                     && request.resource.data.revokedAt is timestamp;
+
+      allow delete: if false;
+    }
+
+    // Donor locations for the hospital's nearby-donor view (D28). A thin
+    // mirror of the profile's coordinates so staff can see where donors are
+    // without reading `users` — which stays owner+admin (NFR-11). One document
+    // per donor, written only by that donor.
+    match /donorLocations/{donorId} {
+      allow read: if isAdmin()
+                  || isStaff()
+                  || (signedIn() && donorId == me());
+
+      allow create, update: if signedIn()
+                            && donorId == me()
+                            && request.resource.data.donorId == me()
+                            && request.resource.data.latitude is number
+                            && request.resource.data.longitude is number
+                            && request.resource.data.updatedAt is timestamp;
 
       allow delete: if false;
     }
