@@ -16,6 +16,7 @@ import Welcome from './pages/shared/Welcome'
 import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
 import Profile from './pages/donor/Profile'
+import Requests from './pages/donor/Requests'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
@@ -87,7 +88,23 @@ export default function App() {
               </RequireAuth>
             }
           />
+<<<<<<< HEAD
           <Route path="/donor/profile" element={<Navigate to="/home" replace />} />
+=======
+          {/* Donor blood requests (FR-005/006/022/023/028/029/030/038). */}
+          <Route
+            path="/donor/requests"
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['donor']}>
+                    <Requests />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          />
+>>>>>>> 17f6ae0 (feat(f4): add donor requests map with live tracking and location sharing)
           <Route
             element={
               <RequireAuth>
