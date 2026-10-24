@@ -1,6 +1,7 @@
 /**
- * Password policy (NFR-13): at least 8 characters with a mix of letters and
- * digits. Framework-free so the same rule can be reused by any screen.
+ * Password policy (NFR-13): at least 8 characters with upper and lower case
+ * letters and a digit. Framework-free so the same rule can be reused by any
+ * screen.
  */
 export const PASSWORD_MIN = 8
 
@@ -10,8 +11,8 @@ export function passwordProblem(password, email = '') {
   if (password.length < PASSWORD_MIN) {
     return `Use at least ${PASSWORD_MIN} characters for your password.`
   }
-  if (!/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
-    return 'Include at least one letter and one number in your password.'
+  if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return 'Include upper and lower case letters and a number in your password.'
   }
   if (email && password.toLowerCase() === email.toLowerCase()) {
     return 'Your password cannot be the same as your email address.'

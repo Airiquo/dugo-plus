@@ -82,7 +82,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(f, 'systemConfig/global'), { updatedBy: 'admin1', notifRetryLimit: 3, notifRetryInterval: 5, radiusTiers: [{ tierOrder: 1, radiusKm: 5, waitMinutes: 10 }], updatedAt: new Date() });
   await setDoc(doc(f, 'dataSubjectRequests/dsr1'), { userId: 'alice', processedBy: null, requestType: 'Access', status: 'Pending', createdAt: new Date(), resolvedAt: null });
   await setDoc(doc(f, 'auditBlocks/b1'), { prevHash: '0', recordHash: 'abc123', eventType: 'UserCreated', hashedEntityRef: 'h', hashedActorRef: 'a', createdAt: new Date(), sequence: 1 });
-  await setDoc(doc(f, 'errorLogs/e1'), { message: 'boom', stack: 'stack', route: '/', uid: '', build: 'web-1', createdAt: new Date() });
+  await setDoc(doc(f, 'errorLogs/e1'), { message: 'boom', stack: 'stack', route: '/', uid: '', build: 'web-1', createdAt: serverTimestamp() });
 });
 
 // ---- users (D14 freeze, D15 claims, D16 shipped shape) -------------------
@@ -111,6 +111,8 @@ await ok('admin claim suspends a profile (FR-040)', updateDoc(doc(db(admin()), '
 console.log('errorLogs');
 await ok('signed-out can create an error report', setDoc(doc(db(anon()), 'errorLogs/e2'), { message: 'boom', stack: 'stack', route: '/', uid: '', build: 'web-1', createdAt: serverTimestamp() }));
 await no('error report shape is bounded', setDoc(doc(db(anon()), 'errorLogs/e3'), { message: 'boom', extra: 'field' }));
+await no('error report needs every field', setDoc(doc(db(anon()), 'errorLogs/e4'), { message: 'boom', stack: 'stack', route: '/', uid: '', build: 'web-1' }));
+await no('error report cannot backdate its timestamp', setDoc(doc(db(anon()), 'errorLogs/e5'), { message: 'boom', stack: 'stack', route: '/', uid: '', build: 'web-1', createdAt: new Date() }));
 await no('nobody reads error reports back', readDoc(anon(), 'errorLogs/e2'));
 
 // ---- donationTypes + guidelines -----------------------------------------

@@ -208,7 +208,7 @@ export default function Profile() {
           </span>
         </Link>
         <nav aria-label="Sections">
-          <Link to="/welcome">Home</Link>
+          <Link to="/home">Home</Link>
         </nav>
         <div className="pub-nav-end">
           <PubThemeToggle />
