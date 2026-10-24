@@ -92,8 +92,7 @@ Then open <http://localhost:5173>:
 - `/`: landing page
 - `/login`: sign in; `/register`: create a donor account
 - `/partner`: partnership intake form (emails the partners mailbox)
-- `/admin/dashboard`: admin dashboard
-- `/admin/blood-requests`: blood requests list
+- `/admin/dashboard`: admin area (sidebar shell; screens to be built)
 - `/gallery`: every component, in both themes (useful while building screens)
 
 The app needs a Firebase project: with no `web/.env.local` it stops on a setup
@@ -129,8 +128,7 @@ routes are built in React so far:
 | `/login`, `/register` | Sign-in and donor-only registration: the public `.pub` band, owned by `AuthLayout`, backed by Firebase Auth |
 | `/partner` | Partnership intake form, posts to Formspree (`VITE_FORMSPREE_ENDPOINT`) and emails the partners mailbox |
 | `/welcome` | "You're in" notice — where donor and hospital accounts land (there are no screens for them yet); self-forwards admins to the dashboard |
-| `/admin/dashboard` | Dashboard, built |
-| `/admin/blood-requests` | Blood requests list, built, renders from `web/src/services/requests.js` |
+| `/admin/dashboard`, `/admin/blood-requests` | Route + shell only — the sidebar-only admin chrome (`AppShell`), no page content yet; the mockups remain the look reference |
 | `/admin/donor-matching`, `/admin/donor-registry`, `/admin/inventory`, `/admin/donations-rewards`, `/admin/reports`, `/admin/audit-trail`, `/admin/settings` | Placeholder (`ScreenStub`) linking the reference mockup; design and build these next |
 | `/gallery` | Component gallery, every component rendered in both themes |
 | anything else | Not found |
@@ -213,7 +211,7 @@ under `light/` and `dark/` need no setup at all.
 | `web/src/layout/RequireRole.jsx` | Is the signed-in account of the right type? Mounted inside `RequireAuth` for `/admin/*`, with `roles={['admin']}`; a profile that failed to load reports the error with a sign-out button. |
 | `web/src/layout/AuthLayout.jsx` | The public (`.pub`) chrome shared by the auth screens and `/partner`: header, footer, the copy column, and the colour tokens `.pub` carries. |
 | `web/src/pages/public/Login.jsx`, `Register.jsx`, `Partner.jsx` | The screens, composed from the public classes (`.pub-card`, `.pub-form`, `.pub-btn`); the only new CSS is the `.pub-auth` full-height hook and the switch hooks in `dugo.extras.css`. |
-| `web/src/layout/AppShell.jsx` | Shows the signed-in name and account type, and signs out from the sidebar (`$ exit`) or the topbar chip's drawer. |
+| `web/src/layout/AppShell.jsx` | The admin chrome: left sidebar (logo, role label, nav, theme toggle, `$ exit` sign-out) and the content area. The mockup's top toolbar is deliberately not carried — sidebar-only per the owner's direction. |
 
 Signing in happens on `/login`, and nowhere else. The landing page carries no
 form: `tools/gen_pages.py` drops the designed `#signin` band from the seeded body
@@ -258,6 +256,7 @@ Four documents, in the order you should read them:
 | Doc | Contents |
 | --- | --- |
 | `AGENTS.md` | The repo rules. Read this first; it is short and important. |
+| `docs/firestore_schema.md` | **The data model of record** — every collection and field (§2), the composite indexes (§4), where a transaction is required (§5), the security-rules outline (§6), and the seed data (§8). Any screen or service that reads or writes Firestore is built against this file; where the build deliberately differs, the `D*` row in `docs/REQUIREMENTS.md` says why. Adding a collection or field the design needs is allowed — write it here and add a changelog entry (`docs/SCHEMA_CHANGELOG.md`) in the same task (D23). |
 | `PROMPTING_GUIDE.md` | Structure, naming, and prompt templates for building a screen. |
 | `web/src/components/CONVENTIONS.md` | The three component patterns to copy, and the rules around them. |
 | `web/src/pages/shared/Gallery.jsx` | Working examples of every component. |
@@ -294,10 +293,10 @@ Four documents, in the order you should read them:
         ├── utils/cx.js     # `cx()` classnames join used by the components
         ├── layout/         # AppShell, RequireAuth, RequireRole, AuthLayout (app chrome)
         ├── pages/          # Route pages, grouped by role
-        │   ├── admin/             # dashboard, blood-requests (+ seeded DashboardBody)
+        │   ├── admin/             # dashboard, blood-requests (shell only, content to build)
         │   ├── donor/             # planned: profile, alerts, rewards
         │   ├── hospital/          # planned: requests, inventory
-        │   ├── public/            # landing, login, register, pick-role, not-found (+ seeded LandingBody)
+        │   ├── public/            # landing, login, register, partner, forgot-password, verify-email, not-found (+ seeded LandingBody)
         │   └── shared/            # ScreenStub, Gallery, Welcome
         └── components/     # Reusable UI primitives + CONVENTIONS.md
 ```
@@ -338,18 +337,26 @@ Some ids carry meaning too: overlays derive their ids from a `name`
 
 Every remaining admin screen is the same job. Take the smallest one first. The
 screen sizes are roughly `settings` (4 KB) → `donor-registry` (7 KB) →
-`blood-requests` (8 KB, done) → `audit-trail` → `reports` → `donations-rewards`
-→ `donor-matching` → `inventory` (21 KB).
+`blood-requests` (8 KB) → `audit-trail` → `reports` → `donations-rewards`
+→ `donor-matching` → `inventory` (21 KB). The two screens already wired
+(`dashboard`, `blood-requests`) render the shell only, so they are open too.
 
 1. **Look at the reference:** `light/<screen>.html` and `dark/<screen>.html`
    show the intended look for that screen.
-2. **Read a worked example first:** `web/src/pages/admin/BloodRequests.jsx` (a list
-   screen end to end), `web/src/pages/shared/Gallery.jsx` (every component in use), and
-   `web/src/services/requests.js` (how the data is shaped).
-3. **Design and build the page** in `web/src/pages/admin/`, composing components
+2. **Read the data model first:** open `docs/firestore_schema.md` §2 and read the
+   collection this screen works on — its fields, required/optional, enums, and
+   which parts are server-only (§5 transactions). If the screen writes, check §6
+   for the rules path. Where the build deliberately differs from the file, the
+   `D*` row in `docs/REQUIREMENTS.md` says why — follow the deviation, not the
+   file.
+3. **Read a worked example:** `web/src/pages/shared/Gallery.jsx` (every
+   component in use) and `web/src/services/requests.js` (how request data is
+   shaped for a list screen today; it is a stand-in, not the `bloodRequests`
+   shape).
+4. **Design and build the page** in `web/src/pages/admin/`, composing components
    (add a new one if the design needs it). Then add the slug to `TRANSLATED` in
    `web/src/App.jsx` so the route stops rendering the `ScreenStub`.
-4. **Verify:** `cd web && npx vite build` must pass. Build with the design-system
+5. **Verify:** `cd web && npx vite build` must pass. Build with the design-system
    components/tokens and both themes come along for free; spot-check the other
    theme only if the screen adds custom visuals or one-off inline styles
    (`/gallery` renders every component in both themes).
@@ -389,7 +396,7 @@ the last one needs dependencies beyond the standard library.
 | `refactor_mockups.py` | One-time **phase 2**: point the 20 mockups at `styles/dugo.css` instead of the inline block. Verified reversible. |
 | `csslib.py` | Shared CSS parsing helpers for the two scripts above. |
 | `htmltojsx.py` | Exact HTML → JSX converter (used by `gen_pages.py`). |
-| `gen_pages.py` | The one-time scaffold that produced the first `DashboardBody.jsx` and `LandingBody.jsx` from the mockups. Those pages are now normal, editable source, so you don't need to run this. |
+| `gen_pages.py` | The one-time scaffold that produced the first seeded page bodies (the admin dashboard's and the landing's) from the mockups. `LandingBody.jsx` is still normal, editable source; `DashboardBody.jsx` was removed with the shell strip, so the dashboard body is to be rebuilt against `docs/firestore_schema.md`. You don't need to run this. |
 | `screenshots.py` | Render every mockup to `docs/screenshots/` for this README. Needs a one-time `pip3 install --user playwright pillow` and `python3 -m playwright install chromium`. **Re-run it after changing any mockup**, or the README keeps showing the old reference. |
 
 ## Tech stack
@@ -419,11 +426,13 @@ rewriting the pages.
 Two things are stubbed until the API arrives:
 
 - **Roles live in Firestore.** Each account's type is stored in
-  `users/{uid}`. `/register` offers donor and hospital only; admins are
+  `users/{uid}`. Register is donor-only (D20); admins are
   granted by editing that document in the Firebase console. See
   [Account types](#account-types).
-- **Nothing is fetched.** `/admin/blood-requests` reads `web/src/services/requests.js`
-  as a stand-in for the response shape.
+- **Nothing is fetched.** The screens read the fixtures in `web/src/services/*`
+  as a stand-in for the response shape, and the two built admin screens were
+  reduced to the shell by the owner's direction — `services/requests.js` keeps
+  the request shape for when they are rebuilt.
 
 ## License
 

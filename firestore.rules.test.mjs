@@ -65,9 +65,9 @@ const readDoc = (ctx, path) => getDoc(doc(db(ctx), path));
 // ---- fixtures ------------------------------------------------------------
 await env.withSecurityRulesDisabled(async (ctx) => {
   const f = db(ctx);
-  await setDoc(doc(f, 'users/alice'), { role: 'donor', name: 'Alice D.', email: 'alice@dugo.ph', createdAt: new Date() });
-  await setDoc(doc(f, 'users/bob'), { role: 'donor', name: 'Bob B.', email: 'bob@dugo.ph', createdAt: new Date() });
-  await setDoc(doc(f, 'users/dave'), { role: 'donor', name: 'Dave D.', email: 'dave@dugo.ph', createdAt: new Date(), lastDonationAt: new Date('2026-10-01') });
+  await setDoc(doc(f, 'users/alice'), { role: 'donor', fullName: 'Alice D.', email: 'alice@dugo.ph', phoneNumber: '09170000000', city: 'Malolos', geohash: 'wdt4', latitude: 14.84, longitude: 120.81, status: 'Active', createdAt: new Date() });
+  await setDoc(doc(f, 'users/bob'), { role: 'donor', fullName: 'Bob B.', email: 'bob@dugo.ph', createdAt: new Date() });
+  await setDoc(doc(f, 'users/dave'), { role: 'donor', fullName: 'Dave D.', email: 'dave@dugo.ph', createdAt: new Date(), lastDonationAt: new Date('2026-10-01') });
   await setDoc(doc(f, 'hospitals/h1'), { createdBy: 'admin1', name: 'St. Mary General', address: '1200 Bonifacio Ave', latitude: 14.609, longitude: 120.984, geohash: 'qc7bw', contactNumber: '09170000000', status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/subscriptions/s1'), { plan: 'pilot', startDate: new Date('2026-01-01'), endDate: new Date('2027-01-01'), status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/inventory/O+'), { bloodType: 'O+', unitsAvailable: 3, lastUpdated: new Date() });
@@ -82,7 +82,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(f, 'systemConfig/global'), { updatedBy: 'admin1', notifRetryLimit: 3, notifRetryInterval: 5, radiusTiers: [{ tierOrder: 1, radiusKm: 5, waitMinutes: 10 }], updatedAt: new Date() });
   await setDoc(doc(f, 'dataSubjectRequests/dsr1'), { userId: 'alice', processedBy: null, requestType: 'Access', status: 'Pending', createdAt: new Date(), resolvedAt: null });
   await setDoc(doc(f, 'auditBlocks/b1'), { prevHash: '0', recordHash: 'abc123', eventType: 'UserCreated', hashedEntityRef: 'h', hashedActorRef: 'a', createdAt: new Date(), sequence: 1 });
-  await setDoc(doc(f, 'errorLogs/e1'), { message: 'boom', stack: 'stack', route: '/', uid: '', build: 'web-1', createdAt: new Date() });
+  await setDoc(doc(f, 'errorLogs/e1'), { message: 'boom', stack: 'stack', route: '/', uid: '', build: 'web-1', createdAt: serverTimestamp() });
 });
 
 // ---- users (D14 freeze, D15 claims, D16 shipped shape) -------------------
@@ -91,22 +91,28 @@ await ok('owner reads own profile', readDoc(as('alice'), 'users/alice'));
 await no('another donor cannot read a profile', readDoc(as('bob'), 'users/alice'));
 await no('signed-out cannot read a profile', readDoc(anon(), 'users/alice'));
 await ok('admin claim reads any profile', readDoc(admin(), 'users/alice'));
-await ok('owner creates own profile', setDoc(doc(db(as('carol')), 'users/carol'), { role: 'donor', name: 'Carol C.', email: 'carol@dugo.ph', createdAt: new Date() }));
-await ok('role is still client-chosen at create (UI boundary, D15)', setDoc(doc(db(as('dan')), 'users/dan'), { role: 'admin', name: 'Dan D.', email: 'dan@dugo.ph', createdAt: new Date() }));
-await no('create cannot set lastDonationAt (D14)', setDoc(doc(db(as('eve')), 'users/eve'), { role: 'donor', name: 'Eve E.', email: 'eve@dugo.ph', createdAt: new Date(), lastDonationAt: new Date() }));
-await no('signed-out cannot create a profile', setDoc(doc(db(anon()), 'users/frank'), { role: 'donor', name: 'Frank F.', email: 'frank@dugo.ph', createdAt: new Date() }));
-await ok('owner edits profile fields', updateDoc(doc(db(as('alice')), 'users/alice'), { name: 'Alice D.' }));
+await ok('owner creates own profile', setDoc(doc(db(as('carol')), 'users/carol'), { role: 'donor', fullName: 'Carol C.', email: 'carol@dugo.ph', createdAt: new Date() }));
+await ok('role is still client-chosen at create (UI boundary, D15)', setDoc(doc(db(as('dan')), 'users/dan'), { role: 'admin', fullName: 'Dan D.', email: 'dan@dugo.ph', createdAt: new Date() }));
+await no('create cannot set lastDonationAt (D14)', setDoc(doc(db(as('eve')), 'users/eve'), { role: 'donor', fullName: 'Eve E.', email: 'eve@dugo.ph', createdAt: new Date(), lastDonationAt: new Date() }));
+await no('signed-out cannot create a profile', setDoc(doc(db(anon()), 'users/frank'), { role: 'donor', fullName: 'Frank F.', email: 'frank@dugo.ph', createdAt: new Date() }));
+await no('create cannot invent a status', setDoc(doc(db(as('gina')), 'users/gina'), { role: 'donor', fullName: 'Gina G.', email: 'gina@dugo.ph', status: 'Admin', createdAt: new Date() }));
+await ok('owner edits profile fields', updateDoc(doc(db(as('alice')), 'users/alice'), { fullName: 'Alice D.', phoneNumber: '09170000001', city: 'Malolos', latitude: 14.85, longitude: 120.82, geohash: 'wdt5' }));
 await no('owner cannot change role', updateDoc(doc(db(as('alice')), 'users/alice'), { role: 'admin' }));
+await no('owner cannot suspend themselves (status is an admin decision)', updateDoc(doc(db(as('alice')), 'users/alice'), { status: 'Suspended' }));
+await no('owner cannot set hospitalId', updateDoc(doc(db(as('alice')), 'users/alice'), { hospitalId: 'h1' }));
 await no('owner cannot set lastDonationAt (presence)', updateDoc(doc(db(as('alice')), 'users/alice'), { lastDonationAt: new Date() }));
 await no('owner cannot clear lastDonationAt (value)', updateDoc(doc(db(as('dave')), 'users/dave'), { lastDonationAt: null }));
-await ok('owner edit leaves lastDonationAt untouched', updateDoc(doc(db(as('dave')), 'users/dave'), { name: 'Dave D.' }));
+await ok('owner edit leaves lastDonationAt untouched', updateDoc(doc(db(as('dave')), 'users/dave'), { fullName: 'Dave D.' }));
 await no('owner cannot delete profile', deleteDoc(doc(db(as('alice')), 'users/alice')));
-await ok('admin claim updates any profile', updateDoc(doc(db(admin()), 'users/alice'), { name: 'Alice D.' }));
+await ok('admin claim updates any profile', updateDoc(doc(db(admin()), 'users/alice'), { fullName: 'Alice D.' }));
+await ok('admin claim suspends a profile (FR-040)', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Suspended' }));
 
 // ---- errorLogs (D17) -----------------------------------------------------
 console.log('errorLogs');
 await ok('signed-out can create an error report', setDoc(doc(db(anon()), 'errorLogs/e2'), { message: 'boom', stack: 'stack', route: '/', uid: '', build: 'web-1', createdAt: serverTimestamp() }));
 await no('error report shape is bounded', setDoc(doc(db(anon()), 'errorLogs/e3'), { message: 'boom', extra: 'field' }));
+await no('error report needs every field', setDoc(doc(db(anon()), 'errorLogs/e4'), { message: 'boom', stack: 'stack', route: '/', uid: '', build: 'web-1' }));
+await no('error report cannot backdate its timestamp', setDoc(doc(db(anon()), 'errorLogs/e5'), { message: 'boom', stack: 'stack', route: '/', uid: '', build: 'web-1', createdAt: new Date() }));
 await no('nobody reads error reports back', readDoc(anon(), 'errorLogs/e2'));
 
 // ---- donationTypes + guidelines -----------------------------------------

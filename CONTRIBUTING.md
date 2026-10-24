@@ -38,6 +38,9 @@ whatever is already collected instead of on top of an older tree.
 - [ ] Any requirement row this change affects is updated in
       `docs/REQUIREMENTS.md` in this same PR: Status, Notes, Where/evidence.
       Notes is required once a row reaches `done` or `partial`.
+- [ ] If the change reads or writes Firestore: the collection and field names
+      match `docs/firestore_schema.md` §2, and any deliberate difference carries
+      a `D*` row in `docs/REQUIREMENTS.md` (see the schema's §0).
 - [ ] The smoke list in `docs/PHASES.md` has been run if the change touched
       `web/src/services/`, `web/src/lib/`, or `firestore.rules`.
 - [ ] The screen has been checked against the verification list in
@@ -58,6 +61,9 @@ whatever is already collected instead of on top of an older tree.
   user cannot actually walk through is the thing to catch here.
 - Does a row whose behaviour deviated carry a Notes entry, rather than burying
   the deviation in Where/evidence?
+- For anything touching Firestore: does the shape match
+  `docs/firestore_schema.md` §2 (or is the difference recorded as a `D*` row
+  rather than left implicit)?
 - For anything touching `web/src/services/`, `web/src/lib/`, or
   `firestore.rules`: is there anything that compiles but changes behaviour for
   existing callers? The build will not catch that.

@@ -9,6 +9,7 @@ import {
   signUp as createAccount,
 } from '../services/auth'
 import { readProfile, writeProfile } from '../services/users'
+import { logError } from '../services/log'
 
 // No picker screen: self-registration is donor-only (D20), so a session with
 // no profile document is provisioned as a donor. Hospital and admin accounts
@@ -100,15 +101,17 @@ export function AuthProvider({ children }) {
           if (!current()) return
           const data = {
             role: DEFAULT_ROLE,
-            name: snap.displayName ?? '',
+            fullName: snap.displayName ?? '',
             email: snap.email ?? '',
           }
           try {
             await writeProfile(snap.uid, data)
             if (current()) publishProfile(data)
-          } catch {
+          } catch (error) {
             // The write was refused (offline, rules): leave the profile missing
-            // so guards report a broken account rather than guessing.
+            // so guards report a broken account rather than guessing. Report
+            // the SDK error, which the guard alone cannot show.
+            void logError(error)
             if (current()) setProfile(null)
           }
         })
@@ -146,21 +149,22 @@ export function AuthProvider({ children }) {
       )
       const data = {
         role: DEFAULT_ROLE,
-        name: name ?? '',
+        fullName: name ?? '',
         email: next.email ?? '',
       }
       try {
         await writeProfile(next.uid, data)
         publishProfile(data)
-      } catch {
-        // The account exists but `users/{uid}` was never written. Rethrow with
-        // a marker the register screen recognises: it reports "account
-        // created, profile not saved" and links to sign-in — retrying the form
-        // would only hit "email already in use". The next sign-in auto-
-        // provisions the donor profile (D20), so signing in again recovers.
-        const error = new Error('The donor profile could not be saved.')
-        error.roleNotSaved = true
-        throw error
+      } catch (error) {
+        // The account exists but `users/{uid}` was never written. Report the
+        // SDK error, then rethrow with a marker the register screen
+        // recognises: it reports "account created, profile not saved" and
+        // offers a reload, which re-runs the auto-provision write (D20).
+        // Retrying the form would only hit "email already in use".
+        void logError(error, { route: '/register' })
+        const failure = new Error('The donor profile could not be saved.', { cause: error })
+        failure.roleNotSaved = true
+        throw failure
       }
       return next
     },

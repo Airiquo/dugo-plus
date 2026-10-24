@@ -25,17 +25,18 @@ composition, and UX — and to avoid common context/token pitfalls.
 | Component library | `web/src/components/index.js` | Barrel of reusable primitives |
 | Components dir | `web/src/components/` | Implementations (Btn, Card, Table, Field, …) |
 | Component conventions | `web/src/components/CONVENTIONS.md` | Patterns for components, new ones included |
-| App shell | `web/src/layout/AppShell.jsx` | Sidebar/topbar + `#app-shell` structure |
+| **Data model (model of record)** | `docs/firestore_schema.md` | Every collection/field (§2), indexes (§4), transactions (§5), rules outline (§6), seed data (§8). Build screens and services against it; §0 lists where the shipped build deliberately differs (`D*` in `docs/REQUIREMENTS.md`). New collections/fields the design needs are allowed — record them here and in `docs/SCHEMA_CHANGELOG.md` (D23) |
+| App shell | `web/src/layout/AppShell.jsx` | Sidebar-only admin chrome + `#app-shell` structure |
 | Theme hook | `web/src/hooks/useTheme.jsx` | `ThemeProvider`/`useTheme`; drives `[data-theme]` on `<html>` |
 | Firebase config | `web/src/lib/firebase.js` | `VITE_FIREBASE_*` → `auth` / `googleProvider` (null when unset) |
 | Auth service | `web/src/services/auth.js` | The only module importing the Firebase Auth SDK (+ `authErrorMessage`) |
 | Auth hook | `web/src/hooks/useAuth.jsx` | `AuthProvider` / `useAuth()` session context built on the service |
-| Data service | `web/src/services/requests.js` | Sample request data — the API shape pages render from |
+| Data service | `web/src/services/requests.js` | Sample request fixtures a page renders from — a stand-in for the `bloodRequests` shape in `docs/firestore_schema.md` §2.4, not that shape itself |
 | Class helper | `web/src/utils/cx.js` | `cx()` classnames join used by every component |
 | Pages dir | `web/src/pages/` | Role folders: `admin/`, `donor/`, `hospital/`, `public/`, `shared/` |
 | Auth gate | `web/src/layout/RequireAuth.jsx` | Guards `/admin/*` when a project is configured |
-| Auth screens | `web/src/pages/public/Login.jsx`, `Register.jsx` | Built on `web/src/layout/AuthLayout.jsx` (public `.pub` chrome) |
-| Dashboard | `web/src/pages/admin/Dashboard.jsx` + `DashboardBody.jsx` | Seeded from the mockup — editable |
+| Auth screens | `web/src/pages/public/Login.jsx`, `Register.jsx`, `Partner.jsx` | Built on `web/src/layout/AuthLayout.jsx` (public `.pub` chrome) |
+| Dashboard | `web/src/pages/admin/Dashboard.jsx` | Route + shell only; content to build (see `docs/firestore_schema.md` §2) |
 | Landing | `web/src/pages/public/Landing.jsx` + `LandingBody.jsx` | Seeded from the mockup — editable |
 | Gallery | `web/src/pages/shared/Gallery.jsx` | Usage examples for every component |
 | Stubs | `web/src/pages/shared/ScreenStub.jsx` | Placeholder for a screen with nothing built yet |
@@ -105,21 +106,21 @@ web/src/
 ├── styles/
 │   └── app.css         # App-owned styling (new UI lives here)
 ├── layout/             # App chrome/layout shells
-│   ├── AppShell.jsx    # Admin shell (sidebar/topbar/main)
+│   ├── AppShell.jsx    # Admin shell (sidebar + content; no topbar)
 │   ├── RequireAuth.jsx # /admin/* gate (session + role check)
 │   ├── RequireRole.jsx # Account-type gate behind RequireAuth
-│   └── AuthLayout.jsx  # Public `.pub` chrome for the auth screens
+│   └── AuthLayout.jsx  # Public `.pub` chrome for the auth screens + /partner
 ├── pages/              # Route-level pages, grouped by role
 │   ├── admin/          # The admin account type
-│   │   ├── BloodRequests.jsx  # Worked example: a list screen from components
-│   │   ├── Dashboard.jsx
-│   │   └── DashboardBody.jsx  # Seeded from the mockup — editable
+│   │   ├── Dashboard.jsx      # Route + shell only; content to build
+│   │   └── BloodRequests.jsx  # Route + shell only; content to build
 │   ├── donor/          # Donor screens (README; none built yet)
 │   ├── hospital/       # Hospital/Blood Bank screens (README; none yet)
 │   ├── public/         # Role-agnostic entry
 │   │   ├── Landing.jsx, LandingBody.jsx  # Seeded from the mockup — editable
-│   │   ├── Login.jsx       # Sign in (layout/AuthLayout.jsx, no role picker)
-│   │   ├── Register.jsx    # Create an account (?role= presets the account type)
+│   │   ├── Login.jsx       # Sign in (layout/AuthLayout.jsx)
+│   │   ├── Register.jsx    # Create a donor account (donor-only, D20)
+│   │   ├── Partner.jsx     # Partnership intake form (Formspree, D21)
 │   │   └── NotFound.jsx
 │   └── shared/         # ScreenStub (not built yet) + Gallery (component usage)
 ├── hooks/              # React context/hooks
@@ -127,7 +128,8 @@ web/src/
 │   └── useAuth.jsx     # AuthProvider/useAuth (session over services/auth)
 ├── services/           # Data + external access
 │   ├── auth.js         # Only module importing the Firebase Auth SDK
-│   └── requests.js     # Sample data fixtures (the shape the API should return)
+│   ├── users.js        # users/{uid} profiles (schema §2.1, aligned — D22)
+│   └── requests.js     # Sample data fixtures (stand-in for schema §2.4 bloodRequests)
 ├── lib/                # Third-party setup
 │   └── firebase.js     # Firebase config from VITE_FIREBASE_* (null when unset)
 ├── utils/              # Framework-free helpers

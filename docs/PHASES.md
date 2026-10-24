@@ -26,7 +26,7 @@ numbers rather than trusting this section.
 
 | Phase | Covers | Status |
 | --- | --- | --- |
-| **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13 done; NFR-14 deferred, NFR-27 partially done |
+| **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | not started |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
 | **P4** | Hospital dashboard, inventory, screening | not started |
@@ -45,11 +45,15 @@ For any phase:
 
 1. Open `docs/REQUIREMENTS.md` and read its rows. The **Class** column says what
    kind of work each row needs.
-2. Anything whose Class is not `app-code` needs work outside the React app.
+2. Open `docs/firestore_schema.md` and read the collection(s) that row touches
+   (§2 for fields and enums, §5 for what must be a transaction, §6 for the rules
+   path, §4 for an index). Its §0 lists where the shipped build deliberately
+   differs — that table wins over the section text.
+3. Anything whose Class is not `app-code` needs work outside the React app.
    `cloud-function` rows cannot be finished from frontend code (see §7).
-3. Build the smallest thing that makes a row genuinely work, then update that
+4. Build the smallest thing that makes a row genuinely work, then update that
    row in the same task.
-4. Verify against §8 before calling it done.
+5. Verify against §8 before calling it done.
 
 ### P1 in detail, since it is the one with history
 
@@ -62,8 +66,7 @@ For any phase:
   D8/D10 (error logging split, client-written).
 - **Confirmed working:** the whole verification loop was exercised by hand on
   2026-10-20: mail delivered, the link verified, the gate lifted, resend worked.
-- **Still open in P1:** NFR-14 (idle session timeout, deferred), and the Cloud
-  Function half of NFR-27.
+- **Still open in P1:** NFR-14 (idle session timeout, deferred).
 
 ## 4. The feature list
 
@@ -80,7 +83,7 @@ Where/evidence points at files, it does not repeat the decision.
 | ID | Feature | Phase(s) | Rows |
 | --- | --- | --- | --- |
 | F1 | Donor and hospital account, profile, sign-in | P1 | FR-01, FR-02, FR-03, FR-04, FR-012, FR-046, FR-048 |
-| F2 | Auth hardening: verification gate, password policy, error logging | P1 | NFR-12, NFR-13, NFR-27 (app half) |
+| F2 | Auth hardening: verification gate, password policy, error logging | P1 | NFR-12, NFR-13, NFR-27 |
 | F3 | Hospital posts and manages blood requests | P2 | FR-011, FR-016, FR-017, FR-037 (list half), FR-021 (form half) |
 | F4 | Donor browses and responds to compatible requests | P3 | FR-005, FR-006, FR-028, FR-029, FR-030, FR-022, FR-023, FR-038 (collect half) |
 | F5 | Donor history, rewards and health tracker | P3 | FR-008, FR-009, FR-010 |
@@ -110,6 +113,12 @@ A task is not complete until three things are updated in the same commit:
 | `docs/REQUIREMENTS.md` | the row(s) it moved: Status, Notes, Where/evidence |
 | `docs/PHASES.md` §2 | the phase's status line, if a count changed |
 | `docs/PHASES.md` §10 | any open question raised, and any answered |
+
+A Firestore change also updates `docs/firestore_schema.md` when it moves the
+model itself (a new collection or field), or records the difference as a `D*` row
+when it deliberately departs from it. Schema §9's own open questions are handled
+the same way as §10's: answered by an owner, recorded as a `D*` row, and
+re-stated until then — never resolved by an assumption.
 
 `node tools/check-docs.mjs` enforces the table half of this: a missing Feature,
 an `F*` or `D*` reference that does not resolve, or a `done`/`partial` row with
@@ -272,8 +281,8 @@ appear in `docs/REQUIREMENTS.md`; that table tracks `main`.
 There is no test suite. Until there is, run these four checks by hand before
 merging anything that touches `services/`, `lib/`, or `firestore.rules`:
 
-1. Sign in with email/password → lands on `/donor/profile`.
-2. Reload `/donor/profile` → saved values appear (proves reads still work).
+1. Sign in with email/password → lands on `/home`.
+2. Reload `/home` → saved values appear (proves reads still work).
 3. Change a field, save, reload → the change persisted (proves writes still work).
 4. Sign out, sign in as an unverified account → still held at `/verify-email`
    (proves the gate survived).
@@ -340,8 +349,6 @@ is cancelled. An assumption is never recorded in place of an answer.
 
 - **NFR-14, idle session timeout**: deferred (D9). No timeout value, no policy
   on what counts as activity, no decision on whether it applies to all roles.
-- **NFR-27**: client-written to `errorLogs` (create-only, open to signed-out
-  writers by design — D17). No Cloud Function planned.
 - **`firestore.rules` + `firestore.indexes.json` deployed 2026-10-21.** The
   15-collection ruleset went live after the owner reviewed the diff
   (`firebase deploy --only firestore:rules,firestore:indexes --project
@@ -353,20 +360,23 @@ is cancelled. An assumption is never recorded in place of an answer.
   automatic index). **`npm run seed` ran 2026-10-22** against the live
   `dugo-plus` project (9 docs: 4 donation types, 4 guidelines, `systemConfig/
   global` with the D18 5-tier radius ladder), via the service-account key kept
-  outside the repo at `~/.config/dugo-plus/sa-key.json`. Whether the key is
-  deleted from the console (and disk) after this session, or kept for
-  re-seeding, is still open with the owner.
+  outside the repo at `~/.config/dugo-plus/sa-key.json`. The key is **kept for
+  the `users` backfill** (`scripts/backfill-users-shape.mjs`, D22) and deleted
+  from disk with its console access revoked once that has run and the
+  read-time fallbacks are out.
+- **The `users` backfill has not run on the live project.** `npm run
+  backfill:users` (dry by default; `--apply` writes) must run once before the
+  fallbacks in `readProfile` are removed. Until then the app reads either shape
+  correctly, so a missed document degrades to an empty field rather than an
+  error.
 - **Custom claims are not set anywhere yet** (D15): every admin/staff rule
   matches no session until `{ role, hospitalId }` claims are issued — a server
   step (Cloud Function or console), owned by F9/F12. Until then only
   owner-scoped paths are exercisable in production.
-- **`users` rules diverge from schema §2.1** (D16): the built shape
-  (`role/name/email` + profile fields, owner+admin) is kept; schema's
-  fullName/status/dateOfBirth model and "staff of same hospital (limited)"
-  read are not implemented. The rules deliberately grant NO staff read of
-  `users` — schema §6 allows a limited one, and hospital screens (F3/F6) will
-  need to decide what it exposes before it is added. Migration of `users` to
-  the schema shape is an open decision, not a silent default.
+- **No staff read of `users`** — the rules grant an owner read plus an admin
+  claim, and nothing else. Schema §6 allows a limited "staff of same hospital"
+  read; hospital screens (F3/F6) will need to decide what it exposes before it
+  is added. The shape itself is aligned (D22); this is about who may read it.
 - **TTL policy on `emailVerifications.expiresAt`** (schema §4) is not
   deployable from `firebase.json`/the CLI — it needs a console or `gcloud`
   firestore field-ttl configuration. Not done.
@@ -389,9 +399,61 @@ is cancelled. An assumption is never recorded in place of an answer.
   `VITE_FORMSPREE_ENDPOINT` (D21); Formspree's first submission triggers an
   activation email to the form owner, which must be clicked before live tests
   pass. Test the form twice after activating.
+- **The data model now has one entry point.** `docs/firestore_schema.md` is cited
+  as the model of record from `AGENTS.md`, `README.md`, `PROMPTING_GUIDE.md`,
+  `CONTRIBUTING.md`, `docs/PHASES.md` §3/§11, and the service/page comments that
+  touch Firestore. Its §0 carries the divergence table (D8/D10/D17, D12–D14,
+  D18, D22) so the shipped build is not "corrected" back to the text, and its §9
+  open questions are handled like the ones below — owner answers only.
+- **The schema is the model of record, not a cap (D23).** Adding a collection or
+  field the design needs is allowed; the obligation is visibility — write it into
+  the schema and `docs/SCHEMA_CHANGELOG.md` in the same task, and add a `D*` row
+  when it departs from what is written. §0.1's "do not invent collections" is
+  gone, `[ADDED]` no longer means "Firestore mechanics only", and a new
+  collection always gets a `D*` row (a new field only when it contradicts).
+- **§9's ERD inconsistencies are answered where the build had already decided.**
+  `bloodRequests.status` is `urgent | collecting | matched | fulfilled |
+  cancelled` and `urgencyLevel` is `urgent | stat | routine` — both are the
+  shipped `.chip[data-status]`/`.chip[data-priority]` codes, not chosen for the
+  schema (D24); `component` is added as an FK to `donationTypes` (D24).
+  `eligibilityInfo` was removed from the model of record — the ERD field was
+  never implemented and eligibility is computed on read (D25). Still open from
+  §9: `Subscriptions.status`, `responseStatus`, `consentType`, `channel`,
+  `deliveryStatus`, `changeType`, `requestType`, DSR `status`, subscription
+  `plan`, and the `notif_retry_interval` unit.
+- **Write-up is now enforced, not just requested.** `node tools/check-docs.mjs`
+  gained mechanical cross-checks: every `D*` in `docs/` resolves, the changelog's
+  refs resolve, schema §1 collections and `firestore.rules` match paths agree in
+  both directions, and field names the rules validate on `users` appear in §2.1.
+  A change to `firestore.rules`/indexes/services with no `docs/` change warns
+  (not fails — it cannot judge relevance). The cross-checks caught real drift on
+  their first run: `errorLogs` was in the rules but missing from §1, and the
+  rules' `eligibility` guard was not explained anywhere.
+- **The one-shot Admin key is retired.** `npm run seed` and
+  `npm run backfill:users` both need `GOOGLE_APPLICATION_CREDENTIALS`; the key
+  lived outside the repo at `~/.config/dugo-plus/sa-key.json`. Both jobs ran
+  (seed 2026-10-22; backfill 2026-10-22), after which the file was deleted and
+  the key revoked in the console. A future re-seed generates a fresh key and
+  revokes it after — no standing credential.
+- **PR #13 merged without the §6 smoke list, on the owner's call.** The change
+  touched `services/` and `firestore.rules`, so the list was required; the owner
+  overrode it to merge, and then ran it — sign in, reload, save-then-reload, the
+  unverified hold — all passing. Recorded because "merged unverified" and
+  "verified late" are different states, and the reason is only in this note.
+- **`users` now matches schema §2.1** (D22, resolving D16). The shape is
+  `role | fullName | email | phoneNumber | bloodType | dateOfBirth |
+  latitude | longitude | geohash | city | hospitalId | status | lastDonationAt`,
+  with the lowercase role set; `address` is not collected and `isVerified` is not
+  stored (Firebase Auth owns it, D5). `scripts/backfill-users-shape.mjs` migrates
+  existing documents, and `readProfile`'s temporary old-name fallbacks are
+  deleted once it has run on the live project.
+- **`status`/`hospitalId` are written but not read.** The rules accept `status`
+  (admin-only change, FR-040) and `hospitalId`, and both are stored, but no
+  screen consumes them yet: a suspended account still works. The admin
+  donor-registry screen (F9/F10) is what reads and sets them.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
 - **No app test suite**: recorded as a gap, not scheduled. The exception is the
-  Firestore rules — `firestore.rules.test.mjs` runs ~100 asserts in the
+  Firestore rules — `firestore.rules.test.mjs` runs 106 asserts in the
   emulator, locally (`npm run test:rules`) and in CI (D19). The React app has
   no tests; the smoke list below is its check.

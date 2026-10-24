@@ -85,18 +85,18 @@ export function validatePartner({ facility, contactPerson, email, phone, message
  * live in `utils/eligibility.js`, which reports eligibility instead of blocking
  * the save.
  */
-export function validateProfile({ name, phone, dateOfBirth, city } = {}) {
+export function validateProfile({ fullName, phoneNumber, dateOfBirth, city } = {}) {
   const errors = {}
 
-  if (!(name ?? '').trim()) {
-    errors.name = 'Enter your name so facilities know who is donating.'
-  } else if ((name ?? '').trim().length < 2) {
-    errors.name = 'That name looks too short.'
+  if (!(fullName ?? '').trim()) {
+    errors.fullName = 'Enter your name so facilities know who is donating.'
+  } else if ((fullName ?? '').trim().length < 2) {
+    errors.fullName = 'That name looks too short.'
   }
 
-  const digits = (phone ?? '').replace(/[\s()-]/g, '')
+  const digits = (phoneNumber ?? '').replace(/[\s()-]/g, '')
   if (digits && !/^(\+?\d{7,15})$/.test(digits)) {
-    errors.phone = 'Enter a phone number in digits, for example 0917 000 0000.'
+    errors.phoneNumber = 'Enter a phone number in digits, for example 0917 000 0000.'
   }
 
   if (dateOfBirth) {

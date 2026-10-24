@@ -1,17 +1,13 @@
 import { AppShell } from '../../layout/AppShell'
-import { DashboardBody } from './DashboardBody'
 /**
- * Dashboard — the admin dashboard.
+ * Dashboard — `/admin/dashboard`.
  *
- * The body was seeded from `light/admin-dashboard.html` (see tools/gen_pages.py)
- * and is now normal, editable source: restructure or recompose it as the screen
- * needs, keeping the look the design system defines. New screens can compose
- * web/src/components directly; this one doubles as a full-page example.
+ * Content removed by the owner's direction: the admin chrome is the sidebar
+ * only, and the dashboard body is to be (re)built from the design system as a
+ * later task. The route stays so navigation and the shell keep working. The
+ * reference mockups (`light/admin-dashboard.html`, `dark/`) remain the look
+ * reference.
  */
 export default function Dashboard() {
-  return (
-    <AppShell>
-      <DashboardBody />
-    </AppShell>
-  )
+  return <AppShell />
 }

@@ -10,6 +10,7 @@ import {
   updateProfile,
 } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
+import { logError } from './log'
 
 const NOT_CONFIGURED =
   'Firebase is not configured. Copy web/.env.example to web/.env.local and add your project values.'
@@ -63,7 +64,7 @@ const ERROR_INFO = {
   'auth/weak-password': {
     field: 'password',
     message:
-      'That password is too weak. Use at least 8 characters, including a letter and a number.',
+      'That password is too weak. Use at least 8 characters, including upper and lower case letters and a number.',
   },
   'auth/popup-closed-by-user': {
     field: null,
@@ -192,17 +193,19 @@ export async function signUp(name, email, password, onUser) {
   if (name) {
     try {
       await updateProfile(credential.user, { displayName: name })
-    } catch {
+    } catch (error) {
       // The account exists and the session is live, so a profile write that
       // fails (a flaky network) must not fail the whole sign-up. The shell
-      // falls back to the email local part.
+      // falls back to the email local part. Report it so the failure is visible.
+      void logError(error, { route: '/register' })
     }
   }
   try {
     await sendEmailVerification(credential.user)
-  } catch {
+  } catch (error) {
     // The account and session are already live, so a verification email that
     // does not go out must not fail the sign-up. `/verify-email` offers a resend.
+    void logError(error, { route: '/register' })
   }
   onUser?.(credential.user)
   return credential.user
@@ -223,7 +226,12 @@ export async function signOut() {
 export async function sendVerificationEmail(target = auth?.currentUser) {
   requireAuth()
   if (!target) throw new Error('No account is signed in.')
-  await sendEmailVerification(target)
+  try {
+    await sendEmailVerification(target)
+  } catch (error) {
+    void logError(error, { route: '/verify-email' })
+    throw error
+  }
 }
 
 /**

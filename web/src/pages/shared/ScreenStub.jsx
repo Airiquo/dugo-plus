@@ -4,7 +4,8 @@ import { PageHeader, Card } from '../../components'
  * Stub page for admin screens not yet built. Shows the mockup filename and a
  * link to the live mockup served at `/mockups/*` so you can see the intended
  * look (the Vite server exposes the repo root via the `dugo-mockups` plugin)
- * while you design the real screen.
+ * while you design the real screen. The fields the screen should read or write
+ * are in `docs/firestore_schema.md` §2.
  */
 export default function ScreenStub({ slug }) {
   const item = NAV.find((i) => i.slug === slug) ?? { screen: `admin-${slug}`, label: slug }
@@ -31,9 +32,9 @@ export default function ScreenStub({ slug }) {
             </a>
           </p>
           <p>
-            Worked example: <code>web/src/pages/admin/BloodRequests.jsx</code> builds a full list
-            screen from the components in <code>web/src/components</code> — see{' '}
-            <code>web/src/pages/shared/Gallery.jsx</code> for usage of every component.
+            Worked example: <code>web/src/pages/shared/Gallery.jsx</code> renders every component
+            in <code>web/src/components</code> with usage notes. The collection this screen
+            reads or writes is described in <code>docs/firestore_schema.md</code> §2.
           </p>
         </Card>
       </div>

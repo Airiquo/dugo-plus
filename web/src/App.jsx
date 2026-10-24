@@ -1,4 +1,4 @@
-import { Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from './hooks/useTheme'
 import { AuthProvider } from './hooks/useAuth'
 import RequireAuth from './layout/RequireAuth'
@@ -76,7 +76,7 @@ export default function App() {
           {/* Donor surface (FR-04). Donor accounts have no AppShell, so this
               sits behind the session + account-type gates only. */}
           <Route
-            path="/donor/profile"
+            path="/home"
             element={
               <RequireAuth>
                 <RequireVerified>
@@ -87,6 +87,7 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route path="/donor/profile" element={<Navigate to="/home" replace />} />
           <Route
             element={
               <RequireAuth>

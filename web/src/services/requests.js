@@ -1,6 +1,13 @@
 /**
  * Sample blood-request data — the shape the API is expected to return.
  *
+ * These fixtures are display-shaped for the list screen, not `bloodRequests`
+ * documents: the data model for the real collection is
+ * `docs/firestore_schema.md` §2.4 (with `donorMatches` §2.5 and `donations` §2.9
+ * behind F4/F8). There is no `component` or free-text `requested` field in that
+ * model, so a rebuilt screen reads the schema's fields and maps them to the same
+ * `data-*` codes rather than expecting these objects.
+ *
  * Screens read from here instead of copying mockup markup, so a page is a
  * mapping from data to components. When the backend lands these exports are
  * replaced by queries in `web/src/services/` and the pages stay unchanged.
