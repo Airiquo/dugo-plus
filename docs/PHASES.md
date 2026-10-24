@@ -281,8 +281,8 @@ appear in `docs/REQUIREMENTS.md`; that table tracks `main`.
 There is no test suite. Until there is, run these four checks by hand before
 merging anything that touches `services/`, `lib/`, or `firestore.rules`:
 
-1. Sign in with email/password → lands on `/donor/profile`.
-2. Reload `/donor/profile` → saved values appear (proves reads still work).
+1. Sign in with email/password → lands on `/home`.
+2. Reload `/home` → saved values appear (proves reads still work).
 3. Change a field, save, reload → the change persisted (proves writes still work).
 4. Sign out, sign in as an unverified account → still held at `/verify-email`
    (proves the gate survived).

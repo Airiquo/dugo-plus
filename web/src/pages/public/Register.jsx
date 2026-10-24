@@ -44,7 +44,7 @@ export default function Register() {
   const [profileMissing, setProfileMissing] = useState(false)
 
   // Already signed in — go straight to where this account type lives (`homeFor`
-  // sends admins on to the dashboard, donor accounts to the profile). `busy`
+  // sends admins on to the dashboard, donor accounts to /home). `busy`
   // keeps this form mounted while its own sign-up is in flight, so the redirect
   // cannot overtake `updateProfile` (which would briefly greet the user by
   // email prefix) and so a failure still has a form to report itself on;

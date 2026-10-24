@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { authErrorDetail } from '../../services/auth'
+import { homeFor } from '../../services/users'
 import { validateLogin } from '../../utils/validate'
 import AuthLayout from '../../layout/AuthLayout'
 import { Icon, GoogleMark, FieldError } from '../../components'
@@ -27,7 +28,7 @@ import { Icon, GoogleMark, FieldError } from '../../components'
  * Class hooks live in `web/src/styles/app.css`.
  */
 export default function Login() {
-  const { user, signIn, signInWithGoogle } = useAuth()
+  const { user, role, roleLoading, signIn, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
   const { state } = useLocation()
   const [email, setEmail] = useState('')
@@ -37,20 +38,12 @@ export default function Login() {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
-  // Where the guard sent them from; the role-aware welcome by default. Cold
-  // logins land on `/welcome`, which routes each account type itself — an
-  // admin is forwarded on to the dashboard there.
-  const from = state?.from?.pathname ?? '/welcome'
-
-  // Already signed in (e.g. a bookmark to /login) — go straight through, but
-  // stay put while our own sign-in is still resolving so a failure can be shown
-  // instead of being overtaken by the redirect.
-  //
-  // An unverified session is sent to the notice screen, not to `from`: the
-  // built screens sit behind `RequireVerified`, which would only bounce them
-  // here and back. `from` is kept for after they confirm the link.
-  if (user && !busy) {
-    return <Navigate to={user.emailVerified ? from : '/verify-email'} replace />
+  // Already signed in (e.g. a bookmark to /login) — route by session/role,
+  // not by any previous navigation state. This prevents cross-role redirects
+  // when switching accounts.
+  if (user && !busy && !roleLoading) {
+    if (!user.emailVerified) return <Navigate to="/verify-email" replace />
+    return <Navigate to={homeFor(role)} replace />
   }
 
   const run = async (action) => {
@@ -60,8 +53,8 @@ export default function Login() {
     try {
       const signedIn = await action()
       // An unverified account cannot open a built screen (D5), so it goes to
-      // the notice instead of the URL the guard remembered.
-      navigate(signedIn?.emailVerified === false ? '/verify-email' : from, { replace: true })
+      // the notice instead. Route by session/role, not by remembered paths.
+      navigate(signedIn?.emailVerified === false ? '/verify-email' : '/welcome', { replace: true })
     } catch (error) {
       const detail = authErrorDetail(error)
       if (detail?.field) setErrors({ [detail.field]: detail.message })

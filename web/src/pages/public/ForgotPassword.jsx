@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { authErrorDetail, sendPasswordReset } from '../../services/auth'
+import { homeFor } from '../../services/users'
 import { validateForgot } from '../../utils/validate'
 import AuthLayout from '../../layout/AuthLayout'
 import { Icon, FieldError } from '../../components'
@@ -18,15 +19,15 @@ import { Icon, FieldError } from '../../components'
  * is routed to the email field.
  */
 export default function ForgotPassword() {
-  const { user } = useAuth()
+  const { user, role, roleLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
   const [sent, setSent] = useState(false)
   const [busy, setBusy] = useState(false)
 
-  // Someone already signed in does not need a reset link.
-  if (user) return <Navigate to="/welcome" replace />
+  // Someone already signed in does not need a reset link; route by session.
+  if (user && !roleLoading) return <Navigate to={homeFor(role)} replace />
 
   const run = async (event) => {
     event.preventDefault()
