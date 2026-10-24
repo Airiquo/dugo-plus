@@ -16,6 +16,7 @@ import Welcome from './pages/shared/Welcome'
 import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
 import Profile from './pages/donor/Profile'
+import Alerts from './pages/donor/Alerts'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
@@ -82,6 +83,18 @@ export default function App() {
                 <RequireVerified>
                   <RequireRole roles={['donor']}>
                     <Profile />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/donor/alerts"
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['donor']}>
+                    <Alerts />
                   </RequireRole>
                 </RequireVerified>
               </RequireAuth>

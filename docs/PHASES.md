@@ -30,7 +30,7 @@ numbers rather than trusting this section.
 | **P2** | Blood request submission and listing | not started |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
 | **P4** | Hospital dashboard, inventory, screening | not started |
-| **P5** | Matching and notifications | not started; needs Cloud Functions (Blaze) |
+| **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (admin gate and FR-040/FR-047 beginnings) |
 | **P7** | Hash-chain audit trail | not started; needs Cloud Functions |
 | **P8** | Compliance and privacy | not started; mostly documents |
