@@ -346,10 +346,13 @@ Hash-chained audit log. **Never update or delete.**
 | prevHash | string | R | `recordHash` of the previous block (genesis block: `"0"`) |
 | recordHash | string | R | **UK**. Use as doc ID, or check in transaction |
 | eventType | string | R | |
+| entityType | string | O | Type of entity affected (e.g., donation, inventory, user, request) |
 | hashedEntityRef | string | R | Hash of the affected entity ID, never the raw ID |
 | hashedActorRef | string | R | Hash of the actor ID, never the raw ID |
+| actorRole | string | O | Role of the actor who performed the action |
 | createdAt | Timestamp | R | |
 | sequence | number (int) | R | **[ADDED]** monotonically increasing, assigned in a transaction reading the last block. Firestore has no auto-increment |
+| correctsBlockId | string | O | **[ADDED]** Doc ID of the block this entry corrects (for append-only corrections per FR-043) |
 
 ---
 

@@ -65,6 +65,24 @@ running this, so you know what is being replaced.
    the app is hosted, because the emailed link points at Firebase's own action
    page.
 
+## The matching Worker's service account
+
+The Cloudflare Worker (`worker/wrangler.toml`, deployed with `npm run
+worker:deploy`) reaches Firestore with a service-account key, which bypasses
+`firestore.rules`. That account needs Firestore data access of its own, or every
+call fails with `403 PERMISSION_DENIED / "Missing or insufficient permissions."`:
+
+1. Generate a key: Firebase console → *Project settings → Service accounts →
+   Generate new private key*, or the account's *Keys* tab in GCP IAM.
+2. Grant it **Cloud Datastore User** (`roles/datastore.user`) in GCP IAM. Newer
+   `firebase-adminsdk-*` accounts are created without it.
+3. Load the key into the Worker secret. Secrets are write-only — the old value
+   cannot be read back:
+   `npx wrangler secret put FIREBASE_SERVICE_ACCOUNT -c worker/wrangler.toml < key.json`
+   Updating a secret publishes a new Worker deployment.
+4. If a key is exposed, delete it in the account's *Keys* tab and repeat with a
+   new one.
+
 ## Automatic deploys (not set up)
 
 Pushing to the `prod` branch can deploy automatically through GitHub Actions.

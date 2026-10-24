@@ -15,6 +15,7 @@ import NotFound from './pages/public/NotFound'
 import Welcome from './pages/shared/Welcome'
 import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
+import AuditTrail from './pages/admin/AuditTrail'
 import Profile from './pages/donor/Profile'
 import Alerts from './pages/donor/Alerts'
 import Gallery from './pages/shared/Gallery'
@@ -23,7 +24,7 @@ import NotConfigured from './pages/shared/NotConfigured'
 import { NAV } from './layout/AppShell'
 
 /** Slugs that have a real page; every other admin screen renders `ScreenStub`. */
-const TRANSLATED = new Set(['dashboard', 'blood-requests'])
+const TRANSLATED = new Set(['dashboard', 'blood-requests', 'audit-trail'])
 
 /**
  * Top-level routes.
@@ -113,6 +114,7 @@ export default function App() {
           >
             <Route path="/admin/dashboard" element={<Dashboard />} />
             <Route path="/admin/blood-requests" element={<BloodRequests />} />
+            <Route path="/admin/audit-trail" element={<AuditTrail />} />
             {NAV.filter((item) => !TRANSLATED.has(item.slug)).map((item) => (
               <Route
                 key={item.slug}

@@ -57,6 +57,18 @@ read-back (no legacy keys left, all new fields present and correctly typed), and
 a re-run was a clean no-op. The temporary old-name fallbacks in `readProfile`
 were removed in the same task, once no document could reach them.
 
+## 2026-10-24 — `auditBlocks` extended for corrections
+
+**Origin:** build → schema (F10a adds correction linkage for FR-043).
+
+| Field | Before | After |
+|---|---|---|
+| `entityType` | not present | **added** — optional, type of affected entity |
+| `actorRole` | not present | **added** — optional, role of actor |
+| `correctsBlockId` | not present | **added** — optional, links to corrected block for append-only corrections |
+
+**Refs:** FR-043, F10.
+
 ## 2026-10-22 — `bloodRequests` enums and `component`
 
 **Origin:** build → schema (the shipped vocabulary was recorded; the ERD had no

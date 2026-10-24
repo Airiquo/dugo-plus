@@ -32,7 +32,7 @@ numbers rather than trusting this section.
 | **P4** | Hospital dashboard, inventory, screening | not started |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (admin gate and FR-040/FR-047 beginnings) |
-| **P7** | Hash-chain audit trail | not started; needs Cloud Functions |
+| **P7** | Hash-chain audit trail | in progress (F10a); needs event hookups for F10b |
 | **P8** | Compliance and privacy | not started; mostly documents |
 | **P9** | Non-functional hardening (responsiveness, scale, compatibility) | not started |
 
@@ -460,3 +460,8 @@ is cancelled. An assumption is never recorded in place of an answer.
   Firestore rules — `firestore.rules.test.mjs` runs ~100 asserts in the
   emulator, locally (`npm run test:rules`) and in CI (D19). The React app has
   no tests; the smoke list below is its check.
+- **The matching Worker's service account needs `roles/datastore.user`.** The
+  Worker authenticates Firestore as `firebase-adminsdk-…@dugo-plus` (a service
+  account, so rules do not apply). Newer projects create that account without
+  datastore access, so every Firestore call 403s until the role is granted —
+  found and fixed live 2026-10-24, recorded in `docs/DEPLOY.md`.
