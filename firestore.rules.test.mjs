@@ -74,6 +74,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(f, 'bloodRequests/r1'), { hospitalId: 'h1', hospitalName: 'St. Mary General', recipientId: null, createdBy: 'alice', bloodType: 'O+', quantity: 2, urgencyLevel: 'High', status: 'Open', createdAt: new Date(), latitude: 14.609, longitude: 120.984, geohash: 'qc7bw' });
   await setDoc(doc(f, 'donorMatches/r1_alice'), { requestId: 'r1', donorId: 'alice', donationTypeId: 'whole-blood', screenedByUserId: null, responseStatus: 'Pending', screeningStatus: null, guidelinesAcknowledged: false, acknowledgedAt: null, matchedAt: new Date() });
   await setDoc(doc(f, 'donorConsents/c1'), { donorId: 'alice', matchId: 'r1_alice', consentType: 'ProfileAccess', grantedAt: new Date(), revokedAt: null });
+  await setDoc(doc(f, 'donorLocations/alice'), { donorId: 'alice', latitude: 14.84, longitude: 120.81, city: 'Malolos', geohash: 'wdt4', bloodType: 'O+', updatedAt: new Date() });
   await setDoc(doc(f, 'donationTypes/whole-blood'), { name: 'Whole Blood', intervalDays: 56 });
   await setDoc(doc(f, 'donationTypes/whole-blood/guidelines/g1'), { title: 'Wait the full interval', description: 'Whole blood may be donated every 56 days.' });
   await setDoc(doc(f, 'notifications/n1'), { userId: 'alice', requestId: 'r1', channel: 'Email', deliveryStatus: 'Pending', retryCount: 0, sentAt: null });
@@ -171,6 +172,9 @@ await ok('own staff updates request status', updateDoc(doc(db(staff1()), 'bloodR
 await no('staff of another hospital cannot update', updateDoc(doc(db(staff2()), 'bloodRequests/r1'), { status: 'Cancelled' }));
 await no('the poster cannot update (staff/admin path, schema §6)', updateDoc(doc(db(as('alice')), 'bloodRequests/r1'), { status: 'Cancelled' }));
 await no('requests are never deleted', deleteDoc(doc(db(admin()), 'bloodRequests/r1')));
+// D27: the recipient's position is denormalized so donors can see it.
+await ok('request carries recipient coordinates', setDoc(doc(db(as('alice')), 'bloodRequests/r4'), { hospitalId: 'h1', recipientId: 'alice', createdBy: 'alice', bloodType: 'O+', quantity: 1, urgencyLevel: 'urgent', status: 'urgent', hospitalName: 'St. Mary General', latitude: 14.609, longitude: 120.984, geohash: 'qc7bw', recipientCity: 'Malolos', recipientLatitude: 14.84, recipientLongitude: 120.81, createdAt: serverTimestamp() }));
+await no('recipient coordinates come as a pair', setDoc(doc(db(as('alice')), 'bloodRequests/r5'), { hospitalId: 'h1', bloodType: 'O+', quantity: 1, urgencyLevel: 'urgent', status: 'urgent', hospitalName: 'St. Mary General', latitude: 14.609, longitude: 120.984, geohash: 'qc7bw', recipientLatitude: 14.84, createdAt: serverTimestamp() }));
 
 // ---- donorMatches --------------------------------------------------------
 console.log('donorMatches');
@@ -186,6 +190,10 @@ await no('donor cannot re-point a match', updateDoc(doc(db(as('alice')), 'donorM
 await ok('staff writes the screening result', updateDoc(doc(db(staff1()), 'donorMatches/r1_alice'), { screenedByUserId: 'staff1', screeningStatus: 'Cleared' }));
 await no('screening status follows the decided enum', updateDoc(doc(db(staff1()), 'donorMatches/r1_alice'), { screeningStatus: 'Green' }));
 await no('matches are never deleted', deleteDoc(doc(db(admin()), 'donorMatches/r1_alice')));
+// D27: coordinates ride the match so that hospital's staff can see them.
+await no('coordinates need a share timestamp', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { donorLatitude: 14.84, donorLongitude: 120.81 }));
+await ok('donor shares coordinates at accept', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { donorLatitude: 14.84, donorLongitude: 120.81, locationSharedAt: serverTimestamp() }));
+await no('a donor cannot edit another donor’s match', updateDoc(doc(db(as('bob')), 'donorMatches/r1_alice'), { responseStatus: 'Declined' }));
 
 // ---- donorConsents -------------------------------------------------------
 console.log('donorConsents');
@@ -196,6 +204,17 @@ await no('revocation cannot reshape the consent', updateDoc(doc(db(as('alice')),
 await no('consents are never deleted', deleteDoc(doc(db(as('alice')), 'donorConsents/c1')));
 await no('staff cannot read consents', readDoc(staff1(), 'donorConsents/c1'));
 await ok('admin claim reads a consent', readDoc(admin(), 'donorConsents/c1'));
+
+// ---- donorLocations (D28) -----------------------------------------------
+console.log('donorLocations');
+await ok('donor writes their own location', setDoc(doc(db(as('alice')), 'donorLocations/alice'), { donorId: 'alice', latitude: 14.84, longitude: 120.81, city: 'Malolos', geohash: 'wdt4', bloodType: 'O+', updatedAt: serverTimestamp() }));
+await no('donor cannot write someone else’s location', setDoc(doc(db(as('alice')), 'donorLocations/bob'), { donorId: 'bob', latitude: 1, longitude: 1, updatedAt: serverTimestamp() }));
+await no('a location needs coordinates', setDoc(doc(db(as('alice')), 'donorLocations/alice'), { donorId: 'alice', city: 'Malolos', updatedAt: serverTimestamp() }));
+await ok('staff reads a donor location', readDoc(staff1(), 'donorLocations/alice'));
+await ok('admin reads a donor location', readDoc(admin(), 'donorLocations/alice'));
+await no('another donor cannot read a location', readDoc(as('bob'), 'donorLocations/alice'));
+await no('signed-out cannot read a location', readDoc(anon(), 'donorLocations/alice'));
+await no('locations are never deleted', deleteDoc(doc(db(as('alice')), 'donorLocations/alice')));
 
 // ---- notifications -------------------------------------------------------
 console.log('notifications');
