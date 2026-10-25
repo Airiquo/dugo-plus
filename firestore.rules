@@ -384,9 +384,13 @@ service cloud.firestore {
     // so anyone could otherwise post arbitrary documents. The writer is a
     // browser, often signed out — open create is deliberate (D17).
     match /errorLogs/{entryId} {
-      allow create: if request.resource.data.keys().hasOnly(
+      allow create: if request.resource.data.keys().hasAll(
                         ['message', 'stack', 'route', 'uid', 'build', 'createdAt']
                       )
+                    && request.resource.data.keys().hasOnly(
+                        ['message', 'stack', 'route', 'uid', 'build', 'createdAt']
+                      )
+                    && request.resource.data.createdAt == request.time
                     && request.resource.data.message is string
                     && request.resource.data.message.size() <= 4000
                     && request.resource.data.stack is string

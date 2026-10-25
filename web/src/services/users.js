@@ -53,7 +53,7 @@ export function roleLabel(role) {
  */
 export function homeFor(role) {
   if (role === 'admin') return '/admin/dashboard'
-  if (role === 'donor') return '/donor/profile'
+  if (role === 'donor') return '/home'
   if (ROLES.includes(role)) return '/welcome'
   return '/'
 }
