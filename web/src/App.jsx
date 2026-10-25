@@ -88,9 +88,7 @@ export default function App() {
               </RequireAuth>
             }
           />
-<<<<<<< HEAD
           <Route path="/donor/profile" element={<Navigate to="/home" replace />} />
-=======
           {/* Donor blood requests (FR-005/006/022/023/028/029/030/038). */}
           <Route
             path="/donor/requests"
@@ -104,7 +102,6 @@ export default function App() {
               </RequireAuth>
             }
           />
->>>>>>> 17f6ae0 (feat(f4): add donor requests map with live tracking and location sharing)
           <Route
             element={
               <RequireAuth>
