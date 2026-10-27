@@ -27,7 +27,7 @@ numbers rather than trusting this section.
 | Phase | Covers | Status |
 | --- | --- | --- |
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13 done; NFR-14 deferred, NFR-27 partially done |
-| **P2** | Blood request submission and listing | not started |
+| **P2** | Blood request submission and listing | in progress (F3: hospital posts + lists its requests; status/manage deferred on claims) |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
 | **P4** | Hospital dashboard, inventory, screening | not started |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
@@ -465,3 +465,22 @@ is cancelled. An assumption is never recorded in place of an answer.
   account, so rules do not apply). Newer projects create that account without
   datastore access, so every Firestore call 403s until the role is granted —
   found and fixed live 2026-10-24, recorded in `docs/DEPLOY.md`.
+- **F3 ships post + list only; the audit trail stays out of F3.** Changing a
+  request's status needs the staff custom claim (D15), which no session has yet,
+  so FR-016 is `partial` until claims land. Request creation is not one of
+  FR-042's named audit events (donation / inventory / data-access), and
+  `POST /audit/append` is admin-only (`worker/src/index.js`), so F3 writes no
+  `auditBlocks` — F10b still waits on F4/F6/F8/F9. The dev facility
+  `hospitals/tagaytay-blood-bank` is a seed (`scripts/seed-reference-data.mjs`;
+  `--link-email` also sets an account's `users.hospitalId`), not part of the
+  spec's seed list: it exists so the hospital area has something to post against.
+  `npm run create:hospital` (`scripts/create-hospital-account.mjs`) creates that
+  facility's login — a verified Auth user plus a `role: hospital` profile with
+  the `hospitalId` — when an account is not already there. **F3's smoke ran live
+  2026-10-27** (post → urgency-first → reload keeps it; the posted request's
+  `matching` block shows F7 ran; the §6 donor checks and the verify-email gate
+  both pass). The Admin-SDK `createUser` and the console "Add user" both fail on
+  this project (`auth/internal-error`), so the hospital login was created by
+  hand; the optional edge smokes (cross-role gate, form validation, filters,
+  `/welcome` forward, a real match) are listed in `F3_Changes_Summary.txt` and
+  not yet run.

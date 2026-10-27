@@ -71,7 +71,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(f, 'hospitals/h1'), { createdBy: 'admin1', name: 'St. Mary General', address: '1200 Bonifacio Ave', latitude: 14.609, longitude: 120.984, geohash: 'qc7bw', contactNumber: '09170000000', status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/subscriptions/s1'), { plan: 'pilot', startDate: new Date('2026-01-01'), endDate: new Date('2027-01-01'), status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/inventory/O+'), { bloodType: 'O+', unitsAvailable: 3, lastUpdated: new Date() });
-  await setDoc(doc(f, 'bloodRequests/r1'), { hospitalId: 'h1', hospitalName: 'St. Mary General', recipientId: null, createdBy: 'alice', bloodType: 'O+', quantity: 2, urgencyLevel: 'High', status: 'Open', createdAt: new Date(), latitude: 14.609, longitude: 120.984, geohash: 'qc7bw' });
+  await setDoc(doc(f, 'bloodRequests/r1'), { hospitalId: 'h1', hospitalName: 'St. Mary General', recipientId: null, createdBy: 'alice', bloodType: 'O+', component: 'whole-blood', quantity: 2, urgencyLevel: 'urgent', status: 'collecting', createdAt: new Date(), latitude: 14.609, longitude: 120.984, geohash: 'qc7bw' });
   await setDoc(doc(f, 'donorMatches/r1_alice'), { requestId: 'r1', donorId: 'alice', donationTypeId: 'whole-blood', screenedByUserId: null, responseStatus: 'Pending', screeningStatus: null, guidelinesAcknowledged: false, acknowledgedAt: null, matchedAt: new Date() });
   await setDoc(doc(f, 'donorConsents/c1'), { donorId: 'alice', matchId: 'r1_alice', consentType: 'ProfileAccess', grantedAt: new Date(), revokedAt: null });
   await setDoc(doc(f, 'donationTypes/whole-blood'), { name: 'Whole Blood', intervalDays: 56 });
@@ -160,14 +160,15 @@ await no('donor cannot append an inventory log', setDoc(doc(db(as('alice')), 'ho
 
 // ---- bloodRequests -------------------------------------------------------
 console.log('bloodRequests');
-await no('signed-out cannot post a request', setDoc(doc(db(anon()), 'bloodRequests/r2'), { hospitalId: 'h1', bloodType: 'O+', quantity: 1, urgencyLevel: 'High', status: 'Open', hospitalName: 'x', latitude: 1, longitude: 1, geohash: 'a', createdAt: serverTimestamp() }));
-await ok('signed-in posts a request', setDoc(doc(db(as('alice')), 'bloodRequests/r2'), { hospitalId: 'h1', recipientId: null, createdBy: 'alice', bloodType: 'O+', quantity: 1, urgencyLevel: 'High', status: 'Open', hospitalName: 'St. Mary General', latitude: 14.609, longitude: 120.984, geohash: 'qc7bw', createdAt: serverTimestamp() }));
-await no('request needs a positive quantity', setDoc(doc(db(as('alice')), 'bloodRequests/r3'), { hospitalId: 'h1', bloodType: 'O+', quantity: 0, urgencyLevel: 'High', status: 'Open', hospitalName: 'x', latitude: 1, longitude: 1, geohash: 'a', createdAt: serverTimestamp() }));
+await no('signed-out cannot post a request', setDoc(doc(db(anon()), 'bloodRequests/r2'), { hospitalId: 'h1', bloodType: 'O+', quantity: 1, urgencyLevel: 'urgent', status: 'urgent', hospitalName: 'x', latitude: 1, longitude: 1, geohash: 'a', createdAt: serverTimestamp() }));
+await ok('signed-in posts a request', setDoc(doc(db(as('alice')), 'bloodRequests/r2'), { hospitalId: 'h1', recipientId: null, createdBy: 'alice', bloodType: 'O+', component: 'whole-blood', quantity: 1, urgencyLevel: 'urgent', status: 'urgent', hospitalName: 'St. Mary General', latitude: 14.609, longitude: 120.984, geohash: 'qc7bw', createdAt: serverTimestamp() }));
+await ok('hospital post carries the facility fields (F3)', setDoc(doc(db(as('hosp1')), 'bloodRequests/r4'), { hospitalId: 'h1', recipientId: null, createdBy: 'hosp1', bloodType: 'A-', component: 'rbc', quantity: 4, urgencyLevel: 'stat', status: 'collecting', hospitalName: 'St. Mary General', latitude: 14.609, longitude: 120.984, geohash: 'qc7bw', createdAt: serverTimestamp() }));
+await no('request needs a positive quantity', setDoc(doc(db(as('alice')), 'bloodRequests/r3'), { hospitalId: 'h1', bloodType: 'O+', quantity: 0, urgencyLevel: 'stat', status: 'collecting', hospitalName: 'x', latitude: 1, longitude: 1, geohash: 'a', createdAt: serverTimestamp() }));
 await ok('signed-in reads the feed', readDoc(as('bob'), 'bloodRequests/r1'));
 await no('signed-out cannot read requests', readDoc(anon(), 'bloodRequests/r1'));
-await ok('own staff updates request status', updateDoc(doc(db(staff1()), 'bloodRequests/r1'), { status: 'Matched' }));
-await no('staff of another hospital cannot update', updateDoc(doc(db(staff2()), 'bloodRequests/r1'), { status: 'Cancelled' }));
-await no('the poster cannot update (staff/admin path, schema §6)', updateDoc(doc(db(as('alice')), 'bloodRequests/r1'), { status: 'Cancelled' }));
+await ok('own staff updates request status', updateDoc(doc(db(staff1()), 'bloodRequests/r1'), { status: 'matched' }));
+await no('staff of another hospital cannot update', updateDoc(doc(db(staff2()), 'bloodRequests/r1'), { status: 'cancelled' }));
+await no('the poster cannot update (staff/admin path, schema §6)', updateDoc(doc(db(as('alice')), 'bloodRequests/r1'), { status: 'cancelled' }));
 await no('requests are never deleted', deleteDoc(doc(db(admin()), 'bloodRequests/r1')));
 
 // ---- donorMatches --------------------------------------------------------

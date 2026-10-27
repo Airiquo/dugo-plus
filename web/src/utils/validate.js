@@ -118,3 +118,27 @@ export function validateProfile({ fullName, phoneNumber, dateOfBirth, city } = {
 
   return errors
 }
+
+/**
+ * Hospital blood request (FR-011, FR-017). Every field is required: the matcher
+ * needs a type, a component, a count and an urgency to rank the request, so an
+ * incomplete one would only fail later at the write.
+ */
+export function validateRequest({ bloodType, component, quantity, urgencyLevel } = {}) {
+  const errors = {}
+
+  if (!(bloodType ?? '').trim()) errors.bloodType = 'Choose the blood type needed.'
+
+  if (!(component ?? '').trim()) errors.component = 'Choose the blood component.'
+
+  const units = Number(quantity)
+  if (!Number.isInteger(units) || units < 1) {
+    errors.quantity = 'Enter the number of units, a whole number of 1 or more.'
+  } else if (units > 99) {
+    errors.quantity = 'That is more units than a single request should need.'
+  }
+
+  if (!(urgencyLevel ?? '').trim()) errors.urgencyLevel = 'Choose how urgent this request is.'
+
+  return errors
+}

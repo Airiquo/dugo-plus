@@ -18,6 +18,8 @@ import BloodRequests from './pages/admin/BloodRequests'
 import AuditTrail from './pages/admin/AuditTrail'
 import Profile from './pages/donor/Profile'
 import Alerts from './pages/donor/Alerts'
+import HospitalRequests from './pages/hospital/Requests'
+import NewRequest from './pages/hospital/NewRequest'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
@@ -101,6 +103,23 @@ export default function App() {
               </RequireAuth>
             }
           />
+          {/* Hospital / blood-bank surface (FR-011, FR-016, FR-017): post and
+              track the facility's requests. Same gates as admin; the pages
+              render `HospitalShell`, not the admin `AppShell`. */}
+          <Route
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['hospital']}>
+                    <Outlet />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          >
+            <Route path="/hospital/requests" element={<HospitalRequests />} />
+            <Route path="/hospital/requests/new" element={<NewRequest />} />
+          </Route>
           <Route
             element={
               <RequireAuth>

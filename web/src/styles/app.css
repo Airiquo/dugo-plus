@@ -289,3 +289,53 @@
 .pub .pub-form.pub-form-wide {
   max-width: 520px;
 }
+
+/* --- hospital area (F3) ---------------------------------------------------
+   Lives in the admin-style shell (`#page-content`), so it styles off the
+   `--d-*` tokens the shell and component library already use, and both themes
+   come along unchanged. */
+
+.hospital-requests {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* The status filters are inline tabs; the base `.tab` has no gap of its own. */
+.hospital-requests [role='tablist'] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Empty / loading / error line for the list and the linked-facility checks. */
+.hospital-state {
+  margin: 0;
+  padding: 16px 4px;
+  color: var(--d-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.hospital-state[data-kind='error'] {
+  color: var(--d-red);
+}
+.hospital-state[data-kind='warn'] {
+  color: var(--d-ink);
+}
+
+.hospital-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 520px;
+}
+.hospital-note {
+  margin: 0;
+  color: var(--d-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.hospital-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}

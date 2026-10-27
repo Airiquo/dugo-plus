@@ -623,6 +623,12 @@ interface AuditBlock {
 - One Admin user — created in the Firebase console. The seed script
   (`scripts/seed-reference-data.mjs`) requires one to already exist and
   attributes `systemConfig/global.updatedBy` to it.
+- One dev facility, `hospitals/tagaytay-blood-bank` (`createdBy` = the admin),
+  so the F3 hospital area has a facility to post against. The seed writes it
+  (`scripts/seed-reference-data.mjs`; `--link-email <address>` sets an existing
+  account's `users.hospitalId`), and `npm run create:hospital`
+  (`scripts/create-hospital-account.mjs`) creates the facility's login when none
+  exists. Not part of the spec's seed list — a build convenience.
 
 ---
 
