@@ -15,14 +15,19 @@ import NotFound from './pages/public/NotFound'
 import Welcome from './pages/shared/Welcome'
 import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
+import AdminProfile from './pages/admin/Profile'
+import AdminAccounts from './pages/admin/Accounts'
+import AdminSettings from './pages/admin/Settings'
+import AdminDataRequests from './pages/admin/DataRequests'
 import Profile from './pages/donor/Profile'
+import DonorPrivacy from './pages/donor/Privacy'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
 import { NAV } from './layout/AppShell'
 
 /** Slugs that have a real page; every other admin screen renders `ScreenStub`. */
-const TRANSLATED = new Set(['dashboard', 'blood-requests'])
+const TRANSLATED = new Set(['dashboard', 'blood-requests', 'profile', 'accounts', 'settings', 'data-requests'])
 
 /**
  * Top-level routes.
@@ -31,8 +36,9 @@ const TRANSLATED = new Set(['dashboard', 'blood-requests'])
  * `NotConfigured` instead, because sessions and account types live in Firebase
  * and there is no demo mode any more.
  *
- * Known admin screens: 9. `dashboard` and `blood-requests` are built; the rest
- * render a `ScreenStub` pointing at the live mockups served from `/mockups/*`.
+ * Known admin screens: 10. `dashboard`, `blood-requests` and `profile` are
+ * built; the rest render a `ScreenStub` pointing at the live mockups served
+ * from `/mockups/*`.
  *
  * `/admin/*` sits behind three gates, in order: `RequireAuth` checks there is a
  * session, `RequireVerified` checks the address is confirmed (D5), and
@@ -67,12 +73,29 @@ export default function App() {
               accounts are premade and managed by the development team. */}
           <Route path="/forgot-password" element={<ForgotPassword />} />
           {/* Email-confirmation notice for accounts that have not clicked the
-              link sent at registration (FR-01, NFR-12). */}
-          <Route path="/verify-email" element={<VerifyEmail />} />
+              link sent at registration (FR-01, NFR-12). Behind `RequireAuth`
+              only for the suspension gate: an unverified account can be
+              suspended too (D26), and it should stop at the blocked screen
+              rather than keep requesting links. */}
+          <Route
+            path="/verify-email"
+            element={
+              <RequireAuth>
+                <VerifyEmail />
+              </RequireAuth>
+            }
+          />
           {/* Self-forwarding landing for donor/hospital accounts (see
               pages/shared/Welcome.jsx); homeFor() in services/users.js points
               them here until those screens exist. */}
-          <Route path="/welcome" element={<Welcome />} />
+          <Route
+            path="/welcome"
+            element={
+              <RequireAuth>
+                <Welcome />
+              </RequireAuth>
+            }
+          />
           {/* Donor surface (FR-04). Donor accounts have no AppShell, so this
               sits behind the session + account-type gates only. */}
           <Route
@@ -100,6 +123,10 @@ export default function App() {
           >
             <Route path="/admin/dashboard" element={<Dashboard />} />
             <Route path="/admin/blood-requests" element={<BloodRequests />} />
+            <Route path="/admin/profile" element={<AdminProfile />} />
+            <Route path="/admin/accounts" element={<AdminAccounts />} />
+            <Route path="/admin/settings" element={<AdminSettings />} />
+            <Route path="/admin/data-requests" element={<AdminDataRequests />} />
             {NAV.filter((item) => !TRANSLATED.has(item.slug)).map((item) => (
               <Route
                 key={item.slug}
@@ -108,6 +135,18 @@ export default function App() {
               />
             ))}
           </Route>
+          <Route
+            path="/donor/privacy"
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['donor']}>
+                    <DonorPrivacy />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

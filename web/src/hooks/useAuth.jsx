@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import {
   observeAuth,
+  refreshClaims,
   reloadCurrentUser,
   sendVerificationEmail,
   signIn as signInWithEmail,
@@ -83,6 +84,11 @@ export function AuthProvider({ children }) {
       setProfile(null)
       setRoleLoading(Boolean(snap))
       if (!snap) return
+
+      // Custom claims are set server-side (`scripts/set-claims.mjs`, D26), so
+      // force one token refresh per session: a claim published after sign-in
+      // otherwise only applies at the next sign-in.
+      refreshClaims().catch(() => {})
 
       readProfile(snap.uid)
         .then(async (found) => {
@@ -188,6 +194,9 @@ export function AuthProvider({ children }) {
       loading,
       // Null while signed out or while the profile has not been written yet.
       role: profile?.role ?? null,
+      // `Active` unless an admin suspended the account (D26). Null while the
+      // profile is still loading, so guards wait rather than guess.
+      status: profile?.status ?? null,
       profile,
       roleLoading,
       signIn,

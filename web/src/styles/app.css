@@ -289,3 +289,74 @@
 .pub .pub-form.pub-form-wide {
   max-width: 520px;
 }
+
+/* --- admin profile -------------------------------------------------------
+   Two-column account screen: editable identity on the left, read-only account
+   facts on the right (FR-047). Both cards pad from the shared spacing token;
+   the facts row is a definition list so the label/value pairing reads as data,
+   not prose. */
+
+.admin-profile {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: var(--d-gap);
+  align-items: start;
+}
+.admin-profile > .card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: var(--d-pad);
+}
+.admin-profile h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.admin-profile .muted {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 12.5px;
+  font-weight: 400;
+}
+.admin-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+.admin-profile-actions .muted {
+  margin-left: auto;
+}
+.admin-profile-facts {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+.admin-profile-facts > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--d-line);
+}
+.admin-profile-facts > div:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.admin-profile-facts dt {
+  color: var(--d-muted);
+}
+.admin-profile-facts dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .admin-profile {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -238,3 +238,21 @@ export async function reloadCurrentUser() {
   await reloadUser(target)
   return target
 }
+
+/**
+ * Force-refresh the ID token so freshly published custom claims apply without a
+ * sign-out (D26). Claims are set server-side (`scripts/set-claims.mjs`).
+ */
+export async function refreshClaims() {
+  const target = auth?.currentUser
+  if (!target) return null
+  return target.getIdToken(true)
+}
+
+/** Update the Firebase Auth display name (the shell's greeting, FR-047). */
+export async function updateDisplayName(displayName) {
+  const target = auth?.currentUser
+  if (!target) throw new Error('No account is signed in.')
+  await updateProfile(target, { displayName })
+  return target
+}

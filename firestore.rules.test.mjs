@@ -68,6 +68,10 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(f, 'users/alice'), { role: 'donor', fullName: 'Alice D.', email: 'alice@dugo.ph', phoneNumber: '09170000000', city: 'Malolos', geohash: 'wdt4', latitude: 14.84, longitude: 120.81, status: 'Active', createdAt: new Date() });
   await setDoc(doc(f, 'users/bob'), { role: 'donor', fullName: 'Bob B.', email: 'bob@dugo.ph', createdAt: new Date() });
   await setDoc(doc(f, 'users/dave'), { role: 'donor', fullName: 'Dave D.', email: 'dave@dugo.ph', createdAt: new Date(), lastDonationAt: new Date('2026-10-01') });
+  // `erin` exercises the suspension gate (D26); `admin1` gives the admin claim
+  // a profile of its own so the self-update path is covered.
+  await setDoc(doc(f, 'users/erin'), { role: 'donor', fullName: 'Erin E.', email: 'erin@dugo.ph', status: 'Active', createdAt: new Date() });
+  await setDoc(doc(f, 'users/admin1'), { role: 'admin', fullName: 'Admin One', email: 'admin@dugo.ph', status: 'Active', createdAt: new Date() });
   await setDoc(doc(f, 'hospitals/h1'), { createdBy: 'admin1', name: 'St. Mary General', address: '1200 Bonifacio Ave', latitude: 14.609, longitude: 120.984, geohash: 'qc7bw', contactNumber: '09170000000', status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/subscriptions/s1'), { plan: 'pilot', startDate: new Date('2026-01-01'), endDate: new Date('2027-01-01'), status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/inventory/O+'), { bloodType: 'O+', unitsAvailable: 3, lastUpdated: new Date() });
@@ -91,6 +95,7 @@ await ok('owner reads own profile', readDoc(as('alice'), 'users/alice'));
 await no('another donor cannot read a profile', readDoc(as('bob'), 'users/alice'));
 await no('signed-out cannot read a profile', readDoc(anon(), 'users/alice'));
 await ok('admin claim reads any profile', readDoc(admin(), 'users/alice'));
+await ok('admin claim reads its own profile', readDoc(admin(), 'users/admin1'));
 await ok('owner creates own profile', setDoc(doc(db(as('carol')), 'users/carol'), { role: 'donor', fullName: 'Carol C.', email: 'carol@dugo.ph', createdAt: new Date() }));
 await ok('role is still client-chosen at create (UI boundary, D15)', setDoc(doc(db(as('dan')), 'users/dan'), { role: 'admin', fullName: 'Dan D.', email: 'dan@dugo.ph', createdAt: new Date() }));
 await no('create cannot set lastDonationAt (D14)', setDoc(doc(db(as('eve')), 'users/eve'), { role: 'donor', fullName: 'Eve E.', email: 'eve@dugo.ph', createdAt: new Date(), lastDonationAt: new Date() }));
@@ -105,7 +110,24 @@ await no('owner cannot clear lastDonationAt (value)', updateDoc(doc(db(as('dave'
 await ok('owner edit leaves lastDonationAt untouched', updateDoc(doc(db(as('dave')), 'users/dave'), { fullName: 'Dave D.' }));
 await no('owner cannot delete profile', deleteDoc(doc(db(as('alice')), 'users/alice')));
 await ok('admin claim updates any profile', updateDoc(doc(db(admin()), 'users/alice'), { fullName: 'Alice D.' }));
+await ok('admin claim updates its own profile (same-doc read)', updateDoc(doc(db(admin()), 'users/admin1'), { fullName: 'Admin One' }));
 await ok('admin claim suspends a profile (FR-040)', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Suspended' }));
+
+// ---- suspension gate (D26) ----------------------------------------------
+// A suspended account keeps its own profile read (the blocked screen names the
+// state) but loses every other authenticated path until an admin restores it.
+console.log('suspension (D26)');
+await ok('active account reads reference data', readDoc(as('erin'), 'donationTypes/whole-blood'));
+await ok('admin claim suspends the account', updateDoc(doc(db(admin()), 'users/erin'), { status: 'Suspended' }));
+await ok('suspended account still reads its own profile', readDoc(as('erin'), 'users/erin'));
+await no('suspended account cannot read reference data', readDoc(as('erin'), 'donationTypes/whole-blood'));
+await no('suspended account cannot read hospitals', readDoc(as('erin'), 'hospitals/h1'));
+await no('suspended account cannot edit its own profile', updateDoc(doc(db(as('erin')), 'users/erin'), { fullName: 'Erin E.' }));
+await no('suspended account cannot open a data request', setDoc(doc(db(as('erin')), 'dataSubjectRequests/dsr4'), { userId: 'erin', processedBy: null, requestType: 'Access', status: 'Pending', createdAt: serverTimestamp(), resolvedAt: null }));
+await ok('admin claim restores the account', updateDoc(doc(db(admin()), 'users/erin'), { status: 'Active' }));
+await ok('restored account reads reference data again', readDoc(as('erin'), 'donationTypes/whole-blood'));
+// Put alice back so the rest of the suite exercises an active session.
+await ok('admin claim reactivates a profile', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Active' }));
 
 // ---- errorLogs (D17) -----------------------------------------------------
 console.log('errorLogs');

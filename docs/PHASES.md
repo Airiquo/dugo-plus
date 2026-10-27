@@ -31,7 +31,7 @@ numbers rather than trusting this section.
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
 | **P4** | Hospital dashboard, inventory, screening | not started |
 | **P5** | Matching and notifications | not started; needs Cloud Functions (Blaze) |
-| **P6** | Admin account management, data-request queue | partial (admin gate and FR-040/FR-047 beginnings) |
+| **P6** | Admin account management, data-request queue | partial (admin gate; FR-047 profile page; suspension gate + accounts/settings/data-requests + donor privacy built; claims still to set on live project) |
 | **P7** | Hash-chain audit trail | not started; needs Cloud Functions |
 | **P8** | Compliance and privacy | not started; mostly documents |
 | **P9** | Non-functional hardening (responsiveness, scale, compatibility) | not started |
@@ -293,6 +293,10 @@ Library) would cover this class of breakage automatically on every PR. That work
 is not scoped or scheduled; it is recorded here so the smoke list is not mistaken
 for the real thing.
 
+A screen-by-screen pass — every route and gate, the states each screen must
+carry, and the security-boundary suite — is in `docs/SMOKE_TESTS.md`. Run that
+before a release or a PR that touches shared code.
+
 ## 7. What needs work outside the app
 
 Some rows cannot be finished from `web/src`. Do not mark them `done` from
@@ -372,10 +376,9 @@ is cancelled. An assumption is never recorded in place of an answer.
   fallbacks in `readProfile` are removed. Until then the app reads either shape
   correctly, so a missed document degrades to an empty field rather than an
   error.
-- **Custom claims are not set anywhere yet** (D15): every admin/staff rule
-  matches no session until `{ role, hospitalId }` claims are issued — a server
-  step (Cloud Function or console), owned by F9/F12. Until then only
-  owner-scoped paths are exercisable in production.
+- **Custom claims not set yet** (D15): `scripts/set-claims.mjs` (D26/A1) publishes them and `useAuth` forces one `getIdToken(true)` per session so a claim applies within a session. Until the script runs against the live project, admin/staff paths are inert. It has not run from this checkout (no service-account key here).
+- **F9** built (D26): `/admin/profile` (FR-047, done), suspension gate (`accountActive()` + `Blocked.jsx`), `/admin/accounts` (FR-040), `/admin/settings` (FR-041 settings half), `/admin/data-requests` and `/donor/privacy` (FR-039/NFR-19). Claims (`scripts/set-claims.mjs`) still need to run on the live project; `npm run test:rules` needs Java/emulator in this checkout (CI backstop). Live smoke still owed with a configured project.
+- **Contradiction to resolve: did the `users` backfill run?** D22 (REQUIREMENTS) says `scripts/backfill-users-shape.mjs` migrated the live collection on 2026-10-22 (12 documents, verified, re-run a no-op) and the old-shape fallbacks were removed; the bullet above says it has not run and that the app still reads either shape. D22 is the later record and `readProfile` no longer has fallbacks, but the older bullet is not corrected until the owner confirms which is true.
 - **No staff read of `users`** — the rules grant an owner read plus an admin
   claim, and nothing else. Schema §6 allows a limited "staff of same hospital"
   read; hospital screens (F3/F6) will need to decide what it exposes before it
