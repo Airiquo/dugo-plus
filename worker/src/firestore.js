@@ -303,3 +303,53 @@ export async function updateDocumentIfUnchanged(env, path, fields, updateTime) {
   if (Number(status.code) === GRPC_FAILED_PRECONDITION) return false
   throw new FirestoreError(status.code ?? 500, status.message || 'Firestore conditional write failed')
 }
+
+/** Begin a read-write transaction; returns its id (opaque, base64). */
+export async function beginTransaction(env) {
+  const result = await firestoreFetch(env, ':beginTransaction', {
+    method: 'POST',
+    body: JSON.stringify({ options: { readWrite: {} } }),
+  })
+  if (!result?.transaction) throw new FirestoreError(500, 'Could not begin a Firestore transaction')
+  return result.transaction
+}
+
+/**
+ * Read one document inside a transaction. A missing document still joins the
+ * read set, which is what lets a known-missing doc act as an append lock.
+ */
+export async function getDocumentInTransaction(env, collection, id, transaction) {
+  const document = await firestoreFetch(
+    env,
+    `/${encodeURIComponent(collection)}/${encodeURIComponent(id)}?transaction=${encodeURIComponent(transaction)}`,
+  )
+  return decodeDocument(document)
+}
+
+/** Run one structured query inside a transaction. */
+export async function runQueryInTransaction(env, structuredQuery, transaction) {
+  const result = await firestoreFetch(env, ':runQuery', {
+    method: 'POST',
+    body: JSON.stringify({ structuredQuery, transaction }),
+  })
+  if (!Array.isArray(result)) return []
+  return result.filter((row) => row.document).map((row) => decodeDocument(row.document))
+}
+
+/**
+ * Commit writes against a transaction id. Throws on any per-write failure; a
+ * conflict aborts the transaction (the caller retries).
+ */
+export async function commitWrites(env, transaction, writes) {
+  const result = await firestoreFetch(env, ':commit', {
+    method: 'POST',
+    body: JSON.stringify({ transaction, writes }),
+  })
+  const statuses = result?.status ?? []
+  for (const status of statuses) {
+    if (status?.code) {
+      throw new FirestoreError(Number(status.code) || 500, status.message || 'Firestore commit failed')
+    }
+  }
+  return statuses
+}

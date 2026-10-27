@@ -82,7 +82,7 @@ export default function AuditTrail() {
     {
       key: 'correctsBlockId',
       header: 'Correction',
-      render: (row) => row.correctsBlockId ? <span className="pill" data-status="warn">Links to #{row.correctsBlockId.slice(0, 8)}</span> : '-',
+      render: (row) => row.correctsBlockId ? <span className="pill" data-status="warning">Links to #{row.correctsBlockId.slice(0, 8)}</span> : '-',
     },
     {
       key: 'actions',
@@ -118,7 +118,7 @@ export default function AuditTrail() {
             <div style={{ fontWeight: 600, marginBottom: 8 }}>
               Chain Verification {verifyResult.valid ? '✓ Valid' : '✗ Invalid'}
             </div>
-            <div className="muted">
+            <div style={{ color: 'var(--d-muted)' }}>
               Blocks verified: {verifyResult.count}
               {verifyResult.brokenAt && ` | Broken at sequence: ${verifyResult.brokenAt}`}
               {verifyResult.reason && ` | ${verifyResult.reason}`}
@@ -128,7 +128,7 @@ export default function AuditTrail() {
         )}
         
         {error && (
-          <div className="card" style={{ marginBottom: 16, padding: 16, color: 'var(--danger)' }}>
+          <div className="card" style={{ marginBottom: 16, padding: 16, color: 'var(--d-red)' }}>
             {error}
           </div>
         )}
@@ -136,7 +136,7 @@ export default function AuditTrail() {
         {loading ? (
           <div className="card" style={{ padding: 32, textAlign: 'center' }}>Loading...</div>
         ) : blocks.length === 0 ? (
-          <div className="card muted" style={{ padding: 32, textAlign: 'center' }}>
+          <div className="card" style={{ padding: 32, textAlign: 'center', color: 'var(--d-muted)' }}>
             No audit activity has been recorded yet.
           </div>
         ) : (

@@ -117,3 +117,26 @@ Also folded into this entry: §1 gained `errorLogs` (§0 had recorded it, the tr
 had not), the shared `Role` enum was lowercased to match §2.1, and §1 notes that
 `systemConfig/global` is a singleton in practice while the rules match
 `{configId}`.
+
+## 2026-10-27 — `bloodRequests.matching` added
+
+**Origin:** build (the F7 matcher writes state the schema had no home for).
+
+**Refs:** F7.
+
+| Field | Before | After |
+|---|---|---|
+| `bloodRequests.matching` | not present | **added** — server-written matcher state `{ currentTier, nextTierAt, lastRunAt, lastRunMs, matchedDonorCount, exhausted }`; clients never write it |
+
+No `D*`: it is a new field inside an existing collection that nothing written
+contradicted. Recorded late — the F7 build wrote it before the schema note.
+
+Also clarified in the same pass, not a data change: `notifications.sentAt` (§2.8)
+must be written as an explicit `null` at create, because the donor inbox query
+orders by it and Firestore omits documents missing an orderBy field (the pending
+notifications were invisible until then).
+
+Also added: `auditBlocks/_meta`, a reserved head document `{ headSequence,
+headHash, updatedAt }` with no `sequence` field (so the chain queries skip it).
+Appends read it inside a transaction to serialize, replacing the untransactional
+read-then-write that could fork the chain (schema §5, §2.13).

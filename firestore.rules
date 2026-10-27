@@ -47,14 +47,16 @@ service cloud.firestore {
       // The owner, and an admin claim, may read the profile.
       allow read: if isAdmin() || (signedIn() && me() == uid);
 
-      // This validates shape, not intent. The account type is chosen in the
-      // browser, so a determined client can still write role: 'admin'; the
-      // claim is what opens admin rules (D15). A profile also starts with no
-      // donation history: only F8's server transaction writes lastDonationAt
-      // (D14), so a client may not create it.
+      // Self-registration is donor-only (D20) and the rules enforce it: a
+      // self-creating owner may only write `role: 'donor'`, so a client cannot
+      // claim `admin` here and then ride the admin paths. Only an admin claim
+      // (or the console/Admin SDK, which bypasses rules) may create a
+      // hospital/admin profile. A profile also starts with no donation history:
+      // only F8's server transaction writes lastDonationAt (D14), so a client
+      // may not create it.
       allow create: if (isAdmin() || (signedIn() && me() == uid))
+                    && (isAdmin() || request.resource.data.role == 'donor')
                     && request.resource.data.role is string
-                    && request.resource.data.role in ['donor', 'hospital', 'admin']
                     && request.resource.data.fullName is string
                     && request.resource.data.email is string
                     && (!('phoneNumber' in request.resource.data)

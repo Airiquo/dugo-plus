@@ -224,10 +224,16 @@ Write the log and the inventory update in **one transaction/batch**.
 | status | string | R | `urgent \| collecting \| matched \| fulfilled \| cancelled` — the shipped `.chip[data-status]` set (D24). The ERD's `Active \| Suspended \| Removed` was a copy-paste error (see §9) |
 | createdAt | Timestamp | R | |
 | hospitalName, latitude, longitude, geohash | string / number | R | **[ADDED, denormalized]** copied from the hospital at creation, so matching by radius needs no extra read |
+| matching | map | O | **[ADDED]** Server-written by the F7 matching Worker: `{ currentTier, nextTierAt, lastRunAt, lastRunMs, matchedDonorCount, exhausted }`. Clients never write it — the create rule ignores the key and only the Worker's Admin path sets it. |
 
 > Note: `urgent` appears in **both** `status` and `urgencyLevel`. That is the
 > shipped vocabulary, not an accident to normalise away (D24) — an urgent request
 > is also urgent priority.
+
+> Note: `matching` is the matcher's state on the request (which radius tier it
+> is on, when the next tier opens, and whether it exhausted the ladder). It is
+> absent until the first match run; the matcher treats a missing block as
+> `currentTier: 0`.
 
 ### 2.5 `donorMatches/{requestId}_{donorId}`
 
@@ -278,7 +284,7 @@ Relationship in ERD is **1 → 1..many**: every donation type should have at lea
 | channel | string | R | Values not in ERD. Suggested: `Push \| SMS \| Email` |
 | deliveryStatus | string | R | Suggested: `Pending \| Sent \| Failed` |
 | retryCount | number (int) | R | Default `0`. Compare against `systemConfig.notifRetryLimit` |
-| sentAt | Timestamp | O | Null until sent |
+| sentAt | Timestamp | O | Null until sent. **Write it as an explicit `null` at create**: the donor inbox (§4) orders by `sentAt`, and Firestore omits documents that lack the orderBy field. |
 
 ### 2.9 `donations/{matchId}`
 
@@ -353,6 +359,12 @@ Hash-chained audit log. **Never update or delete.**
 | createdAt | Timestamp | R | |
 | sequence | number (int) | R | **[ADDED]** monotonically increasing, assigned in a transaction reading the last block. Firestore has no auto-increment |
 | correctsBlockId | string | O | **[ADDED]** Doc ID of the block this entry corrects (for append-only corrections per FR-043) |
+
+> Note: a reserved document `auditBlocks/_meta` (`{ headSequence, headHash,
+> updatedAt }`) is written by the append transaction. It carries **no
+> `sequence` field**, so it never appears in the sequence-ordered chain queries.
+> Appends read it inside the transaction to serialize, so two concurrent
+> appends cannot fork the chain (schema §5).
 
 ---
 

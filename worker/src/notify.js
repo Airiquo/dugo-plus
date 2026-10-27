@@ -43,17 +43,18 @@ export async function notifyNewMatches(env, request, matches) {
         channel: 'Email',
         deliveryStatus: 'Pending',
         retryCount: 0,
+        // Explicit null, not omitted: the donor inbox orders by `sentAt`, and
+        // Firestore drops documents that lack the orderBy field — a pending
+        // notification without it would never appear.
+        sentAt: null,
       },
     })
   }
 
   const written = await writeNewDocuments(env, writes)
-  const created = matches.filter((match) => {
-    // best effort: if writeNewDocuments created some, try to send for those
-    return true
-  })
 
-  // Send emails for newly created notifications only.
+  // Emails go out for any notification still Pending (new, or a retry from an
+  // earlier run); the status and retry guards below stop a double send.
   let emailed = 0
   if (!isEmailEnabled(env)) return { created: written.created, emailed: 0 }
 

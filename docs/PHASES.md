@@ -484,3 +484,16 @@ is cancelled. An assumption is never recorded in place of an answer.
   hand; the optional edge smokes (cross-role gate, form validation, filters,
   `/welcome` forward, a real match) are listed in `F3_Changes_Summary.txt` and
   not yet run.
+- **F7/F10a bug sweep (2026-10-27).** Fixed while combining F3 + F7 + F10a:
+  the donor inbox never showed a pending notification (`notifications.sentAt` is
+  now written as an explicit `null`; Firestore omits documents missing an
+  orderBy field); the Worker CORS allowed only `localhost:5173`, so the deployed
+  site could not call `/match` or the audit endpoints (hosting origins added —
+  **needs a Worker redeploy**); the F10 audit append was untransactional and
+  could fork the chain (now a Firestore transaction over a reserved
+  `auditBlocks/_meta` head doc); and the Worker's admin-only audit routes trusted
+  the client-written `users.role`, which a client could set on its own document
+  at create — the `users` create rule now enforces donor-only self-create (D26,
+  **needs a rules deploy**). `/donor/alerts` also rendered the admin `AppShell`
+  and `AuditTrail.jsx` used undefined tokens (`--danger`, `data-status="warn"`);
+  both corrected.

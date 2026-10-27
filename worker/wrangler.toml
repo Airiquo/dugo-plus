@@ -3,10 +3,12 @@ main = "src/index.js"
 compatibility_date = "2026-10-23"
 workers_dev = true
 
-# Set the allowed browser origins for this deployment. Local Vite is included
-# so the app can call the Worker in development.
+# Set the allowed browser origins for this deployment, comma-separated. Local
+# Vite is included so the app can call the Worker in development; the Firebase
+# Hosting origins are what the deployed site runs on (a missing origin makes the
+# browser's CORS preflight fail, so /match and the audit endpoints error there).
 [vars]
-ALLOWED_ORIGINS = "http://localhost:5173"
+ALLOWED_ORIGINS = "http://localhost:5173,https://dugo-plus.web.app,https://dugo-plus.firebaseapp.com"
 
 # One-minute fallback for requests that were not triggered by the app.
 [triggers]

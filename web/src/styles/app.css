@@ -339,3 +339,60 @@
   display: flex;
   justify-content: flex-end;
 }
+
+/* --- donor alerts (F7) ----------------------------------------------------
+   Sits in the same `.pub` donor surface as the profile, so it styles off the
+   profile tokens and both themes come along unchanged. */
+
+.alerts-main {
+  display: grid;
+  justify-items: center;
+  padding: 32px 20px 56px;
+}
+.alerts-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 640px;
+}
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.alerts-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.alerts-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.alerts-item-when {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.alerts-item-text {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.alerts-item-ref {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  word-break: break-all;
+}

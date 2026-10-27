@@ -5,7 +5,7 @@
   "description": "Root tooling for Dugo+: Firestore rules tests, the reference-data seed script, and the users-shape backfill.",
   "scripts": {
     "test:rules": "firebase emulators:exec --only firestore --project demo-dugo \"node firestore.rules.test.mjs\"",
-    "test:matching": "node --test web/src/utils/geohash.test.js web/src/utils/matching.test.js web/src/utils/eligibility.test.js worker/src/firestore.test.js worker/src/matcher.test.js",
+    "test:matching": "node --test web/src/utils/geohash.test.js web/src/utils/matching.test.js web/src/utils/eligibility.test.js worker/src/firestore.test.js worker/src/matcher.test.js worker/src/audit.test.js",
     "seed": "node scripts/seed-reference-data.mjs",
     "create:hospital": "node scripts/create-hospital-account.mjs",
     "backfill:users": "node scripts/backfill-users-shape.mjs",

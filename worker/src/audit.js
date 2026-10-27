@@ -5,10 +5,23 @@
  * stores hashed references (never raw IDs), and supports verification.
  */
 
-import { runQuery } from './firestore.js'
-import { FirestoreError } from './firestore.js'
+import {
+  beginTransaction,
+  commitWrites,
+  documentName,
+  FirestoreError,
+  getDocumentInTransaction,
+  runQuery,
+  runQueryInTransaction,
+  toFirestoreFields,
+} from './firestore.js'
 
 const GENESIS_PREV_HASH = '0'
+
+// Reserved head document. It holds no `sequence` field, so it never appears in
+// the sequence-ordered chain queries; it exists so concurrent appends read it
+// and conflict instead of forking the chain.
+const AUDIT_HEAD_ID = '_meta'
 
 /**
  * Create a canonical JSON string for hashing.
@@ -101,6 +114,28 @@ export async function computeRecordHash(block) {
   return sha256Hex(canonical)
 }
 
+/** Latest block read inside a transaction (its doc joins the read set). */
+async function getLatestAuditBlockInTransaction(env, transaction) {
+  const results = await runQueryInTransaction(
+    env,
+    {
+      from: [{ collectionId: 'auditBlocks' }],
+      orderBy: [{ field: { fieldPath: 'sequence' }, direction: 'DESCENDING' }],
+      limit: 1,
+    },
+    transaction,
+  )
+  return results[0] || null
+}
+
+/**
+ * Append one block, atomically.
+ *
+ * The read of the head document and the latest block, the sequence
+ * assignment, and the write all happen inside one Firestore transaction, so two
+ * concurrent appends cannot fork the chain — the loser conflicts and the caller
+ * retries. The block's document id is its `recordHash`.
+ */
 export async function appendAuditBlockSimple(env, params) {
   const {
     eventType,
@@ -111,18 +146,22 @@ export async function appendAuditBlockSimple(env, params) {
     correctsBlockId = null,
     createdAt = new Date(),
   } = params
-  
+
   if (!eventType) throw new FirestoreError(400, 'eventType is required')
-  
-  // Get latest block
-  const latest = await getLatestAuditBlock(env)
-  const sequence = latest ? latest.data.sequence + 1 : 1
+
+  const transaction = await beginTransaction(env)
+
+  // Reading the head (which normally does not exist) serializes appends: every
+  // transaction touches it, so they cannot both commit.
+  await getDocumentInTransaction(env, 'auditBlocks', AUDIT_HEAD_ID, transaction)
+
+  const latest = await getLatestAuditBlockInTransaction(env, transaction)
+  const sequence = latest ? Number(latest.data.sequence) + 1 : 1
   const prevHash = latest ? latest.data.recordHash : GENESIS_PREV_HASH
-  
-  // Hash references
+
   const hashedEntityRef = await hashRef(env, entityId || '')
   const hashedActorRef = await hashRef(env, actorId || '')
-  
+
   const blockData = {
     prevHash,
     sequence,
@@ -134,17 +173,29 @@ export async function appendAuditBlockSimple(env, params) {
     createdAt,
     correctsBlockId,
   }
-  
   blockData.recordHash = await computeRecordHash(blockData)
-  
-  // Import writeNewDocuments
-  const { writeNewDocuments } = await import('./firestore.js')
-  const result = await writeNewDocuments(env, [{
-    path: `auditBlocks/${blockData.recordHash}`,
-    data: blockData,
-  }])
-  
-  return { created: result.created > 0, block: blockData }
+
+  const blockWrite = {
+    update: {
+      name: documentName(env, `auditBlocks/${blockData.recordHash}`),
+      fields: toFirestoreFields(blockData),
+    },
+    currentDocument: { exists: false },
+  }
+  const headWrite = {
+    update: {
+      name: documentName(env, `auditBlocks/${AUDIT_HEAD_ID}`),
+      fields: toFirestoreFields({
+        headSequence: sequence,
+        headHash: blockData.recordHash,
+        updatedAt: new Date(),
+      }),
+    },
+    updateMask: { fieldPaths: ['headSequence', 'headHash', 'updatedAt'] },
+  }
+
+  await commitWrites(env, transaction, [blockWrite, headWrite])
+  return { created: true, block: blockData }
 }
 
 /**
