@@ -1,25 +1,26 @@
 #!/usr/bin/env node
-// Creates the F3 hospital account: a Firebase Auth login (email verified, so it
-// is not held at /verify-email, D6) plus its users/{uid} profile with
-// role "hospital" and the facility's hospitalId. Idempotent: a re-run finds the
-// existing Auth user and re-applies the profile.
+// Creates a hospital account end to end (F3/F9): a Firebase Auth login (email
+// verified, so it is not held at /verify-email, D6), a `hospitals/{id}` facility
+// if one does not exist yet, and the `users/{uid}` profile with `role: 'hospital'`
+// and the facility's `hospitalId`. Idempotent — a re-run finds what exists and
+// re-applies it.
 //
-// The facility must already exist — run `npm run seed` first (it writes
-// hospitals/tagaytay-blood-bank).
-//
-// Runs with the Admin SDK, which bypasses the security rules (D15):
+// Custom claims are NOT set here: they are published from `users/{uid}` by
+// `scripts/set-claims.mjs` (the single claims path, D26). Run it after this:
 //
 //   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus/sa-key.json \
-//     npm run create:hospital -- --email hospital@dugo.ph --password 'Passw0rd!'
+//     npm run create:hospital -- --email hospital@dugo.ph --password 'YourPassw0rd'
+//   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus/sa-key.json npm run set:claims
 //
 // The key must live outside the repository and be deleted/revoked after use.
 // Creating a login needs the service account's "Firebase Authentication Admin"
-// role; if that is missing the run stops with a clear error.
+// role; the run stops with a clear error if that is missing.
 import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { geohash } from '../web/src/utils/geohash.js';
 
 function arg(name, fallback = null) {
   const index = process.argv.indexOf(`--${name}`);
@@ -35,12 +36,19 @@ const emulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 const project = arg('project', process.env.GCLOUD_PROJECT || 'dugo-plus');
 const email = (arg('email') || process.env.HOSPITAL_EMAIL || '').trim();
 const password = arg('password') || process.env.HOSPITAL_PASSWORD || '';
-const fullName = arg('name', 'Tagaytay City Blood Bank');
+const name = arg('name', 'Tagaytay City Blood Bank');
 const hospitalId = arg('hospital', 'tagaytay-blood-bank');
+const address = arg('address', 'Tagaytay City, Cavite');
+const latitude = Number(arg('latitude', '14.1153'));
+const longitude = Number(arg('longitude', '120.9621'));
+const contactNumber = arg('contact', '046 483 0000');
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 if (!email) refuse('pass --email <address> (or set HOSPITAL_EMAIL).');
 if (!password) refuse('pass --password <secret> (or set HOSPITAL_PASSWORD).');
+if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+  refuse('--latitude/--longitude must be numbers.');
+}
 
 const keyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 if (!emulator) {
@@ -63,16 +71,16 @@ const app = initializeApp({ credential: applicationDefault(), projectId: project
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-const hospitalRef = db.doc(`hospitals/${hospitalId}`);
-const hospitalSnap = await hospitalRef.get();
-if (!hospitalSnap.exists) {
-  refuse(`hospitals/${hospitalId} does not exist. Run "npm run seed" first.`);
-}
+// An admin is only needed as the facility's `createdBy`; look one up.
+const admins = await db.collection('users').where('role', '==', 'admin').limit(1).get();
+const adminUid = admins.empty ? null : admins.docs[0].id;
 
+// Find or create the Auth user (email verified, D6).
 let user;
 try {
   user = await auth.getUserByEmail(email);
-  console.log(`= found   auth user ${user.uid} (${email})`);
+  await auth.updateUser(user.uid, { password, emailVerified: true, displayName: name });
+  console.log(`= auth user exists ${user.uid} (${email}); password/verified refreshed`);
 } catch (error) {
   if (error?.code !== 'auth/user-not-found') {
     refuse(
@@ -82,12 +90,7 @@ try {
     );
   }
   try {
-    user = await auth.createUser({
-      email,
-      password,
-      emailVerified: true,
-      displayName: fullName,
-    });
+    user = await auth.createUser({ email, password, emailVerified: true, displayName: name });
     console.log(`+ created auth user ${user.uid} (${email}, email verified)`);
   } catch (createError) {
     refuse(
@@ -100,23 +103,44 @@ try {
 
 const profileRef = db.doc(`users/${user.uid}`);
 const profileSnap = await profileRef.get();
+let facilityId = profileSnap.exists ? profileSnap.data()?.hospitalId || '' : '';
+if (!facilityId) facilityId = hospitalId;
+
+// Ensure the facility exists.
+const facilityRef = db.doc(`hospitals/${facilityId}`);
+const facilitySnap = await facilityRef.get();
+if (facilitySnap.exists) {
+  console.log(`= kept    hospitals/${facilityId} (exists; nothing overwritten)`);
+} else {
+  await facilityRef.set({
+    createdBy: adminUid || null,
+    name,
+    address,
+    latitude,
+    longitude,
+    geohash: geohash(latitude, longitude, 7),
+    contactNumber,
+    status: 'Active',
+  });
+  console.log(`+ created hospitals/${facilityId}`);
+}
+
 const data = {
   role: 'hospital',
-  fullName,
+  fullName: name,
   email,
   phoneNumber: '',
   status: 'Active',
-  hospitalId,
+  hospitalId: facilityId,
+  updatedAt: FieldValue.serverTimestamp(),
 };
 if (!profileSnap.exists) data.createdAt = FieldValue.serverTimestamp();
 await profileRef.set(data, { merge: true });
-console.log(
-  `${profileSnap.exists ? '~ set   ' : '+ create'} users/${user.uid} ` +
-    `(role hospital → ${hospitalId})`,
-);
+console.log(`${profileSnap.exists ? '~ set   ' : '+ create'} users/${user.uid} (role hospital → ${facilityId})`);
 
 console.log(
-  `\nDone. Sign in as ${email}. Facility hospitals/${hospitalId}, project ` +
+  `\nDone. Sign in as ${email}. Facility hospitals/${facilityId}, project ` +
     `${project}${emulator ? ' (emulator)' : ''}.`,
 );
+console.log('Next: publish custom claims with `npm run set:claims` (same key), then refresh the session.');
 process.exit(0);

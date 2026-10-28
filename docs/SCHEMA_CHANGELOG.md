@@ -148,3 +148,16 @@ Also added: `auditBlocks/_meta`, a reserved head document `{ headSequence,
 headHash, updatedAt }` with no `sequence` field (so the chain queries skip it).
 Appends read it inside a transaction to serialize, replacing the untransactional
 read-then-write that could fork the chain (schema §5, §2.13).
+
+## 2026-10-27 — hospital-creation script corrected
+
+**Origin:** build (F3/F4/F9 integration; naming correction).
+
+**Refs:** D26.
+
+Not a data change. The F9 entry above named `scripts/create-hospital.mjs`, which
+was never present. The merged build has one parameterized script,
+`scripts/create-hospital-account.mjs` (Auth user + `hospitals/{id}` +
+`users/{uid}` with `role: 'hospital'`), with custom claims published separately
+by `scripts/set-claims.mjs`. The earlier `scripts/create-hospital-user.mjs`
+(same job, hardcoded dev values) was removed in the same change.
