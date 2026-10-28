@@ -141,7 +141,9 @@ Legend: **R** = required, **O** = optional/nullable.
 | dateOfBirth | Timestamp | R | |
 | ~~eligibilityInfo~~ | – | – | **Removed from the model of record** (D25). The ERD's field was never implemented and eligibility is computed, not stored |
 | ~~isVerified~~ | – | – | **[DECISION]** Do NOT store. Firebase Auth owns email verification (`user.emailVerified`); a copy would need a writer to stay true. See D5 |
-| status | string | R | `Active \| Suspended \| Removed`. Admin-writable (FR-040); no screen reads it yet (D22) |
+| status | string | R | `Active \| Suspended \| Removed`. Admin-writable (FR-040) |
+| statusReason | string | O | Admin reason recorded when suspending (D26); cleared on reactivate |
+| statusUpdatedAt | Timestamp | O | Set when status changes (D26) |
 | createdAt | Timestamp | R | |
 
 Role/hospital claims: also set Firebase Auth **custom claims** `{ role, hospitalId }` for security rules **[ADDED]**.
@@ -340,6 +342,7 @@ Keep the array sorted by `tierOrder`.
 | processedBy | string | O | `users` id of the admin (ERD has no FK marker. See §9) |
 | requestType | string | R | Suggested: `Access \| Erasure \| Rectification \| Export` |
 | status | string | R | Suggested: `Pending \| InProgress \| Completed \| Rejected` |
+| adminNote | string | O | [ADDED] Admin note/summary of manual export/erasure action (D26) |
 | createdAt | Timestamp | R | |
 | resolvedAt | Timestamp | O | ERD `?` |
 

@@ -29,6 +29,12 @@ export const NAV = [
   { slug: 'reports', screen: 'admin-reports', label: 'Reports', icon: 'chart' },
   { slug: 'audit-trail', screen: 'admin-audit-trail', label: 'Audit Trail', icon: 'file' },
   { slug: 'settings', screen: 'admin-settings', label: 'Settings', icon: 'settings' },
+  {
+    slug: 'profile',
+    screen: 'admin-profile',
+    label: 'Profile',
+    icon: 'user',
+  },
 ]
 function Sidebar() {
   const { pathname } = useLocation()

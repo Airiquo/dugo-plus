@@ -3,17 +3,32 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ---- Claim helpers (D15) -------------------------------------------
+    // ---- Session helpers (D15/D26) --------------------------------------
     // Admin and staff authority comes from Firebase Auth custom claims
     // (`request.auth.token.role`, `.hospitalId`) set by the server, never from
-    // the client-written `users.role` field. Until claims exist (PHASES §10),
-    // these match no session and the admin/staff paths sit closed.
+    // the client-written `users.role` field. Claims are published by
+    // `scripts/set-claims.mjs` (D26).
     function me() {
       return request.auth.uid;
     }
 
-    function signedIn() {
+    // Authenticated but not status-checked: used only where a signed-in owner
+    // must still read their own profile to see the suspension notice.
+    function authenticated() {
       return request.auth != null;
+    }
+
+    // A suspended or removed account loses every authenticated data path
+    // (D26). A missing profile document is "active" so first sign-in and
+    // pre-backfill documents still work; `users` create runs before it exists.
+    function accountActive() {
+      return !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          || !('status' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
+          || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'Active';
+    }
+
+    function signedIn() {
+      return authenticated() && accountActive();
     }
 
     function isAdmin() {
@@ -37,15 +52,12 @@ service cloud.firestore {
       return value in ['', 'O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
     }
 
-    // Account profiles: `users/{uid}` is written once when an account is made
-    // (services/users.js) and read back on every session change to decide which
-    // routes open. Owners touch their own document; admins are claim-based.
-    // The field set is schema §2.1's shape minus `isVerified` (Firebase Auth
-    // owns email verification, D5); `status` and `hospitalId` are written but
-    // nothing reads them yet (D22).
+    // Account profiles: `users/{uid}` (D16/D22). The owner and an admin claim
+    // may read; the owner's read is deliberately status-blind so a suspended
+    // session can show the notice, while every other path closes (D26).
     match /users/{uid} {
-      // The owner, and an admin claim, may read the profile.
-      allow read: if isAdmin() || (signedIn() && me() == uid);
+      // The owner (even suspended), and an admin claim, may read the profile.
+      allow read: if isAdmin() || (authenticated() && me() == uid);
 
       // Self-registration is donor-only (D20) and the rules enforce it: a
       // self-creating owner may only write `role: 'donor'`, so a client cannot
@@ -75,7 +87,11 @@ service cloud.firestore {
       // would restart the deferral clock and defeat FR-031.
       allow update: if isAdmin()
                     || (
-                         signedIn() && me() == uid
+                         authenticated() && me() == uid
+                         // A suspended account cannot write its own profile
+                         // (D26); reading it is still allowed so the blocked
+                         // screen can name the reason.
+                         && (!('status' in resource.data) || resource.data.status == 'Active')
                          && request.resource.data.role == resource.data.role
                          && request.resource.data.fullName is string
                          && request.resource.data.email is string
@@ -102,6 +118,10 @@ service cloud.firestore {
                          // Status is an admin decision, not a self-service field.
                          && (!('status' in request.resource.data)
                              || request.resource.data.status == resource.data.status)
+                         && (!('statusReason' in request.resource.data)
+                             || request.resource.data.statusReason == resource.data.statusReason)
+                         && (!('statusUpdatedAt' in request.resource.data)
+                             || request.resource.data.statusUpdatedAt == resource.data.statusUpdatedAt)
                          && (!('hospitalId' in request.resource.data)
                              || request.resource.data.hospitalId == resource.data.hospitalId)
                          && ('lastDonationAt' in request.resource.data)

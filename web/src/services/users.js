@@ -1,4 +1,4 @@
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { geohash, isCoordinate } from '../utils/geohash'
 
@@ -230,7 +230,64 @@ export async function readProfile(uid) {
     city: text(data.city),
     hospitalId: text(data.hospitalId),
     status: STATUSES.includes(data.status) ? data.status : 'Active',
+    statusReason: text(data.statusReason),
+    statusUpdatedAt: asDate(data.statusUpdatedAt),
     updatedAt: asDate(data.updatedAt),
   }
+}
+
+/**
+ * List accounts for admin management (FR-040). Requires admin claim.
+ * @returns {Promise<Array<Profile & {id:string}>>}
+ */
+export async function listUsers() {
+  requireDb()
+  const snap = await getDocs(collection(db, 'users'))
+  const out = []
+  snap.forEach((docSnap) => {
+    const data = docSnap.data() ?? {}
+    const latitude = Number(data.latitude)
+    const longitude = Number(data.longitude)
+    out.push({
+      id: docSnap.id,
+      role: ROLES.includes(data.role) ? data.role : null,
+      fullName: text(data.fullName),
+      email: text(data.email),
+      phoneNumber: text(data.phoneNumber),
+      bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : '',
+      dateOfBirth: asDate(data.dateOfBirth),
+      lastDonationAt: asDate(data.lastDonationAt),
+      latitude: isCoordinate(latitude, longitude) ? latitude : 0,
+      longitude: isCoordinate(latitude, longitude) ? longitude : 0,
+      geohash: text(data.geohash),
+      city: text(data.city),
+      hospitalId: text(data.hospitalId),
+      status: STATUSES.includes(data.status) ? data.status : 'Active',
+      statusReason: text(data.statusReason),
+      statusUpdatedAt: asDate(data.statusUpdatedAt),
+      updatedAt: asDate(data.updatedAt),
+    })
+  })
+  return out
+}
+
+/**
+ * Update account status (FR-040). Admin claim required (D26).
+ * @param {string} uid
+ * @param {{status: 'Active'|'Suspended'|'Removed', statusReason?: string}} changes
+ */
+export async function updateUserStatus(uid, changes) {
+  requireDb()
+  const data = {
+    status: changes.status,
+    statusUpdatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  }
+  if (typeof changes.statusReason === 'string') {
+    data.statusReason = changes.statusReason.trim()
+  } else if (changes.status === 'Active') {
+    data.statusReason = ''
+  }
+  await updateDoc(doc(db, 'users', uid), data)
 }
 

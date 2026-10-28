@@ -99,6 +99,14 @@ write containing an `eligibility` key — that guard's name is the key it blocks
 not a field. The placeholder was removed from §2.1 and §9 marked answered; a
 screening record, if ever needed, gets a purpose-designed field in its feature.
 
+## 2026-10-27 — `users` status metadata and `dataSubjectRequests.adminNote` (F9)
+
+**Origin:** build.
+
+**Refs:** D26, D23. Feature: F9.
+
+Added `users.statusReason` (string, optional) and `users.statusUpdatedAt` (Timestamp, optional) for admin suspension/reactivation (D26). Added `dataSubjectRequests.adminNote` (string, optional) for manual export/erasure notes recorded by the admin queue. `firestore.rules` allow admins to update `status`/`statusReason`/`statusUpdatedAt` on `users` and update `dataSubjectRequests` fully (admin-only). Server script for hospital creation (`scripts/create-hospital.mjs`) is specified in D26 but not present in this checkout; accounts UI will create/edit facility records and suspend/reactivate (D26).
+
 ## 2026-10-22 — framing: the schema is the model of record
 
 **Origin:** build (documentation of the process the repo already followed).
