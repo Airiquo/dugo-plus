@@ -20,7 +20,7 @@ import { Icon, GoogleMark, FieldError } from '../../components'
  * The donor profile (`users/{uid}`, role `donor`) is written right after the
  * account is created (`hooks/useAuth.jsx`), and a display name is set from the
  * Name field. If that write fails the account still exists, so the screen says
- * so and points at sign-in — signing in again auto-provisions the profile.
+ * so and offers a full reload — the session then auto-provisions the profile.
  *
  * Every field is checked on submit and each message renders under its own input,
  * so one submission answers the whole form. The password rule is the same
@@ -44,7 +44,7 @@ export default function Register() {
   const [profileMissing, setProfileMissing] = useState(false)
 
   // Already signed in — go straight to where this account type lives (`homeFor`
-  // sends admins on to the dashboard, donor accounts to the profile). `busy`
+  // sends admins on to the dashboard, donor accounts to /home). `busy`
   // keeps this form mounted while its own sign-up is in flight, so the redirect
   // cannot overtake `updateProfile` (which would briefly greet the user by
   // email prefix) and so a failure still has a form to report itself on;
@@ -156,7 +156,7 @@ export default function Register() {
           <FieldError id="register-password-error">{errors.password}</FieldError>
         </label>
         <p className="pub-fine">
-          At least {PASSWORD_MIN} characters, with a letter and a number.
+          At least {PASSWORD_MIN} characters, with upper and lower case letters and a number.
         </p>
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">
@@ -164,7 +164,9 @@ export default function Register() {
             {profileMissing && (
               <>
                 {' '}
-                <Link to="/login">Sign in again to finish setting up.</Link>
+                <Link to="/register" reloadDocument>
+                  Reload the page to finish setting up.
+                </Link>
               </>
             )}
           </p>

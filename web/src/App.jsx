@@ -1,4 +1,4 @@
-import { Outlet, Route, Routes } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from './hooks/useTheme'
 import { AuthProvider } from './hooks/useAuth'
 import RequireAuth from './layout/RequireAuth'
@@ -17,6 +17,7 @@ import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
 import AuditTrail from './pages/admin/AuditTrail'
 import Profile from './pages/donor/Profile'
+import Requests from './pages/donor/Requests'
 import Alerts from './pages/donor/Alerts'
 import HospitalRequests from './pages/hospital/Requests'
 import NewRequest from './pages/hospital/NewRequest'
@@ -80,12 +81,26 @@ export default function App() {
           {/* Donor surface (FR-04). Donor accounts have no AppShell, so this
               sits behind the session + account-type gates only. */}
           <Route
-            path="/donor/profile"
+            path="/home"
             element={
               <RequireAuth>
                 <RequireVerified>
                   <RequireRole roles={['donor']}>
                     <Profile />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          />
+          <Route path="/donor/profile" element={<Navigate to="/home" replace />} />
+          {/* Donor blood requests (FR-005/006/022/023/028/029/030/038). */}
+          <Route
+            path="/donor/requests"
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['donor']}>
+                    <Requests />
                   </RequireRole>
                 </RequireVerified>
               </RequireAuth>

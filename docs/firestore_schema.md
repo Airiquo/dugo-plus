@@ -659,3 +659,5 @@ interface AuditBlock {
 8. **Radius_Tiler** is spelled "Tiler" in the ERD; treated as "Tiers".
 9. **Embedding vs. collection** for radius tiers and guidelines: chosen for read efficiency. If admins need to edit tiers individually with history, make them subcollections instead.
 10. **Privacy**: this stores health-related personal data and has a Data Subject Request table, so a data-protection law (e.g. GDPR / Philippine Data Privacy Act) likely applies. Erasure requests must be reconciled with append-only audit blocks (hence the hashed refs).
+
+donorLocations/{donorId}                             [ADDED] donor coordinate mirror for staff (D28)

@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
+import { useAuth } from '../../hooks/useAuth'
+import { homeFor } from '../../services/users'
 import { LandingBody } from './LandingBody'
 
 /**
@@ -16,6 +18,9 @@ import { LandingBody } from './LandingBody'
  *   donor account) opens the donor-only register screen; "Become a partner"
  *   opens the partnership intake at `/partner` — facilities do not self-
  *   sign-up (D20/D21).
+ *
+ * Signed-in users are routed to their role-based home immediately so reopening
+ * the site or hitting back to `/` does not drop them on the public landing page.
  */
 const CTA_LINKS = [
   ['.pub-bigcta-actions .pub-btn-light', '/register'],
@@ -25,6 +30,7 @@ const CTA_LINKS = [
 
 export default function Landing() {
   const { theme } = useTheme()
+  const { user, loading, role, roleLoading } = useAuth()
   const ref = useRef(null)
   const navigate = useNavigate()
 
@@ -40,6 +46,19 @@ export default function Landing() {
     el.addEventListener('click', onClick)
     return () => el.removeEventListener('click', onClick)
   }, [navigate])
+
+  if (loading || roleLoading) {
+    return (
+      <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>
+        <p className="pub-msg">Loading…</p>
+      </div>
+    )
+  }
+
+  if (user) {
+    if (!user.emailVerified) return <Navigate to="/verify-email" replace />
+    return <Navigate to={homeFor(role)} replace />
+  }
 
   return <LandingBody theme={theme} ref={ref} />
 }

@@ -1,13 +1,15 @@
 /**
- * Blood requests (`bloodRequests`, schema §2.4) as the hospital area reads and
- * writes them.
+ * Blood requests (`bloodRequests`, schema §2.4).
  *
- * The list is scoped to one facility: `bloodRequests.hospitalId` is stamped at
- * creation from the account's `users.hospitalId`, and the denormalized
- * `hospitalName`/`latitude`/`longitude`/`geohash` are copied from
+ * Hospital area — the list is scoped to one facility: `bloodRequests.hospitalId`
+ * is stamped at creation from the account's `users.hospitalId`, and the
+ * denormalized `hospitalName`/`latitude`/`longitude`/`geohash` are copied from
  * `hospitals/{id}` so the matcher's radius query needs no extra read. Routing a
- * request to donors is the matching Worker's job (`services/matching.js`), not
- * this module's.
+ * request to donors is the matching Worker's job (`services/matching.js`).
+ *
+ * Donor area — `getBloodRequest` reads one request for the donor's map view. The
+ * recipient's city and coordinates are denormalized onto the request at creation
+ * because a donor cannot read `users/{recipientId}` (D27).
  *
  * Codes are the values the stylesheet targets (`data-status`, `data-priority`,
  * `data-blood-type`, `data-component`); labels are display text only.
@@ -30,6 +32,29 @@ import { toDate } from '../utils/eligibility'
 import { isComponent } from '../utils/matching'
 
 const NOT_CONFIGURED = 'Firestore is not available. Copy web/.env.example to web/.env.local.'
+
+/** Firestore's local copy of the request; throws when the app is unconfigured. */
+function requireDb() {
+  if (!db) throw new Error(NOT_CONFIGURED)
+}
+
+/** A trimmed string, or '' for anything that is not a string. */
+function text(value) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+/** A finite number, or `fallback`. Used for the donor map read. */
+function num(value, fallback = 0) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+/** A finite number, or null when absent. Used for the donor map read. */
+function maybeNum(value) {
+  if (value == null) return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
 
 /** `.chip[data-status]` values, in the order the filters list them. */
 export const REQUEST_STATUSES = ['urgent', 'collecting', 'matched', 'fulfilled', 'cancelled']
@@ -59,16 +84,6 @@ export const COMPONENTS = [
  */
 export function componentLabel(value, field = 'short') {
   return COMPONENTS.find((c) => c.value === value)?.[field] ?? value
-}
-
-/** Firestore's local copy of the request; throws when the app is unconfigured. */
-function requireDb() {
-  if (!db) throw new Error(NOT_CONFIGURED)
-}
-
-/** A trimmed string, or '' for anything that is not a string. */
-function text(value) {
-  return typeof value === 'string' ? value.trim() : ''
 }
 
 /**
@@ -119,7 +134,7 @@ function requestFromDoc(snapshot) {
 /**
  * A facility's requests, newest first, optionally narrowed to a status set.
  *
- * The single status `in` filter plus the `createdAt` sort is served by the
+ * The status `in` filter plus the `createdAt` sort is served by the
  * `hospitalId + status + createdAt` composite index (schema §4).
  *
  * @param {string} hospitalId
@@ -187,4 +202,37 @@ export async function createRequest({ hospital, values, createdBy = null }) {
     createdAt: serverTimestamp(),
   })
   return ref.id
+}
+
+/**
+ * Read one request for the donor map view (F4).
+ *
+ * @param {string} requestId
+ * @returns {Promise<object|null>}
+ */
+export async function getBloodRequest(requestId) {
+  requireDb()
+  if (!requestId) return null
+  const snap = await getDoc(doc(db, 'bloodRequests', requestId))
+  if (!snap.exists()) return null
+  const data = snap.data() ?? {}
+  return {
+    id: snap.id,
+    recipientId: text(data.recipientId) || null,
+    recipientCity: text(data.recipientCity),
+    recipientLatitude: maybeNum(data.recipientLatitude),
+    recipientLongitude: maybeNum(data.recipientLongitude),
+    hospitalId: text(data.hospitalId),
+    createdBy: text(data.createdBy) || null,
+    bloodType: text(data.bloodType),
+    component: text(data.component),
+    quantity: num(data.quantity),
+    urgencyLevel: text(data.urgencyLevel),
+    status: text(data.status),
+    createdAt: data.createdAt ?? null,
+    hospitalName: text(data.hospitalName),
+    latitude: num(data.latitude),
+    longitude: num(data.longitude),
+    geohash: text(data.geohash),
+  }
 }

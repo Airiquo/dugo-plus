@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 import { readProfile, saveProfile, BLOOD_TYPES, roleLabel } from '../../services/users'
+import { saveDonorLocation } from '../../services/donorLocations'
 import { eligibilityFor, toDate } from '../../utils/eligibility'
 import { validateProfile } from '../../utils/validate'
 import { FieldError, Badge, Icon, PubThemeToggle } from '../../components'
@@ -185,6 +186,18 @@ export default function Profile() {
             }
           : {}),
       })
+      // Keep a thin mirror for the hospital's nearby-donor view (D28); the
+      // donor's own `users` document stays owner+admin (NFR-11).
+      try {
+        await saveDonorLocation(user.uid, {
+          latitude: form.coordinates?.lat,
+          longitude: form.coordinates?.lng,
+          city: form.city,
+          bloodType: form.bloodType,
+        })
+      } catch {
+        // best effort — profile save already succeeded
+      }
       setSaved(form)
       setNote('Profile saved.')
     } catch {
@@ -208,7 +221,7 @@ export default function Profile() {
           </span>
         </Link>
         <nav aria-label="Sections">
-          <Link to="/welcome">Home</Link>
+          <Link to="/home">Home</Link>
         </nav>
         <div className="pub-nav-end">
           <PubThemeToggle />
@@ -376,6 +389,14 @@ export default function Profile() {
               Calculated from your date of birth and donations. A facility confirms eligibility at
               the donation itself.
             </p>
+          </div>
+
+          <div className="profile-section">
+            <h4 className="profile-section-h">Blood requests</h4>
+            <Link id="nav-donor-requests" className="pub-btn" to="/donor/requests" style={{ marginTop: 8 }}>
+              View blood requests
+              <Icon name="arrow-right" size={14} />
+            </Link>
           </div>
 
           {message && (

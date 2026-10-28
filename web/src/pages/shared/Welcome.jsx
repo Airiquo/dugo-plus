@@ -37,7 +37,7 @@ export default function Welcome() {
   // landing page rather than looping between guards.
   if (!role) return <Navigate to="/" replace />
   if (role === 'admin') return <Navigate to="/admin/dashboard" replace />
-  if (role === 'donor') return <Navigate to="/donor/profile" replace />
+  if (role === 'donor') return <Navigate to="/home" replace />
   if (role === 'hospital') return <Navigate to="/hospital/requests" replace />
 
   const label = roleLabel(role)

@@ -26,7 +26,7 @@ numbers rather than trusting this section.
 
 | Phase | Covers | Status |
 | --- | --- | --- |
-| **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13 done; NFR-14 deferred, NFR-27 partially done |
+| **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | in progress (F3: hospital posts + lists its requests; status/manage deferred on claims) |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
 | **P4** | Hospital dashboard, inventory, screening | not started |
@@ -66,8 +66,7 @@ For any phase:
   D8/D10 (error logging split, client-written).
 - **Confirmed working:** the whole verification loop was exercised by hand on
   2026-10-20: mail delivered, the link verified, the gate lifted, resend worked.
-- **Still open in P1:** NFR-14 (idle session timeout, deferred), and the Cloud
-  Function half of NFR-27.
+- **Still open in P1:** NFR-14 (idle session timeout, deferred).
 
 ## 4. The feature list
 
@@ -84,7 +83,7 @@ Where/evidence points at files, it does not repeat the decision.
 | ID | Feature | Phase(s) | Rows |
 | --- | --- | --- | --- |
 | F1 | Donor and hospital account, profile, sign-in | P1 | FR-01, FR-02, FR-03, FR-04, FR-012, FR-046, FR-048 |
-| F2 | Auth hardening: verification gate, password policy, error logging | P1 | NFR-12, NFR-13, NFR-27 (app half) |
+| F2 | Auth hardening: verification gate, password policy, error logging | P1 | NFR-12, NFR-13, NFR-27 |
 | F3 | Hospital posts and manages blood requests | P2 | FR-011, FR-016, FR-017, FR-037 (list half), FR-021 (form half) |
 | F4 | Donor browses and responds to compatible requests | P3 | FR-005, FR-006, FR-028, FR-029, FR-030, FR-022, FR-023, FR-038 (collect half) |
 | F5 | Donor history, rewards and health tracker | P3 | FR-008, FR-009, FR-010 |
@@ -282,8 +281,8 @@ appear in `docs/REQUIREMENTS.md`; that table tracks `main`.
 There is no test suite. Until there is, run these four checks by hand before
 merging anything that touches `services/`, `lib/`, or `firestore.rules`:
 
-1. Sign in with email/password → lands on `/donor/profile`.
-2. Reload `/donor/profile` → saved values appear (proves reads still work).
+1. Sign in with email/password → lands on `/home`.
+2. Reload `/home` → saved values appear (proves reads still work).
 3. Change a field, save, reload → the change persisted (proves writes still work).
 4. Sign out, sign in as an unverified account → still held at `/verify-email`
    (proves the gate survived).
@@ -350,8 +349,6 @@ is cancelled. An assumption is never recorded in place of an answer.
 
 - **NFR-14, idle session timeout**: deferred (D9). No timeout value, no policy
   on what counts as activity, no decision on whether it applies to all roles.
-- **NFR-27**: client-written to `errorLogs` (create-only, open to signed-out
-  writers by design — D17). No Cloud Function planned.
 - **`firestore.rules` + `firestore.indexes.json` deployed 2026-10-21.** The
   15-collection ruleset went live after the owner reviewed the diff
   (`firebase deploy --only firestore:rules,firestore:indexes --project
@@ -457,7 +454,7 @@ is cancelled. An assumption is never recorded in place of an answer.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
 - **No app test suite**: recorded as a gap, not scheduled. The exception is the
-  Firestore rules — `firestore.rules.test.mjs` runs ~100 asserts in the
+  Firestore rules — `firestore.rules.test.mjs` runs 106 asserts in the
   emulator, locally (`npm run test:rules`) and in CI (D19). The React app has
   no tests; the smoke list below is its check.
 - **The matching Worker's service account needs `roles/datastore.user`.** The
