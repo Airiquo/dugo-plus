@@ -31,16 +31,19 @@ service cloud.firestore {
       return authenticated() && accountActive();
     }
 
+    // `.get(key, default)` rather than `.key`: a token without the claim would
+    // otherwise make the whole rule error ("Property role is undefined"),
+    // denying paths that merely checked the claim as one alternative.
     function isAdmin() {
-      return signedIn() && request.auth.token.role == 'admin';
+      return signedIn() && request.auth.token.get('role', '') == 'admin';
     }
 
     function isStaff() {
-      return signedIn() && request.auth.token.role == 'staff';
+      return signedIn() && request.auth.token.get('role', '') == 'staff';
     }
 
     function isStaffOf(hospitalId) {
-      return isStaff() && request.auth.token.hospitalId == hospitalId;
+      return isStaff() && request.auth.token.get('hospitalId', '') == hospitalId;
     }
 
     function isBloodType(value) {
@@ -230,13 +233,20 @@ service cloud.firestore {
                     && request.resource.data.geohash is string
                     && request.resource.data.createdAt is timestamp
                     // Recipient location is denormalized here because a donor
-                    // cannot read `users/{recipientId}` (D27).
+                    // cannot read `users/{recipientId}` (D27). It is optional:
+                    // a request posted before the recipient's location is known
+                    // just omits it, so absence is allowed.
                     && (
-                         request.resource.data.recipientCity == null
+                         !('recipientCity' in request.resource.data)
+                         || request.resource.data.recipientCity == null
                          || request.resource.data.recipientCity is string
                        )
                     && (
                          (
+                              !('recipientLatitude' in request.resource.data)
+                              && !('recipientLongitude' in request.resource.data)
+                         )
+                         || (
                               request.resource.data.recipientLatitude == null
                               && request.resource.data.recipientLongitude == null
                          )
@@ -297,7 +307,8 @@ service cloud.firestore {
                               || request.resource.data.acknowledgedAt is timestamp
                             )
                          && (
-                              request.resource.data.donorLatitude == null
+                              !('donorLatitude' in request.resource.data)
+                              || request.resource.data.donorLatitude == null
                               || (
                                    request.resource.data.donorLatitude is number
                                    && request.resource.data.donorLongitude is number

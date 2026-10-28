@@ -84,6 +84,7 @@ donations/{matchId}                                  ← doc ID = matchId (enfor
 rewardTransactions/{donationId}                      ← doc ID = donationId (enforces UK donation_id, 1:1)
 systemConfig/global                                  ← single doc in practice; the rules allow any configId
 dataSubjectRequests/{dsrId}
+donorLocations/{donorId}                             [ADDED] donor coordinate mirror for staff (D28)
 auditBlocks/{blockId}                                (server-only, append-only)
 errorLogs/{logId}                                    [ADDED] client-written, open-create (D8, D10, D17)
 ```
@@ -111,6 +112,7 @@ errorLogs/{logId}                                    [ADDED] client-written, ope
 | Data_Subject_Request | `dataSubjectRequests/{id}` | Top-level |
 | Audit_Block | `auditBlocks/{id}` | Top-level, server-only |
 | *(no ERD table)* | `errorLogs/{id}` | [ADDED] Client error records, create-only (D8, D10, D17) |
+| *(no ERD table)* | `donorLocations/{id}` | [ADDED] Donor coordinate mirror for the nearby-donor view (D28) |
 
 ---
 
@@ -370,6 +372,22 @@ Hash-chained audit log. **Never update or delete.**
 > appends cannot fork the chain (schema §5).
 
 ---
+
+### 2.14 `donorLocations/{donorId}` — [ADDED] (D28)
+
+A thin coordinate mirror for the hospital's nearby-donor view (FR-023). Doc ID
+is the donor's uid; written by the donor when they save a profile that has
+coordinates, read by staff of the matching hospital and admins.
+
+| Field | Type | R/O | Notes |
+|---|---|---|---|
+| donorId | string | R | = doc ID; FK → `users` |
+| latitude | number | R | |
+| longitude | number | R | |
+| city | string | O | |
+| geohash | string | O | |
+| bloodType | string | O | so staff can filter without reading `users` |
+| updatedAt | Timestamp | R | |
 
 ## 3. Relationships (from ERD)
 
@@ -662,5 +680,3 @@ interface AuditBlock {
 8. **Radius_Tiler** is spelled "Tiler" in the ERD; treated as "Tiers".
 9. **Embedding vs. collection** for radius tiers and guidelines: chosen for read efficiency. If admins need to edit tiers individually with history, make them subcollections instead.
 10. **Privacy**: this stores health-related personal data and has a Data Subject Request table, so a data-protection law (e.g. GDPR / Philippine Data Privacy Act) likely applies. Erasure requests must be reconciled with append-only audit blocks (hence the hashed refs).
-
-donorLocations/{donorId}                             [ADDED] donor coordinate mirror for staff (D28)
