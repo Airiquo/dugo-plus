@@ -12,30 +12,49 @@ import { functions } from '../lib/firebase'
  */
 
 /**
+ * What the page says when a callable has no deployment behind it. The Functions
+ * SDK reports this as `internal [0]` (see `accountServiceError`), so both codes
+ * share one sentence and one fallback.
+ */
+const NOT_DEPLOYED =
+  'The account service is not deployed for this project, so nothing was created. ' +
+  'Deploying it needs the Blaze plan; until then an administrator can create the ' +
+  'hospital account with "npm run create:hospital" from the repo.'
+
+/**
  * @param {unknown} error
  * @returns {string} a sentence suitable for the page
  */
 export function accountServiceError(error) {
-  const code = error?.code ?? ''
+  const code = typeof error?.code === 'string' ? error.code : ''
+  const raw = typeof error?.message === 'string' ? error.message : ''
+  // The SDK appends `[httpStatus]` to every message. `[0]` means the request
+  // produced no readable response: a callable that is not deployed answers 404
+  // without CORS headers, which the browser sees as a failed fetch.
+  const noResponse = /\[0\]$/.test(raw)
+  const message = raw.replace(/\s\[\d+\]$/, '')
+
   switch (code) {
     case 'functions/not-found':
     case 'functions/unimplemented':
-      return 'The account service is not deployed for this project. An administrator must deploy the Cloud Functions (Blaze plan) before hospital accounts can be created here.'
+      return NOT_DEPLOYED
     case 'functions/unavailable':
       return 'The account service could not be reached. Check your connection and try again.'
     case 'functions/permission-denied':
-      return error?.message || 'Only a signed-in administrator can do that.'
+      return message || 'Only a signed-in administrator can do that.'
     case 'functions/unauthenticated':
       return 'Your session has expired. Sign in again.'
     case 'functions/invalid-argument':
     case 'functions/failed-precondition':
-      return error?.message || 'Check the values and try again.'
+      return message || 'Check the values and try again.'
     case 'functions/already-exists':
-      return error?.message || 'An account or facility with those details already exists.'
+      return message || 'An account or facility with those details already exists.'
     case 'functions/internal':
-      return error?.message || 'The account service failed. Nothing was changed.'
+      return noResponse
+        ? NOT_DEPLOYED
+        : message || 'The account service failed before it could say why. Nothing was created.'
     default:
-      return error?.message || 'That did not work. Check your connection and try again.'
+      return message || 'That did not work. Check your connection and try again.'
   }
 }
 
