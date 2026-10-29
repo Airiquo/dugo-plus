@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { PubThemeToggle } from '../../components'
+import { PRIVACY_NOTICE_VERSION } from '../../utils/privacy'
 
 /**
  * Public privacy and consent notice (FR-019).
@@ -98,11 +99,13 @@ const SECTIONS = [
     title: 'Consent',
     body: (
       <>
-        Creating an account means you agree to this notice and to Dugo+ storing the fields above for
-        the purposes listed. Blood type and donation history are health-related, so we ask for your
-        consent before a hospital can use them to contact you. You can withdraw consent or ask for
-        erasure at any time through the request flow; withdrawing does not undo processing that
-        already happened.
+        Registration asks you to tick a box accepting this notice before a Dugo+ account is
+        created, and the acceptance is recorded on your profile with the notice version
+        ({PRIVACY_NOTICE_VERSION}) and the time. Creating an account means you agree to Dugo+
+        storing the fields above for the purposes listed. Blood type and donation history are
+        health-related, so we ask for your consent before a hospital can use them to contact you.
+        You can withdraw consent or ask for erasure at any time through the request flow;
+        withdrawing does not undo processing that already happened.
       </>
     ),
   },
@@ -152,8 +155,8 @@ export default function PrivacyPolicy() {
             <p className="pub-kicker">Dugo+ · privacy</p>
             <h3>Privacy &amp; consent notice</h3>
             <p className="pub-muted">
-              Last updated 29 October 2026. This notice covers the Dugo+ web app and its donor,
-              hospital and administrator accounts.
+              Last updated 29 October 2026 (version {PRIVACY_NOTICE_VERSION}). This notice covers
+              the Dugo+ web app and its donor, hospital and administrator accounts.
             </p>
           </header>
 

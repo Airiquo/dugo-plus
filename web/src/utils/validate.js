@@ -33,14 +33,19 @@ export function validateLogin({ email, password } = {}) {
   return errors
 }
 
+/** Shown when registration is attempted without accepting the privacy notice. */
+export const CONSENT_REQUIRED =
+  'Accept the Privacy & consent notice to create an account.'
+
 /** Registration: name, email, and the shared password policy (NFR-13). */
-export function validateRegister({ name, email, password } = {}) {
+export function validateRegister({ name, email, password, consent } = {}) {
   const errors = {}
   if (!(name ?? '').trim()) errors.name = 'Enter your name.'
   const emailIssue = emailProblem(email)
   if (emailIssue) errors.email = emailIssue
   const passwordIssue = passwordProblem(password ?? '', (email ?? '').trim())
   if (passwordIssue) errors.password = passwordIssue
+  if (!consent) errors.consent = CONSENT_REQUIRED
   return errors
 }
 

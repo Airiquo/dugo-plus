@@ -512,6 +512,14 @@ export default function Accounts() {
                 <dd>{editing.email || '—'}</dd>
               </div>
               <div>
+                <dt>Privacy consent</dt>
+                <dd>
+                  {editing.privacyConsentAt
+                    ? `${dateLabel(editing.privacyConsentAt)} · v${editing.privacyNoticeVersion}`
+                    : 'Not recorded'}
+                </dd>
+              </div>
+              <div>
                 <dt>Phone</dt>
                 <dd>{editing.phoneNumber || '—'}</dd>
               </div>

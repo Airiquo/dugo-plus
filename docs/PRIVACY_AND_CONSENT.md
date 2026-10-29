@@ -34,6 +34,7 @@ registration. It covers:
 | A suspended/removed account loses every protected path | `accountActive()` in `firestore.rules`; `Blocked.jsx` |
 | Erasure scrubs the identifying fields | `anonymiseUser()` in `web/src/services/users.js` |
 | The Auth sign-in record is deleted as part of erasure | `deleteAuthAccount` in `functions/index.js` (not deployed in this checkout), called from `/admin/accounts` |
+| Registration acceptance is recorded with the notice version | required checkbox in `web/src/pages/public/Register.jsx`; `writeProfile()` stores `privacyConsentAt` + `privacyNoticeVersion`; owner-frozen in `firestore.rules`; shown in `/admin/accounts` |
 | Requests are owner-create, admin-process | `firestore.rules` `match /dataSubjectRequests/{dsrId}` |
 | No service-account key in the web app | privileged work is `functions/` or `scripts/*.mjs` with a key outside the repo |
 
@@ -47,8 +48,11 @@ registration. It covers:
    for error logs, closed requests or removed profiles.
 4. **Encryption is Google's platform default.** There is no field-level
    encryption; the notice says so by not claiming more.
-5. **Consent evidence** is the registration notice plus `donorConsents`
-   documents for hospital access; there is no separate consent checkbox with a
-   version stamp.
+5. **The consent record is not a copy of the notice.** The profile stores the
+   acceptance time and a version string (`2026-10-29`); the notice text itself is
+   only in the app. Keep the previous notice text when the wording changes if a
+   signed copy is ever needed. The freeze in the rules is written but not
+   deployed, and a first Google sign-in from `/login` auto-provisions without a
+   recorded acceptance (PHASES §10).
 6. **Children.** The register screen has no age gate; the notice says 18+
    nowhere explicit yet. Owner decision needed.

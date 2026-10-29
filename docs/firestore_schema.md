@@ -144,9 +144,17 @@ Legend: **R** = required, **O** = optional/nullable.
 | status | string | R | `Active \| Suspended \| Removed`. Admin-writable (FR-040) |
 | statusReason | string | O | Admin reason recorded when suspending (D26); cleared on reactivate |
 | statusUpdatedAt | Timestamp | O | Set when status changes (D26) |
+| privacyConsentAt | Timestamp | O | Server time the privacy notice was accepted at registration (D28); owner-frozen |
+| privacyNoticeVersion | string | O | Version of the `/privacy` notice accepted, e.g. `2026-10-29` (D28); owner-frozen |
 | createdAt | Timestamp | R | |
 
 Role/hospital claims: also set Firebase Auth **custom claims** `{ role, hospitalId }` for security rules **[ADDED]**.
+
+> Note: `privacyConsentAt` / `privacyNoticeVersion` are optional because accounts
+> provisioned outside registration (a first Google sign-in, hospital accounts
+> made by the team) have no recorded acceptance. The rules type-check them and
+> freeze both presence and value for the owner, so the browser cannot rewrite or
+> remove an acceptance.
 
 > Note: `address` is deliberately **not** collected on a donor profile (D22), so it is
 > not part of this shape even though the ERD implies a postal address.

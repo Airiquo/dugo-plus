@@ -4,7 +4,8 @@ import { useAuth } from '../../hooks/useAuth'
 import { authErrorDetail } from '../../services/auth'
 import { homeFor } from '../../services/users'
 import { PASSWORD_MIN } from '../../utils/password'
-import { validateRegister } from '../../utils/validate'
+import { PRIVACY_NOTICE_VERSION } from '../../utils/privacy'
+import { CONSENT_REQUIRED, validateRegister } from '../../utils/validate'
 import AuthLayout from '../../layout/AuthLayout'
 import { Icon, GoogleMark, FieldError } from '../../components'
 
@@ -35,6 +36,9 @@ export default function Register() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  // Required before either account-creation path runs; the acceptance is
+  // stored on the profile (`writeProfile`, `PRIVACY_NOTICE_VERSION`).
+  const [consent, setConsent] = useState(false)
   const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
@@ -84,11 +88,22 @@ export default function Register() {
   }
 
   const submit = () => {
-    const found = validateRegister({ name, email, password })
+    const found = validateRegister({ name, email, password, consent })
     setErrors(found)
     setMessage('')
     if (Object.keys(found).length) return
-    run(() => signUp(name.trim(), email.trim(), password))
+    run(() => signUp(name.trim(), email.trim(), password, PRIVACY_NOTICE_VERSION))
+  }
+
+  // Google creates an account on first use too, so the acceptance gates it
+  // exactly like the form. Without it the profile would have no consent record.
+  const submitGoogle = () => {
+    if (!consent) {
+      setMessage('')
+      setErrors({ consent: CONSENT_REQUIRED })
+      return
+    }
+    run(() => signInWithGoogle(PRIVACY_NOTICE_VERSION))
   }
 
   return (
@@ -158,6 +173,37 @@ export default function Register() {
         <p className="pub-fine">
           At least {PASSWORD_MIN} characters, with a letter and a number.
         </p>
+        <div className="pub-consent">
+          <input
+            id="register-consent"
+            type="checkbox"
+            checked={consent}
+            aria-invalid={Boolean(errors.consent) || undefined}
+            aria-describedby={errors.consent ? 'register-consent-error' : undefined}
+            onChange={(event) => {
+              setConsent(event.target.checked)
+              if (errors.consent) setErrors((prev) => ({ ...prev, consent: '' }))
+            }}
+          />
+          <div className="pub-consent-copy">
+            <label className="pub-consent-main" htmlFor="register-consent">
+              <span className="pub-consent-box" aria-hidden="true" />
+              <span className="pub-consent-text">
+                I accept the Privacy &amp; consent notice, including how my data is
+                stored and used.
+              </span>
+            </label>
+            <Link
+              className="pub-consent-link"
+              to="/privacy"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Read the notice<span className="sr-only"> (opens in a new tab)</span>
+            </Link>
+          </div>
+        </div>
+        <FieldError id="register-consent-error">{errors.consent}</FieldError>
         {message && (
           <p className="pub-msg" data-kind="error" role="alert">
             {message}
@@ -169,9 +215,6 @@ export default function Register() {
             )}
           </p>
         )}
-        <p className="pub-fine">
-          By creating an account you agree to the <Link to="/privacy">Privacy &amp; consent notice</Link>.
-        </p>
         <button className="pub-btn pub-btn-wide" type="submit" disabled={busy}>
           {busy ? 'Creating account…' : 'Create account'}
           <Icon name="arrow-right" size={14} />
@@ -184,7 +227,7 @@ export default function Register() {
           className="pub-btn pub-btn-ghost pub-btn-wide"
           type="button"
           disabled={busy}
-          onClick={() => run(() => signInWithGoogle())}
+          onClick={submitGoogle}
         >
           <GoogleMark />
           Continue with Google

@@ -74,6 +74,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   // a profile of its own so the self-update path is covered.
   await setDoc(doc(f, 'users/erin'), { role: 'donor', fullName: 'Erin E.', email: 'erin@dugo.ph', status: 'Active', createdAt: new Date() });
   await setDoc(doc(f, 'users/henry'), { role: 'donor', fullName: 'Henry H.', email: 'henry@dugo.ph', status: 'Removed', statusReason: 'DSR erasure', createdAt: new Date() });
+  await setDoc(doc(f, 'users/ivy'), { role: 'donor', fullName: 'Ivy I.', email: 'ivy@dugo.ph', privacyConsentAt: new Date('2026-10-29T09:00:00Z'), privacyNoticeVersion: '2026-10-29', createdAt: new Date() });
   await setDoc(doc(f, 'users/admin1'), { role: 'admin', fullName: 'Admin One', email: 'admin@dugo.ph', status: 'Active', createdAt: new Date() });
   await setDoc(doc(f, 'hospitals/h1'), { createdBy: 'admin1', name: 'St. Mary General', address: '1200 Bonifacio Ave', latitude: 14.609, longitude: 120.984, geohash: 'qc7bw', contactNumber: '09170000000', status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/subscriptions/s1'), { plan: 'pilot', startDate: new Date('2026-01-01'), endDate: new Date('2027-01-01'), status: 'Active' });
@@ -106,6 +107,8 @@ await ok('role is still client-chosen at create (UI boundary, D15)', setDoc(doc(
 await no('create cannot set lastDonationAt (D14)', setDoc(doc(db(as('eve')), 'users/eve'), { role: 'donor', fullName: 'Eve E.', email: 'eve@dugo.ph', createdAt: new Date(), lastDonationAt: new Date() }));
 await no('signed-out cannot create a profile', setDoc(doc(db(anon()), 'users/frank'), { role: 'donor', fullName: 'Frank F.', email: 'frank@dugo.ph', createdAt: new Date() }));
 await no('create cannot invent a status', setDoc(doc(db(as('gina')), 'users/gina'), { role: 'donor', fullName: 'Gina G.', email: 'gina@dugo.ph', status: 'Admin', createdAt: new Date() }));
+await ok('owner creates profile with recorded consent (FR-019)', setDoc(doc(db(as('jane')), 'users/jane'), { role: 'donor', fullName: 'Jane J.', email: 'jane@dugo.ph', privacyConsentAt: new Date(), privacyNoticeVersion: '2026-10-29', createdAt: new Date() }));
+await no('create cannot store consent as text', setDoc(doc(db(as('kate')), 'users/kate'), { role: 'donor', fullName: 'Kate K.', email: 'kate@dugo.ph', privacyConsentAt: '2026-10-29', privacyNoticeVersion: '2026-10-29', createdAt: new Date() }));
 await ok('owner edits profile fields', updateDoc(doc(db(as('alice')), 'users/alice'), { fullName: 'Alice D.', phoneNumber: '09170000001', city: 'Malolos', latitude: 14.85, longitude: 120.82, geohash: 'wdt5' }));
 await no('owner cannot change role', updateDoc(doc(db(as('alice')), 'users/alice'), { role: 'admin' }));
 await no('owner cannot suspend themselves (status is an admin decision)', updateDoc(doc(db(as('alice')), 'users/alice'), { status: 'Suspended' }));
@@ -113,6 +116,9 @@ await no('owner cannot set hospitalId', updateDoc(doc(db(as('alice')), 'users/al
 await no('owner cannot set lastDonationAt (presence)', updateDoc(doc(db(as('alice')), 'users/alice'), { lastDonationAt: new Date() }));
 await no('owner cannot clear lastDonationAt (value)', updateDoc(doc(db(as('dave')), 'users/dave'), { lastDonationAt: null }));
 await ok('owner edit leaves lastDonationAt untouched', updateDoc(doc(db(as('dave')), 'users/dave'), { fullName: 'Dave D.' }));
+await ok('owner edit keeps recorded consent', updateDoc(doc(db(as('ivy')), 'users/ivy'), { fullName: 'Ivy I.', phoneNumber: '09170000002' }));
+await no('owner cannot rewrite recorded consent', updateDoc(doc(db(as('ivy')), 'users/ivy'), { privacyNoticeVersion: '2099-01-01' }));
+await no('owner cannot clear recorded consent', updateDoc(doc(db(as('ivy')), 'users/ivy'), { privacyConsentAt: null }));
 await no('owner cannot delete profile', deleteDoc(doc(db(as('alice')), 'users/alice')));
 await ok('admin claim updates any profile', updateDoc(doc(db(admin()), 'users/alice'), { fullName: 'Alice D.' }));
 await ok('admin claim updates its own profile (same-doc read)', updateDoc(doc(db(admin()), 'users/admin1'), { fullName: 'Admin One' }));

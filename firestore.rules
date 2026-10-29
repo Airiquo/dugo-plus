@@ -104,6 +104,14 @@ service cloud.firestore {
                         || request.resource.data.phoneNumber is string)
                     && (!('status' in request.resource.data)
                         || request.resource.data.status in ['Active', 'Suspended', 'Removed'])
+                    // The registration acceptance (FR-019): a server time and
+                    // the notice version it was given for. Optional, because
+                    // accounts provisioned outside registration (first Google
+                    // sign-in, hospital accounts made by the team) have none.
+                    && (!('privacyConsentAt' in request.resource.data)
+                        || request.resource.data.privacyConsentAt is timestamp)
+                    && (!('privacyNoticeVersion' in request.resource.data)
+                        || request.resource.data.privacyNoticeVersion is string)
                     && !('lastDonationAt' in request.resource.data);
 
       // Editable, but the role is frozen for the owner: allowing that would be
@@ -133,6 +141,10 @@ service cloud.firestore {
                              || request.resource.data.statusReason is string)
                          && (!('statusUpdatedAt' in request.resource.data)
                              || request.resource.data.statusUpdatedAt is timestamp)
+                         && (!('privacyConsentAt' in request.resource.data)
+                             || request.resource.data.privacyConsentAt is timestamp)
+                         && (!('privacyNoticeVersion' in request.resource.data)
+                             || request.resource.data.privacyNoticeVersion is string)
                          && (!('hospitalId' in request.resource.data)
                              || request.resource.data.hospitalId is string)
                        )
@@ -172,6 +184,19 @@ service cloud.firestore {
                              || request.resource.data.statusReason == resource.data.statusReason)
                          && (!('statusUpdatedAt' in request.resource.data)
                              || request.resource.data.statusUpdatedAt == resource.data.statusUpdatedAt)
+                         // The registration acceptance is evidence, so the owner
+                         // may not rewrite or remove it (FR-019). Presence and
+                         // value both have to survive the update.
+                         && ('privacyConsentAt' in request.resource.data)
+                              == ('privacyConsentAt' in resource.data)
+                         && (!('privacyConsentAt' in request.resource.data)
+                             || request.resource.data.privacyConsentAt
+                                  == resource.data.privacyConsentAt)
+                         && ('privacyNoticeVersion' in request.resource.data)
+                              == ('privacyNoticeVersion' in resource.data)
+                         && (!('privacyNoticeVersion' in request.resource.data)
+                             || request.resource.data.privacyNoticeVersion
+                                  == resource.data.privacyNoticeVersion)
                          && (!('hospitalId' in request.resource.data)
                              || request.resource.data.hospitalId == resource.data.hospitalId)
                          && ('lastDonationAt' in request.resource.data)

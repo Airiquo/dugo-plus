@@ -145,3 +145,26 @@ now perform hospital account creation. Neither is deployed in this checkout
 
 `docs/PRIVACY_AND_CONSENT.md` and `/privacy` record the data handling these
 fields serve.
+
+## 2026-10-29 — `users` registration consent record (F9)
+
+**Origin:** build.
+
+**Refs:** D28, D23. Feature: F9.
+
+| Field | Before | After |
+|---|---|---|
+| `users.privacyConsentAt` | not present | **added** — Timestamp, server time the notice was accepted on `/register`; owner-frozen (D28) |
+| `users.privacyNoticeVersion` | not present | **added** — string, the `/privacy` notice version accepted (currently `2026-10-29`); owner-frozen (D28) |
+
+Both fields are optional because accounts provisioned outside registration (a
+first Google sign-in, hospital accounts created by the team) have no recorded
+acceptance. The rules type-check them on create and on admin writes, and the
+owner branch freezes presence and value, so an acceptance cannot be rewritten or
+removed from the browser. `/register` now requires a checkbox and blocks both
+"Create account" and "Continue with Google" until it is ticked
+(`web/src/utils/privacy.js`, `web/src/pages/public/Register.jsx`). The admin
+account view shows the recorded date and version.
+
+Not deployed: the live project still enforces the 2026-10-21 ruleset
+(PHASES §10), so the freeze is written and tested in the suite but not live yet.

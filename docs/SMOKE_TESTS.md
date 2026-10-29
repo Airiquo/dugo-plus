@@ -44,8 +44,8 @@ cases suspend accounts, delete a profile, and write error logs.
 | PUB-7 | Login return path | Signed out, open `/admin/profile` directly, sign in as admin | Arrives on `/admin/profile`, not the default landing |
 | PUB-8 | Login Google | Click "Continue with Google", cancel | Popup closes, form still usable, no stuck spinner |
 | PUB-9 | Login already-in | Signed in, open `/login` | Redirects to the account's home; unverified → `/verify-email` |
-| PUB-10 | Register `/register` | Empty, then bad password, then duplicate email, then valid | Inline errors per field; password rule text matches the message; valid → `/verify-email` |
-| PUB-11 | Register as Google | Use Google on `/register` | Verified Google account → `/donor/profile` (no verify screen) |
+| PUB-10 | Register `/register` | Empty, then bad password, then duplicate email, then valid — try both with the consent box unticked and ticked | Inline errors per field; an unticked box refuses both buttons with its own message; password rule text matches the message; valid + ticked → `/verify-email`; the notice link opens `/privacy` in a new tab and the form keeps its values |
+| PUB-11 | Register as Google | Use Google on `/register` without ticking, then with it | Unticked: refused locally, no popup; ticked: verified account → `/donor/profile` (no verify screen) |
 | PUB-12 | Register scope | Look for a role picker | None — donor only; partner link points at `/partner` (D20) |
 | PUB-13 | Partner `/partner` | Empty, then valid submit | Inline errors; success panel with the 2–3 day reply and mailbox fallback |
 | PUB-14 | Partner failure | Block the Formspree request (DevTools offline) and submit | Error shown, every value still filled, retry works |
@@ -55,6 +55,7 @@ cases suspend accounts, delete a profile, and write error logs.
 | PUB-18 | Verify redirects | Verified account opens `/verify-email`; signed-out opens it | Verified → home for its role; signed out → `/login` |
 | PUB-19 | 404 | Open `/nope` | 404 with Home / Admin Dashboard / Gallery links that work |
 | PUB-20 | NotConfigured | Remove `web/.env` and `web/.env.local`, restart, open `/`, `/login`, `/admin/dashboard`, `/privacy` | All routes render the same notice naming the missing `VITE_FIREBASE_*` keys; no route works |
+| PUB-21 | Register consent record | Create a donor with the box ticked, then open it in `/admin/accounts` → View | `privacyConsentAt` and `privacyNoticeVersion` are on `users/{uid}`; the view shows the date and version; editing the profile leaves both unchanged |
 
 ## 2. Gates
 
@@ -155,7 +156,7 @@ several of them close an account.
 | F9-19 | Erasure | Admin opens an Erasure request, types a reason, erases | Identifying fields are blanked, the account is closed, donations/audit rows remain, and `resolutionAction: Deletion`; the sign-in record is then deleted from Accounts (F9-10) so the stored email goes too |
 | F9-20 | Queue transitions | Start → Complete and Start → Reject | `processedBy` is the admin, `resolvedAt` is a server time, the note is stored, and the donor sees the status and note |
 | F9-21 | Admin profile | `/admin/profile` → change name and phone → save → reload | Values persist, role is unchanged and not editable, and a refresh shows the same data |
-| F9-22 | Privacy notice | `/privacy`, and the consent line on `/register` | The notice renders, links work, and the claims in it match the rules (`docs/PRIVACY_AND_CONSENT.md`) |
+| F9-22 | Privacy notice | `/privacy`, and the required consent box on `/register` | The notice renders, the version matches `PRIVACY_NOTICE_VERSION`, links work, and the claims in it match the rules (`docs/PRIVACY_AND_CONSENT.md`) |
 
 **Status of this list: written, not run.** The checkout is configured against the
 `dugo-plus` project through the gitignored `web/.env`, but no test-account

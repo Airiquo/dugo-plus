@@ -104,6 +104,7 @@ function normaliseLocation(location) {
  *   bloodType: string, dateOfBirth: Date|null,
  *   latitude: number, longitude: number, geohash: string, city: string,
  *   hospitalId: string, status: string,
+ *   privacyConsentAt: Date|null, privacyNoticeVersion: string,
  *   lastDonationAt: Date|null, updatedAt: Date|null,
  * }} Profile
  */
@@ -125,19 +126,31 @@ function normaliseLocation(location) {
  * Create the profile for a new account. Written after `createUserWithEmailAndPassword`
  * so `request.auth.uid` already matches, which is what the rules check.
  *
+ * `consentVersion` is the privacy-notice version the person accepted at
+ * registration. When it is given, the acceptance is stored on the profile
+ * (`privacyConsentAt` held as a server time); the rules freeze it afterwards.
+ * It is omitted for accounts provisioned outside registration (first Google
+ * sign-in, hospital accounts made by the team), which have no recorded consent.
+ *
  * @param {string} uid - the freshly created account's uid
  * @param {{ role: string, fullName?: string, email?: string }} profile
+ * @param {string} [consentVersion] - e.g. `PRIVACY_NOTICE_VERSION`
  */
-export async function writeProfile(uid, profile) {
+export async function writeProfile(uid, profile, consentVersion) {
   requireDb()
-  await setDoc(doc(db, 'users', uid), {
+  const data = {
     role: profile.role,
     fullName: profile.fullName ?? '',
     email: profile.email ?? '',
     phoneNumber: '',
     status: 'Active',
     createdAt: serverTimestamp(),
-  })
+  }
+  if (consentVersion) {
+    data.privacyConsentAt = serverTimestamp()
+    data.privacyNoticeVersion = consentVersion
+  }
+  await setDoc(doc(db, 'users', uid), data)
 }
 
 /**
@@ -255,6 +268,8 @@ export async function readProfile(uid) {
     status: STATUSES.includes(data.status) ? data.status : 'Active',
     statusReason: text(data.statusReason),
     statusUpdatedAt: asDate(data.statusUpdatedAt),
+    privacyConsentAt: asDate(data.privacyConsentAt),
+    privacyNoticeVersion: text(data.privacyNoticeVersion),
     updatedAt: asDate(data.updatedAt),
   }
 }
@@ -288,6 +303,8 @@ export async function listUsers() {
       status: STATUSES.includes(data.status) ? data.status : 'Active',
       statusReason: text(data.statusReason),
       statusUpdatedAt: asDate(data.statusUpdatedAt),
+      privacyConsentAt: asDate(data.privacyConsentAt),
+      privacyNoticeVersion: text(data.privacyNoticeVersion),
       updatedAt: asDate(data.updatedAt),
     })
   })
