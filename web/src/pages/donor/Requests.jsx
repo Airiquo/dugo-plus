@@ -114,7 +114,7 @@ export default function Requests() {
       .catch(() => {})
   }, [])
 
-  // Live position: kept in page state, never written to Firestore (D27).
+  // Live position: kept in page state, never written to Firestore (D30).
   useEffect(() => {
     if (!navigator.geolocation) {
       setGeoState('unsupported')

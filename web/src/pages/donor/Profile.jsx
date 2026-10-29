@@ -186,7 +186,7 @@ export default function Profile() {
             }
           : {}),
       })
-      // Keep a thin mirror for the hospital's nearby-donor view (D28); the
+      // Keep a thin mirror for the hospital's nearby-donor view (D31); the
       // donor's own `users` document stays owner+admin (NFR-11).
       try {
         await saveDonorLocation(user.uid, {

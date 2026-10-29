@@ -31,7 +31,7 @@ numbers rather than trusting this section.
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; FR-010 derived on the profile; F5 history/rewards/tracker open. F4 smoke pending) |
 | **P4** | Hospital dashboard, inventory, screening | not started |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
-| **P6** | Admin account management, data-request queue | partial (admin gate; FR-047 profile page; suspension gate + accounts/settings/data-requests + donor privacy built; claims still to set on live project) |
+| **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; claims not set on a live project, functions not deployed, no signed-in smoke here) |
 | **P7** | Hash-chain audit trail | in progress (F10a); needs event hookups for F10b |
 | **P8** | Compliance and privacy | not started; mostly documents |
 | **P9** | Non-functional hardening (responsiveness, scale, compatibility) | not started |
@@ -374,7 +374,8 @@ is cancelled. An assumption is never recorded in place of an answer.
   correctly, so a missed document degrades to an empty field rather than an
   error.
 - **Custom claims not set yet** (D15): `scripts/set-claims.mjs` (D26/A1) publishes them and `useAuth` forces one `getIdToken(true)` per session so a claim applies within a session. Until the script runs against the live project, admin/staff paths are inert. It has not run from this checkout (no service-account key here).
-- **F9** built (D26): `/admin/profile` (FR-047, done), suspension gate (`accountActive()` + `Blocked.jsx`), `/admin/accounts` (FR-040), `/admin/settings` (FR-041 settings half), `/admin/data-requests` and `/donor/privacy` (FR-039/NFR-19). Claims (`scripts/set-claims.mjs`) still need to run on the live project; `npm run test:rules` needs Java/emulator in this checkout (CI backstop). Live smoke still owed with a configured project.
+- **F9** built (D26/D27/D28): `/admin/profile` (FR-047), suspension/removal gate (`accountActive()` + `Blocked.jsx`), `/admin/accounts` with hospital creation (FR-040), `/admin/settings` (FR-041 settings half), `/admin/data-requests` and `/donor/privacy` (FR-039/NFR-19), `/privacy` (FR-019 notice), and the required registration consent whose acceptance is stored as `privacyConsentAt` + `privacyNoticeVersion` (D28). Open, in priority order: (1) **Blaze plan not confirmed or enabled**, so the two callables in `functions/index.js` are not deployed and the accounts screen's "New hospital account" path reports the undeployed service; `scripts/create-hospital.mjs` is the working fallback but has not been run here (no service-account key). (2) **Claims not run** on the live project (`scripts/set-claims.mjs`), so admin/staff rules paths are inert there. (3) **No signed-in live smoke**: the checkout is configured against `dugo-plus` through the gitignored `web/.env`, but there are no test-account credentials or published admin claim here, so none of the four §6 checks, the suspension behaviour, the DSR flow, the consent write or settings persistence has been exercised against the project — only the public pages (`/privacy` in both themes, the `/register` consent checkbox, `/login`, and the `/donor/privacy` → `/login` redirect) were rendered in a browser. (4) **`npm run test:rules` could not run here** — the Firestore emulator needs Java 21 and `java` is not installed; the extended suite (including the consent cases) is written but unexecuted locally (the CI `rules` job is the backstop). (5) **FR-041 "saved values are used" is undemonstrable**: the P5 matcher and notification worker that read `systemConfig/global` are F7's rows and do not exist in this checkout. (6) **First Google sign-in from `/login` records no consent** — the required checkbox is on `/register` only, so an account created through the `/login` provider button is auto-provisioned without `privacyConsentAt`/`privacyNoticeVersion`. The owner has not decided whether to gate that button, record acceptance inside the auto-provision path, or accept the gap; the question stays open until answered.
+- **F9 blockers to unblock (owner action).** *Who deploys `firestore.rules`, and when?* — the F9 ruleset (admin update shape, `systemConfig` bounds, DSR enums/freeze, the D28 consent freeze) is **written but not deployed**; this checkout cannot deploy without authorization. *When is the Blaze plan enabled?* — required for `functions/index.js`; until then hospital creation is script-only. *When is hosting redeployed?* — the live site still serves a bundle built before D27/D28 (it has no `/privacy` route and no consent checkbox), so the registration consent will not appear on `https://dugo-plus.web.app` until hosting is rebuilt and deployed. None of these has an answer recorded, so all three are restated here.
 - **Contradiction to resolve: did the `users` backfill run?** D22 (REQUIREMENTS) says `scripts/backfill-users-shape.mjs` migrated the live collection on 2026-10-22 (12 documents, verified, re-run a no-op) and the old-shape fallbacks were removed; the bullet above says it has not run and that the app still reads either shape. D22 is the later record and `readProfile` no longer has fallbacks, but the older bullet is not corrected until the owner confirms which is true.
 - **No staff read of `users`** — the rules grant an owner read plus an admin
   claim, and nothing else. Schema §6 allows a limited "staff of same hospital"
@@ -476,7 +477,7 @@ is cancelled. An assumption is never recorded in place of an answer.
   `hospitals/tagaytay-blood-bank` is a seed (`scripts/seed-reference-data.mjs`;
   `--link-email` also sets an account's `users.hospitalId`), not part of the
   spec's seed list: it exists so the hospital area has something to post against.
-  `npm run create:hospital` (`scripts/create-hospital-account.mjs`) creates that
+  `npm run create:hospital` (`scripts/create-hospital.mjs`) creates that
   facility's login — a verified Auth user plus a `role: hospital` profile with
   the `hospitalId` — when an account is not already there. **F3's smoke ran live
   2026-10-27** (post → urgency-first → reload keeps it; the posted request's
@@ -506,7 +507,7 @@ is cancelled. An assumption is never recorded in place of an answer.
   `data-requests` had no sidebar entry, so the suspend UI was unreachable — both
   are now in `AppShell` NAV. **Creating a hospital account is not in the app and
   cannot be**: a browser cannot create Auth users or set claims, so it stays
-  `scripts/create-hospital-account.mjs` / the console, and the admin UI
+  `scripts/create-hospital.mjs` / the console, and the admin UI
   suspends/reactivates only (`Removed` not offered). D26 and FR-040 corrected to
   say so. F4/F9 live smoke pending.
 - **F7 fixes (2026-10-27).** Standalone to F7: a notification whose send reaches

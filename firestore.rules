@@ -50,6 +50,37 @@ service cloud.firestore {
       return value in ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
     }
 
+    // One search tier (schema §2.11). Ranges are the screen's bounds
+    // (pages/admin/Settings.jsx); keeping them here means a hand-written
+    // client cannot save a tier the matcher would fail to expand.
+    function isRadiusTier(tier) {
+      return tier is map
+          && tier.keys().hasOnly(['tierOrder', 'radiusKm', 'waitMinutes'])
+          && tier.tierOrder is int
+          && tier.tierOrder >= 1
+          && tier.tierOrder <= 8
+          && tier.radiusKm is number
+          && tier.radiusKm >= 1
+          && tier.radiusKm <= 100
+          && tier.waitMinutes is int
+          && tier.waitMinutes >= 1
+          && tier.waitMinutes <= 1440;
+    }
+
+    function isRadiusTiers(tiers) {
+      return tiers is list
+          && tiers.size() >= 1
+          && tiers.size() <= 8
+          && isRadiusTier(tiers[0])
+          && (tiers.size() < 2 || isRadiusTier(tiers[1]))
+          && (tiers.size() < 3 || isRadiusTier(tiers[2]))
+          && (tiers.size() < 4 || isRadiusTier(tiers[3]))
+          && (tiers.size() < 5 || isRadiusTier(tiers[4]))
+          && (tiers.size() < 6 || isRadiusTier(tiers[5]))
+          && (tiers.size() < 7 || isRadiusTier(tiers[6]))
+          && (tiers.size() < 8 || isRadiusTier(tiers[7]));
+    }
+
     // A profile may hold '' for "not registered yet" (services/users.js).
     function isOptionalBloodType(value) {
       return value in ['', 'O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
@@ -78,6 +109,14 @@ service cloud.firestore {
                         || request.resource.data.phoneNumber is string)
                     && (!('status' in request.resource.data)
                         || request.resource.data.status in ['Active', 'Suspended', 'Removed'])
+                    // The registration acceptance (FR-019): a server time and
+                    // the notice version it was given for. Optional, because
+                    // accounts provisioned outside registration (first Google
+                    // sign-in, hospital accounts made by the team) have none.
+                    && (!('privacyConsentAt' in request.resource.data)
+                        || request.resource.data.privacyConsentAt is timestamp)
+                    && (!('privacyNoticeVersion' in request.resource.data)
+                        || request.resource.data.privacyNoticeVersion is string)
                     && !('lastDonationAt' in request.resource.data);
 
       // Editable, but the role is frozen for the owner: allowing that would be
@@ -88,7 +127,32 @@ service cloud.firestore {
       // where a screen expects one.
       // lastDonationAt is frozen by presence AND value (D14): clearing it
       // would restart the deferral clock and defeat FR-031.
-      allow update: if isAdmin()
+      allow update: if (
+                         // An admin manages accounts from the console: suspension,
+                         // removal and the anonymising write a deletion request
+                         // performs all arrive here. Shape is still type-checked so
+                         // a broken administrator write cannot bend the document.
+                         isAdmin()
+                         && request.resource.data.role in ['donor', 'hospital', 'admin']
+                         && request.resource.data.fullName is string
+                         && request.resource.data.email is string
+                         && (!('phoneNumber' in request.resource.data)
+                             || request.resource.data.phoneNumber is string)
+                         && (!('bloodType' in request.resource.data)
+                             || isOptionalBloodType(request.resource.data.bloodType))
+                         && (!('status' in request.resource.data)
+                             || request.resource.data.status in ['Active', 'Suspended', 'Removed'])
+                         && (!('statusReason' in request.resource.data)
+                             || request.resource.data.statusReason is string)
+                         && (!('statusUpdatedAt' in request.resource.data)
+                             || request.resource.data.statusUpdatedAt is timestamp)
+                         && (!('privacyConsentAt' in request.resource.data)
+                             || request.resource.data.privacyConsentAt is timestamp)
+                         && (!('privacyNoticeVersion' in request.resource.data)
+                             || request.resource.data.privacyNoticeVersion is string)
+                         && (!('hospitalId' in request.resource.data)
+                             || request.resource.data.hospitalId is string)
+                       )
                     || (
                          authenticated() && me() == uid
                          // A suspended account cannot write its own profile
@@ -125,6 +189,19 @@ service cloud.firestore {
                              || request.resource.data.statusReason == resource.data.statusReason)
                          && (!('statusUpdatedAt' in request.resource.data)
                              || request.resource.data.statusUpdatedAt == resource.data.statusUpdatedAt)
+                         // The registration acceptance is evidence, so the owner
+                         // may not rewrite or remove it (FR-019). Presence and
+                         // value both have to survive the update.
+                         && ('privacyConsentAt' in request.resource.data)
+                              == ('privacyConsentAt' in resource.data)
+                         && (!('privacyConsentAt' in request.resource.data)
+                             || request.resource.data.privacyConsentAt
+                                  == resource.data.privacyConsentAt)
+                         && ('privacyNoticeVersion' in request.resource.data)
+                              == ('privacyNoticeVersion' in resource.data)
+                         && (!('privacyNoticeVersion' in request.resource.data)
+                             || request.resource.data.privacyNoticeVersion
+                                  == resource.data.privacyNoticeVersion)
                          && (!('hospitalId' in request.resource.data)
                              || request.resource.data.hospitalId == resource.data.hospitalId)
                          && ('lastDonationAt' in request.resource.data)
@@ -233,7 +310,7 @@ service cloud.firestore {
                     && request.resource.data.geohash is string
                     && request.resource.data.createdAt is timestamp
                     // Recipient location is denormalized here because a donor
-                    // cannot read `users/{recipientId}` (D27). It is optional:
+                    // cannot read `users/{recipientId}` (D30). It is optional:
                     // a request posted before the recipient's location is known
                     // just omits it, so absence is allowed.
                     && (
@@ -284,7 +361,7 @@ service cloud.firestore {
 
       // The donor answers: response and acknowledgment fields only (schema §6).
       // The donor's coordinates are written at accept, so the request's
-      // hospital staff can see where the donation is coming from (D27). They
+      // hospital staff can see where the donation is coming from (D30). They
       // live on the match rather than on `users` so the existing read rule —
       // donor, that hospital's staff, admin — is the whole boundary.
       allow update: if isAdmin()
@@ -360,7 +437,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Donor locations for the hospital's nearby-donor view (D28). A thin
+    // Donor locations for the hospital's nearby-donor view (D31). A thin
     // mirror of the profile's coordinates so staff can see where donors are
     // without reading `users` — which stays owner+admin (NFR-11). One document
     // per donor, written only by that donor.
@@ -433,7 +510,25 @@ service cloud.firestore {
     // screens need radiusTiers), only an admin claim writes (schema §6).
     match /systemConfig/{configId} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+
+      // Shape and bounds are the settings screen's own limits (FR-041). The
+      // writer must name themself, and the write time is server-set, so a
+      // forged document cannot claim another administrator configured it.
+      allow create, update: if isAdmin()
+                   && request.resource.data.keys().hasOnly(
+                        ['notifRetryLimit', 'notifRetryInterval', 'radiusTiers', 'updatedBy', 'updatedAt']
+                      )
+                   && request.resource.data.notifRetryLimit is int
+                   && request.resource.data.notifRetryLimit >= 0
+                   && request.resource.data.notifRetryLimit <= 10
+                   && request.resource.data.notifRetryInterval is int
+                   && request.resource.data.notifRetryInterval >= 1
+                   && request.resource.data.notifRetryInterval <= 1440
+                   && isRadiusTiers(request.resource.data.radiusTiers)
+                   && request.resource.data.updatedBy == me()
+                   && request.resource.data.updatedAt == request.time;
+
+      allow delete: if false;
     }
 
     // Data-subject requests (schema §2.12): the requester opens and reads
@@ -441,18 +536,49 @@ service cloud.firestore {
     match /dataSubjectRequests/{dsrId} {
       allow read: if isAdmin() || (signedIn() && resource.data.userId == me());
 
+      // The requester opens the request in their own name and may not preseed
+      // an admin decision. `details` carries what they want exported,
+      // corrected or erased (FR-039).
       allow create: if signedIn()
                     && request.resource.data.userId == me()
-                    && request.resource.data.requestType is string
-                    && request.resource.data.status is string
-                    && request.resource.data.createdAt is timestamp
-                    && (
-                         request.resource.data.processedBy == null
-                         || request.resource.data.processedBy is string
-                       )
-                    && request.resource.data.resolvedAt == null;
+                    && request.resource.data.requestType in ['Access', 'Rectification', 'Erasure', 'Export']
+                    && request.resource.data.status == 'Pending'
+                    && request.resource.data.details is string
+                    && request.resource.data.details.size() <= 2000
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.processedBy == null
+                    && request.resource.data.resolvedAt == null
+                    && (!('adminNote' in request.resource.data)
+                        || request.resource.data.adminNote == '')
+                    && (!('resolutionAction' in request.resource.data)
+                        || request.resource.data.resolutionAction == '');
 
-      allow update: if isAdmin();
+      // Only an admin processes a request. The subject, type, open time and the
+      // subject's own words are frozen; the admin records themself, the status,
+      // the action taken and a note, and a closed request carries its
+      // resolution time.
+      allow update: if isAdmin()
+                    && request.resource.data.userId == resource.data.userId
+                    && request.resource.data.requestType == resource.data.requestType
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && request.resource.data.status in ['Pending', 'InProgress', 'Completed', 'Rejected']
+                    && (!('details' in resource.data)
+                        || request.resource.data.details == resource.data.details)
+                    && request.resource.data.adminNote is string
+                    && request.resource.data.adminNote.size() <= 2000
+                    && request.resource.data.resolutionAction in ['', 'Export', 'Correction', 'Deletion']
+                    && (
+                         (request.resource.data.status in ['Pending', 'InProgress']
+                          && request.resource.data.resolvedAt == null)
+                         ||
+                         (request.resource.data.status in ['Completed', 'Rejected']
+                          && request.resource.data.resolvedAt == request.time)
+                       )
+                    && (
+                         request.resource.data.status == 'Pending'
+                         || request.resource.data.processedBy == me()
+                       );
+
       allow delete: if false;
     }
 

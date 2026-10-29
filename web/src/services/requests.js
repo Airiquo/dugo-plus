@@ -9,7 +9,7 @@
  *
  * Donor area — `getBloodRequest` reads one request for the donor's map view. The
  * recipient's city and coordinates are denormalized onto the request at creation
- * because a donor cannot read `users/{recipientId}` (D27).
+ * because a donor cannot read `users/{recipientId}` (D30).
  *
  * Codes are the values the stylesheet targets (`data-status`, `data-priority`,
  * `data-blood-type`, `data-component`); labels are display text only.

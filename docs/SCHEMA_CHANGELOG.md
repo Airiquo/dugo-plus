@@ -149,15 +149,57 @@ headHash, updatedAt }` with no `sequence` field (so the chain queries skip it).
 Appends read it inside a transaction to serialize, replacing the untransactional
 read-then-write that could fork the chain (schema §5, §2.13).
 
-## 2026-10-27 — hospital-creation script corrected
+## 2026-10-29 — `dataSubjectRequests` request detail and resolution; `systemConfig` bounds (F9)
 
-**Origin:** build (F3/F4/F9 integration; naming correction).
+**Origin:** build.
 
-**Refs:** D26.
+**Refs:** D27, D26, D23. Feature: F9.
 
-Not a data change. The F9 entry above named `scripts/create-hospital.mjs`, which
-was never present. The merged build has one parameterized script,
-`scripts/create-hospital-account.mjs` (Auth user + `hospitals/{id}` +
-`users/{uid}` with `role: 'hospital'`), with custom claims published separately
-by `scripts/set-claims.mjs`. The earlier `scripts/create-hospital-user.mjs`
-(same job, hardcoded dev values) was removed in the same change.
+| Field | Before | After |
+|---|---|---|
+| `dataSubjectRequests.details` | not present | **added** — string, ≤2000 chars, required on create |
+| `dataSubjectRequests.resolutionAction` | not present | **added** — `'' \| Export \| Correction \| Deletion`, written when the queue closes a request |
+| `dataSubjectRequests.requestType` | "suggested" values | the decided set `Access \| Rectification \| Erasure \| Export`, enforced by the rules |
+| `dataSubjectRequests.status` | "suggested" values | the decided set `Pending \| InProgress \| Completed \| Rejected`, enforced by the rules |
+| `dataSubjectRequests.resolvedAt` | optional | required (server time) when `Completed`/`Rejected`, null while open |
+| `systemConfig.notifRetryLimit` | unbounded int | 0–10 |
+| `systemConfig.notifRetryInterval` | unbounded int | 1–1440 minutes |
+| `systemConfig.radiusTiers` | 1–8 items, shape suggested | 1–8 items, each `tierOrder` 1–8, `radiusKm` 1–100, `waitMinutes` 1–1440 |
+| `systemConfig.updatedBy` | admin FK | must equal the writer's uid |
+| `systemConfig.updatedAt` | server time | must equal `request.time` |
+
+The queue now performs the work the request asks for rather than only recording
+it: an access/export request builds a JSON copy of the subject's records
+(`web/src/services/dataExport.js`), a rectification writes the corrected profile
+fields, and an erasure scrubs the identifying fields and closes the profile
+(`anonymiseUser()` in `web/src/services/users.js`). The 2026-10-27 entry's note
+that `scripts/create-hospital.mjs` was absent is resolved: that script, plus the
+`createHospitalAccount` / `deleteAuthAccount` callables in `functions/index.js`,
+now perform hospital account creation. Neither is deployed in this checkout
+(Blaze plan), and no live smoke has run.
+
+`docs/PRIVACY_AND_CONSENT.md` and `/privacy` record the data handling these
+fields serve.
+
+## 2026-10-29 — `users` registration consent record (F9)
+
+**Origin:** build.
+
+**Refs:** D28, D23. Feature: F9.
+
+| Field | Before | After |
+|---|---|---|
+| `users.privacyConsentAt` | not present | **added** — Timestamp, server time the notice was accepted on `/register`; owner-frozen (D28) |
+| `users.privacyNoticeVersion` | not present | **added** — string, the `/privacy` notice version accepted (currently `2026-10-29`); owner-frozen (D28) |
+
+Both fields are optional because accounts provisioned outside registration (a
+first Google sign-in, hospital accounts created by the team) have no recorded
+acceptance. The rules type-check them on create and on admin writes, and the
+owner branch freezes presence and value, so an acceptance cannot be rewritten or
+removed from the browser. `/register` now requires a checkbox and blocks both
+"Create account" and "Continue with Google" until it is ticked
+(`web/src/utils/privacy.js`, `web/src/pages/public/Register.jsx`). The admin
+account view shows the recorded date and version.
+
+Not deployed: the live project still enforces the 2026-10-21 ruleset
+(PHASES §10), so the freeze is written and tested in the suite but not live yet.

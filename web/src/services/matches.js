@@ -56,7 +56,7 @@ export async function getMatch(matchId) {
 
 /**
  * The donor's answer to a match (FR-006, FR-030). `location` is the donor's
- * current position, shared with the request's hospital and nobody else (D27);
+ * current position, shared with the request's hospital and nobody else (D30);
  * omit it when geolocation is unavailable.
  *
  * @param {string} matchId

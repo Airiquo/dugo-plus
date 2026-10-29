@@ -6,8 +6,9 @@
   "scripts": {
     "test:rules": "firebase emulators:exec --only firestore --project demo-dugo \"node firestore.rules.test.mjs\"",
     "test:matching": "node --test web/src/utils/geohash.test.js web/src/utils/matching.test.js web/src/utils/eligibility.test.js worker/src/firestore.test.js worker/src/matcher.test.js worker/src/audit.test.js",
+    "check:docs": "node tools/check-docs.mjs",
     "seed": "node scripts/seed-reference-data.mjs",
-    "create:hospital": "node scripts/create-hospital-account.mjs",
+    "create:hospital": "node scripts/create-hospital.mjs",
     "set:claims": "node scripts/set-claims.mjs",
     "backfill:users": "node scripts/backfill-users-shape.mjs",
     "worker:dev": "wrangler dev -c worker/wrangler.toml --local",

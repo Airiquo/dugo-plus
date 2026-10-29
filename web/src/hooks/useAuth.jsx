@@ -67,6 +67,13 @@ export function AuthProvider({ children }) {
    */
   const profileSeq = useRef(0)
 
+  /**
+   * Privacy-notice version accepted on the current sign-up, held only until the
+   * profile document records it. The session event fires before the register
+   * screen writes the profile, so the auto-provision branch below needs it too.
+   */
+  const pendingConsent = useRef(null)
+
   /** Store a profile and invalidate any read still in flight for this account. */
   const publishProfile = useCallback((next) => {
     profileSeq.current += 1
@@ -84,7 +91,11 @@ export function AuthProvider({ children }) {
       setLoading(false)
       setProfile(null)
       setRoleLoading(Boolean(snap))
-      if (!snap) return
+      if (!snap) {
+        // Signing out discards an acceptance that no profile recorded.
+        pendingConsent.current = null
+        return
+      }
 
       // Custom claims are set server-side (`scripts/set-claims.mjs`, D26), so
       // force one token refresh per session: a claim published after sign-in
@@ -99,6 +110,9 @@ export function AuthProvider({ children }) {
           // documents already exist, and the rules freeze `role`, so this
           // cannot demote one.
           if (found) {
+            // An existing profile means no provisioning write is due, so an
+            // acceptance parked for a fresh Google session does not apply.
+            pendingConsent.current = null
             if (current()) setProfile(found)
             return
           }
@@ -110,8 +124,10 @@ export function AuthProvider({ children }) {
             fullName: snap.displayName ?? '',
             email: snap.email ?? '',
           }
+          const consentVersion = pendingConsent.current ?? undefined
           try {
-            await writeProfile(snap.uid, data)
+            await writeProfile(snap.uid, data, consentVersion)
+            pendingConsent.current = null
             if (current()) publishProfile(data)
           } catch (error) {
             // The write was refused (offline, rules): leave the profile missing
@@ -134,10 +150,12 @@ export function AuthProvider({ children }) {
     return () => stop?.()
   }, [publishProfile])
 
-  const signIn = useCallback(
-    (email, password) => signInWithEmail(email, password),
-    [],
-  )
+  const signIn = useCallback(async (email, password) => {
+    // Signing in is not a consent event, so discard any acceptance parked by a
+    // registration that did not finish.
+    pendingConsent.current = null
+    return signInWithEmail(email, password)
+  }, [])
 
   /**
    * Create the account and its donor profile (D20: self-registration is
@@ -147,19 +165,32 @@ export function AuthProvider({ children }) {
    * does not notify `onAuthStateChanged`. It writes no Firestore document:
    * the session event it triggers starts a profile read, and publishing the
    * profile from here is what marks that read stale.
+   *
+   * `consentVersion` is the privacy-notice version the register screen made the
+   * person accept. It is written onto the profile with the acceptance time.
    */
   const signUp = useCallback(
-    async (name, email, password) => {
-      const next = await createAccount(name, email, password, (fresh) =>
-        setUser(snapshot(fresh)),
-      )
+    async (name, email, password, consentVersion) => {
+      // Hold the acceptance for the auto-provision branch, which can win the
+      // race against the profile write below; both writes then record it.
+      pendingConsent.current = consentVersion ?? null
+      let next
+      try {
+        next = await createAccount(name, email, password, (fresh) =>
+          setUser(snapshot(fresh)),
+        )
+      } catch (error) {
+        pendingConsent.current = null
+        throw error
+      }
       const data = {
         role: DEFAULT_ROLE,
         fullName: name ?? '',
         email: next.email ?? '',
       }
       try {
-        await writeProfile(next.uid, data)
+        await writeProfile(next.uid, data, consentVersion)
+        pendingConsent.current = null
         publishProfile(data)
       } catch (error) {
         // The account exists but `users/{uid}` was never written. Report the
@@ -177,7 +208,17 @@ export function AuthProvider({ children }) {
     [publishProfile],
   )
 
-  const signInWithGoogle = useCallback(() => signInWithGooglePopup(), [])
+  const signInWithGoogle = useCallback(async (consentVersion) => {
+    // A first Google sign-in has no profile yet, so the auto-provision branch
+    // writes one; this is the acceptance it records.
+    pendingConsent.current = consentVersion ?? null
+    try {
+      return await signInWithGooglePopup()
+    } catch (error) {
+      pendingConsent.current = null
+      throw error
+    }
+  }, [])
   const signOut = useCallback(() => signOutOfFirebase(), [])
 
   /**

@@ -19,7 +19,7 @@ function num(value) {
 
 /**
  * `donorLocations/{uid}` — the coordinate mirror the hospital's nearby-donor
- * view reads (D28). Written by the donor when they save a profile that has
+ * view reads (D31). Written by the donor when they save a profile that has
  * coordinates; `users/{uid}` itself stays owner+admin (NFR-11).
  */
 export async function saveDonorLocation(uid, { latitude, longitude, city = '', bloodType = '' }) {
@@ -56,7 +56,7 @@ export async function getDonorLocation(uid) {
 
 /**
  * Donors near a coordinate, by geohash prefix. Readable by staff and admins
- * only (D28); the caller filters by blood type and exact distance.
+ * only (D31); the caller filters by blood type and exact distance.
  */
 export async function listNearbyDonorLocations({ bloodType = '', prefix = '', max = 100 } = {}) {
   requireDb()
