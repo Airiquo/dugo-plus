@@ -20,7 +20,7 @@ import {
   createRequest,
   fetchHospital,
 } from '../../services/requests'
-import { triggerMatch } from '../../services/matching'
+import { isMatchingConfigured, triggerMatch } from '../../services/matching'
 import { validateRequest } from '../../utils/validate'
 
 const BLOOD_TYPE_OPTIONS = ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'].map((value) => ({
@@ -134,6 +134,13 @@ export default function NewRequest() {
               ? `Posting for ${hospital.name}. Requests are routed to compatible donors near the facility.`
               : 'Loading your facility…'}
           </p>
+
+          {!isMatchingConfigured() && (
+            <p className="hospital-state" data-kind="warn" role="status">
+              Immediate matching is offline (the Worker endpoint is not configured). The request
+              will still be posted and picked up by the scheduled matching run.
+            </p>
+          )}
 
           <Field label="Blood type">
             <Select

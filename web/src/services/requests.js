@@ -24,6 +24,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
   where,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
@@ -202,6 +203,25 @@ export async function createRequest({ hospital, values, createdBy = null }) {
     createdAt: serverTimestamp(),
   })
   return ref.id
+}
+
+/**
+ * Move a request to a new status (FR-016, the hospital's "manage" half).
+ *
+ * Only the facility's staff may do this: `firestore.rules` requires the staff
+ * custom claim (`role: 'staff'` + matching `hospitalId`, published by
+ * `scripts/set-claims.mjs`, D26) and freezes `hospitalId`/`bloodType`. A caller
+ * without the claim is denied by the rules, not by this function.
+ *
+ * @param {string} requestId
+ * @param {'urgent'|'collecting'|'matched'|'fulfilled'|'cancelled'} status
+ */
+export async function updateRequestStatus(requestId, status) {
+  requireDb()
+  const id = text(requestId)
+  if (!id) throw new Error('Missing request id.')
+  if (!REQUEST_STATUSES.includes(status)) throw new Error(`Unknown request status: ${status}`)
+  await updateDoc(doc(db, 'bloodRequests', id), { status })
 }
 
 /**

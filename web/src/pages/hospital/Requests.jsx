@@ -3,8 +3,10 @@
  *
  * Lists the facility's requests, urgency first (the shared `sortRequestsByUrgency`
  * the matcher queue uses), with status filters and the empty/loading/error
- * states. Posting is `NewRequest`; moving a request's status on needs the staff
- * custom claim, which is not issued yet, so this screen is read-only.
+ * states. Posting is `NewRequest`; an active request can be moved on here (the
+ * "manage" half of FR-016), which needs the staff custom claim — published by
+ * `scripts/set-claims.mjs` (D26/D15), so an account without claims is denied by
+ * the rules and the screen says so.
  */
 
 import { useEffect, useMemo, useState } from 'react'
@@ -16,7 +18,9 @@ import {
   componentLabel,
   fetchHospital,
   listHospitalRequests,
+  updateRequestStatus,
 } from '../../services/requests'
+import { isMatchingConfigured } from '../../services/matching'
 import { sortRequestsByUrgency } from '../../utils/matching'
 
 /** The status filters shown above the table; `active` is the default view. */
@@ -61,6 +65,12 @@ const COLUMNS = [
   { key: 'requested', header: 'Requested', render: (row) => formatWhen(row.createdAt) },
 ]
 
+/** Statuses an active request can be moved to from the list (FR-016). */
+const MANAGE_STATUSES = ['collecting', 'matched', 'fulfilled', 'cancelled']
+
+/** Terminal moves ask for a confirmation before writing. */
+const NEEDS_CONFIRM = new Set(['fulfilled', 'cancelled'])
+
 export default function Requests() {
   const { profile } = useAuth()
   const hospitalId = profile?.hospitalId ?? ''
@@ -71,6 +81,8 @@ export default function Requests() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
+  const [busyId, setBusyId] = useState('')
+  const [note, setNote] = useState('')
 
   const statuses = useMemo(
     () => FILTERS.find((item) => item.value === filter)?.statuses ?? ACTIVE_STATUSES,
@@ -119,6 +131,56 @@ export default function Requests() {
 
   const ordered = useMemo(() => sortRequestsByUrgency(rows), [rows])
 
+  /** Move a request on, then reload the list (FR-016). */
+  const changeStatus = async (row, status) => {
+    if (!status) return
+    if (NEEDS_CONFIRM.has(status) && !window.confirm(`Mark this ${row.bloodType} request as ${status}?`)) {
+      return
+    }
+    setBusyId(row.id)
+    setNote('')
+    try {
+      await updateRequestStatus(row.id, status)
+      setNote(`Request marked ${status}.`)
+      setReloadKey((key) => key + 1)
+    } catch (err) {
+      const denied = /permission|insufficient/i.test(err?.message || '')
+      setNote(
+        denied
+          ? 'You do not have permission to change this request — it needs the staff claim (ask the team to run the claims script).'
+          : 'Could not update the request. Check your connection and try again.',
+      )
+    } finally {
+      setBusyId('')
+    }
+  }
+
+  const columns = [
+    ...COLUMNS,
+    {
+      key: 'manage',
+      header: 'Manage',
+      render: (row) =>
+        ACTIVE_STATUSES.includes(row.status) ? (
+          <select
+            aria-label={`Change status of the ${row.bloodType} request`}
+            value=""
+            disabled={busyId === row.id}
+            onChange={(event) => changeStatus(row, event.target.value)}
+          >
+            <option value="">{busyId === row.id ? 'Saving…' : 'Set status…'}</option>
+            {MANAGE_STATUSES.filter((status) => status !== row.status).map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="muted">—</span>
+        ),
+    },
+  ]
+
   return (
     <HospitalShell facility={hospital?.name}>
       <PageHeader
@@ -144,6 +206,19 @@ export default function Requests() {
       <section className="card hospital-requests">
         <Tabs label="Request status" tabs={FILTERS} value={filter} onChange={setFilter} />
 
+        {!isMatchingConfigured() && (
+          <p className="hospital-state" data-kind="warn" role="status">
+            Immediate matching is offline (the Worker endpoint is not configured). New requests are
+            picked up by the scheduled matching run instead.
+          </p>
+        )}
+
+        {note && (
+          <p className="hospital-state" role="status">
+            {note}
+          </p>
+        )}
+
         {!hospitalId ? (
           <p className="hospital-state" data-kind="warn" role="status">
             This account is not linked to a facility yet. Ask an administrator to set your
@@ -160,7 +235,7 @@ export default function Requests() {
             No {filter === 'active' ? 'active ' : ''}requests. Post one to start matching donors.
           </p>
         ) : (
-          <Table columns={COLUMNS} rows={ordered} rowKey={(row) => row.id} />
+          <Table columns={columns} rows={ordered} rowKey={(row) => row.id} />
         )}
       </section>
     </HospitalShell>

@@ -27,7 +27,7 @@ numbers rather than trusting this section.
 | Phase | Covers | Status |
 | --- | --- | --- |
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
-| **P2** | Blood request submission and listing | in progress (F3: hospital posts + lists its requests; status/manage deferred on claims) |
+| **P2** | Blood request submission and listing | in progress (F3: hospital posts, lists, and manages its requests; smoke pending) |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; FR-010 derived on the profile; F5 history/rewards/tracker open. F4 smoke pending) |
 | **P4** | Hospital dashboard, inventory, screening | not started |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
@@ -465,9 +465,11 @@ is cancelled. An assumption is never recorded in place of an answer.
   account, so rules do not apply). Newer projects create that account without
   datastore access, so every Firestore call 403s until the role is granted —
   found and fixed live 2026-10-24, recorded in `docs/DEPLOY.md`.
-- **F3 ships post + list only; the audit trail stays out of F3.** Changing a
-  request's status needs the staff custom claim (D15), which no session has yet,
-  so FR-016 is `partial` until claims land. Request creation is not one of
+- **F3 ships post + list + manage; the audit trail stays out of F3.** An active
+  request can be moved to collecting/matched/fulfilled/cancelled from
+  `/hospital/requests`; the write is staff-claim gated and claims are publishable
+  via `scripts/set-claims.mjs` (F9), so FR-016 is `partial` pending live smoke,
+  not blocked. Request creation is not one of
   FR-042's named audit events (donation / inventory / data-access), and
   `POST /audit/append` is admin-only (`worker/src/index.js`), so F3 writes no
   `auditBlocks` — F10b still waits on F4/F6/F8/F9. The dev facility
