@@ -188,6 +188,28 @@ export async function saveProfile(uid, changes) {
   await setDoc(doc(db, 'users', uid), data, { merge: true })
 }
 
+/**
+ * Correct the identity fields an administrator is answering a rectification
+ * request with (FR-039). Unlike `saveProfile` this never touches the stored
+ * coordinates or geohash: a corrected city must not silently move a donor out of
+ * every search radius. Only the named fields are written.
+ *
+ * @param {string} uid
+ * @param {{ fullName: string, phoneNumber?: string, city?: string }} changes
+ */
+export async function correctUserProfile(uid, changes) {
+  requireDb()
+  if (!uid) throw new Error('Choose an account first.')
+  const fullName = text(changes.fullName)
+  if (!fullName) throw new Error('A corrected name is required.')
+
+  const data = { fullName, updatedAt: serverTimestamp() }
+  if ('phoneNumber' in changes) data.phoneNumber = text(changes.phoneNumber)
+  if ('city' in changes) data.city = text(changes.city)
+
+  await updateDoc(doc(db, 'users', uid), data)
+}
+
 /** A Firestore value that may be a Timestamp, Date, or absent, as a Date. */
 function asDate(value) {
   if (!value) return null
@@ -274,21 +296,66 @@ export async function listUsers() {
 
 /**
  * Update account status (FR-040). Admin claim required (D26).
+ *
  * @param {string} uid
  * @param {{status: 'Active'|'Suspended'|'Removed', statusReason?: string}} changes
  */
 export async function updateUserStatus(uid, changes) {
   requireDb()
-  const data = {
+  if (!uid) throw new Error('Choose an account first.')
+  if (!STATUSES.includes(changes.status)) throw new Error('Unknown account status.')
+  const reason = typeof changes.statusReason === 'string' ? changes.statusReason.trim() : ''
+  if (changes.status !== 'Active' && !reason) {
+    throw new Error('Add a reason for closing or suspending this account.')
+  }
+  await updateDoc(doc(db, 'users', uid), {
     status: changes.status,
+    statusReason: changes.status === 'Active' ? '' : reason,
     statusUpdatedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  }
-  if (typeof changes.statusReason === 'string') {
-    data.statusReason = changes.statusReason.trim()
-  } else if (changes.status === 'Active') {
-    data.statusReason = ''
-  }
-  await updateDoc(doc(db, 'users', uid), data)
+  })
+}
+
+/**
+ * Close an account permanently (FR-040 "remove"). The profile document stays so
+ * the account's donations and audit history keep a valid reference; the rules
+ * treat `Removed` like `Suspended`, so every protected path is closed.
+ *
+ * @param {string} uid
+ * @param {string} reason
+ */
+export async function removeUser(uid, reason) {
+  await updateUserStatus(uid, { status: 'Removed', statusReason: reason })
+}
+
+/**
+ * Erase the identifying fields of a profile in answer to a deletion request
+ * (FR-039). Donation, match and audit records are retained under their own ids
+ * for the retention reasons in `docs/PRIVACY_AND_CONSENT.md`; this scrubs the
+ * profile and closes the account.
+ *
+ * @param {string} uid
+ * @param {string} reason
+ */
+export async function anonymiseUser(uid, reason) {
+  requireDb()
+  if (!uid) throw new Error('Choose an account first.')
+  const note = typeof reason === 'string' ? reason.trim() : ''
+  if (!note) throw new Error('Record why the personal data was erased.')
+  await updateDoc(doc(db, 'users', uid), {
+    fullName: 'Removed account',
+    email: '',
+    phoneNumber: '',
+    city: '',
+    geohash: '',
+    latitude: 0,
+    longitude: 0,
+    bloodType: '',
+    dateOfBirth: null,
+    status: 'Removed',
+    statusReason: note,
+    statusUpdatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
 }
 

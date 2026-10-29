@@ -15,7 +15,7 @@ cases suspend accounts, delete a profile, and write error logs.
 | ID | Set up | Passes when |
 | --- | --- | --- |
 | ENV-1 | `cd web`, `npm ci`, `npm run dev`; root `npm ci` | Dev server serves on `:5173` with no terminal error |
-| ENV-2 | `web/.env.local` filled from `web/.env.example`; restart the server | `/` renders the landing page, not `NotConfigured` |
+| ENV-2 | `web/.env` or `web/.env.local` filled from `web/.env.example`; restart the server | `/` renders the landing page, not `NotConfigured` |
 | ENV-3 | Accounts below exist in Auth + `users/{uid}`; admin claims published (`npm run set:claims -- --uid <uid>`, key outside the repo) | Admin reaches `/admin/dashboard`; donor reaches `/donor/profile` |
 | ENV-4 | Java 21 installed (Temurin); `npm run test:rules` at the root | Suite exits 0 with every assert passing |
 | ENV-5 | Theme toggle visible on every public screen and the admin sidebar | No screen is unreadable in either theme |
@@ -54,7 +54,7 @@ cases suspend accounts, delete a profile, and write error logs.
 | PUB-17 | Verify `/verify-email` | Unverified account: "I've verified" before clicking the link, then resend, then click the link and retry | Still-not-verified message; resend confirmation; after confirming → donor profile or admin dashboard |
 | PUB-18 | Verify redirects | Verified account opens `/verify-email`; signed-out opens it | Verified → home for its role; signed out → `/login` |
 | PUB-19 | 404 | Open `/nope` | 404 with Home / Admin Dashboard / Gallery links that work |
-| PUB-20 | NotConfigured | Rename `web/.env.local`, restart, open `/`, `/login`, `/admin/dashboard` | All routes render the same notice naming the missing `VITE_FIREBASE_*` keys; no route works |
+| PUB-20 | NotConfigured | Remove `web/.env` and `web/.env.local`, restart, open `/`, `/login`, `/admin/dashboard`, `/privacy` | All routes render the same notice naming the missing `VITE_FIREBASE_*` keys; no route works |
 
 ## 2. Gates
 
@@ -84,7 +84,7 @@ cases suspend accounts, delete a profile, and write error logs.
 | ID | Screen | Steps | Passes when |
 | --- | --- | --- | --- |
 | ADM-1 | Shell | `/admin/dashboard` and `/admin/blood-requests` | Sidebar + header render; active item matches the URL; body is empty by design; no console error |
-| ADM-2 | Sidebar | Count the items; click each | 10 items; stubs open; the blood-request badge reads 3; facility pill and sign-out present |
+| ADM-2 | Sidebar | Count the items; click each | 12 items (Dashboard … Profile, including Accounts, Data Requests and Settings); stubs open; the blood-request badge reads 3; facility pill and sign-out present |
 | ADM-3 | Mobile | 820 px and 360 px | Sidebar collapses to the mobile bar; every item reachable; no clipped text |
 | ADM-4 | Stub | Open `/admin/inventory` | "Screen not built yet", correct mockup filename, light and dark links open |
 | ADM-5 | Admin gate | Suspended admin reload | Blocked screen, not the shell |
@@ -109,7 +109,7 @@ they are this feature's screen rather than generic shell chrome.
 | ID | Run | Passes when |
 | --- | --- | --- |
 | RUL-1 | `npm run test:rules` | Every assert passes on the current `firestore.rules` |
-| RUL-2 | Read the suspension section of `firestore.rules.test.mjs` | It covers: suspended read of own profile allowed; reference data, hospitals, own writes and data requests denied; reactivation restores |
+| RUL-2 | Read the coverage in `firestore.rules.test.mjs` | It covers: suspended and removed accounts reading only their own profile (reference data, hospitals, own writes and requests denied); reactivation restores; a donor cannot list `users`; the admin `users` update shape; `systemConfig` bounds/self-attribution; `dataSubjectRequests` create/process enums, frozen subject/type/createdAt, and `resolvedAt` on close |
 | RUL-3 | CI | The `rules` job is green on the PR (D19) — this is the run of record when the local machine has no Java |
 
 ## 7. Feature coverage — what can be smoked today
@@ -119,20 +119,54 @@ they are this feature's screen rather than generic shell chrome.
 | F1 accounts/profile/sign-in | `/login`, `/register`, `/donor/profile` | §1, §3 |
 | F2 verification, error logging | `/verify-email` (now behind `RequireAuth`), error boundary | PUB-17/18, GATE-2, XC-6 |
 | F3–F8 | none — routes are stubs or absent | not smokeable |
-| F9 admin accounts/data requests | `/admin/profile` and the suspension gate; rest planned | **§7.1** |
+| F9 admin accounts/data requests | `/admin/profile`, `/admin/accounts`, `/admin/settings`, `/admin/data-requests`, `/donor/privacy`, `/privacy` | **§7.1** |
 | F10–F12 | none | not smokeable |
 
-A stub screen is not a feature test: ADM-9 verifies the routing seam only. When
-a feature ships, its cases move here and its row in `docs/REQUIREMENTS.md`
-moves with them.
+A stub screen is not a feature test: ADM-4 verifies the stub seam only. When a
+feature ships, its cases move here and its row in `docs/REQUIREMENTS.md` moves
+with them.
 
-### Planned F9 cases (add with each increment)
+### 7.1 F9 cases — account management, data requests, settings, privacy
 
-| Increment | Cases |
-| --- | --- |
-| `/admin/accounts` | list/filter by role and status; suspend requires a reason; the donor is blocked on reload; reactivate restores; `statusReason`/`statusUpdatedAt` land in Firestore; hospital creation script writes Auth + profile + facility + claims |
-| `/admin/settings` | read/save `systemConfig/global`; validation; donor cannot write; values persist |
-| `/donor/privacy` + `/admin/data-requests` | donor submits; admin moves Pending → InProgress → Completed/Rejected with a note; donor sees only their own; `processedBy`/`resolvedAt` set |
+F9 adds cases to §4 (admin chrome) and has its own screens. Run them on a
+**staging project** with `web/.env.local` filled and the admin claim published;
+several of them close an account.
+
+| ID | Screen | Steps | Passes when |
+| --- | --- | --- | --- |
+| F9-1 | Accounts list | `/admin/accounts` as an admin | Every donor and hospital account lists with role and status; the active/suspended/removed counts match the rows |
+| F9-2 | Accounts search | Filter by role, by status, and type a name, an email, and a uid | Each filter narrows the table; no result shows the empty message rather than a blank table |
+| F9-3 | Account details | Open View on a donor | Account id, role, status, email, phone, city, blood type, hospital and last-updated render; an empty field shows `—`, not `undefined` |
+| F9-4 | Suspend | Suspend a donor with a reason | Confirmation names the account; a blank reason is refused; after confirming, the row reads Suspended and `status`/`statusReason`/`statusUpdatedAt` are in Firestore |
+| F9-5 | Suspension is real | Sign in as the suspended donor, then call Firestore directly from the console | The app lands on the blocked screen; the same read via the SDK is `permission-denied`, so the block is not UI-only |
+| F9-6 | Restore | Restore the suspended donor | The reason is cleared, the row reads Active, and the account loads normally on reload |
+| F9-7 | Remove | Remove a donor with a reason | Confirmation warns it cannot be undone; after confirming, the row reads Removed and the account is blocked exactly like a suspended one |
+| F9-8 | Create hospital | New hospital account → fill every required field → Create | With the function deployed the account appears as a hospital with a facility record and the `staff` claim; with it undeployed the screen says the service is not deployed and nothing is written |
+| F9-9 | Create validation | Submit empty, a bad email, a short password, and one coordinate only | Each field reports its own message; nothing is sent |
+| F9-10 | Delete sign-in | Open a Removed account → Delete sign-in record | With the function deployed the Auth user is gone and the profile stays; with it undeployed the error names the missing deployment |
+| F9-11 | Settings load | `/admin/settings` | The stored retry limit, interval and tiers appear; an unwritten document shows the D18 defaults with "never saved" |
+| F9-12 | Settings save | Raise the retry limit, add a tier, save, reload | Values persist; last-saved names the signed-in admin; the matcher reads the same document |
+| F9-13 | Settings invalid | Enter 0 tiers, 9 tiers, a shrinking radius, a radius of 0, and a blank interval | Each is refused with a message and the Save button never writes |
+| F9-14 | Settings gate | Signed in as a donor, write `systemConfig/global` from the console | `permission-denied`; the screen is unreachable at `/admin/settings` |
+| F9-15 | Privacy submit | `/donor/privacy` → choose each type → submit | The request appears in "Your requests" as Pending with the detail; a blank detail is refused |
+| F9-16 | Request isolation | As a second donor, read the first donor's request by id from the console | `permission-denied`; the list shows only the signed-in donor's requests |
+| F9-17 | Access/export | Admin opens an Access or Export request → Download data copy | A JSON file downloads holding that account's profile, matches, donations, rewards, consents, requests and posted blood requests, and no other account's records |
+| F9-18 | Correction | Admin opens a Correction request, edits the name/phone/city, applies | The profile shows the corrected values; the request records `resolutionAction: Correction` |
+| F9-19 | Erasure | Admin opens an Erasure request, types a reason, erases | Identifying fields are blanked, the account is closed, donations/audit rows remain, and `resolutionAction: Deletion`; the sign-in record is then deleted from Accounts (F9-10) so the stored email goes too |
+| F9-20 | Queue transitions | Start → Complete and Start → Reject | `processedBy` is the admin, `resolvedAt` is a server time, the note is stored, and the donor sees the status and note |
+| F9-21 | Admin profile | `/admin/profile` → change name and phone → save → reload | Values persist, role is unchanged and not editable, and a refresh shows the same data |
+| F9-22 | Privacy notice | `/privacy`, and the consent line on `/register` | The notice renders, links work, and the claims in it match the rules (`docs/PRIVACY_AND_CONSENT.md`) |
+
+**Status of this list: written, not run.** The checkout is configured against the
+`dugo-plus` project through the gitignored `web/.env`, but no test-account
+credentials or published admin claim are available here, and Java is missing for
+the emulator. Only the public surfaces were rendered in a browser and inspected:
+`/privacy` in both themes (tokens flip, no horizontal overflow, contrast
+measured on the body text), the consent link on `/register` resolving to
+`/privacy`, `/login` with no console errors, `/nope` returning 404, and
+`/donor/privacy` redirecting to `/login` when signed out. The signed-in cases
+F9-1 to F9-22 and RUL-1/RUL-2 remain pending. Do not mark an
+FR-039/FR-040/FR-041 row done on the strength of this list.
 
 ## 8. Recording the run
 
@@ -142,5 +176,5 @@ moves with them.
   `partial` before merging.
 - A passing run is evidence for the rows it covers: update their **Notes** and
   **Where/evidence** in the same commit. `node tools/check-docs.mjs` must pass.
-- With no `web/.env.local`, only the build and the emulator suite can run —
-  say so rather than marking a row done.
+- With no Firebase config (`web/.env` or `web/.env.local`), only the build and
+  the emulator suite can run — say so rather than marking a row done.

@@ -312,21 +312,22 @@ ERD `System_Config` + `Radius_Tiler` merged. Tiers are small and always read tog
 
 | Field | Type | R/O | Notes |
 |---|---|---|---|
-| updatedBy | string | R | FK → `users` (Admin) |
-| notifRetryLimit | number (int) | R | Max retries per notification |
-| notifRetryInterval | number | R | Unit unspecified. **[DECISION]** minutes |
-| radiusTiers | array of map | R | See below |
-| updatedAt | Timestamp | R | |
+| updatedBy | string | R | FK → `users` (Admin). Must equal the writer's uid (D27) |
+| notifRetryLimit | number (int) | R | Max retries per notification, 0–10 (D27) |
+| notifRetryInterval | number | R | Unit unspecified. **[DECISION]** minutes, 1–1440 (D27) |
+| radiusTiers | array of map | R | 1–8 items, each within the bounds below (D27) |
+| updatedAt | Timestamp | R | Server time; must equal `request.time` (D27) |
 
 `radiusTiers[]` item (ERD `Radius_Tiler`; `tier_id` and `config_id` dropped as redundant):
 
 | Field | Type | Notes |
 |---|---|---|
-| tierOrder | number (int) | 1 = searched first |
-| radiusKm | number | Search radius |
-| waitMinutes | number | Wait before expanding to the next tier |
+| tierOrder | number (int) | 1 = searched first; 1–8 (D27) |
+| radiusKm | number | Search radius, 1–100 km (D27) |
+| waitMinutes | number | Wait before expanding to the next tier, 1–1440 min (D27) |
 
-Keep the array sorted by `tierOrder`.
+Keep the array sorted by `tierOrder`, with each `radiusKm` larger than the one
+before it; the settings screen and `isRadiusTiers()` refuse anything else.
 
 ### 2.12 `dataSubjectRequests/{dsrId}`
 
@@ -334,11 +335,13 @@ Keep the array sorted by `tierOrder`.
 |---|---|---|---|
 | userId | string | R | FK → `users` |
 | processedBy | string | O | `users` id of the admin (ERD has no FK marker. See §9) |
-| requestType | string | R | Suggested: `Access \| Erasure \| Rectification \| Export` |
-| status | string | R | Suggested: `Pending \| InProgress \| Completed \| Rejected` |
-| adminNote | string | O | [ADDED] Admin note/summary of manual export/erasure action (D26) |
-| createdAt | Timestamp | R | |
-| resolvedAt | Timestamp | O | ERD `?` |
+| requestType | string | R | `Access \| Erasure \| Rectification \| Export`; required by the rules and by the submit form (D27) |
+| status | string | R | `Pending \| InProgress \| Completed \| Rejected`; required by the rules (D27) |
+| details | string | R | [ADDED] What the subject is asking for, ≤2000 chars; required on create (D27) |
+| adminNote | string | O | [ADDED] Admin note/summary of the action taken, ≤2000 chars (D26/D27) |
+| resolutionAction | string | O | [ADDED] `'' \| Export \| Correction \| Deletion` — the action that closed the request (D27) |
+| createdAt | Timestamp | R | Server time; frozen after create |
+| resolvedAt | Timestamp | O | ERD `?`. Null while open; server time when `Completed`/`Rejected` |
 
 ### 2.13 `auditBlocks/{blockId}` — server-only, append-only
 

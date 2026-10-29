@@ -113,3 +113,35 @@ Also folded into this entry: §1 gained `errorLogs` (§0 had recorded it, the tr
 had not), the shared `Role` enum was lowercased to match §2.1, and §1 notes that
 `systemConfig/global` is a singleton in practice while the rules match
 `{configId}`.
+
+## 2026-10-29 — `dataSubjectRequests` request detail and resolution; `systemConfig` bounds (F9)
+
+**Origin:** build.
+
+**Refs:** D27, D26, D23. Feature: F9.
+
+| Field | Before | After |
+|---|---|---|
+| `dataSubjectRequests.details` | not present | **added** — string, ≤2000 chars, required on create |
+| `dataSubjectRequests.resolutionAction` | not present | **added** — `'' \| Export \| Correction \| Deletion`, written when the queue closes a request |
+| `dataSubjectRequests.requestType` | "suggested" values | the decided set `Access \| Rectification \| Erasure \| Export`, enforced by the rules |
+| `dataSubjectRequests.status` | "suggested" values | the decided set `Pending \| InProgress \| Completed \| Rejected`, enforced by the rules |
+| `dataSubjectRequests.resolvedAt` | optional | required (server time) when `Completed`/`Rejected`, null while open |
+| `systemConfig.notifRetryLimit` | unbounded int | 0–10 |
+| `systemConfig.notifRetryInterval` | unbounded int | 1–1440 minutes |
+| `systemConfig.radiusTiers` | 1–8 items, shape suggested | 1–8 items, each `tierOrder` 1–8, `radiusKm` 1–100, `waitMinutes` 1–1440 |
+| `systemConfig.updatedBy` | admin FK | must equal the writer's uid |
+| `systemConfig.updatedAt` | server time | must equal `request.time` |
+
+The queue now performs the work the request asks for rather than only recording
+it: an access/export request builds a JSON copy of the subject's records
+(`web/src/services/dataExport.js`), a rectification writes the corrected profile
+fields, and an erasure scrubs the identifying fields and closes the profile
+(`anonymiseUser()` in `web/src/services/users.js`). The 2026-10-27 entry's note
+that `scripts/create-hospital.mjs` was absent is resolved: that script, plus the
+`createHospitalAccount` / `deleteAuthAccount` callables in `functions/index.js`,
+now perform hospital account creation. Neither is deployed in this checkout
+(Blaze plan), and no live smoke has run.
+
+`docs/PRIVACY_AND_CONSENT.md` and `/privacy` record the data handling these
+fields serve.

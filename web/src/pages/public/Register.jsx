@@ -169,6 +169,9 @@ export default function Register() {
             )}
           </p>
         )}
+        <p className="pub-fine">
+          By creating an account you agree to the <Link to="/privacy">Privacy &amp; consent notice</Link>.
+        </p>
         <button className="pub-btn pub-btn-wide" type="submit" disabled={busy}>
           {busy ? 'Creating account…' : 'Create account'}
           <Icon name="arrow-right" size={14} />

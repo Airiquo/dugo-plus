@@ -11,6 +11,7 @@ import Register from './pages/public/Register'
 import Partner from './pages/public/Partner'
 import ForgotPassword from './pages/public/ForgotPassword'
 import VerifyEmail from './pages/public/VerifyEmail'
+import PrivacyPolicy from './pages/public/PrivacyPolicy'
 import NotFound from './pages/public/NotFound'
 import Welcome from './pages/shared/Welcome'
 import Dashboard from './pages/admin/Dashboard'
@@ -36,9 +37,9 @@ const TRANSLATED = new Set(['dashboard', 'blood-requests', 'profile', 'accounts'
  * `NotConfigured` instead, because sessions and account types live in Firebase
  * and there is no demo mode any more.
  *
- * Known admin screens: 10. `dashboard`, `blood-requests` and `profile` are
- * built; the rest render a `ScreenStub` pointing at the live mockups served
- * from `/mockups/*`.
+ * Known admin screens: 12. `dashboard`, `blood-requests`, `profile`, `accounts`,
+ * `settings` and `data-requests` are built; the rest render a `ScreenStub`
+ * pointing at the live mockups served from `/mockups/*`.
  *
  * `/admin/*` sits behind three gates, in order: `RequireAuth` checks there is a
  * session, `RequireVerified` checks the address is confirmed (D5), and
@@ -65,6 +66,9 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          {/* The consent and data-handling notice (FR-019); registration links
+              here before the account is created. */}
+          <Route path="/privacy" element={<PrivacyPolicy />} />
           {/* Public partnership intake (D21): the form posts to Formspree and
               emails the partners mailbox; hospital accounts are created by the
               Dugo+ team from those requests. */}
