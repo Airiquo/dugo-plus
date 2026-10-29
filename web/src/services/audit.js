@@ -64,6 +64,36 @@ export async function verifyAuditChain() {
 }
 
 /**
+ * Best-effort audit append for a feature event (F10b).
+ *
+ * The data action has already happened, so a failed append must not fail the
+ * caller: this catches and reports, and returns whether a block was written.
+ * The Worker fills the actor from the caller's token and hashes the refs, so
+ * only `eventType` and an entity reference cross the wire.
+ *
+ * @param {{ eventType: string, entityType?: string|null, entityId?: string|null,
+ *   correctsBlockId?: string|null }} event
+ * @returns {Promise<boolean>} true when the block was appended
+ */
+export async function recordAuditEvent({
+  eventType,
+  entityType = null,
+  entityId = null,
+  correctsBlockId = null,
+}) {
+  if (!eventType) return false
+  try {
+    await appendAuditBlock({ eventType, entityType, entityId, correctsBlockId })
+    return true
+  } catch (error) {
+    // Not configured, signed out, or the Worker is down: the action stands, the
+    // event is simply not recorded (PHASES §10). Never throw.
+    console.info('[audit] append skipped', eventType, error?.message || error)
+    return false
+  }
+}
+
+/**
  * Append an audit block via Worker (admin only).
  */
 export async function appendAuditBlock(data) {

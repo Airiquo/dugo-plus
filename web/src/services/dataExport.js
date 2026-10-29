@@ -1,6 +1,7 @@
 import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { readProfile } from './users'
+import { recordAuditEvent } from './audit'
 
 const NOT_CONFIGURED = 'Firestore is not available. Copy web/.env.example to web/.env.local.'
 
@@ -53,6 +54,9 @@ export async function collectUserData(uid) {
       byField('dataSubjectRequests', 'userId', uid),
       byField('bloodRequests', 'createdBy', uid),
     ])
+
+  // F10b: reading a subject's records is a data-access event (FR-042).
+  await recordAuditEvent({ eventType: 'DataAccess.Export', entityType: 'user', entityId: uid })
 
   return {
     exportedAt: new Date().toISOString(),

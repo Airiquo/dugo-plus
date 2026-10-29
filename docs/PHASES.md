@@ -32,7 +32,7 @@ numbers rather than trusting this section.
 | **P4** | Hospital dashboard, inventory, screening | not started |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; claims not set on a live project, functions not deployed, no signed-in smoke here) |
-| **P7** | Hash-chain audit trail | in progress (F10a); needs event hookups for F10b |
+| **P7** | Hash-chain audit trail | in progress (F10a; F10b data-access hooks in; donation/inventory events wait on F8/F6) |
 | **P8** | Compliance and privacy | not started; mostly documents |
 | **P9** | Non-functional hardening (responsiveness, scale, compatibility) | not started |
 
@@ -517,3 +517,13 @@ is cancelled. An assumption is never recorded in place of an answer.
   read admin/staff authority from the token's custom claims instead of the
   client-written `users.role` (D26). None of these need another feature. The F7
   timing targets and the SMS leg still need deployment / provider keys.
+- **F10b data-access hooks landed (2026-10-29).** With F9's data-access surfaces
+  built, `recordAuditEvent` (`services/audit.js`) now appends a block for DSR
+  export/rectification/erasure/close and account suspend/reactivate/remove/
+  anonymise, via the deployed Worker `POST /audit/append` (admin-claim; the actor
+  comes from the token; refs are HMAC-hashed). It is **best-effort**: the data
+  action has already happened, so a failed append is logged, not rolled back —
+  a transactional guarantee needs the append inside the (undeployed) Cloud
+  Functions. Donation-confirmation and inventory events still wait on F8/F6.
+  The transactional Worker append fix from the earlier sweep is still
+  **not deployed**.

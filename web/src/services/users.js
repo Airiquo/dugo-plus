@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { geohash, isCoordinate } from '../utils/geohash'
+import { recordAuditEvent } from './audit'
 
 /**
  * `users/{uid}` profiles — the account type the guards read back.
@@ -220,6 +221,8 @@ export async function correctUserProfile(uid, changes) {
   if ('city' in changes) data.city = text(changes.city)
 
   await updateDoc(doc(db, 'users', uid), data)
+  // F10b: a data-access event (FR-042).
+  await recordAuditEvent({ eventType: 'DataAccess.Rectification', entityType: 'user', entityId: uid })
 }
 
 /** A Firestore value that may be a Timestamp, Date, or absent, as a Date. */
@@ -330,6 +333,9 @@ export async function updateUserStatus(uid, changes) {
     statusUpdatedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+  // F10b: an administrative account event (FR-042).
+  const event = { Active: 'Account.Reactivated', Suspended: 'Account.Suspended', Removed: 'Account.Removed' }[changes.status]
+  await recordAuditEvent({ eventType: event, entityType: 'user', entityId: uid })
 }
 
 /**
@@ -373,5 +379,7 @@ export async function anonymiseUser(uid, reason) {
     statusUpdatedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   })
+  // F10b: an erasure is a data-access event (FR-042).
+  await recordAuditEvent({ eventType: 'DataAccess.Erasure', entityType: 'user', entityId: uid })
 }
 

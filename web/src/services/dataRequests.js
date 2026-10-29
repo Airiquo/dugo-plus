@@ -9,6 +9,7 @@ import {
   where,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
+import { recordAuditEvent } from './audit'
 
 const NOT_CONFIGURED = 'Firestore is not available. Copy web/.env.example to web/.env.local.'
 
@@ -183,4 +184,13 @@ export async function updateDataRequest(id, changes) {
     data.resolvedAt = null
   }
   await updateDoc(doc(db, 'dataSubjectRequests', id), data)
+
+  // F10b: closing a request records what was done (FR-042).
+  if (changes.status === 'Completed' || changes.status === 'Rejected') {
+    await recordAuditEvent({
+      eventType: changes.status === 'Rejected' ? 'DataAccess.Rejected' : `DataAccess.${action || 'Processed'}`,
+      entityType: 'dataSubjectRequest',
+      entityId: id,
+    })
+  }
 }
