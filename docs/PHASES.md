@@ -509,3 +509,10 @@ is cancelled. An assumption is never recorded in place of an answer.
   `scripts/create-hospital-account.mjs` / the console, and the admin UI
   suspends/reactivates only (`Removed` not offered). D26 and FR-040 corrected to
   say so. F4/F9 live smoke pending.
+- **F7 fixes (2026-10-27).** Standalone to F7: a notification whose send reaches
+  the retry limit is now marked `deliveryStatus: 'Failed'` (was stuck Pending,
+  NFR-07); the matcher logs per-phase timing (`queryMs`/`existingMs`/`writeMs`,
+  NFR-01/02/05 can be measured); and the Worker's `/match` and `/audit/*` routes
+  read admin/staff authority from the token's custom claims instead of the
+  client-written `users.role` (D26). None of these need another feature. The F7
+  timing targets and the SMS leg still need deployment / provider keys.

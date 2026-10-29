@@ -96,10 +96,16 @@ export async function notifyNewMatches(env, request, matches) {
       emailed += 1
     } else {
       const retryCount = Number(note.data?.retryCount ?? 0) + 1
+      const limit = config.notifRetryLimit ?? RETRY_LIMIT
       await updateDocumentIfUnchanged(
         env,
         `notifications/${noteId}`,
-        { retryCount },
+        {
+          retryCount,
+          // Once the configured retry limit is reached, stop retrying and mark
+          // it Failed so the state is visible (schema §2.8, NFR-07).
+          ...(retryCount >= limit ? { deliveryStatus: 'Failed' } : {}),
+        },
         note.updateTime,
       ).catch(() => {})
     }
@@ -166,10 +172,14 @@ export async function retryNotifications(env) {
       ).catch(() => {})
       retried += 1
     } else {
+      const retryCount = Number(data.retryCount ?? 0) + 1
       await updateDocumentIfUnchanged(
         env,
         `notifications/${note.id}`,
-        { retryCount: Number(data.retryCount ?? 0) + 1 },
+        {
+          retryCount,
+          ...(retryCount >= limit ? { deliveryStatus: 'Failed' } : {}),
+        },
         note.updateTime,
       ).catch(() => {})
     }

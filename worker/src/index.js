@@ -54,7 +54,9 @@ async function route(request, env) {
     const bloodRequest = await getDocument(env, 'bloodRequests', requestId)
     if (!bloodRequest) throw new HttpError(404, 'Request not found')
 
-    const isAdmin = profile.data?.role === 'admin'
+    // Authority from the token's custom claims (D26), not the client-written
+    // `users.role`.
+    const isAdmin = user.claims?.role === 'admin'
     if (!isAdmin && bloodRequest.data?.createdBy !== user.uid) {
       throw new HttpError(403, 'Only the request creator or an admin can start matching')
     }
@@ -68,7 +70,7 @@ async function route(request, env) {
     const user = await verifyIdToken(env, bearerToken(request))
     const profile = await getDocument(env, 'users', user.uid)
     if (!profile) throw new HttpError(403, 'No DG+ profile for this account')
-    if (profile.data?.role !== 'admin') throw new HttpError(403, 'Admin only')
+    if (user.claims?.role !== 'admin') throw new HttpError(403, 'Admin only')
 
     const result = await verifyAuditChain(env)
     
@@ -95,7 +97,7 @@ async function route(request, env) {
     const user = await verifyIdToken(env, bearerToken(request))
     const profile = await getDocument(env, 'users', user.uid)
     if (!profile) throw new HttpError(403, 'No DG+ profile for this account')
-    if (profile.data?.role !== 'admin') throw new HttpError(403, 'Admin only')
+    if (user.claims?.role !== 'admin') throw new HttpError(403, 'Admin only')
 
     const blocks = await getAllAuditBlocks(env)
     return json({ ok: true, blocks }, 200, cors)
@@ -106,7 +108,7 @@ async function route(request, env) {
     const user = await verifyIdToken(env, bearerToken(request))
     const profile = await getDocument(env, 'users', user.uid)
     if (!profile) throw new HttpError(403, 'No DG+ profile for this account')
-    if (profile.data?.role !== 'admin') throw new HttpError(403, 'Admin only')
+    if (user.claims?.role !== 'admin') throw new HttpError(403, 'Admin only')
 
     let body
     try {
@@ -120,7 +122,7 @@ async function route(request, env) {
       entityType: body.entityType,
       entityId: body.entityId,
       actorId: user.uid,
-      actorRole: profile.data?.role,
+      actorRole: user.claims?.role || profile.data?.role,
       correctsBlockId: body.correctsBlockId,
     })
     

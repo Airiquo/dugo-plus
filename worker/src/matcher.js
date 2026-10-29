@@ -311,7 +311,10 @@ export async function processRequest(env, request, { now = new Date(), source = 
 
   const startedAt = Date.now()
   const donors = await queryDonors(env, compatibleTypes, prefixes)
+  const queryMs = Date.now() - startedAt
+  const existingStarted = Date.now()
   const existing = await queryExistingMatches(env, request.id)
+  const existingMs = Date.now() - existingStarted
   const { matches, skipped } = selectMatches({
     request: { ...data, id: request.id },
     requestPoint,
@@ -326,17 +329,29 @@ export async function processRequest(env, request, { now = new Date(), source = 
     path: `donorMatches/${request.id}_${match.donorId}`,
     data: match,
   }))
+  const writeStarted = Date.now()
   const written = await writeNewDocuments(env, writes)
+  const writeMs = Date.now() - writeStarted
 
+  const totalMs = Date.now() - startedAt
   const isLastTier = tierIndex + 1 >= tiers.length
   const matching = {
     currentTier: tier.number,
     nextTierAt: isLastTier ? null : new Date(now.getTime() + tier.waitMinutes * 60_000),
     lastRunAt: now,
-    lastRunMs: Date.now() - startedAt,
+    lastRunMs: totalMs,
     matchedDonorCount: Number(data.matching?.matchedDonorCount ?? 0) + written.created,
     exhausted: isLastTier,
   }
+  // Per-phase timing so NFR-01/02/05 can be measured in deployment.
+  const timings = { queryMs, existingMs, writeMs, totalMs }
+  console.log('match run', {
+    requestId: request.id,
+    tier: tier.number,
+    donors: donors.length,
+    matched: written.created,
+    ...timings,
+  })
   const updated = await updateDocumentIfUnchanged(
     env,
     `bloodRequests/${request.id}`,
@@ -370,6 +385,7 @@ export async function processRequest(env, request, { now = new Date(), source = 
     exhausted: matching.exhausted,
     updated,
     durationMs: matching.lastRunMs,
+    timings,
   }
 }
 

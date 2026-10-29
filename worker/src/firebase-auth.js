@@ -9,6 +9,17 @@ import { HttpError } from './http.js'
 
 const LOOKUP_URL = 'https://identitytoolkit.googleapis.com/v1/accounts:lookup'
 
+/** Parse the `customAttributes` JSON string the lookup returns, or {}. */
+function parseClaims(raw) {
+  if (!raw || typeof raw !== 'string') return {}
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
 export async function verifyIdToken(env, idToken) {
   if (!idToken) throw new HttpError(401, 'Missing bearer token')
   if (!env.FIREBASE_API_KEY) throw new HttpError(500, 'FIREBASE_API_KEY is not configured')
@@ -36,5 +47,8 @@ export async function verifyIdToken(env, idToken) {
     uid: user.localId,
     email: user.email ?? null,
     emailVerified: true,
+    // Custom claims (`role`, `hospitalId`) published by scripts/set-claims.mjs
+    // (D26). Admin/staff authority on the Worker reads these, not `users.role`.
+    claims: parseClaims(user.customAttributes),
   }
 }
