@@ -19,6 +19,7 @@ export const NAV = [
     icon: 'target',
   },
   { slug: 'donor-registry', screen: 'admin-donor-registry', label: 'Donor Registry', icon: 'user' },
+  { slug: 'accounts', screen: 'admin-accounts', label: 'Accounts', icon: 'user' },
   { slug: 'inventory', screen: 'admin-inventory', label: 'Inventory', icon: 'box' },
   {
     slug: 'donations-rewards',
@@ -28,6 +29,7 @@ export const NAV = [
   },
   { slug: 'reports', screen: 'admin-reports', label: 'Reports', icon: 'chart' },
   { slug: 'audit-trail', screen: 'admin-audit-trail', label: 'Audit Trail', icon: 'file' },
+  { slug: 'data-requests', screen: 'admin-data-requests', label: 'Data Requests', icon: 'file' },
   { slug: 'settings', screen: 'admin-settings', label: 'Settings', icon: 'settings' },
   {
     slug: 'profile',
