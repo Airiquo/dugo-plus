@@ -1,0 +1,15 @@
+{
+  "name": "dugo-plus-account-service",
+  "private": true,
+  "type": "module",
+  "description": "Free host for the privileged account operations (FR-040) while Cloud Functions need the Blaze plan.",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0"
+  }
+}

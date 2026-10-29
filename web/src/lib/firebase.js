@@ -25,7 +25,7 @@ const ENV_TO_FIELD = {
  * identifier and access is enforced by Firebase's own rules. The file holding
  * them is gitignored all the same, so one project is never baked into the repo.
  */
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
