@@ -28,7 +28,7 @@ numbers rather than trusting this section.
 | --- | --- | --- |
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | in progress (F3: hospital posts + lists its requests; status/manage deferred on claims) |
-| **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
+| **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; FR-010 derived on the profile; F5 history/rewards/tracker open. F4 smoke pending) |
 | **P4** | Hospital dashboard, inventory, screening | not started |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (admin gate; FR-047 profile page; suspension gate + accounts/settings/data-requests + donor privacy built; claims still to set on live project) |
@@ -497,3 +497,13 @@ is cancelled. An assumption is never recorded in place of an answer.
   **needs a rules deploy**). `/donor/alerts` also rendered the admin `AppShell`
   and `AuditTrail.jsx` used undefined tokens (`--danger`, `data-status="warn"`);
   both corrected.
+- **F4 + F9 rows corrected; account creation stays server-side (2026-10-27).**
+  F4's donor screens were built but its rows (FR-005/006/022/023/028/029/030/038)
+  still read "not started"; they are now `partial` (built, live smoke pending),
+  pointing at the F4 files. F9's admin screens existed but `accounts` and
+  `data-requests` had no sidebar entry, so the suspend UI was unreachable — both
+  are now in `AppShell` NAV. **Creating a hospital account is not in the app and
+  cannot be**: a browser cannot create Auth users or set claims, so it stays
+  `scripts/create-hospital-account.mjs` / the console, and the admin UI
+  suspends/reactivates only (`Removed` not offered). D26 and FR-040 corrected to
+  say so. F4/F9 live smoke pending.

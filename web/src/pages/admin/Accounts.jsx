@@ -88,7 +88,11 @@ export default function Accounts() {
         <Card>
           <header>
             <h2>Account management</h2>
-            <p className="muted">Suspend or reactivate donor and hospital accounts. Admin accounts are managed by the team.</p>
+            <p className="muted">
+              Suspend or reactivate donor and hospital accounts. New hospital accounts are
+              created with <code>scripts/create-hospital-account.mjs</code> (or the Firebase
+              console) — the browser cannot create logins. Admin accounts are managed by the team.
+            </p>
           </header>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'end' }}>
