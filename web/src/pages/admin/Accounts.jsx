@@ -388,8 +388,9 @@ export default function Accounts() {
           <header>
             <h2>Create a hospital account</h2>
             <p className="muted">
-              Creates the sign-in account, its profile, the facility record and the hospital claim in one
-              step. Needs the account service deployed or the <code>create:hospital</code> script.
+              Creates the sign-in account, its profile and the facility record in one step. With the
+              account service configured it also sets the hospital claim; without one the claim is
+              published later with <code>set-claims</code>.
             </p>
           </header>
 

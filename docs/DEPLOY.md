@@ -54,6 +54,24 @@ change from shipping the frontend, and folding them together would push a rules
 edit live on every UI deploy. Check the console's *Firestore → Rules* tab before
 running this, so you know what is being replaced.
 
+## Account service (free, no Blaze)
+
+Creating a hospital account needs the Admin SDK, and Cloud Functions can host it
+only on the Blaze plan. `workers/account-service/` does the same work on a free
+Node host (Vercel or Netlify), so `/admin/accounts` can create hospital accounts
+without a paid plan and without a script.
+
+1. Deploy the worker — `workers/account-service/README.md` has the steps (the
+   service-account key in the host's environment, root directory
+   `workers/account-service`).
+2. Grant the first admin its claim from the worker's `bootstrap` page.
+3. Set `VITE_ACCOUNT_SERVICE_URL` in `web/.env.local` to the deployed
+   `/api/account` URL.
+4. Rebuild and deploy hosting (`./tools/deploy.sh`).
+
+With the variable unset, the app falls back to the `functions/` callables, so a
+Blaze project is unaffected. See D33 in `docs/REQUIREMENTS.md`.
+
 ## Verifying a deploy
 
 1. Open the URL the CLI prints, `https://dugo-plus.web.app`.
