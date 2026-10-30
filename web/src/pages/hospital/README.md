@@ -18,9 +18,10 @@ Built:
   `users/{uid}.hospitalId`; the hospital claim is `role: 'hospital'` with that
   `hospitalId`.
 - **Hospital map** — `/hospital/map` (FR-015). Leaflet + OpenStreetMap, bounded
-  to the Philippines. Shows the saved pin. Relocate mode accepts a candidate
-  point from a map click or device geolocation, then asks for confirmation
-  before saving coordinates plus a derived geohash.
+  to the Philippines. Shows the saved pin. A floating GPS control recentres on
+  the device location and marks it with a blue dot. Relocate mode accepts a
+  candidate point from a map click or device geolocation, then asks for
+  confirmation before saving coordinates plus a derived geohash.
 
 All three use `layout/HospitalShell.jsx` and sit behind `RequireRole(['hospital'])`
 in `web/src/App.jsx`.

@@ -569,6 +569,32 @@
 .hospital-map-head p {
   margin: 4px 0 0;
 }
+.hospital-map-wrap {
+  position: relative;
+  isolation: isolate;
+}
+.hospital-map-locate {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 50%;
+}
+.hospital-map-locate .icon {
+  width: 18px;
+  height: 18px;
+}
+.hospital-map-locate[aria-busy='true'] .icon {
+  animation: hospital-locate-spin 1s linear infinite;
+}
+@keyframes hospital-locate-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .hospital-map-canvas {
   height: clamp(320px, 54vh, 540px);
   overflow: hidden;
@@ -604,9 +630,26 @@
   border: 3px solid var(--d-panel);
   border-radius: 50%;
   box-shadow: 0 0 0 2px var(--d-red);
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease;
+}
+.hospital-map-canvas.is-selecting .hospital-map-pin:not(.is-candidate) {
+  background: color-mix(in srgb, var(--d-red) 42%, var(--d-panel));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--d-red) 42%, var(--d-panel));
+  opacity: 0.85;
 }
 .hospital-map-pin.is-candidate {
   animation: hospital-pin-pulse 1.8s ease-out infinite;
+}
+.hospital-map-user-pin {
+  background: var(--d-blue);
+  border: 3px solid var(--d-panel);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px var(--d-blue),
+    0 0 0 9px color-mix(in srgb, var(--d-blue) 18%, transparent);
 }
 @keyframes hospital-pin-pulse {
   0% {
@@ -687,6 +730,12 @@
   .hospital-map-canvas {
     height: 380px;
   }
+  .hospital-map-locate {
+    top: 10px;
+    right: 10px;
+    width: 40px;
+    height: 40px;
+  }
   .hospital-map-preview {
     min-height: 150px;
   }
@@ -724,7 +773,11 @@
   .hospital-map-preview-go {
     transition: none;
   }
-  .hospital-map-pin.is-candidate {
+  .hospital-map-pin {
+    transition: none;
+  }
+  .hospital-map-pin.is-candidate,
+  .hospital-map-locate[aria-busy='true'] .icon {
     animation: none;
   }
 }

@@ -41,11 +41,13 @@ export default function Map() {
   const map = useRef(null)
   const marker = useRef(null)
   const candidateMarker = useRef(null)
+  const userMarker = useRef(null)
   const [hospital, setHospital] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
   const [selecting, setSelecting] = useState(false)
   const [candidate, setCandidate] = useState(null)
+  const [userLocation, setUserLocation] = useState(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [locating, setLocating] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -76,6 +78,7 @@ export default function Map() {
       map.current = null
       marker.current = null
       candidateMarker.current = null
+      userMarker.current = null
     }
   }, [])
 
@@ -118,9 +121,30 @@ export default function Map() {
       }),
       interactive: false,
       keyboard: false,
+      zIndexOffset: 1000,
       title: 'Selected facility location',
     }).addTo(map.current)
   }, [candidate])
+
+  useEffect(() => {
+    if (!map.current) return
+    if (userMarker.current) {
+      userMarker.current.remove()
+      userMarker.current = null
+    }
+    if (!userLocation) return
+    userMarker.current = L.marker([userLocation.latitude, userLocation.longitude], {
+      icon: L.divIcon({
+        className: 'hospital-map-user-pin',
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      }),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 500,
+      title: 'Your current location',
+    }).addTo(map.current)
+  }, [userLocation])
 
   useEffect(() => {
     const instance = map.current
@@ -187,12 +211,13 @@ export default function Map() {
     setNote('')
   }
 
-  const useCurrentLocation = () => {
+  const requestLocation = (onFound) => {
+    if (locating) return
     setError('')
     setNote('')
     setSaveError('')
     if (!navigator.geolocation) {
-      setError('This browser cannot read your location. Click the map to place the pin instead.')
+      setError('This browser cannot read your location.')
       return
     }
     setLocating(true)
@@ -202,24 +227,38 @@ export default function Map() {
         const longitude = Number(position.coords.longitude.toFixed(6))
         setLocating(false)
         if (!inPhilippines(latitude, longitude)) {
-          setError('Your current location is outside the Philippines. Click the map instead.')
+          setError('Your current location is outside the Philippines.')
           return
         }
-        setCandidate({ latitude, longitude })
-        map.current?.setView([latitude, longitude], 16)
+        onFound(latitude, longitude)
       },
       (reason) => {
         setLocating(false)
         setError(
           reason.code === reason.PERMISSION_DENIED
-            ? 'Location permission was denied. Allow it in the browser, or click the map instead.'
+            ? 'Location permission was denied. Allow it in the browser and try again.'
             : reason.code === reason.TIMEOUT
-              ? 'Finding your location timed out. Try again, or click the map instead.'
-              : 'Your location could not be read. Try again, or click the map instead.',
+              ? 'Finding your location timed out. Try again.'
+              : 'Your location could not be read. Try again.',
         )
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     )
+  }
+
+  const locateUser = () => {
+    requestLocation((latitude, longitude) => {
+      setUserLocation({ latitude, longitude })
+      setNote('Showing your current location.')
+      map.current?.setView([latitude, longitude], 16)
+    })
+  }
+
+  const useCurrentLocation = () => {
+    requestLocation((latitude, longitude) => {
+      setCandidate({ latitude, longitude })
+      map.current?.setView([latitude, longitude], 16)
+    })
   }
 
   const saveCandidate = async () => {
@@ -341,12 +380,24 @@ export default function Map() {
               </div>
             )}
 
-            <div
-              ref={mapNode}
-              className={selecting ? 'hospital-map-canvas is-selecting' : 'hospital-map-canvas'}
-              role="region"
-              aria-label="Facility map"
-            />
+            <div className="hospital-map-wrap">
+              <div
+                ref={mapNode}
+                className={selecting ? 'hospital-map-canvas is-selecting' : 'hospital-map-canvas'}
+                role="region"
+                aria-label="Facility map"
+              />
+              <Btn
+                variant="primary"
+                icon="target"
+                className="hospital-map-locate"
+                onClick={locateUser}
+                disabled={locating || saving}
+                aria-label={locating ? 'Finding your location' : 'Go to my current location'}
+                aria-busy={locating || undefined}
+                title={locating ? 'Finding your location' : 'Go to my current location'}
+              />
+            </div>
 
             <dl className="hospital-facts hospital-map-facts">
               <div>
