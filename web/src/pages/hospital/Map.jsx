@@ -49,8 +49,8 @@ export default function Map() {
     if (!mapNode.current) return undefined
     const instance = L.map(mapNode.current, {
       center: PH_CENTER,
-      zoom: 6,
-      minZoom: 6,
+      zoom: 7,
+      minZoom: 7,
       maxZoom: 19,
       maxBounds: PH_BOUNDS,
       maxBoundsViscosity: 1,
@@ -77,7 +77,7 @@ export default function Map() {
       marker.current = null
     }
     if (!hasLocation(hospital)) {
-      map.current.setView(PH_CENTER, 6)
+      map.current.setView(PH_CENTER, 7)
       return
     }
     const point = [hospital.latitude, hospital.longitude]
