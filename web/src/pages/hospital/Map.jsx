@@ -10,11 +10,14 @@ import { Btn, Card, Modal, PageHeader } from '../../components'
 const PH_CENTER = [12.8797, 121.774]
 const PH_BOUNDS = L.latLngBounds([4.2, 116], [21.5, 127])
 
+/** A coordinate pair is usable only inside the operating area. */
+function inPhilippines(latitude, longitude) {
+  return isCoordinate(latitude, longitude) && PH_BOUNDS.contains([latitude, longitude])
+}
+
 /** A saved coordinate pair is usable only inside the operating area. */
 function hasLocation(hospital) {
-  if (!hospital) return false
-  const { latitude, longitude } = hospital
-  return isCoordinate(latitude, longitude) && PH_BOUNDS.contains([latitude, longitude])
+  return Boolean(hospital) && inPhilippines(hospital.latitude, hospital.longitude)
 }
 
 /** A compact coordinate readout. */
@@ -25,9 +28,10 @@ function coordinate(value) {
 /**
  * Hospital map — `/hospital/map` (FR-015).
  *
- * Shows the facility on OpenStreetMap and lets staff replace the saved point
- * with the current device location. The map is bounded to the Philippines,
- * the system's operating area.
+ * Shows the facility on OpenStreetMap and lets staff pick a replacement point
+ * by clicking the map or using device geolocation. The saved point changes only
+ * after the selection is confirmed in a dialog. The map is bounded to the
+ * Philippines, the system's operating area.
  */
 export default function Map() {
   const { profile } = useAuth()
@@ -36,12 +40,16 @@ export default function Map() {
   const mapNode = useRef(null)
   const map = useRef(null)
   const marker = useRef(null)
+  const candidateMarker = useRef(null)
   const [hospital, setHospital] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadFailed, setLoadFailed] = useState(false)
+  const [selecting, setSelecting] = useState(false)
+  const [candidate, setCandidate] = useState(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [locating, setLocating] = useState(false)
-  const [busy, setBusy] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
 
@@ -67,6 +75,7 @@ export default function Map() {
       instance.remove()
       map.current = null
       marker.current = null
+      candidateMarker.current = null
     }
   }, [])
 
@@ -87,11 +96,49 @@ export default function Map() {
         iconSize: [18, 18],
         iconAnchor: [9, 9],
       }),
+      interactive: false,
       keyboard: false,
       title: hospital.name || 'Facility',
     }).addTo(map.current)
     map.current.setView(point, 15)
   }, [hospital])
+
+  useEffect(() => {
+    if (!map.current) return
+    if (candidateMarker.current) {
+      candidateMarker.current.remove()
+      candidateMarker.current = null
+    }
+    if (!candidate) return
+    candidateMarker.current = L.marker([candidate.latitude, candidate.longitude], {
+      icon: L.divIcon({
+        className: 'hospital-map-pin is-candidate',
+        iconSize: [18, 18],
+        iconAnchor: [9, 9],
+      }),
+      interactive: false,
+      keyboard: false,
+      title: 'Selected facility location',
+    }).addTo(map.current)
+  }, [candidate])
+
+  useEffect(() => {
+    const instance = map.current
+    if (!instance || !selecting) return undefined
+    const onPick = (event) => {
+      const latitude = Number(event.latlng.lat.toFixed(6))
+      const longitude = Number(event.latlng.lng.toFixed(6))
+      if (!inPhilippines(latitude, longitude)) {
+        setError('Choose a point inside the Philippines.')
+        return
+      }
+      setCandidate({ latitude, longitude })
+      setError('')
+      setNote('')
+    }
+    instance.on('click', onPick)
+    return () => instance.off('click', onPick)
+  }, [selecting])
 
   useEffect(() => {
     if (!hospitalId) {
@@ -116,48 +163,87 @@ export default function Map() {
     }
   }, [hospitalId])
 
-  const relocate = () => {
+  const startRelocate = () => {
+    setSelecting(true)
+    setCandidate(null)
     setConfirmOpen(false)
+    setSaveError('')
     setNote('')
     setError('')
+    if (!map.current) return
+    if (hasLocation(hospital)) {
+      map.current.setView([hospital.latitude, hospital.longitude], 15)
+    } else {
+      map.current.setView(PH_CENTER, 7)
+    }
+  }
+
+  const cancelSelection = () => {
+    setSelecting(false)
+    setCandidate(null)
+    setConfirmOpen(false)
+    setSaveError('')
+    setError('')
+    setNote('')
+  }
+
+  const useCurrentLocation = () => {
+    setError('')
+    setNote('')
+    setSaveError('')
     if (!navigator.geolocation) {
-      setError('This browser cannot read your location.')
+      setError('This browser cannot read your location. Click the map to place the pin instead.')
       return
     }
     setLocating(true)
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      (position) => {
         const latitude = Number(position.coords.latitude.toFixed(6))
         const longitude = Number(position.coords.longitude.toFixed(6))
-        if (!isCoordinate(latitude, longitude) || !PH_BOUNDS.contains([latitude, longitude])) {
-          setLocating(false)
-          setError('That location is outside the Philippines, so it cannot be saved.')
+        setLocating(false)
+        if (!inPhilippines(latitude, longitude)) {
+          setError('Your current location is outside the Philippines. Click the map instead.')
           return
         }
-        setBusy(true)
-        try {
-          await saveHospital(hospitalId, { latitude, longitude })
-          setHospital((prev) => (prev ? { ...prev, latitude, longitude } : prev))
-          setNote('Facility location updated.')
-        } catch {
-          setError('The facility location could not be saved. Check your connection and try again.')
-        } finally {
-          setBusy(false)
-          setLocating(false)
-        }
+        setCandidate({ latitude, longitude })
+        map.current?.setView([latitude, longitude], 16)
       },
       (reason) => {
         setLocating(false)
         setError(
           reason.code === reason.PERMISSION_DENIED
-            ? 'Location permission was denied. Allow it in the browser and try again.'
+            ? 'Location permission was denied. Allow it in the browser, or click the map instead.'
             : reason.code === reason.TIMEOUT
-              ? 'Finding your location timed out. Try again.'
-              : 'Your location could not be read. Try again.',
+              ? 'Finding your location timed out. Try again, or click the map instead.'
+              : 'Your location could not be read. Try again, or click the map instead.',
         )
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
     )
+  }
+
+  const saveCandidate = async () => {
+    if (!candidate || !hospitalId || saving) return
+    const { latitude, longitude } = candidate
+    if (!inPhilippines(latitude, longitude)) {
+      setSaveError('Choose a point inside the Philippines.')
+      return
+    }
+    setSaving(true)
+    setSaveError('')
+    setError('')
+    try {
+      await saveHospital(hospitalId, { latitude, longitude })
+      setHospital((prev) => (prev ? { ...prev, latitude, longitude } : prev))
+      setSelecting(false)
+      setCandidate(null)
+      setConfirmOpen(false)
+      setNote('Facility location updated.')
+    } catch {
+      setSaveError('The facility location could not be saved. Check your connection and try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const canRelocate = Boolean(hospitalId && hospital && !loadFailed)
@@ -167,20 +253,26 @@ export default function Map() {
       <PageHeader tag="Dugo+ hospital" title="Hospital Map" />
       <div id="page-body">
         <div className="hospital-map-page">
-          <Card>
+          <Card aria-busy={saving}>
             <header className="hospital-map-head">
               <div>
                 <h2>{hospital?.name || 'Facility location'}</h2>
                 <p className="muted">{hospital?.address || 'No address saved.'}</p>
               </div>
-              <Btn
-                variant="primary"
-                icon="target"
-                onClick={() => setConfirmOpen(true)}
-                disabled={!canRelocate || locating || busy}
-              >
-                {locating ? 'Locating…' : 'Relocate'}
-              </Btn>
+              {selecting ? (
+                <Btn onClick={cancelSelection} disabled={saving || locating}>
+                  Cancel
+                </Btn>
+              ) : (
+                <Btn
+                  variant="primary"
+                  icon="target"
+                  onClick={startRelocate}
+                  disabled={!canRelocate || saving}
+                >
+                  Relocate
+                </Btn>
+              )}
             </header>
 
             {loading && <p className="hospital-state">Loading facility…</p>}
@@ -205,15 +297,53 @@ export default function Map() {
               </p>
             )}
 
-            {!loading && hospital && !hasLocation(hospital) && (
+            {!loading && hospital && !hasLocation(hospital) && !selecting && (
               <p className="hospital-state" data-kind="warn" role="status">
                 No Philippines location is saved yet. Use Relocate to set the facility point.
               </p>
             )}
 
+            {selecting && (
+              <div className="hospital-map-prompt">
+                <div className="hospital-map-prompt-copy" aria-live="polite">
+                  <strong>{candidate ? 'Location selected' : 'Choose the facility location'}</strong>
+                  <p>
+                    {candidate
+                      ? 'Confirm this point, or click the map to choose another.'
+                      : 'Click anywhere on the map to place the pin, or use your current location.'}
+                  </p>
+                  {candidate && (
+                    <p className="hospital-map-coords">
+                      {coordinate(candidate.latitude)}, {coordinate(candidate.longitude)}
+                    </p>
+                  )}
+                </div>
+                <div className="hospital-map-prompt-actions">
+                  <Btn
+                    icon="target"
+                    onClick={useCurrentLocation}
+                    disabled={locating || saving}
+                  >
+                    {locating ? 'Locating…' : 'Use current location'}
+                  </Btn>
+                  <Btn
+                    variant="primary"
+                    icon="check"
+                    onClick={() => {
+                      setSaveError('')
+                      setConfirmOpen(true)
+                    }}
+                    disabled={!candidate || saving}
+                  >
+                    Confirm location
+                  </Btn>
+                </div>
+              </div>
+            )}
+
             <div
               ref={mapNode}
-              className="hospital-map-canvas"
+              className={selecting ? 'hospital-map-canvas is-selecting' : 'hospital-map-canvas'}
               role="region"
               aria-label="Facility map"
             />
@@ -246,19 +376,45 @@ export default function Map() {
       <Modal
         name="hospital-relocate"
         open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        title="Relocate facility?"
+        onClose={() => {
+          if (!saving) setConfirmOpen(false)
+        }}
+        title="Confirm facility location"
       >
-        <p className="hospital-note">
-          Use this device’s current location as the facility’s saved map position? This replaces
-          the hospital’s coordinates.
-        </p>
+        {candidate && (
+          <>
+            <p className="hospital-note">
+              Use this point as the facility’s saved location? This replaces the current pin used
+              for nearby donor matching.
+            </p>
+            <dl className="hospital-facts hospital-map-confirm-facts">
+              <div>
+                <dt>Latitude</dt>
+                <dd>{coordinate(candidate.latitude)}</dd>
+              </div>
+              <div>
+                <dt>Longitude</dt>
+                <dd>{coordinate(candidate.longitude)}</dd>
+              </div>
+            </dl>
+          </>
+        )}
+        {saveError && (
+          <p className="hospital-state" data-kind="error" role="alert">
+            {saveError}
+          </p>
+        )}
         <div className="hospital-dialog-actions">
-          <Btn variant="ghost" onClick={() => setConfirmOpen(false)}>
-            Cancel
+          <Btn variant="ghost" onClick={() => setConfirmOpen(false)} disabled={saving}>
+            Back
           </Btn>
-          <Btn variant="primary" icon="target" onClick={relocate}>
-            Use my location
+          <Btn
+            variant="primary"
+            icon="check"
+            onClick={saveCandidate}
+            disabled={saving || !candidate}
+          >
+            {saving ? 'Saving…' : 'Save location'}
           </Btn>
         </div>
       </Modal>

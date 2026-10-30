@@ -5,7 +5,7 @@ import { readHospital, saveHospital } from '../../services/hospitals'
 import { validateHospital } from '../../utils/validate'
 import { phDisplay, phE164, phNational } from '../../utils/phone'
 import { HospitalShell } from '../../layout/HospitalShell'
-import { Badge, Btn, Card, Field, FieldError, Input, PageHeader } from '../../components'
+import { Badge, Btn, Card, Field, FieldError, Icon, Input, PageHeader } from '../../components'
 
 const EMPTY = { name: '', address: '', contactNumber: '' }
 
@@ -216,17 +216,30 @@ export default function Profile() {
                 </section>
 
                 <section className="hospital-profile-section">
-                  <div className="hospital-profile-row">
-                    <div>
-                      <h3 className="hospital-profile-h">Location</h3>
-                      <p className="hospital-note">
-                        The facility map sets the coordinates used for nearby donor matching.
-                      </p>
-                    </div>
-                    <Link className="hospital-profile-link" to="/hospital/map">
-                      Hospital Map
-                    </Link>
+                  <div className="hospital-profile-head">
+                    <h3 className="hospital-profile-h">Location</h3>
+                    <p className="hospital-note">
+                      The facility map sets the coordinates used for nearby donor matching.
+                    </p>
                   </div>
+                  <Link
+                    className="hospital-map-preview"
+                    to="/hospital/map"
+                    aria-label="Open the hospital map"
+                  >
+                    <span className="hospital-map-preview-art" aria-hidden="true">
+                      <span className="hospital-map-preview-pin" />
+                    </span>
+                    <span className="hospital-map-preview-overlay">
+                      <span className="hospital-map-preview-copy">
+                        <strong>Open hospital map</strong>
+                        <small>View or update the facility pin</small>
+                      </span>
+                      <span className="hospital-map-preview-go">
+                        <Icon name="arrow-right" />
+                      </span>
+                    </span>
+                  </Link>
                 </section>
 
                 <section className="hospital-profile-section">

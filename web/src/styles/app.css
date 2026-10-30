@@ -402,27 +402,136 @@
   font-size: 11px;
   font-weight: 600;
 }
-.hospital-profile-row {
+.hospital-profile-head {
+  display: grid;
+  gap: 6px;
+}
+.hospital-map-preview {
+  position: relative;
+  display: block;
+  min-height: 172px;
+  overflow: hidden;
+  color: var(--d-ink);
+  text-decoration: none;
+  border: 1px solid var(--d-line);
+  border-radius: var(--d-radius-sm);
+  background: var(--d-field);
+  isolation: isolate;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+.hospital-map-preview-art {
+  position: absolute;
+  inset: 0;
+  background-color: var(--d-field);
+  background-image:
+    radial-gradient(
+      circle at 58% 38%,
+      color-mix(in srgb, var(--d-red) 15%, transparent) 0 12%,
+      transparent 13%
+    ),
+    linear-gradient(
+      64deg,
+      transparent 47.4%,
+      color-mix(in srgb, var(--d-muted) 20%, transparent) 47.4% 48.2%,
+      transparent 48.2%
+    ),
+    linear-gradient(
+      -28deg,
+      transparent 60%,
+      color-mix(in srgb, var(--d-muted) 16%, transparent) 60% 60.8%,
+      transparent 60.8%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--d-muted) 8%, transparent) 0 1px,
+      transparent 1px 30px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--d-muted) 8%, transparent) 0 1px,
+      transparent 1px 30px
+    );
+}
+.hospital-map-preview-pin {
+  position: absolute;
+  top: 38%;
+  left: 58%;
+  width: 16px;
+  height: 16px;
+  background: var(--d-red);
+  border: 3px solid var(--d-panel);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px var(--d-red),
+    0 0 0 10px color-mix(in srgb, var(--d-red) 14%, transparent);
+  transform: translate(-50%, -50%);
+  transition: transform 0.18s ease;
+}
+.hospital-map-preview-overlay {
+  position: absolute;
+  inset: auto 0 0;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 24px;
+  gap: 16px;
+  padding: 42px 16px 14px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in srgb, var(--d-panel) 78%, transparent) 42%,
+    var(--d-panel) 100%
+  );
 }
-.hospital-profile-link {
-  color: var(--d-red);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  white-space: nowrap;
+.hospital-map-preview-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
-.hospital-profile-link:hover {
-  text-decoration-thickness: 2px;
+.hospital-map-preview-copy strong {
+  font-size: 14.5px;
+  font-weight: 700;
 }
-.hospital-profile-link:focus-visible {
+.hospital-map-preview-copy small {
+  color: var(--d-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.hospital-map-preview-go {
+  display: grid;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: var(--d-ink);
+  border: 1px solid var(--d-line);
+  border-radius: 50%;
+  background: var(--d-panel);
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+.hospital-map-preview:hover {
+  border-color: color-mix(in srgb, var(--d-red) 70%, var(--d-line));
+  box-shadow: 0 10px 24px -16px color-mix(in srgb, var(--d-ink) 45%, transparent);
+  transform: translateY(-2px);
+}
+.hospital-map-preview:hover .hospital-map-preview-pin {
+  transform: translate(-50%, -50%) scale(1.12);
+}
+.hospital-map-preview:hover .hospital-map-preview-go {
+  color: var(--d-on-red);
+  border-color: var(--d-red);
+  background: var(--d-red);
+  transform: translateX(3px);
+}
+.hospital-map-preview:focus-visible {
   outline: 2px solid var(--d-red);
   outline-offset: 3px;
-  border-radius: 3px;
 }
 .hospital-form-actions {
   display: flex;
@@ -468,6 +577,11 @@
   background: var(--d-field);
   z-index: 0;
 }
+.hospital-map-canvas.is-selecting,
+.hospital-map-canvas.is-selecting .leaflet-grab,
+.hospital-map-canvas.is-selecting .leaflet-interactive {
+  cursor: crosshair;
+}
 .hospital-map-canvas .leaflet-control-zoom a {
   color: var(--d-ink);
   background: var(--d-panel);
@@ -491,9 +605,67 @@
   border-radius: 50%;
   box-shadow: 0 0 0 2px var(--d-red);
 }
+.hospital-map-pin.is-candidate {
+  animation: hospital-pin-pulse 1.8s ease-out infinite;
+}
+@keyframes hospital-pin-pulse {
+  0% {
+    box-shadow:
+      0 0 0 2px var(--d-red),
+      0 0 0 4px color-mix(in srgb, var(--d-red) 35%, transparent);
+  }
+  70%,
+  100% {
+    box-shadow:
+      0 0 0 2px var(--d-red),
+      0 0 0 15px transparent;
+  }
+}
+.hospital-map-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--d-red) 30%, var(--d-line));
+  border-left: 3px solid var(--d-red);
+  border-radius: var(--d-radius-sm);
+  background: color-mix(in srgb, var(--d-red) 6%, var(--d-panel));
+}
+.hospital-map-prompt-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.hospital-map-prompt-copy strong {
+  font-size: 14px;
+}
+.hospital-map-prompt-copy p {
+  margin: 0;
+  color: var(--d-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.hospital-map-coords {
+  color: var(--d-ink) !important;
+  font-family: var(--d-font-mono);
+  font-size: 12px !important;
+}
+.hospital-map-prompt-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .hospital-map-facts {
   padding-top: 14px;
   border-top: 1px solid var(--d-line);
+}
+.hospital-map-confirm-facts {
+  padding: 14px 16px;
+  border: 1px solid var(--d-line);
+  border-radius: var(--d-radius-sm);
+  background: var(--d-field);
 }
 .hospital-dialog-actions {
   display: flex;
@@ -515,9 +687,27 @@
   .hospital-map-canvas {
     height: 380px;
   }
-  .hospital-profile-row {
-    flex-direction: column;
+  .hospital-map-preview {
+    min-height: 150px;
+  }
+  .hospital-map-preview-overlay {
     gap: 10px;
+    padding: 36px 12px 12px;
+  }
+  .hospital-map-preview-go {
+    width: 32px;
+    height: 32px;
+  }
+  .hospital-map-prompt {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .hospital-map-prompt-actions {
+    flex-direction: column;
+  }
+  .hospital-map-prompt-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
   .hospital-dialog-actions {
     flex-direction: column-reverse;
@@ -525,5 +715,16 @@
   .hospital-dialog-actions .btn {
     width: 100%;
     justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hospital-map-preview,
+  .hospital-map-preview-pin,
+  .hospital-map-preview-go {
+    transition: none;
+  }
+  .hospital-map-pin.is-candidate {
+    animation: none;
   }
 }
