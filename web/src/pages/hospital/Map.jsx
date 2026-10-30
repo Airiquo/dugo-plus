@@ -54,6 +54,30 @@ export default function Map() {
   const [saveError, setSaveError] = useState('')
   const [note, setNote] = useState('')
   const [error, setError] = useState('')
+  const [errorId, setErrorId] = useState(0)
+  const [errorFading, setErrorFading] = useState(false)
+
+  const showError = (message) => {
+    setError(message)
+    setErrorId((id) => id + 1)
+  }
+
+  useEffect(() => {
+    if (!error) {
+      setErrorFading(false)
+      return undefined
+    }
+    setErrorFading(false)
+    const fade = setTimeout(() => setErrorFading(true), 2700)
+    const clear = setTimeout(() => {
+      setError('')
+      setErrorFading(false)
+    }, 3000)
+    return () => {
+      clearTimeout(fade)
+      clearTimeout(clear)
+    }
+  }, [error, errorId])
 
   useEffect(() => {
     if (!mapNode.current) return undefined
@@ -66,6 +90,7 @@ export default function Map() {
       maxBoundsViscosity: 1,
       noWrap: true,
     })
+    instance.attributionControl.setPosition('bottomleft')
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -153,7 +178,7 @@ export default function Map() {
       const latitude = Number(event.latlng.lat.toFixed(6))
       const longitude = Number(event.latlng.lng.toFixed(6))
       if (!inPhilippines(latitude, longitude)) {
-        setError('Choose a point inside the Philippines.')
+        showError('Choose a point inside the Philippines.')
         return
       }
       setCandidate({ latitude, longitude })
@@ -217,7 +242,7 @@ export default function Map() {
     setNote('')
     setSaveError('')
     if (!navigator.geolocation) {
-      setError('This browser cannot read your location.')
+      showError('This browser cannot read your location.')
       return
     }
     setLocating(true)
@@ -227,14 +252,14 @@ export default function Map() {
         const longitude = Number(position.coords.longitude.toFixed(6))
         setLocating(false)
         if (!inPhilippines(latitude, longitude)) {
-          setError('Your current location is outside the Philippines.')
+          showError('Your current location is outside the Philippines.')
           return
         }
         onFound(latitude, longitude)
       },
       (reason) => {
         setLocating(false)
-        setError(
+        showError(
           reason.code === reason.PERMISSION_DENIED
             ? 'Location permission was denied. Allow it in the browser and try again.'
             : reason.code === reason.TIMEOUT
@@ -411,7 +436,15 @@ export default function Map() {
             </dl>
 
             {error && (
-              <p className="hospital-state" data-kind="error" role="alert">
+              <p
+                className={
+                  errorFading
+                    ? 'hospital-state hospital-map-error is-fading'
+                    : 'hospital-state hospital-map-error'
+                }
+                data-kind="error"
+                role="alert"
+              >
                 {error}
               </p>
             )}
@@ -431,6 +464,7 @@ export default function Map() {
           if (!saving) setConfirmOpen(false)
         }}
         title="Confirm facility location"
+        hideClose
       >
         {candidate && (
           <>
@@ -456,7 +490,7 @@ export default function Map() {
           </p>
         )}
         <div className="hospital-dialog-actions">
-          <Btn variant="ghost" onClick={() => setConfirmOpen(false)} disabled={saving}>
+          <Btn onClick={() => setConfirmOpen(false)} disabled={saving}>
             Back
           </Btn>
           <Btn

@@ -10,7 +10,7 @@ function useEscape(open, onClose) {
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 }
-function Overlay({ kind, name, open, onClose, title, children, className, ...rest }) {
+function Overlay({ kind, name, open, onClose, title, children, className, hideClose = false, ...rest }) {
   useEscape(open, onClose)
   const state = open ? 'open' : 'closed'
   const id = `${name}-${kind}`
@@ -28,9 +28,11 @@ function Overlay({ kind, name, open, onClose, title, children, className, ...res
       >
         <header id={`${id}-header`} className="row row-between">
           <span>{title}</span>
-          <button className="btn" type="button" onClick={onClose}>
-            Close
-          </button>
+          {!hideClose && (
+            <button className="btn" type="button" onClick={onClose}>
+              Close
+            </button>
+          )}
         </header>
         {children}
       </div>

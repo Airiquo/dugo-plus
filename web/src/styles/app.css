@@ -575,12 +575,13 @@
 }
 .hospital-map-locate {
   position: absolute;
-  top: 12px;
   right: 12px;
+  bottom: 12px;
   z-index: 10;
+  box-sizing: border-box;
   width: 44px;
   height: 44px;
-  padding: 0;
+  padding: 12px;
   border-radius: 50%;
 }
 .hospital-map-locate .icon {
@@ -650,6 +651,12 @@
   box-shadow:
     0 0 0 2px var(--d-blue),
     0 0 0 9px color-mix(in srgb, var(--d-blue) 18%, transparent);
+}
+.hospital-map-error {
+  transition: opacity 0.3s ease;
+}
+.hospital-map-error.is-fading {
+  opacity: 0;
 }
 @keyframes hospital-pin-pulse {
   0% {
@@ -730,12 +737,6 @@
   .hospital-map-canvas {
     height: 380px;
   }
-  .hospital-map-locate {
-    top: 10px;
-    right: 10px;
-    width: 40px;
-    height: 40px;
-  }
   .hospital-map-preview {
     min-height: 150px;
   }
@@ -774,6 +775,9 @@
     transition: none;
   }
   .hospital-map-pin {
+    transition: none;
+  }
+  .hospital-map-error {
     transition: none;
   }
   .hospital-map-pin.is-candidate,
