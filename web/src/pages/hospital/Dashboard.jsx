@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { readHospital } from '../../services/hospitals'
 import { HospitalShell } from '../../layout/HospitalShell'
-import { Badge, Card, LinkBtn, PageHeader } from '../../components'
+import { Badge, Card, PageHeader } from '../../components'
 
 /** The status tone for a facility badge. */
 function statusTone(status) {
@@ -51,17 +51,7 @@ export default function Dashboard() {
 
   return (
     <HospitalShell facility={hospital?.name}>
-      <PageHeader
-        tag="Dugo+ hospital"
-        title="Dashboard"
-        actions={
-          hospital && (
-            <LinkBtn variant="primary" icon="settings" to="/hospital/profile">
-              Edit facility profile
-            </LinkBtn>
-          )
-        }
-      />
+      <PageHeader tag="Dugo+ hospital" title="Dashboard" />
       <div id="page-body">
         <section className="hospital-overview">
           <Card>

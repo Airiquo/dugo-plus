@@ -3,7 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { readHospital, saveHospital } from '../../services/hospitals'
 import { validateHospital } from '../../utils/validate'
 import { HospitalShell } from '../../layout/HospitalShell'
-import { Badge, Btn, Card, Field, FieldError, Input, LinkBtn, PageHeader } from '../../components'
+import { Badge, Btn, Card, Field, FieldError, Input, PageHeader } from '../../components'
 
 const EMPTY = { name: '', address: '', contactNumber: '', latitude: '', longitude: '' }
 
@@ -161,11 +161,7 @@ export default function Profile() {
 
   return (
     <HospitalShell facility={source?.name}>
-      <PageHeader
-        tag="Dugo+ hospital"
-        title="Facility profile"
-        actions={<LinkBtn to="/hospital/dashboard">Back to dashboard</LinkBtn>}
-      />
+      <PageHeader tag="Dugo+ hospital" title="Facility profile" />
       <div id="page-body">
         <div className="hospital-profile">
           <Card as="form" noValidate onSubmit={submit} aria-busy={busy || loading}>
