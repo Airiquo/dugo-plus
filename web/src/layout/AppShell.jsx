@@ -30,7 +30,7 @@ export const NAV = [
   { slug: 'audit-trail', screen: 'admin-audit-trail', label: 'Audit Trail', icon: 'file' },
   { slug: 'settings', screen: 'admin-settings', label: 'Settings', icon: 'settings' },
 ]
-function Sidebar() {
+function Sidebar({ nav = NAV, basePath = '/admin', facility }) {
   const { pathname } = useLocation()
   const { user, role, signOut } = useAuth()
   const { theme, toggle } = useTheme()
@@ -46,14 +46,16 @@ function Sidebar() {
           <span className="app-mark" aria-hidden="true" />
           dugo<span className="plus">+</span>
         </Link>
-        <span id="sidebar-logo-facility" className="pill">
-          Tagaytay City Blood Bank, Cavite
-        </span>
+        {facility && (
+          <span id="sidebar-logo-facility" className="pill">
+            {facility}
+          </span>
+        )}
       </div>
       <div id="sidebar-section-label">{roleLabel(role)}</div>
       <nav id="sidebar-nav" aria-label="Main">
-        {NAV.map((item) => {
-          const to = `/admin/${item.slug}`
+        {nav.map((item) => {
+          const to = `${basePath}/${item.slug}`
           const active = pathname === to
           return (
             <Link
@@ -103,18 +105,25 @@ function Sidebar() {
   )
 }
 /**
- * Admin app chrome: the left sidebar only.
+ * App chrome: the left sidebar only.
+ *
+ * Defaults to the admin navigation. A role surface passes its own `nav`,
+ * `basePath` and `facility` without duplicating the shell markup.
  *
  * The mockup's top toolbar (search, emergency, notifications, account chip) is
- * deliberately not carried here — the owner's direction is sidebar-only admin
- * chrome; the account drawer went with it, and sign-out lives in the sidebar.
- * The theme toggle moved down to the sign-out block so both themes stay
- * reachable from the shell.
+ * deliberately not carried here — the owner's direction is sidebar-only chrome;
+ * the account drawer went with it, and sign-out lives in the sidebar. The theme
+ * toggle moved down to the sign-out block so both themes stay reachable.
  */
-export function AppShell({ children }) {
+export function AppShell({
+  children,
+  nav = NAV,
+  basePath = '/admin',
+  facility = 'Tagaytay City Blood Bank, Cavite',
+}) {
   return (
     <div id="app-shell">
-      <Sidebar />
+      <Sidebar nav={nav} basePath={basePath} facility={facility} />
       <main id="page-content">{children}</main>
       <div id="overlay-root" />
       <div id="toast-root" />

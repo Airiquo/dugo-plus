@@ -1,4 +1,5 @@
 import { passwordProblem } from './password'
+import { isCoordinate } from './geohash'
 
 /**
  * Per-field validation for the auth screens (NFR-20, NFR-21).
@@ -114,6 +115,49 @@ export function validateProfile({ fullName, phoneNumber, dateOfBirth, city } = {
   // coordinates remain optional.
   if (!(city ?? '').trim()) {
     errors.city = 'Enter your city so nearby requests can reach you.'
+  }
+
+  return errors
+}
+
+/**
+ * Hospital facility profile (FR-013). Coordinates are optional as a pair: a
+ * facility can keep its stored location untouched by leaving both blank, but
+ * one coordinate without the other is a mistake worth catching before save.
+ */
+export function validateHospital({ name, address, contactNumber, latitude, longitude } = {}) {
+  const errors = {}
+
+  if (!(name ?? '').trim()) {
+    errors.name = 'Enter the facility name.'
+  } else if ((name ?? '').trim().length < 2) {
+    errors.name = 'That name looks too short.'
+  }
+
+  if (!(address ?? '').trim()) {
+    errors.address = 'Enter the facility address.'
+  }
+
+  const contact = (contactNumber ?? '').trim()
+  if (!contact) {
+    errors.contactNumber = 'Enter a contact number for the facility.'
+  } else {
+    const digits = contact.replace(/[\s()-]/g, '')
+    if (!/^(\+?\d{7,15})$/.test(digits)) {
+      errors.contactNumber = 'Enter a phone number in digits, for example 044 791 0000.'
+    }
+  }
+
+  const latText = String(latitude ?? '').trim()
+  const lngText = String(longitude ?? '').trim()
+  if ((latText === '') !== (lngText === '')) {
+    errors.latitude = 'Enter both latitude and longitude, or leave both blank.'
+  } else if (latText !== '') {
+    const lat = Number(latText)
+    const lng = Number(lngText)
+    if (!isCoordinate(lat, lng)) {
+      errors.latitude = 'Enter a valid latitude and longitude.'
+    }
   }
 
   return errors

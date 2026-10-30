@@ -58,8 +58,8 @@ const db = (ctx) => ctx.firestore();
 const as = (uid, claims) => env.authenticatedContext(uid, claims);
 const anon = () => env.unauthenticatedContext();
 const admin = () => env.authenticatedContext('admin1', { role: 'admin' });
-const staff1 = () => env.authenticatedContext('staff1', { role: 'staff', hospitalId: 'h1' });
-const staff2 = () => env.authenticatedContext('staff2', { role: 'staff', hospitalId: 'h2' });
+const staff1 = () => env.authenticatedContext('staff1', { role: 'hospital', hospitalId: 'h1' });
+const staff2 = () => env.authenticatedContext('staff2', { role: 'hospital', hospitalId: 'h2' });
 const readDoc = (ctx, path) => getDoc(doc(db(ctx), path));
 
 // ---- fixtures ------------------------------------------------------------

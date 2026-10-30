@@ -16,6 +16,8 @@ import Welcome from './pages/shared/Welcome'
 import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
 import Profile from './pages/donor/Profile'
+import HospitalDashboard from './pages/hospital/Dashboard'
+import HospitalProfile from './pages/hospital/Profile'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
@@ -41,6 +43,10 @@ const TRANSLATED = new Set(['dashboard', 'blood-requests'])
  * donor in `hooks/useAuth.jsx`, and `/partner` is how a facility requests a
  * hospital account. `/login` and `/register` have no mockup of their own and
  * are built on `AuthLayout`.
+ *
+ * `/hospital/*` repeats the same gates with `role === 'hospital'`. The
+ * dashboard is the account's landing; the facility profile (FR-013) is the
+ * first editable screen.
  */
 export default function App() {
   // `NotConfigured` wears `AuthLayout`, so it still needs the theme context even
@@ -108,6 +114,21 @@ export default function App() {
                 element={<ScreenStub slug={item.slug} />}
               />
             ))}
+          </Route>
+          <Route
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['hospital']}>
+                    <Outlet />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          >
+            <Route path="/hospital" element={<Navigate to="/hospital/dashboard" replace />} />
+            <Route path="/hospital/dashboard" element={<HospitalDashboard />} />
+            <Route path="/hospital/profile" element={<HospitalProfile />} />
           </Route>
           <Route path="/gallery" element={<Gallery />} />
           <Route path="*" element={<NotFound />} />

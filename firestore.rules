@@ -4,10 +4,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ---- Claim helpers (D15) -------------------------------------------
-    // Admin and staff authority comes from Firebase Auth custom claims
-    // (`request.auth.token.role`, `.hospitalId`) set by the server, never from
-    // the client-written `users.role` field. Until claims exist (PHASES §10),
-    // these match no session and the admin/staff paths sit closed.
+    // Admin and hospital-staff authority comes from Firebase Auth custom
+    // claims (`request.auth.token.role`, `.hospitalId`) set by the server,
+    // never from the client-written `users.role` field. The role claim uses the
+    // schema's account types: `hospital` is the staff claim. Until claims
+    // exist (PHASES §10), these match no session and the staff paths sit closed.
     function me() {
       return request.auth.uid;
     }
@@ -21,7 +22,7 @@ service cloud.firestore {
     }
 
     function isStaff() {
-      return signedIn() && request.auth.token.role == 'staff';
+      return signedIn() && request.auth.token.role == 'hospital';
     }
 
     function isStaffOf(hospitalId) {

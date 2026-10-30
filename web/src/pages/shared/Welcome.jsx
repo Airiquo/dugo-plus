@@ -5,16 +5,12 @@ import { roleLabel } from '../../services/users'
 import { PubThemeToggle } from '../../components'
 
 /**
- * "You're in" notice — where hospital accounts land.
+ * "You're in" notice and role forwarder.
  *
- * `/admin/*` and the donor profile (FR-04) are built, so `homeFor()`
- * (`services/users.js`) sends hospital accounts here after register/sign-in:
- * the account works, its screens are still being built, and this is a real
- * signed-in page that carries a sign-out outside the admin shell.
- *
- * A normal route rather than a guarded one, so it can forward itself: an admin
- * who ends up here goes straight on to the dashboard, a donor to their profile,
- * and signing out drops back on the public landing page rather than the
+ * `homeFor()` (`services/users.js`) sends each account type to its own area.
+ * This route still forwards a known role that arrives here: an admin to the
+ * admin dashboard, a donor to their profile, a hospital account to the hospital
+ * dashboard. Signing out drops back on the public landing page rather than the
  * sign-in form.
  *
  * No `AppShell`: that chrome is the admin area's. Composed from the same
@@ -41,6 +37,7 @@ export default function Welcome() {
   if (!role) return <Navigate to="/" replace />
   if (role === 'admin') return <Navigate to="/admin/dashboard" replace />
   if (role === 'donor') return <Navigate to="/home" replace />
+  if (role === 'hospital') return <Navigate to="/hospital/dashboard" replace />
 
   const label = roleLabel(role)
 
@@ -73,10 +70,7 @@ export default function Welcome() {
           <p className="pub-muted">
             {user.email ?? 'Your account'} is signed in as a <strong>{label}</strong> account.
           </p>
-          <p className="pub-muted">
-            The hospital screens are still being built. This is where they will open. Your account
-            is ready.
-          </p>
+          <p className="pub-muted">Your account is ready.</p>
           <Link className="pub-btn pub-btn-wide" to="/">
             Back to Dugo+
           </Link>

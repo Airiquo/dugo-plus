@@ -289,3 +289,129 @@
 .pub .pub-form.pub-form-wide {
   max-width: 520px;
 }
+
+/* --- hospital dashboard + facility profile (F6) ---------------------------
+   The hospital area wears the admin shell, so these styles use the shell's
+   `--d-*` tokens and the shared `.card`/`.field` base. Both themes come along
+   unchanged. */
+
+.hospital-overview {
+  display: grid;
+  gap: 16px;
+}
+.hospital-overview > .card {
+  width: 100%;
+  max-width: 760px;
+}
+.hospital-overview header h2,
+.hospital-profile header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.hospital-overview header p,
+.hospital-profile header p {
+  margin: 4px 0 0;
+}
+
+.hospital-state {
+  margin: 0;
+  padding: 12px 0;
+  color: var(--d-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.hospital-state[data-kind='error'] {
+  color: var(--d-red);
+}
+.hospital-state[data-kind='warn'] {
+  color: var(--d-ink);
+}
+.hospital-note {
+  margin: 0;
+  color: var(--d-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Read-only facility facts, shared by the dashboard and the profile record. */
+.hospital-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+  margin: 0;
+}
+.hospital-facts > div {
+  min-width: 0;
+}
+.hospital-facts dt {
+  margin-bottom: 3px;
+  color: var(--d-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+}
+.hospital-facts dd {
+  margin: 0;
+  color: var(--d-ink);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.hospital-facts code {
+  font-family: var(--d-font-mono);
+  font-size: 12px;
+}
+
+.hospital-profile {
+  display: grid;
+  gap: 16px;
+}
+.hospital-profile > .card {
+  width: 100%;
+  max-width: 760px;
+  gap: 20px;
+}
+.hospital-profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--d-line);
+}
+.hospital-profile-section:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+.hospital-profile-h {
+  margin: 0;
+  color: var(--d-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+}
+.hospital-coords {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.hospital-coords-actions,
+.hospital-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.hospital-form-actions {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--d-line);
+}
+
+@media (max-width: 640px) {
+  .hospital-facts,
+  .hospital-coords {
+    grid-template-columns: 1fr;
+  }
+}

@@ -29,7 +29,7 @@ numbers rather than trusting this section.
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | not started |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
-| **P4** | Hospital dashboard, inventory, screening | not started |
+| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile + initial dashboard shell) |
 | **P5** | Matching and notifications | not started; needs Cloud Functions (Blaze) |
 | **P6** | Admin account management, data-request queue | partial (admin gate and FR-040/FR-047 beginnings) |
 | **P7** | Hash-chain audit trail | not started; needs Cloud Functions |
@@ -369,10 +369,13 @@ is cancelled. An assumption is never recorded in place of an answer.
   fallbacks in `readProfile` are removed. Until then the app reads either shape
   correctly, so a missed document degrades to an empty field rather than an
   error.
-- **Custom claims are not set anywhere yet** (D15): every admin/staff rule
-  matches no session until `{ role, hospitalId }` claims are issued — a server
-  step (Cloud Function or console), owned by F9/F12. Until then only
-  owner-scoped paths are exercisable in production.
+- **Custom claims are set for the hospital test account only** (D15):
+  `scripts/create-hospital-user.mjs` issues `{ role: 'hospital', hospitalId }`,
+  which the staff rules now match. `role: 'staff'` was never in the schema's
+  role set and no longer opens a hospital path. Other admin/staff accounts
+  still need their claims issued — a server step (Cloud Function or console),
+  owned by F9/F12. Until then only owner-scoped and test-hospital paths are
+  exercisable in production.
 - **No staff read of `users`** — the rules grant an owner read plus an admin
   claim, and nothing else. Schema §6 allows a limited "staff of same hospital"
   read; hospital screens (F3/F6) will need to decide what it exposes before it

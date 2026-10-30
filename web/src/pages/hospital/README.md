@@ -5,8 +5,23 @@ Role **02 — Hospital / Blood Bank** (see `ROLES` in
 a hospital account is created by the Dugo+ team from a request on
 `/partner` (D21) and acts on behalf of its blood bank.
 
-No screens are built yet. The role's intended surface, and the collections each
-screen reads or writes (`docs/firestore_schema.md` §2):
+Built:
+
+- **Dashboard** — `/hospital/dashboard`. The account's landing and the initial
+  hospital layout: admin-style shell, facility summary from
+  `hospitals/{hospitalId}` (§2.3), and the link to the profile. Analytics and
+  inventory panels belong to the rest of F6.
+- **Facility profile** — `/hospital/profile` (FR-013). Edits the facility's
+  name, address, contact number and coordinates through
+  `services/hospitals.js`. Status is read-only (an administrator action).
+  The account's facility comes from `users/{uid}.hospitalId`; the hospital
+  claim is `role: 'hospital'` with that `hospitalId`.
+
+Both use `layout/HospitalShell.jsx` and sit behind `RequireRole(['hospital'])`
+in `web/src/App.jsx`.
+
+The role's intended surface, and the collections each screen reads or writes
+(`docs/firestore_schema.md` §2):
 
 - **Requests** — raise and track blood requests for the facility.
   `bloodRequests` (§2.4) scoped to the account's `hospitalId`; the matches it
@@ -14,20 +29,9 @@ screen reads or writes (`docs/firestore_schema.md` §2):
 - **Inventory** — stock levels per blood component, expiry, and transfers.
   `hospitals/{hospitalId}/inventory/{bloodType}` (§2.3.2), with every change
   logged to the `logs` subcollection (§2.3.3) in the same transaction.
-- **Dashboard and profile** — `hospitals/{hospitalId}` (§2.3) and
-  `hospitals/{hospitalId}/subscriptions` (§2.3.1).
+- **Subscriptions** — `hospitals/{hospitalId}/subscriptions` (§2.3.1).
 
-Hospital-facing screens will reuse the same components as the admin area.
-`/admin/blood-requests` and `/admin/inventory` are routed but render the shell
-only, and the hospital view is the same data scoped to the facility rather than
-the global admin view. `services/requests.js` is display-shaped fixture data, not
-the `bloodRequests` shape — the schema is.
-
-When one is built, drop it here as a `PascalCase.jsx` page and wire its route in
-`web/src/App.jsx`, gating it with `layout/RequireAuth.jsx` when it needs a
-session.
-
-Design ground truth for the look is `light/` and `dark/`; there are no
-`hospital-*.html` mockups yet, so a new screen composes the component library
+Hospital-facing screens reuse the same components as the admin area. There are
+no `hospital-*.html` mockups: a new screen composes the component library
 (`web/src/components`, see `Gallery.jsx` and `CONVENTIONS.md`) rather than
 translating markup. The data ground truth is `docs/firestore_schema.md`.
