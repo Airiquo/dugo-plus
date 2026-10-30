@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { readHospital, saveHospital } from '../../services/hospitals'
 import { validateHospital } from '../../utils/validate'
+import { phDisplay, phE164, phNational } from '../../utils/phone'
 import { HospitalShell } from '../../layout/HospitalShell'
 import { Badge, Btn, Card, Field, FieldError, Input, PageHeader } from '../../components'
 
@@ -12,7 +13,7 @@ function formFrom(hospital) {
   return {
     name: hospital?.name ?? '',
     address: hospital?.address ?? '',
-    contactNumber: hospital?.contactNumber ?? '',
+    contactNumber: phNational(hospital?.contactNumber),
     latitude: hospital?.latitude ? String(hospital.latitude) : '',
     longitude: hospital?.longitude ? String(hospital.longitude) : '',
   }
@@ -79,7 +80,7 @@ export default function Profile() {
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved])
 
   const set = (key) => (event) => {
-    const value = event.target.value
+    const value = key === 'contactNumber' ? phNational(event.target.value) : event.target.value
     setForm((prev) => ({ ...prev, [key]: value }))
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: '' }))
     setMessage('')
@@ -126,7 +127,7 @@ export default function Profile() {
       const changes = {
         name: form.name.trim(),
         address: form.address.trim(),
-        contactNumber: form.contactNumber.trim(),
+        contactNumber: phE164(form.contactNumber),
       }
       if (form.latitude !== '' && form.longitude !== '') {
         changes.latitude = Number(form.latitude)
@@ -231,9 +232,10 @@ export default function Profile() {
                   <Field label="Contact number">
                     <Input
                       autoComplete="tel"
-                      placeholder="044 791 0000"
                       type="tel"
-                      value={form.contactNumber}
+                      inputMode="numeric"
+                      maxLength={16}
+                      value={`+63 ${phDisplay(form.contactNumber)}`}
                       disabled={busy}
                       aria-invalid={Boolean(errors.contactNumber) || undefined}
                       aria-describedby={
