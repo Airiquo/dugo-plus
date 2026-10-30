@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { readHospital, saveHospital } from '../../services/hospitals'
 import { validateHospital } from '../../utils/validate'
@@ -6,7 +7,7 @@ import { phDisplay, phE164, phNational } from '../../utils/phone'
 import { HospitalShell } from '../../layout/HospitalShell'
 import { Badge, Btn, Card, Field, FieldError, Input, PageHeader } from '../../components'
 
-const EMPTY = { name: '', address: '', contactNumber: '', latitude: '', longitude: '' }
+const EMPTY = { name: '', address: '', contactNumber: '' }
 
 /** The form's state shape, from a facility read. */
 function formFrom(hospital) {
@@ -14,8 +15,6 @@ function formFrom(hospital) {
     name: hospital?.name ?? '',
     address: hospital?.address ?? '',
     contactNumber: phNational(hospital?.contactNumber),
-    latitude: hospital?.latitude ? String(hospital.latitude) : '',
-    longitude: hospital?.longitude ? String(hospital.longitude) : '',
   }
 }
 
@@ -29,10 +28,10 @@ function statusTone(status) {
 /**
  * Hospital facility profile — `/hospital/profile` (FR-013).
  *
- * Edits the facility's name, address, contact number and coordinates on
- * `hospitals/{hospitalId}` (schema §2.3). Status is shown read-only: suspension
- * is an administrator action. The account's link to the facility comes from
- * `users/{uid}.hospitalId`.
+ * Edits the facility's name, address and contact number on
+ * `hospitals/{hospitalId}` (schema §2.3). Coordinates live on the Hospital Map
+ * (`/hospital/map`). Status is shown read-only: suspension is an administrator
+ * action. The account's link to the facility comes from `users/{uid}.hospitalId`.
  */
 export default function Profile() {
   const { profile } = useAuth()
@@ -47,7 +46,6 @@ export default function Profile() {
   const [message, setMessage] = useState('')
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
-  const [locating, setLocating] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
@@ -87,32 +85,6 @@ export default function Profile() {
     setNote('')
   }
 
-  const useMyLocation = () => {
-    setMessage('')
-    setNote('')
-    if (!navigator.geolocation) {
-      setNote('This browser cannot read your location. Enter coordinates instead.')
-      return
-    }
-    setLocating(true)
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setForm((prev) => ({
-          ...prev,
-          latitude: position.coords.latitude.toFixed(6),
-          longitude: position.coords.longitude.toFixed(6),
-        }))
-        setLocating(false)
-        setNote('Coordinates captured. Save to keep them.')
-      },
-      () => {
-        setLocating(false)
-        setNote('Your location could not be read. Enter coordinates instead.')
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
-    )
-  }
-
   const submit = async (event) => {
     event.preventDefault()
     if (!source || loadFailed || busy) return
@@ -128,10 +100,6 @@ export default function Profile() {
         name: form.name.trim(),
         address: form.address.trim(),
         contactNumber: phE164(form.contactNumber),
-      }
-      if (form.latitude !== '' && form.longitude !== '') {
-        changes.latitude = Number(form.latitude)
-        changes.longitude = Number(form.longitude)
       }
       await saveHospital(hospitalId, changes)
       setSaved(form)
@@ -248,43 +216,16 @@ export default function Profile() {
                 </section>
 
                 <section className="hospital-profile-section">
-                  <h3 className="hospital-profile-h">Location</h3>
-                  <p className="hospital-note">
-                    Coordinates place the facility for nearby donor matching. Leave both blank to
-                    keep the stored location unchanged.
-                  </p>
-                  <div className="hospital-coords">
-                    <Field label="Latitude">
-                      <Input
-                        inputMode="decimal"
-                        placeholder="14.599500"
-                        type="number"
-                        step="any"
-                        value={form.latitude}
-                        disabled={busy}
-                        aria-invalid={Boolean(errors.latitude) || undefined}
-                        aria-describedby={errors.latitude ? 'hospital-latitude-error' : undefined}
-                        onChange={set('latitude')}
-                      />
-                    </Field>
-                    <Field label="Longitude">
-                      <Input
-                        inputMode="decimal"
-                        placeholder="120.984200"
-                        type="number"
-                        step="any"
-                        value={form.longitude}
-                        disabled={busy}
-                        aria-invalid={Boolean(errors.latitude) || undefined}
-                        onChange={set('longitude')}
-                      />
-                    </Field>
-                  </div>
-                  <FieldError id="hospital-latitude-error">{errors.latitude}</FieldError>
-                  <div className="hospital-coords-actions">
-                    <Btn icon="target" onClick={useMyLocation} disabled={busy || locating}>
-                      {locating ? 'Locating…' : 'Use current location'}
-                    </Btn>
+                  <div className="hospital-profile-row">
+                    <div>
+                      <h3 className="hospital-profile-h">Location</h3>
+                      <p className="hospital-note">
+                        The facility map sets the coordinates used for nearby donor matching.
+                      </p>
+                    </div>
+                    <Link className="hospital-profile-link" to="/hospital/map">
+                      Hospital Map
+                    </Link>
                   </div>
                 </section>
 

@@ -17,6 +17,7 @@ import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
 import Profile from './pages/donor/Profile'
 import HospitalDashboard from './pages/hospital/Dashboard'
+import HospitalMap from './pages/hospital/Map'
 import HospitalProfile from './pages/hospital/Profile'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
@@ -128,6 +129,7 @@ export default function App() {
           >
             <Route path="/hospital" element={<Navigate to="/hospital/dashboard" replace />} />
             <Route path="/hospital/dashboard" element={<HospitalDashboard />} />
+            <Route path="/hospital/map" element={<HospitalMap />} />
             <Route path="/hospital/profile" element={<HospitalProfile />} />
           </Route>
           <Route path="/gallery" element={<Gallery />} />

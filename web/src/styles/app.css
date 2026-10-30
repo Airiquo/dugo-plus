@@ -402,12 +402,28 @@
   font-size: 11px;
   font-weight: 600;
 }
-.hospital-coords {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+.hospital-profile-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
 }
-.hospital-coords-actions,
+.hospital-profile-link {
+  color: var(--d-red);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+.hospital-profile-link:hover {
+  text-decoration-thickness: 2px;
+}
+.hospital-profile-link:focus-visible {
+  outline: 2px solid var(--d-red);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
 .hospital-form-actions {
   display: flex;
   flex-wrap: wrap;
@@ -420,9 +436,94 @@
   border-top: 1px solid var(--d-line);
 }
 
+/* --- hospital map (FR-015) ---------------------------------------------- */
+
+.hospital-map-page {
+  display: grid;
+  gap: 16px;
+}
+.hospital-map-page > .card {
+  width: 100%;
+  max-width: 960px;
+  gap: 16px;
+}
+.hospital-map-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+.hospital-map-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.hospital-map-head p {
+  margin: 4px 0 0;
+}
+.hospital-map-canvas {
+  height: clamp(320px, 54vh, 540px);
+  overflow: hidden;
+  border: 1px solid var(--d-line);
+  border-radius: var(--d-radius-sm);
+  background: var(--d-field);
+  z-index: 0;
+}
+.hospital-map-canvas .leaflet-control-zoom a {
+  color: var(--d-ink);
+  background: var(--d-panel);
+  border-color: var(--d-line);
+}
+.hospital-map-canvas .leaflet-control-zoom a:hover {
+  background: var(--d-field);
+}
+.hospital-map-canvas .leaflet-control-attribution {
+  color: var(--d-muted);
+  background: color-mix(in srgb, var(--d-panel) 88%, transparent);
+  font-family: var(--d-font-mono);
+  font-size: 10px;
+}
+.hospital-map-canvas .leaflet-control-attribution a {
+  color: var(--d-ink);
+}
+.hospital-map-pin {
+  background: var(--d-red);
+  border: 3px solid var(--d-panel);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--d-red);
+}
+.hospital-map-facts {
+  padding-top: 14px;
+  border-top: 1px solid var(--d-line);
+}
+.hospital-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 @media (max-width: 640px) {
-  .hospital-facts,
-  .hospital-coords {
+  .hospital-facts {
     grid-template-columns: 1fr;
+  }
+  .hospital-map-head {
+    flex-direction: column;
+  }
+  .hospital-map-head .btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .hospital-map-canvas {
+    height: 380px;
+  }
+  .hospital-profile-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .hospital-dialog-actions {
+    flex-direction: column-reverse;
+  }
+  .hospital-dialog-actions .btn {
+    width: 100%;
+    justify-content: center;
   }
 }

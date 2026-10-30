@@ -1,5 +1,4 @@
 import { passwordProblem } from './password'
-import { isCoordinate } from './geohash'
 import { phNational } from './phone'
 
 /**
@@ -121,12 +120,8 @@ export function validateProfile({ fullName, phoneNumber, dateOfBirth, city } = {
   return errors
 }
 
-/**
- * Hospital facility profile (FR-013). Coordinates are optional as a pair: a
- * facility can keep its stored location untouched by leaving both blank, but
- * one coordinate without the other is a mistake worth catching before save.
- */
-export function validateHospital({ name, address, contactNumber, latitude, longitude } = {}) {
+/** Hospital facility profile (FR-013). Coordinates live on the map screen. */
+export function validateHospital({ name, address, contactNumber } = {}) {
   const errors = {}
 
   if (!(name ?? '').trim()) {
@@ -144,18 +139,6 @@ export function validateHospital({ name, address, contactNumber, latitude, longi
     errors.contactNumber = 'Enter a contact number for the facility.'
   } else if (contact.length < 9) {
     errors.contactNumber = 'Enter a Philippine number, for example +63 917 000 0000.'
-  }
-
-  const latText = String(latitude ?? '').trim()
-  const lngText = String(longitude ?? '').trim()
-  if ((latText === '') !== (lngText === '')) {
-    errors.latitude = 'Enter both latitude and longitude, or leave both blank.'
-  } else if (latText !== '') {
-    const lat = Number(latText)
-    const lng = Number(lngText)
-    if (!isCoordinate(lat, lng)) {
-      errors.latitude = 'Enter a valid latitude and longitude.'
-    }
   }
 
   return errors

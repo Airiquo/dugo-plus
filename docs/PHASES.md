@@ -29,7 +29,7 @@ numbers rather than trusting this section.
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | not started |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
-| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile + initial dashboard shell) |
+| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile, initial dashboard shell + FR-015 hospital map) |
 | **P5** | Matching and notifications | not started; needs Cloud Functions (Blaze) |
 | **P6** | Admin account management, data-request queue | partial (admin gate and FR-040/FR-047 beginnings) |
 | **P7** | Hash-chain audit trail | not started; needs Cloud Functions |

@@ -12,12 +12,16 @@ Built:
   `hospitals/{hospitalId}` (§2.3), and the link to the profile. Analytics and
   inventory panels belong to the rest of F6.
 - **Facility profile** — `/hospital/profile` (FR-013). Edits the facility's
-  name, address, contact number and coordinates through
-  `services/hospitals.js`. Status is read-only (an administrator action).
+  name, address and contact number through `services/hospitals.js`; the
+  Location row links to the map. Status is read-only (an administrator action).
   The account's facility comes from `users/{uid}.hospitalId`; the hospital
   claim is `role: 'hospital'` with that `hospitalId`.
+- **Hospital map** — `/hospital/map` (FR-015). Leaflet + OpenStreetMap, bounded
+  to the Philippines. Shows the saved pin and lets staff relocate it from device
+  geolocation after confirming; the save writes coordinates plus a derived
+  geohash.
 
-Both use `layout/HospitalShell.jsx` and sit behind `RequireRole(['hospital'])`
+All three use `layout/HospitalShell.jsx` and sit behind `RequireRole(['hospital'])`
 in `web/src/App.jsx`.
 
 The role's intended surface, and the collections each screen reads or writes

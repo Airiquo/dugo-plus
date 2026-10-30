@@ -65,6 +65,12 @@ const PATHS = {
       <path d="M10 21h4" />
     </>
   ),
+  map: (
+    <>
+      <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
+      <path d="M9 4v14M15 6v14" />
+    </>
+  ),
   'chevron-down': <path d="M6 9l6 6 6-6" />,
   'chevron-right': <path d="M9 6l6 6-6 6" />,
   'arrow-right': <path d="M4 12h16M14 6l6 6-6 6" />,

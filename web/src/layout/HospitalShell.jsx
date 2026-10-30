@@ -3,6 +3,7 @@ import { AppShell } from './AppShell'
 /** Hospital and blood-bank navigation. */
 export const HOSPITAL_NAV = [
   { slug: 'dashboard', label: 'Dashboard', icon: 'grid' },
+  { slug: 'map', label: 'Hospital Map', icon: 'map' },
   { slug: 'profile', label: 'Facility profile', icon: 'settings' },
 ]
 
