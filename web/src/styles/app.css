@@ -14,13 +14,13 @@
 
 /* --- app shell ------------------------------------------------------------
    The React shell has no top toolbar, so page content is the only grid row.
-   Drop the template's empty second row and the trailing space below the last
-   card; scrolling stops at the bottom of the page content. */
+   Drop the template's empty second row and keep a 28px gap below the last
+   card for breathing room. */
 
 #app-shell {
   grid-template-rows: auto;
   row-gap: 0;
-  padding-bottom: 0;
+  padding-bottom: 28px;
 }
 
 /* --- auth card ------------------------------------------------------------
