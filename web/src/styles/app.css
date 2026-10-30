@@ -12,6 +12,17 @@
 
    Imported from web/src/main.jsx, after the two base stylesheets. */
 
+/* --- app shell ------------------------------------------------------------
+   The React shell has no top toolbar, so page content is the only grid row.
+   Drop the template's empty second row and the trailing space below the last
+   card; scrolling stops at the bottom of the page content. */
+
+#app-shell {
+  grid-template-rows: auto;
+  row-gap: 0;
+  padding-bottom: 0;
+}
+
 /* --- auth card ------------------------------------------------------------
    Deliberate deviations from the shared form defaults, all here in one block
    rather than layered overrides. Values are design tokens.
