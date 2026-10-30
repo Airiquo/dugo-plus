@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { readHospital, saveHospital } from '../../services/hospitals'
 import { isCoordinate } from '../../utils/geohash'
 import { HospitalShell } from '../../layout/HospitalShell'
-import { Btn, Card, Modal, PageHeader } from '../../components'
+import { Btn, Card, Icon, Modal, PageHeader } from '../../components'
 
 const PH_CENTER = [12.8797, 121.774]
 const PH_BOUNDS = L.latLngBounds([4.2, 116], [21.5, 127])
@@ -58,8 +58,14 @@ export default function Map() {
   const [errorFading, setErrorFading] = useState(false)
 
   const showError = (message) => {
+    setErrorFading(false)
     setError(message)
     setErrorId((id) => id + 1)
+  }
+
+  const dismissError = () => {
+    setError('')
+    setErrorFading(false)
   }
 
   useEffect(() => {
@@ -413,8 +419,7 @@ export default function Map() {
                 aria-label="Facility map"
               />
               <Btn
-                variant="primary"
-                icon="target"
+                icon="gps"
                 className="hospital-map-locate"
                 onClick={locateUser}
                 disabled={locating || saving}
@@ -435,19 +440,6 @@ export default function Map() {
               </div>
             </dl>
 
-            {error && (
-              <p
-                className={
-                  errorFading
-                    ? 'hospital-state hospital-map-error is-fading'
-                    : 'hospital-state hospital-map-error'
-                }
-                data-kind="error"
-                role="alert"
-              >
-                {error}
-              </p>
-            )}
             {note && (
               <p className="hospital-state" role="status">
                 {note}
@@ -456,6 +448,30 @@ export default function Map() {
           </Card>
         </div>
       </div>
+
+      {error && (
+        <div
+          key={errorId}
+          className={errorFading ? 'hospital-map-alert is-fading' : 'hospital-map-alert'}
+          role="alert"
+        >
+          <span className="hospital-map-alert-icon" aria-hidden="true">
+            <Icon name="alert" />
+          </span>
+          <div className="hospital-map-alert-copy">
+            <strong>Location error</strong>
+            <p>{error}</p>
+          </div>
+          <button
+            className="hospital-map-alert-close"
+            type="button"
+            onClick={dismissError}
+            aria-label="Dismiss notification"
+          >
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+      )}
 
       <Modal
         name="hospital-relocate"

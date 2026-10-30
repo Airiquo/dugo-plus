@@ -582,7 +582,16 @@
   width: 44px;
   height: 44px;
   padding: 12px;
+  color: var(--d-red);
+  background: var(--d-panel);
+  border: 1px solid color-mix(in srgb, var(--d-red) 38%, var(--d-line));
   border-radius: 50%;
+  box-shadow: 0 12px 26px -16px color-mix(in srgb, var(--d-ink) 55%, transparent);
+}
+.hospital-map-locate:hover {
+  color: var(--d-red-ink);
+  background: var(--d-field);
+  border-color: var(--d-red);
 }
 .hospital-map-locate .icon {
   width: 18px;
@@ -652,11 +661,93 @@
     0 0 0 2px var(--d-blue),
     0 0 0 9px color-mix(in srgb, var(--d-blue) 18%, transparent);
 }
-.hospital-map-error {
-  transition: opacity 0.3s ease;
+.hospital-map-alert {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 70;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(380px, calc(100vw - 32px));
+  padding: 14px 14px 14px 16px;
+  color: var(--d-ink);
+  background: var(--d-panel);
+  border: 1px solid color-mix(in srgb, var(--d-red) 32%, var(--d-line));
+  border-left: 3px solid var(--d-red);
+  border-radius: var(--d-radius-sm);
+  box-shadow: 0 20px 45px -28px color-mix(in srgb, var(--d-ink) 55%, transparent);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+  animation: hospital-alert-in 0.2s ease-out;
 }
-.hospital-map-error.is-fading {
+.hospital-map-alert.is-fading {
   opacity: 0;
+  transform: translateY(-6px);
+}
+@keyframes hospital-alert-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.hospital-map-alert-icon {
+  display: grid;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  color: var(--d-red);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--d-red) 10%, var(--d-panel));
+}
+.hospital-map-alert-copy {
+  flex: 1;
+  min-width: 0;
+}
+.hospital-map-alert-copy strong {
+  display: block;
+  color: var(--d-red);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+}
+.hospital-map-alert-copy p {
+  margin: 3px 0 0;
+  color: var(--d-ink);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.hospital-map-alert-close {
+  display: grid;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  color: var(--d-muted);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.hospital-map-alert-close:hover {
+  color: var(--d-ink);
+  background: var(--d-field);
+  border-color: var(--d-line);
+}
+.hospital-map-alert-close:focus-visible {
+  outline: 2px solid var(--d-red);
+  outline-offset: 2px;
 }
 @keyframes hospital-pin-pulse {
   0% {
@@ -737,6 +828,12 @@
   .hospital-map-canvas {
     height: 380px;
   }
+  .hospital-map-alert {
+    top: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
   .hospital-map-preview {
     min-height: 150px;
   }
@@ -777,8 +874,9 @@
   .hospital-map-pin {
     transition: none;
   }
-  .hospital-map-error {
+  .hospital-map-alert {
     transition: none;
+    animation: none;
   }
   .hospital-map-pin.is-candidate,
   .hospital-map-locate[aria-busy='true'] .icon {
