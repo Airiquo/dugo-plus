@@ -10,7 +10,8 @@ import {
   requestStatusLabel,
   requestTypeLabel,
 } from '../../services/dataRequests'
-import { Badge, FieldError, PubThemeToggle } from '../../components'
+import { Badge, FieldError } from '../../components'
+import { DonorNav } from '../../layout/DonorNav'
 
 /**
  * Donor privacy and data requests (FR-039/NFR-19).
@@ -110,21 +111,7 @@ export default function Privacy() {
       data-theme={theme}
       style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}
     >
-      <header className="pub-nav">
-        <Link className="pub-logo" to="/" aria-label="Dugo+ home">
-          <span className="pub-mark" aria-hidden="true" />
-          <span className="pub-word">
-            Dugo<span>+</span>
-          </span>
-        </Link>
-        <nav aria-label="Sections">
-          <Link to="/donor/profile">Profile</Link>
-          <Link to="/privacy">Privacy notice</Link>
-        </nav>
-        <div className="pub-nav-end">
-          <PubThemeToggle />
-        </div>
-      </header>
+      <DonorNav />
 
       <main id="top" className="profile-main">
         <div className="privacy-stack">

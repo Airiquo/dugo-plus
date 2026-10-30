@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
-import { PubThemeToggle, Icon } from '../../components'
+import { Icon } from '../../components'
+import { DonorNav } from '../../layout/DonorNav'
 import { listenDonorMatches, respondToMatch } from '../../services/matches'
 import { getBloodRequest } from '../../services/requests'
 import { getHospital } from '../../services/hospitals'
@@ -337,21 +338,7 @@ export default function Requests() {
 
   return (
     <div className="pub" data-theme={theme} style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}>
-      <header className="pub-nav">
-        <Link className="pub-logo" to="/" aria-label="Dugo+ home">
-          <span className="pub-mark" aria-hidden="true" />
-          <span className="pub-word">
-            Dugo<span>+</span>
-          </span>
-        </Link>
-        <nav aria-label="Sections">
-          <Link to="/donor/profile">Profile</Link>
-          <Link to="/donor/requests">Blood Requests</Link>
-        </nav>
-        <div className="pub-nav-end">
-          <PubThemeToggle />
-        </div>
-      </header>
+      <DonorNav />
 
       <main id="top" className="profile-main">
         <div className="pub-card" style={{ maxWidth: 1240, width: '100%', margin: '0 auto', padding: 24 }}>

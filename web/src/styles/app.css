@@ -561,6 +561,14 @@
   justify-content: flex-end;
 }
 
+/* --- donor top navigation -------------------------------------------------
+   One shared nav across the donor screens (`layout/DonorNav.jsx`); the base
+   `.pub-nav` styles the bar, this only marks the current section. */
+
+.pub .pub-nav nav a[data-active='true'] {
+  color: var(--accent);
+}
+
 /* --- donor alerts (F7) ----------------------------------------------------
    Sits in the same `.pub` donor surface as the profile, so it styles off the
    profile tokens and both themes come along unchanged. */

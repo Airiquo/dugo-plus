@@ -7,12 +7,13 @@
  */
 
 import { useEffect, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 import { db } from '../../lib/firebase'
-import { Badge, PubThemeToggle } from '../../components'
+import { Badge } from '../../components'
+import { DonorNav } from '../../layout/DonorNav'
 
 /** `Sent` → the delivered tone; anything else is still pending. */
 function toneFor(status) {
@@ -65,21 +66,7 @@ export default function Alerts() {
 
   return (
     <div className="pub" data-theme={theme} style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}>
-      <header className="pub-nav">
-        <Link className="pub-logo" to="/" aria-label="Dugo+ home">
-          <span className="pub-mark" aria-hidden="true" />
-          <span className="pub-word">
-            Dugo<span>+</span>
-          </span>
-        </Link>
-        <nav aria-label="Sections">
-          <Link to="/donor/profile">Profile</Link>
-          <Link to="/donor/alerts">Alerts</Link>
-        </nav>
-        <div className="pub-nav-end">
-          <PubThemeToggle />
-        </div>
-      </header>
+      <DonorNav />
 
       <main id="top" className="alerts-main">
         <div className="alerts-wrap">
