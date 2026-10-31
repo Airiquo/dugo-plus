@@ -24,7 +24,7 @@ and do not "correct" the live code back to the text below:
 | `errorLogs` | an ERD-free collection §1 lists as [ADDED] | client-written, open-create | D8, D10, D17 |
 | `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
 | `users.address` | an ERD postal address | not collected; no field | D22 |
-| Inventory logs | child path, staff-writable, `Donation \| Usage \| Adjustment \| Expired` suggested | same child path, server-written only (`if false` in rules), `DONATION \| TRANSFUSION \| ADJUSTMENT \| EXPIRED` with `reason` | D26 |
+| Inventory logs | child path, staff-writable, `Donation \| Usage \| Adjustment \| Expired` suggested | same child path, staff/admin-writable in one client transaction, `DONATION \| TRANSFUSION \| ADJUSTMENT \| EXPIRED` with `reason` | D26, D27 |
 
 §9 below is the file's own list of ERD inconsistencies. **They are open questions,
 not defaults**: an owner answer is recorded as a `D*` row, and unanswered ones are
@@ -210,9 +210,10 @@ Doc ID **is** the blood type, so UK(hospital_id, blood_type) is guaranteed.
 | reason | string | O | Required for `ADJUSTMENT` / `EXPIRED` (D26) |
 | createdAt | Timestamp | R | |
 
-Write the log and the inventory update in **one transaction/batch**.
-**Server-only** (D26): `functions/index.js` writes both paths with the Admin
-SDK, and `firestore.rules` denies every client write to them.
+Write the log and the inventory update in **one transaction/batch**, in
+`services/inventory.js` (D27): staff of the facility and admins, through the
+client transaction that reads the match and stock guards before any write.
+`functions/` was removed (D27) — was server-only via D26's callables.
 
 ### 2.4 `bloodRequests/{requestId}`
 
@@ -296,7 +297,7 @@ Doc ID = the `donorMatches` doc ID. One donation per match (ERD 1:1).
 | units | number (int) | R | |
 | confirmedAt | Timestamp | R | |
 | donorId, hospitalId, bloodType | string | R | **[ADDED, denormalized]** from the match/request. ERD has no donorId on Donations, only via match |
-| donorName | string | O | **[ADDED, denormalized]** `users/{donorId}.fullName`, copied at confirmation |
+| donorName | string | O | **[ADDED, denormalized]** `users/{donorId}.fullName`; **null from the client confirmation** (staff cannot read donor profiles) — the history lists fall back to `donorId` (D27) |
 | donationType | string | O | **[ADDED, denormalized]** FK → `donationTypes/{id}`, copied from the match |
 | requestId | string | O | **[ADDED, denormalized]** FK → `bloodRequests`, copied from the match |
 

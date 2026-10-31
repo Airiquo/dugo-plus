@@ -123,3 +123,23 @@ had not), the shared `Role` enum was lowercased to match §2.1, and §1 notes th
 
 §9.5's `changeType` question is answered by this change, and §0 carries the
 divergence row.
+
+## 2026-10-31 — inventory writes return to the client (D27)
+
+**Origin:** build (the owner declined the Blaze plan, so the D26 callables
+could not be deployed).
+
+**Refs:** D27 (supersedes the writer of D26's entry, not its vocabulary).
+Feature: F6 (FR-034).
+
+| Area | Before (2026-10-31 entry) | After |
+|---|---|---|
+| `hospitals/{h}/inventory/{bt}` writes | server-only (`if false` in rules), Admin SDK | staff-of-that-facility and admin claims, **shape-validated**, written by `services/inventory.js` `runTransaction` |
+| `.../logs/{id}` writes | server-only | same reopening; `reason` optional in rules |
+| `donations/{matchId}.donorName` | copied from the donor profile by the callable | **null** — a staff session cannot read `users/{donor}`; history falls back to `donorId` |
+| `users/{donorId}.lastDonationAt` | written by the confirmation transaction (D26) | **descoped** — D14's freeze stands unwritten until a server path exists (FR-033 open) |
+| `rewardTransactions/{id}` | written by the confirmation transaction (D26) | **descoped** — D12's server-only rule stands (FR-036 open) |
+| `functions/` | three callables, built and self-checked | **deleted** from the repo |
+
+§0's divergence row and §2.3.3/§2.9 note the change; the vocabulary of D26
+(`changeType`, `reason`, child log path) is unchanged.

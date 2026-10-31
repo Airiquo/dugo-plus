@@ -29,7 +29,7 @@ numbers rather than trusting this section.
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | not started |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
-| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile, FR-020 inventory reads + donation history, initial dashboard shell + FR-015 hospital map; FR-034's callables and rules are built but **not deployed** — see §10) |
+| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile, FR-020 inventory reads + donation history, initial dashboard shell + FR-015 hospital map, FR-034 writes as client transactions (D27); the deferral clock and reward points wait for a server path — see §10) |
 | **P5** | Matching and notifications | not started; needs Cloud Functions (Blaze) |
 | **P6** | Admin account management, data-request queue | partial (admin gate and FR-040/FR-047 beginnings) |
 | **P7** | Hash-chain audit trail | not started; needs Cloud Functions |
@@ -458,23 +458,13 @@ is cancelled. An assumption is never recorded in place of an answer.
   donor-registry screen (F9/F10) is what reads and sets them.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
-- **No app test suite**: recorded as a gap, not scheduled. The exceptions are the
-  Firestore rules — `firestore.rules.test.mjs` runs 107 asserts in the
-  emulator, locally (`npm run test:rules`) and in CI (D19) — and the FR-034
-  callables, whose `functions.selfcheck.mjs` runs 31 checks the same way
-  (`npm run test:functions`, not yet in CI). The React app has no tests; the
-  smoke list below is its check.
-- **FR-034's callables and inventory rules are built but NOT deployed.**
-  `functions/` (`confirmDonation` / `recordTransfusion` / `adjustInventory`,
-  D26) and the `if false` change to `firestore.rules` are in the repo; the live
-  project still runs the old staff-open ruleset and has no functions code.
-  Deploying needs the Blaze plan (§7) and
-  `firebase deploy --only functions,firestore:rules`. Until that runs,
-  `/hospital/inventory` writes fail with the "not deployed yet" message, which
-  is why FR-034 reads `partial`.
-- **F6's `confirmDonation` performs F8's two writes.** Confirming a match sets
-  `users/{donorId}.lastDonationAt` (D14, FR-033) and creates
-  `rewardTransactions/{matchId}` (D12, FR-036) inside the same transaction
-  (D26). Those requirement rows belong to F8 and were left alone — the F8 owner
-  decides whether this callable is the single confirmation path or the feature
-  grows its own.
+- **No app test suite**: recorded as a gap, not scheduled. The exception is the
+  Firestore rules — `firestore.rules.test.mjs` runs 112 asserts in the
+  emulator, locally (`npm run test:rules`) and in CI (D19). The React app has
+  no tests; the smoke list below is its check.
+- **The deferral clock and reward points have no writer.** F6's
+  `confirmDonation` runs as a client transaction (D27 — the owner chose to stay
+  on Spark instead of the Blaze-plan functions build) and writes the donation
+  record, the stock and its log only. `users.lastDonationAt` (D14, FR-033) and
+  `rewardTransactions` (D12, FR-036) stay server-only, so those two rows stay
+  open until a server path exists outside the React app.
