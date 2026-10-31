@@ -149,20 +149,38 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // Stock counts and their change log are server-written: the FR-034
-      // callables move both in one transaction with the Admin SDK, which
-      // rules do not gate (schema §5). Staff and admins read; no client
-      // writes, so a session cannot move stock outside a callable.
+      // Stock counts and their change log move in one client transaction
+      // (services/inventory.js, D27): staff of this facility or an admin claim.
       match /inventory/{bloodType} {
         allow read: if isAdmin() || isStaffOf(hospitalId);
-        allow create, update, delete: if false;
+        allow create, update: if (isAdmin() || isStaffOf(hospitalId))
+                              && request.resource.data.bloodType == bloodType
+                              && request.resource.data.unitsAvailable is int
+                              && request.resource.data.lastUpdated is timestamp;
+        allow delete: if false;
 
-        // Change log: append-only, same server path; the entry shape
-        // (donationId, userId, changeType, unitsChanged, reason, createdAt)
-        // is validated in functions/index.js.
+        // Change log: append-only, the entry the transaction writes — the
+        // shape (donationId, userId, changeType, unitsChanged, optional
+        // reason, createdAt) is schema §2.3.3 (D26).
         match /logs/{logId} {
           allow read: if isAdmin() || isStaffOf(hospitalId);
-          allow create, update, delete: if false;
+          allow create: if (isAdmin() || isStaffOf(hospitalId))
+                        && request.resource.data.keys().hasOnly(
+                             ['donationId', 'userId', 'changeType', 'unitsChanged', 'reason', 'createdAt']
+                           )
+                        && (
+                             request.resource.data.donationId == null
+                             || request.resource.data.donationId is string
+                           )
+                        && request.resource.data.userId is string
+                        && request.resource.data.changeType is string
+                        && request.resource.data.unitsChanged is int
+                        && (
+                             !('reason' in request.resource.data)
+                             || request.resource.data.reason is string
+                           )
+                        && request.resource.data.createdAt == request.time;
+          allow update, delete: if false;
         }
       }
     }

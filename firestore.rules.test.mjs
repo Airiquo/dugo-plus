@@ -150,16 +150,21 @@ await ok('admin claim writes subscriptions', setDoc(doc(db(admin()), 'hospitals/
 console.log('hospitals/inventory');
 await ok('own staff reads inventory', readDoc(staff1(), 'hospitals/h1/inventory/O+'));
 await no('staff of another hospital cannot read inventory', readDoc(staff2(), 'hospitals/h1/inventory/O+'));
-await no('staff cannot write inventory from the client', updateDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+'), { unitsAvailable: 4 }));
+await ok('own staff writes inventory in the transaction', updateDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+'), { unitsAvailable: 4 }));
+await no('staff of another hospital cannot write inventory', updateDoc(doc(db(staff2()), 'hospitals/h1/inventory/O+'), { unitsAvailable: 4 }));
+await ok('admin writes inventory', updateDoc(doc(db(admin()), 'hospitals/h1/inventory/O+'), { unitsAvailable: 9 }));
 await no('donor cannot update inventory', updateDoc(doc(db(as('alice')), 'hospitals/h1/inventory/O+'), { unitsAvailable: 99 }));
-await no('admin cannot write inventory from the client either', updateDoc(doc(db(admin()), 'hospitals/h1/inventory/O+'), { unitsAvailable: 9 }));
+await no('inventory doc must carry its blood type', updateDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+'), { bloodType: 'O-' }));
 await no('inventory rows cannot be deleted', deleteDoc(doc(db(admin()), 'hospitals/h1/inventory/O+')));
 
 console.log('hospitals/inventory/logs');
-await no('staff cannot append an inventory log from the client', setDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+/logs/l1'), { donationId: null, userId: 'staff1', changeType: 'TRANSFUSION', unitsChanged: -1, createdAt: serverTimestamp() }));
+await ok('own staff appends the donation log', setDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+/logs/l1'), { donationId: 'm1', userId: 'staff1', changeType: 'DONATION', unitsChanged: 1, createdAt: serverTimestamp() }));
+await ok('own staff appends a reasoned adjustment', setDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+/logs/l2'), { donationId: null, userId: 'staff1', changeType: 'EXPIRED', unitsChanged: -1, reason: 'Expired unit discarded', createdAt: serverTimestamp() }));
+await ok('admin appends an inventory log', setDoc(doc(db(admin()), 'hospitals/h1/inventory/O+/logs/l3'), { donationId: null, userId: 'admin1', changeType: 'ADJUSTMENT', unitsChanged: -1, reason: 'Recount', createdAt: serverTimestamp() }));
 await no('inventory logs are append-only', updateDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+/logs/l1'), { unitsChanged: 0 }));
-await no('admin cannot append an inventory log from the client', setDoc(doc(db(admin()), 'hospitals/h1/inventory/O+/logs/l2'), { userId: 'admin1', changeType: 'ADJUSTMENT', unitsChanged: -1, reason: 'x', createdAt: serverTimestamp() }));
-await no('donor cannot append an inventory log', setDoc(doc(db(as('alice')), 'hospitals/h1/inventory/O+/logs/l3'), { userId: 'alice', changeType: 'Usage', unitsChanged: -1, createdAt: serverTimestamp() }));
+await no('log shape is bounded', setDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+/logs/l4'), { userId: 'staff1', changeType: 'Usage', unitsChanged: -1, createdAt: serverTimestamp(), extra: 1 }));
+await no('staff of another hospital cannot append a log', setDoc(doc(db(staff2()), 'hospitals/h1/inventory/O+/logs/l5'), { donationId: null, userId: 'staff2', changeType: 'TRANSFUSION', unitsChanged: -1, createdAt: serverTimestamp() }));
+await no('donor cannot append an inventory log', setDoc(doc(db(as('alice')), 'hospitals/h1/inventory/O+/logs/l6'), { donationId: null, userId: 'alice', changeType: 'TRANSFUSION', unitsChanged: -1, createdAt: serverTimestamp() }));
 
 // ---- bloodRequests -------------------------------------------------------
 console.log('bloodRequests');
