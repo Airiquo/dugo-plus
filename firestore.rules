@@ -149,33 +149,20 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // Stock counts: staff of this hospital and admins read and write. The
-      // confirmation screen batches its increment with the log write below
-      // (schema §2.3.3).
+      // Stock counts and their change log are server-written: the FR-034
+      // callables move both in one transaction with the Admin SDK, which
+      // rules do not gate (schema §5). Staff and admins read; no client
+      // writes, so a session cannot move stock outside a callable.
       match /inventory/{bloodType} {
         allow read: if isAdmin() || isStaffOf(hospitalId);
-        allow create, update: if (isAdmin() || isStaffOf(hospitalId))
-                              && request.resource.data.bloodType == bloodType
-                              && request.resource.data.unitsAvailable is int
-                              && request.resource.data.lastUpdated is timestamp;
-        allow delete: if false;
+        allow create, update, delete: if false;
 
-        // Change log: append-only, written by the session that moved stock.
+        // Change log: append-only, same server path; the entry shape
+        // (donationId, userId, changeType, unitsChanged, reason, createdAt)
+        // is validated in functions/index.js.
         match /logs/{logId} {
           allow read: if isAdmin() || isStaffOf(hospitalId);
-          allow create: if (isAdmin() || isStaffOf(hospitalId))
-                        && request.resource.data.keys().hasOnly(
-                             ['donationId', 'userId', 'changeType', 'unitsChanged', 'createdAt']
-                           )
-                        && (
-                             request.resource.data.donationId == null
-                             || request.resource.data.donationId is string
-                           )
-                        && request.resource.data.userId is string
-                        && request.resource.data.changeType is string
-                        && request.resource.data.unitsChanged is int
-                        && request.resource.data.createdAt == request.time;
-          allow update, delete: if false;
+          allow create, update, delete: if false;
         }
       }
     }
