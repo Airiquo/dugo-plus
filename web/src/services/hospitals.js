@@ -184,6 +184,20 @@ export function watchInventory(hospitalId, onNext, onError) {
 }
 
 /**
+ * Every facility, id + name — the admin facility picker (FR-020). Any signed
+ * session may list them: donors need the same list for the map (schema §6).
+ *
+ * @returns {Promise<Array<{id: string, name: string}>>} sorted by name
+ */
+export async function listHospitals() {
+  requireDb()
+  const snap = await getDocs(collection(db, 'hospitals'))
+  return snap.docs
+    .map((item) => ({ id: item.id, name: text(item.data()?.name) || item.id }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
  * The facility's donation history, newest first (FR-020).
  *
  * @param {string} hospitalId

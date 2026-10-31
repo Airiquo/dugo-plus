@@ -70,10 +70,12 @@ export async function confirmDonation({ matchId, units, points } = {}) {
 /**
  * Issue stock for a transfusion, optionally closing the request it served.
  *
- * @param {{ bloodType: string, units: number, requestId?: string }} input
+ * @param {{ bloodType: string, units: number, requestId?: string,
+ *           hospitalId?: string }} input - `hospitalId` is only read for an
+ *   admin claim; staff always write their own facility.
  * @returns {Promise<{ hospitalId: string, bloodType: string, unitsAvailable: number }>}
  */
-export async function recordTransfusion({ bloodType, units, requestId } = {}) {
+export async function recordTransfusion({ bloodType, units, requestId, hospitalId } = {}) {
   const type = text(bloodType)
   if (!BLOOD_TYPES.includes(type)) throw new Error('Choose a valid blood type.')
   const unitCount = Number(units)
@@ -83,6 +85,8 @@ export async function recordTransfusion({ bloodType, units, requestId } = {}) {
   const payload = { bloodType: type, units: unitCount }
   const request = text(requestId)
   if (request) payload.requestId = request
+  const facility = text(hospitalId)
+  if (facility) payload.hospitalId = facility
   return call('recordTransfusion', payload)
 }
 
@@ -90,10 +94,11 @@ export async function recordTransfusion({ bloodType, units, requestId } = {}) {
  * A signed stock correction with a written reason: `ADJUSTMENT` or `EXPIRED`.
  *
  * @param {{ bloodType: string, delta: number, reason: string,
- *           changeType: 'ADJUSTMENT'|'EXPIRED' }} input
+ *           changeType: 'ADJUSTMENT'|'EXPIRED', hospitalId?: string }} input -
+ *   `hospitalId` is only read for an admin claim; staff write their own facility.
  * @returns {Promise<{ hospitalId: string, bloodType: string, unitsAvailable: number }>}
  */
-export async function adjustInventory({ bloodType, delta, reason, changeType } = {}) {
+export async function adjustInventory({ bloodType, delta, reason, changeType, hospitalId } = {}) {
   const type = text(bloodType)
   if (!BLOOD_TYPES.includes(type)) throw new Error('Choose a valid blood type.')
   const step = Number(delta)
@@ -103,10 +108,8 @@ export async function adjustInventory({ bloodType, delta, reason, changeType } =
   const code = text(changeType)
   if (!ADJUSTMENT_TYPES.includes(code)) throw new Error('Choose a valid adjustment type.')
   if (!text(reason)) throw new Error('A reason is required for an adjustment.')
-  return call('adjustInventory', {
-    bloodType: type,
-    delta: step,
-    reason: text(reason),
-    changeType: code,
-  })
+  const payload = { bloodType: type, delta: step, reason: text(reason), changeType: code }
+  const facility = text(hospitalId)
+  if (facility) payload.hospitalId = facility
+  return call('adjustInventory', payload)
 }

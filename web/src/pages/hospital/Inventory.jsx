@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
-import { getHospitalDonations, readHospital, watchInventory } from '../../services/hospitals'
+import { getHospitalDonations, listHospitals, readHospital, watchInventory } from '../../services/hospitals'
 import {
   ADJUSTMENT_TYPES,
   confirmDonation,
@@ -9,6 +9,7 @@ import {
 } from '../../services/inventory'
 import { BLOOD_TYPES } from '../../services/users'
 import { toDate } from '../../utils/eligibility'
+import { AppShell } from '../../layout/AppShell'
 import { HospitalShell } from '../../layout/HospitalShell'
 import {
   Badge,
@@ -52,16 +53,27 @@ const TITLES = {
 }
 
 /**
- * Hospital blood inventory — `/hospital/inventory` (FR-020, FR-034).
+ * Blood inventory — `/hospital/inventory` for staff (FR-020, FR-034) and
+ * `/admin/inventory` for an admin, who picks the facility first.
  *
  * Reads: live stock per blood type and the facility's donation history, both
  * from `services/hospitals.js`. Writes: three server callables from
  * `services/inventory.js` — a confirmed match, an issued transfusion, or a
  * reasoned adjustment — each moving the count and its log in one transaction.
+ * Staff address their own facility through the claim; an admin sends the
+ * picked `hospitalId`, which the server accepts for its claim only.
  */
 export default function Inventory() {
-  const { profile } = useAuth()
-  const hospitalId = profile?.hospitalId ?? ''
+  const { profile, role } = useAuth()
+  const isAdmin = role === 'admin'
+  const staffHospitalId = profile?.hospitalId ?? ''
+
+  const [facilities, setFacilities] = useState([])
+  const [facilitiesLoading, setFacilitiesLoading] = useState(false)
+  const [facilitiesFailed, setFacilitiesFailed] = useState(false)
+  const [picked, setPicked] = useState('')
+
+  const hospitalId = isAdmin ? picked : staffHospitalId
 
   const [hospital, setHospital] = useState(null)
   const [rows, setRows] = useState([])
@@ -94,6 +106,26 @@ export default function Inventory() {
       current = false
     }
   }, [hospitalId])
+
+  // Admin only: the picker's facility list, first entry preselected. Reloads
+  // with the page's "Try again" so a failed list can be retried.
+  useEffect(() => {
+    if (!isAdmin) return undefined
+    let current = true
+    setFacilitiesLoading(true)
+    setFacilitiesFailed(false)
+    listHospitals()
+      .then((list) => {
+        if (!current) return
+        setFacilities(list)
+        setPicked((prev) => prev || list[0]?.id || '')
+      })
+      .catch(() => current && setFacilitiesFailed(true))
+      .finally(() => current && setFacilitiesLoading(false))
+    return () => {
+      current = false
+    }
+  }, [isAdmin, reloadKey])
 
   // Live stock: one subscription per facility, dropped on change or unmount.
   useEffect(() => {
@@ -242,6 +274,7 @@ export default function Inventory() {
           bloodType: form.bloodType,
           units,
           requestId: form.requestId,
+          hospitalId: isAdmin ? hospitalId : undefined,
         })
         setNote(
           `Issued ${units} unit${units === 1 ? '' : 's'} of ${result.bloodType}. ${result.bloodType} now has ${result.unitsAvailable} unit${result.unitsAvailable === 1 ? '' : 's'}.`,
@@ -256,6 +289,7 @@ export default function Inventory() {
           delta,
           reason: form.reason,
           changeType: form.changeType,
+          hospitalId: isAdmin ? hospitalId : undefined,
         })
         setNote(
           `${form.changeType === 'EXPIRED' ? 'Removed' : 'Adjusted'} ${Math.abs(delta)} unit${Math.abs(delta) === 1 ? '' : 's'} of ${result.bloodType}. ${result.bloodType} now has ${result.unitsAvailable} unit${result.unitsAvailable === 1 ? '' : 's'}.`,
@@ -274,21 +308,31 @@ export default function Inventory() {
   }
 
   const busy = saving || loading
+  const Shell = isAdmin ? AppShell : HospitalShell
 
   return (
-    <HospitalShell facility={hospital?.name}>
+    <Shell facility={hospital?.name}>
       <PageHeader
-        tag="Dugo+ hospital"
+        tag={isAdmin ? 'Dugo+ admin' : 'Dugo+ hospital'}
         title="Blood inventory"
         actions={
           <>
-            <Btn variant="primary" icon="plus" onClick={() => open('confirm')} disabled={busy}>
+            <Btn
+              variant="primary"
+              icon="plus"
+              onClick={() => open('confirm')}
+              disabled={busy || !hospitalId}
+            >
               Confirm donation
             </Btn>
-            <Btn icon="droplet" onClick={() => open('transfusion')} disabled={busy}>
+            <Btn
+              icon="droplet"
+              onClick={() => open('transfusion')}
+              disabled={busy || !hospitalId}
+            >
               Record transfusion
             </Btn>
-            <Btn icon="settings" onClick={() => open('adjust')} disabled={busy}>
+            <Btn icon="settings" onClick={() => open('adjust')} disabled={busy || !hospitalId}>
               Adjust stock
             </Btn>
           </>
@@ -296,13 +340,44 @@ export default function Inventory() {
       />
       <div id="page-body">
         <div className="hospital-inventory">
+          {isAdmin && (
+            <Card>
+              <Field label="Facility">
+                <Select
+                  options={facilities.map((item) => ({ value: item.id, label: item.name }))}
+                  value={picked}
+                  onChange={(event) => {
+                    setPicked(event.target.value)
+                    setNote('')
+                  }}
+                  disabled={facilitiesLoading || facilitiesFailed || saving}
+                  aria-label="Facility"
+                />
+              </Field>
+              {facilitiesLoading && <p className="hospital-state">Loading facilities…</p>}
+              {!facilitiesLoading && facilitiesFailed && (
+                <div role="alert">
+                  <p className="hospital-state" data-kind="error">
+                    The facility list could not be loaded.
+                  </p>
+                  <Btn onClick={() => setReloadKey((key) => key + 1)}>Try again</Btn>
+                </div>
+              )}
+              {!facilitiesLoading && !facilitiesFailed && facilities.length === 0 && (
+                <p className="hospital-state" data-kind="warn" role="status">
+                  No facilities are registered yet, so there is no inventory to show.
+                </p>
+              )}
+            </Card>
+          )}
+
           {loading && (
             <Card>
               <p className="hospital-state">Loading blood inventory…</p>
             </Card>
           )}
 
-          {!loading && !hospitalId && (
+          {!loading && !hospitalId && !isAdmin && (
             <Card>
               <p className="hospital-state" data-kind="warn" role="status">
                 This account is not linked to a facility yet. Ask an administrator to set your
@@ -667,6 +742,6 @@ export default function Inventory() {
           </form>
         )}
       </Modal>
-    </HospitalShell>
+    </Shell>
   )
 }

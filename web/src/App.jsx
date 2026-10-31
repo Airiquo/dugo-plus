@@ -17,6 +17,7 @@ import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
 import Profile from './pages/donor/Profile'
 import HospitalDashboard from './pages/hospital/Dashboard'
+import Inventory from './pages/hospital/Inventory'
 import HospitalMap from './pages/hospital/Map'
 import HospitalProfile from './pages/hospital/Profile'
 import Gallery from './pages/shared/Gallery'
@@ -25,7 +26,7 @@ import NotConfigured from './pages/shared/NotConfigured'
 import { NAV } from './layout/AppShell'
 
 /** Slugs that have a real page; every other admin screen renders `ScreenStub`. */
-const TRANSLATED = new Set(['dashboard', 'blood-requests'])
+const TRANSLATED = new Set(['dashboard', 'blood-requests', 'inventory'])
 
 /**
  * Top-level routes.
@@ -34,8 +35,10 @@ const TRANSLATED = new Set(['dashboard', 'blood-requests'])
  * `NotConfigured` instead, because sessions and account types live in Firebase
  * and there is no demo mode any more.
  *
- * Known admin screens: 9. `dashboard` and `blood-requests` are built; the rest
- * render a `ScreenStub` pointing at the live mockups served from `/mockups/*`.
+ * Known admin screens: 9. `dashboard`, `blood-requests` and `inventory` are
+ * built — the inventory screen is shared with `/hospital/inventory` behind an
+ * admin facility picker; the rest render a `ScreenStub` pointing at the live
+ * mockups served from `/mockups/*`.
  *
  * `/admin/*` sits behind three gates, in order: `RequireAuth` checks there is a
  * session, `RequireVerified` checks the address is confirmed (D5), and
@@ -108,6 +111,7 @@ export default function App() {
           >
             <Route path="/admin/dashboard" element={<Dashboard />} />
             <Route path="/admin/blood-requests" element={<BloodRequests />} />
+            <Route path="/admin/inventory" element={<Inventory />} />
             {NAV.filter((item) => !TRANSLATED.has(item.slug)).map((item) => (
               <Route
                 key={item.slug}
@@ -129,6 +133,7 @@ export default function App() {
           >
             <Route path="/hospital" element={<Navigate to="/hospital/dashboard" replace />} />
             <Route path="/hospital/dashboard" element={<HospitalDashboard />} />
+            <Route path="/hospital/inventory" element={<Inventory />} />
             <Route path="/hospital/map" element={<HospitalMap />} />
             <Route path="/hospital/profile" element={<HospitalProfile />} />
           </Route>

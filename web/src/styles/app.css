@@ -337,6 +337,9 @@
 .hospital-state[data-kind='warn'] {
   color: var(--d-ink);
 }
+.hospital-state[data-kind='ok'] {
+  color: var(--d-green);
+}
 .hospital-note {
   margin: 0;
   color: var(--d-muted);
@@ -405,6 +408,112 @@
 .hospital-profile-head {
   display: grid;
   gap: 6px;
+}
+
+.hospital-inventory {
+  display: grid;
+  gap: var(--d-gap);
+}
+.hospital-inventory-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--d-gap);
+}
+.hospital-inventory-summary > .card {
+  gap: 6px;
+}
+.hospital-inventory-summary > .card > span {
+  color: var(--d-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.hospital-inventory-summary > .card > strong {
+  color: var(--d-ink);
+  font-family: var(--d-font-display);
+  font-size: 44px;
+  font-weight: 900;
+  line-height: 1.05;
+}
+.hospital-inventory-summary > .card > strong small {
+  color: var(--d-muted);
+  font-family: var(--d-font-mono);
+  font-size: 14px;
+  font-weight: 500;
+}
+.hospital-inventory-summary > .card > .hospital-inventory-last {
+  font-family: var(--d-font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.hospital-inventory-summary > .card > small {
+  color: var(--d-muted);
+  font-size: 12.5px;
+}
+.hospital-inventory-table header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.hospital-inventory-table header p {
+  margin: 4px 0 0;
+}
+.hospital-inventory-units {
+  color: var(--d-ink);
+  font-family: var(--d-font-display);
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.hospital-inventory-table tr[data-empty='true'] .hospital-inventory-units {
+  color: var(--d-muted);
+}
+.hospital-inventory-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.hospital-inventory-table td:last-child {
+  white-space: nowrap;
+}
+.hospital-inventory-form {
+  display: grid;
+  gap: 16px;
+}
+.hospital-inventory-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.hospital-inventory-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--d-field);
+  border: 1px solid var(--d-line);
+  border-radius: var(--d-radius-sm);
+}
+.hospital-inventory-preview dt {
+  color: var(--d-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
+}
+.hospital-inventory-preview dd {
+  margin: 3px 0 0;
+  color: var(--d-ink);
+  font-family: var(--d-font-display);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+.hospital-inventory-preview dd[data-over='true'] {
+  color: var(--d-red);
 }
 .hospital-map-preview {
   position: relative;
@@ -814,9 +923,26 @@
   gap: 10px;
 }
 
+@media (max-width: 900px) {
+  .hospital-inventory-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .hospital-inventory-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 640px) {
   .hospital-facts {
     grid-template-columns: 1fr;
+  }
+  .hospital-inventory-summary,
+  .hospital-inventory-form-grid,
+  .hospital-inventory-preview {
+    grid-template-columns: 1fr;
+  }
+  .hospital-inventory-actions {
+    justify-content: flex-start;
   }
   .hospital-map-head {
     flex-direction: column;
