@@ -22,17 +22,26 @@ function text(value) {
 }
 
 /**
- * Turns a callable failure into a message the form can show verbatim.
- * Server messages already name the field or the stock that failed, so they
- * pass through; only the transport failures get wording of our own.
+ * Turns a callable failure into a message the form can show verbatim. Server
+ * messages already name the field or the stock that failed, so they pass
+ * through; the transport failures — the callable missing, or crashing — get
+ * wording of their own.
  */
 function readable(error) {
   const code = typeof error?.code === 'string' ? error.code : ''
+  const message = typeof error?.message === 'string' ? error.message.trim() : ''
   if (code === 'functions/unauthenticated') return 'Sign in again to record an inventory change.'
-  if (code === 'functions/not-found' || code === 'functions/internal') {
+  // The handlers throw not-found only for a record they looked up, and both
+  // name it; anything else not-found is the callable itself missing — the
+  // Dugo+ functions are not deployed (FR-034).
+  if (code === 'functions/not-found' && /does not exist\./.test(message)) return message
+  if (code === 'functions/not-found') {
     return 'The inventory service is not deployed yet. Ask an administrator to deploy the Dugo+ functions, then reload.'
   }
-  return error?.message || 'The stock change could not be saved. Check your connection and try again.'
+  if (code === 'functions/internal') {
+    return 'The inventory service hit an unexpected error. Try again; if it keeps failing, ask an administrator to check the function logs.'
+  }
+  return message || 'The stock change could not be saved. Check your connection and try again.'
 }
 
 /** Runs a callable, or reports the missing Firebase config to the screen. */
