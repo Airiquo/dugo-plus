@@ -105,3 +105,21 @@ Also folded into this entry: §1 gained `errorLogs` (§0 had recorded it, the tr
 had not), the shared `Role` enum was lowercased to match §2.1, and §1 notes that
 `systemConfig/global` is a singleton in practice while the rules match
 `{configId}`.
+
+## 2026-10-31 — inventory movements move to the server
+
+**Origin:** build (FR-034 rewritten as callables).
+
+**Refs:** D26. Feature: F6 (FR-034, FR-020).
+
+| Area | Before | After |
+|---|---|---|
+| `hospitals/{h}/inventory/{bt}` writes | staff-of-that-hospital or admin claim, client transaction | **server-only** — `firestore.rules` denies create/update/delete; `functions/index.js` writes with the Admin SDK |
+| `.../logs/{id}` writes | staff/admin create, shape validated in rules | **server-only**, same denial; shape (and the new `reason`) validated in the callable |
+| `logs.changeType` | suggested `Donation \| Usage \| Adjustment \| Expired` (§9.5 open) | `DONATION \| TRANSFUSION \| ADJUSTMENT \| EXPIRED` |
+| `logs.reason` | not present | **added** — optional, required by the callable for `ADJUSTMENT` / `EXPIRED` |
+| log location | `hospitals/{h}/inventory/{bt}/logs/{id}` | **unchanged** — a top-level `inventoryLogs` collection was considered and rejected; the deployed ruleset and its tests already enforce the child path |
+| `donations/{matchId}` | matchId, donorId, hospitalId, bloodType, units, dates | **added** `donorName`, `donationType`, `requestId` — denormalised from the match/request at confirmation so history lists need no join |
+
+§9.5's `changeType` question is answered by this change, and §0 carries the
+divergence row.

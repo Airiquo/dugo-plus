@@ -29,7 +29,7 @@ numbers rather than trusting this section.
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | not started |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
-| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile, initial dashboard shell + FR-015 hospital map) |
+| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile, FR-020 inventory reads + donation history, initial dashboard shell + FR-015 hospital map; FR-034's callables and rules are built but **not deployed** — see §10) |
 | **P5** | Matching and notifications | not started; needs Cloud Functions (Blaze) |
 | **P6** | Admin account management, data-request queue | partial (admin gate and FR-040/FR-047 beginnings) |
 | **P7** | Hash-chain audit trail | not started; needs Cloud Functions |
@@ -420,9 +420,11 @@ is cancelled. An assumption is never recorded in place of an answer.
   shipped `.chip[data-status]`/`.chip[data-priority]` codes, not chosen for the
   schema (D24); `component` is added as an FK to `donationTypes` (D24).
   `eligibilityInfo` was removed from the model of record — the ERD field was
-  never implemented and eligibility is computed on read (D25). Still open from
+  never implemented and eligibility is computed on read (D25); `changeType` is
+  `DONATION | TRANSFUSION | ADJUSTMENT | EXPIRED` with a required `reason` on
+  adjustments (D26). Still open from
   §9: `Subscriptions.status`, `responseStatus`, `consentType`, `channel`,
-  `deliveryStatus`, `changeType`, `requestType`, DSR `status`, subscription
+  `deliveryStatus`, `requestType`, DSR `status`, subscription
   `plan`, and the `notif_retry_interval` unit.
 - **Write-up is now enforced, not just requested.** `node tools/check-docs.mjs`
   gained mechanical cross-checks: every `D*` in `docs/` resolves, the changelog's
@@ -456,7 +458,23 @@ is cancelled. An assumption is never recorded in place of an answer.
   donor-registry screen (F9/F10) is what reads and sets them.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
-- **No app test suite**: recorded as a gap, not scheduled. The exception is the
-  Firestore rules — `firestore.rules.test.mjs` runs 106 asserts in the
-  emulator, locally (`npm run test:rules`) and in CI (D19). The React app has
-  no tests; the smoke list below is its check.
+- **No app test suite**: recorded as a gap, not scheduled. The exceptions are the
+  Firestore rules — `firestore.rules.test.mjs` runs 107 asserts in the
+  emulator, locally (`npm run test:rules`) and in CI (D19) — and the FR-034
+  callables, whose `functions.selfcheck.mjs` runs 31 checks the same way
+  (`npm run test:functions`, not yet in CI). The React app has no tests; the
+  smoke list below is its check.
+- **FR-034's callables and inventory rules are built but NOT deployed.**
+  `functions/` (`confirmDonation` / `recordTransfusion` / `adjustInventory`,
+  D26) and the `if false` change to `firestore.rules` are in the repo; the live
+  project still runs the old staff-open ruleset and has no functions code.
+  Deploying needs the Blaze plan (§7) and
+  `firebase deploy --only functions,firestore:rules`. Until that runs,
+  `/hospital/inventory` writes fail with the "not deployed yet" message, which
+  is why FR-034 reads `partial`.
+- **F6's `confirmDonation` performs F8's two writes.** Confirming a match sets
+  `users/{donorId}.lastDonationAt` (D14, FR-033) and creates
+  `rewardTransactions/{matchId}` (D12, FR-036) inside the same transaction
+  (D26). Those requirement rows belong to F8 and were left alone — the F8 owner
+  decides whether this callable is the single confirmation path or the feature
+  grows its own.

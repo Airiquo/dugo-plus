@@ -24,6 +24,7 @@ and do not "correct" the live code back to the text below:
 | `errorLogs` | an ERD-free collection §1 lists as [ADDED] | client-written, open-create | D8, D10, D17 |
 | `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
 | `users.address` | an ERD postal address | not collected; no field | D22 |
+| Inventory logs | child path, staff-writable, `Donation \| Usage \| Adjustment \| Expired` suggested | same child path, server-written only (`if false` in rules), `DONATION \| TRANSFUSION \| ADJUSTMENT \| EXPIRED` with `reason` | D26 |
 
 §9 below is the file's own list of ERD inconsistencies. **They are open questions,
 not defaults**: an owner answer is recorded as a `D*` row, and unanswered ones are
@@ -202,13 +203,16 @@ Doc ID **is** the blood type, so UK(hospital_id, blood_type) is guaranteed.
 
 | Field | Type | R/O | Notes |
 |---|---|---|---|
-| donationId | string | O | FK → `donations`. Null for manual adjustments / usage |
-| userId | string | R | FK → `users`, who made the change |
-| changeType | string | R | Values not in ERD. Suggested: `Donation \| Usage \| Adjustment \| Expired` |
+| donationId | string | O | FK → `donations`. Null for adjustments / usage |
+| userId | string | R | FK → `users`, the staff session that called the function |
+| changeType | string | R | `DONATION \| TRANSFUSION \| ADJUSTMENT \| EXPIRED` (D26) |
 | unitsChanged | number (int) | R | Positive or negative |
+| reason | string | O | Required for `ADJUSTMENT` / `EXPIRED` (D26) |
 | createdAt | Timestamp | R | |
 
 Write the log and the inventory update in **one transaction/batch**.
+**Server-only** (D26): `functions/index.js` writes both paths with the Admin
+SDK, and `firestore.rules` denies every client write to them.
 
 ### 2.4 `bloodRequests/{requestId}`
 
@@ -292,6 +296,9 @@ Doc ID = the `donorMatches` doc ID. One donation per match (ERD 1:1).
 | units | number (int) | R | |
 | confirmedAt | Timestamp | R | |
 | donorId, hospitalId, bloodType | string | R | **[ADDED, denormalized]** from the match/request. ERD has no donorId on Donations, only via match |
+| donorName | string | O | **[ADDED, denormalized]** `users/{donorId}.fullName`, copied at confirmation |
+| donationType | string | O | **[ADDED, denormalized]** FK → `donationTypes/{id}`, copied from the match |
+| requestId | string | O | **[ADDED, denormalized]** FK → `bloodRequests`, copied from the match |
 
 ### 2.10 `rewardTransactions/{donationId}`
 
@@ -632,7 +639,7 @@ interface AuditBlock {
 2. **Copy-pasted status enum**: `Blood_Requests.status` and `Subscriptions.status` show `Active, Suspended, Removed` like Users/Hospitals. **Answered for requests:** the build's set is `urgent | collecting | matched | fulfilled | cancelled` (D24). **Still open for subscriptions**: `Active | Expired | Cancelled` is the suggestion, not a decision.
 3. **Missing FK edges in the diagram**: `Hospitals.created_by`, `Donor_Matches.screened_by_user_id`, `Donations.confirmed_by`, `Data_Subject_Request.processed_by`, `Blood_Requests.created_by` — all assumed → `users`.
 4. **`Donations` has no `donor_id`** — derived via match. I added `donorId`, `hospitalId`, `bloodType` as denormalized fields.
-5. **Unspecified enum values** (suggested values given above): `urgencyLevel` **answered** — `urgent | stat | routine` (D24). Still open: `responseStatus`, `consentType`, `channel`, `deliveryStatus`, `changeType`, `requestType`, DSR `status`, subscription `plan`.
+5. **Unspecified enum values** (suggested values given above): `urgencyLevel` **answered** — `urgent | stat | routine` (D24). `changeType` **answered** — `DONATION | TRANSFUSION | ADJUSTMENT | EXPIRED` with a required `reason` on adjustments (D26). Still open: `responseStatus`, `consentType`, `channel`, `deliveryStatus`, `requestType`, DSR `status`, subscription `plan`.
 6. **`eligibility_info`** type unknown. **Answered (D25):** the field was never implemented, eligibility is computed on read, and it was removed from the model of record. If a screening record is ever needed, it gets a purpose-designed field in that feature.
 7. **`notif_retry_interval`** unit unknown. Assumed minutes.
 8. **Radius_Tiler** is spelled "Tiler" in the ERD; treated as "Tiers".
