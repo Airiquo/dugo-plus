@@ -1,6 +1,5 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getFunctions } from 'firebase/functions'
 import { getFirestore } from 'firebase/firestore'
 
 /**
@@ -52,15 +51,11 @@ export const missingFirebaseKeys = Object.entries(ENV_TO_FIELD)
   .map(([envName]) => envName)
 
 /**
- * The app, its auth service, its Firestore database and its callable
- * functions. All four are `null` until `VITE_FIREBASE_*` is set: an empty
- * config makes the SDK throw, so the shell shows
- * `pages/shared/NotConfigured` instead of routes. Always go through
- * `services/*` (and then `hooks/useAuth.jsx`) rather than importing these
- * directly.
+ * The app, its auth service and its Firestore database. All three are `null`
+ * until `VITE_FIREBASE_*` is set. Always go through `services/*` (and then
+ * `hooks/useAuth.jsx`) rather than importing these directly.
  */
 export const firebaseApp = isFirebaseConfigured ? initializeApp(firebaseConfig) : null
 export const auth = firebaseApp ? getAuth(firebaseApp) : null
 export const googleProvider = firebaseApp ? new GoogleAuthProvider() : null
 export const db = firebaseApp ? getFirestore(firebaseApp) : null
-export const functions = firebaseApp ? getFunctions(firebaseApp) : null

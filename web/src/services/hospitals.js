@@ -23,7 +23,8 @@ import { BLOOD_TYPES } from './users'
  * Hospital staff read their own facility through this module and update the
  * location/contact fields the rules allow. `status` and `createdBy` are not
  * writable here: status is an admin action and the creator is set at intake.
- * Inventory writes are server-side callables (FR-034), never here.
+ * Inventory writes are client transactions in `services/inventory.js`
+ * (FR-034, D27), never here.
  */
 
 const NOT_CONFIGURED = 'Firestore is not available. Copy web/.env.example to web/.env.local.'

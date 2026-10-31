@@ -41,7 +41,7 @@ function formatDate(value) {
 
 /** The empty form for each dialog, and its title. */
 const FORMS = {
-  confirm: { kind: 'confirm', matchId: '', units: '', points: '10' },
+  confirm: { kind: 'confirm', matchId: '', units: '' },
   transfusion: { kind: 'transfusion', bloodType: '', units: '', requestId: '' },
   adjust: { kind: 'adjust', bloodType: '', delta: '', changeType: 'ADJUSTMENT', reason: '' },
 }
@@ -57,7 +57,7 @@ const TITLES = {
  * `/admin/inventory` for an admin, who picks the facility first.
  *
  * Reads: live stock per blood type and the facility's donation history, both
- * from `services/hospitals.js`. Writes: three server callables from
+ * from `services/hospitals.js`. Writes: three client transactions from
  * `services/inventory.js` — a confirmed match, an issued transfusion, or a
  * reasoned adjustment — each moving the count and its log in one transaction.
  * Staff address their own facility through the claim; an admin sends the
@@ -252,15 +252,11 @@ export default function Inventory() {
     try {
       if (form.kind === 'confirm') {
         const units = Number(form.units)
-        const points = Number(form.points || 10)
         if (!Number.isInteger(units) || units < 1) {
           throw new Error('Enter a whole number of units greater than zero.')
         }
-        if (!Number.isInteger(points) || points < 1) {
-          throw new Error('Reward points must be a whole number greater than zero.')
-        }
         if (!form.matchId.trim()) throw new Error('Enter the match ID to confirm.')
-        const result = await confirmDonation({ matchId: form.matchId, units, points })
+        const result = await confirmDonation({ matchId: form.matchId, units })
         setNote(
           `Confirmed ${units} unit${units === 1 ? '' : 's'} of ${result.bloodType} for match ${result.donationId}. ${result.bloodType} now has ${result.unitsAvailable} unit${result.unitsAvailable === 1 ? '' : 's'}.`,
         )
@@ -274,7 +270,7 @@ export default function Inventory() {
           bloodType: form.bloodType,
           units,
           requestId: form.requestId,
-          hospitalId: isAdmin ? hospitalId : undefined,
+          hospitalId,
         })
         setNote(
           `Issued ${units} unit${units === 1 ? '' : 's'} of ${result.bloodType}. ${result.bloodType} now has ${result.unitsAvailable} unit${result.unitsAvailable === 1 ? '' : 's'}.`,
@@ -289,7 +285,7 @@ export default function Inventory() {
           delta,
           reason: form.reason,
           changeType: form.changeType,
-          hospitalId: isAdmin ? hospitalId : undefined,
+          hospitalId,
         })
         setNote(
           `${form.changeType === 'EXPIRED' ? 'Removed' : 'Adjusted'} ${Math.abs(delta)} unit${Math.abs(delta) === 1 ? '' : 's'} of ${result.bloodType}. ${result.bloodType} now has ${result.unitsAvailable} unit${result.unitsAvailable === 1 ? '' : 's'}.`,
@@ -428,8 +424,8 @@ export default function Inventory() {
                 <header>
                   <h2>Stock by blood type</h2>
                   <p className="muted">
-                    Counts follow the facility's stock live. Every movement is written server-side
-                    with its inventory log.
+                    Counts follow the facility's stock live. Every movement writes in one
+                    transaction with its inventory log.
                   </p>
                 </header>
                 <Table
@@ -577,8 +573,8 @@ export default function Inventory() {
             {form.kind === 'confirm' && (
               <>
                 <p className="hospital-note">
-                  Confirming a cleared match writes the donation, the stock, its log, the donor's
-                  donation date and the reward points in one transaction.
+                  Confirming a cleared match writes the donation record, the stock increment and
+                  its inventory log in one transaction.
                 </p>
                 <div className="hospital-inventory-form-grid">
                   <Field label="Match ID">
@@ -598,17 +594,6 @@ export default function Inventory() {
                       step="1"
                       value={form.units}
                       onChange={(event) => update('units', event.target.value)}
-                      disabled={saving}
-                    />
-                  </Field>
-                  <Field label="Reward points">
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min="1"
-                      step="1"
-                      value={form.points}
-                      onChange={(event) => update('points', event.target.value)}
                       disabled={saving}
                     />
                   </Field>
