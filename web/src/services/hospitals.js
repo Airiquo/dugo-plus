@@ -17,8 +17,9 @@ import { BLOOD_TYPES } from './users'
 
 /**
  * Facility documents — `hospitals/{hospitalId}` (schema §2.3) — plus the
- * facility's reads: stock (`hospitals/{hospitalId}/inventory`, §2.3.2) and
- * donation history (`donations`, §2.9), FR-020.
+ * facility's reads: stock (`hospitals/{hospitalId}/inventory`, §2.3.2), the
+ * donation log's pending matches (`donorMatches`, §2.5) and confirmed
+ * donations (`donations`, §2.9), FR-020.
  *
  * Hospital staff read their own facility through this module and update the
  * location/contact fields the rules allow. `status` and `createdBy` are not
@@ -182,6 +183,47 @@ export function watchInventory(hospitalId, onNext, onError) {
     (snap) => onNext(stockRows(snap)),
     onError,
   )
+}
+
+/** One `donorMatches` document, shaped for the donation log (schema §2.5). */
+function matchRow(snap) {
+  const data = snap.data() ?? {}
+  return {
+    id: snap.id,
+    requestId: typeof data.requestId === 'string' ? data.requestId : '',
+    donorId: typeof data.donorId === 'string' ? data.donorId : '',
+    hospitalId: typeof data.hospitalId === 'string' ? data.hospitalId : '',
+    bloodType: typeof data.bloodType === 'string' ? data.bloodType : '',
+    donationTypeId: typeof data.donationTypeId === 'string' ? data.donationTypeId : '',
+    responseStatus: typeof data.responseStatus === 'string' ? data.responseStatus : '',
+    screeningStatus: typeof data.screeningStatus === 'string' ? data.screeningStatus : '',
+    guidelinesAcknowledged: data.guidelinesAcknowledged === true,
+    matchedAt: asDate(data.matchedAt),
+  }
+}
+
+/**
+ * The facility's donor matches, newest first — the donation log's pending
+ * rows (FR-020, FR-034). Matches carry the facility and blood type from their
+ * request (schema §2.5) so staff can query them in one read.
+ *
+ * @param {string} hospitalId
+ * @param {{ limit?: number }} [options]
+ * @returns {Promise<Array<ReturnType<typeof matchRow>>>}
+ */
+export async function getFacilityMatches(hospitalId, { limit: take = 50 } = {}) {
+  requireDb()
+  const id = text(hospitalId)
+  if (!id) return []
+  const snap = await getDocs(
+    query(
+      collection(db, 'donorMatches'),
+      where('hospitalId', '==', id),
+      orderBy('matchedAt', 'desc'),
+      limit(take),
+    ),
+  )
+  return snap.docs.map(matchRow)
 }
 
 /**
