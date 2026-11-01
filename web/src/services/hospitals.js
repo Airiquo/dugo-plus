@@ -274,20 +274,28 @@ export async function listHospitals() {
 }
 
 /**
- * The facility's donation history, newest first (FR-020).
+ * The facility's donation history, newest first (FR-014, FR-020).
  *
  * @param {string} hospitalId
- * @param {{ cursor?: import('firebase/firestore').DocumentSnapshot | null, limit?: number }} [options]
+ * @param {{ since?: Date | number | null, cursor?: import('firebase/firestore').DocumentSnapshot | null, limit?: number }} [options]
  * @returns {Promise<{ rows: Array<ReturnType<typeof donationRow>>,
  *   cursor: import('firebase/firestore').DocumentSnapshot | null }>} `cursor` is
  *   null when the page returned fewer rows than asked for, i.e. the end.
  */
-export async function getHospitalDonations(hospitalId, { cursor = null, limit: take = 50 } = {}) {
+export async function getHospitalDonations(
+  hospitalId,
+  { since = null, cursor = null, limit: take = 50 } = {},
+) {
   requireDb()
   const id = text(hospitalId)
   if (!id) return { rows: [], cursor: null }
 
-  const constraints = [where('hospitalId', '==', id), orderBy('donationDate', 'desc'), limit(take)]
+  const constraints = [where('hospitalId', '==', id)]
+  const sinceDate = asDate(since)
+  if (sinceDate) {
+    constraints.push(where('donationDate', '>=', sinceDate))
+  }
+  constraints.push(orderBy('donationDate', 'desc'), limit(take))
   if (cursor) constraints.push(startAfter(cursor))
 
   const snap = await getDocs(query(collection(db, 'donations'), ...constraints))

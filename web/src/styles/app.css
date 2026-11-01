@@ -306,13 +306,86 @@
    `--d-*` tokens and the shared `.card`/`.field` base. Both themes come along
    unchanged. */
 
+.hospital-dashboard {
+  display: grid;
+  gap: 24px;
+}
 .hospital-overview {
   display: grid;
   gap: 16px;
 }
 .hospital-overview > .card {
   width: 100%;
-  max-width: 760px;
+}
+.hospital-collections {
+  display: grid;
+  gap: 16px;
+}
+.hospital-collections > .card {
+  width: 100%;
+  gap: 20px;
+}
+.hospital-collections-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.hospital-collections-head h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.hospital-collections-head p {
+  margin: 4px 0 0;
+}
+.hospital-collections-types {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hospital-collections-types h3,
+.hospital-collections-recent h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--d-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.hospital-types-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 10px;
+}
+.hospital-type-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border-radius: var(--d-radius-sm);
+  border: 1px solid var(--d-line);
+  background: var(--d-field);
+  text-align: center;
+}
+.hospital-type-chip[data-empty='true'] {
+  opacity: 0.5;
+}
+.hospital-type-chip strong {
+  font-family: var(--d-font-display);
+  font-size: 16px;
+  color: var(--d-ink);
+}
+.hospital-type-chip span {
+  font-size: 11px;
+  color: var(--d-muted);
+}
+.hospital-collections-recent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .hospital-overview header h2,
 .hospital-profile header h2 {
