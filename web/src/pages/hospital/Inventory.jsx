@@ -286,7 +286,6 @@ export default function Inventory() {
     setMatchesFailed(false)
     setHistory([])
     setMatches([])
-    setCursor(null)
     setSelected([])
     setUnitsById({})
 
