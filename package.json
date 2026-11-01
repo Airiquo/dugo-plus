@@ -8,7 +8,6 @@
     "check:docs": "node tools/check-docs.mjs",
     "seed": "node scripts/seed-reference-data.mjs",
     "set:claims": "node scripts/set-claims.mjs",
-    "create:hospital": "node scripts/create-hospital.mjs",
     "backfill:users": "node scripts/backfill-users-shape.mjs"
   },
   "devDependencies": {

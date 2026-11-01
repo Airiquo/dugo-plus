@@ -1,9 +1,9 @@
 import { FieldValue } from 'firebase-admin/firestore'
 import { admin } from './firebase.js'
 
-// The same operations `functions/index.js` exposes as callables (FR-040): create
-// a hospital account, delete a sign-in record, publish claims. Kept in step with
-// that file by hand — the callable is the path once Blaze is enabled.
+// The privileged account operations (FR-040): create a hospital account, delete
+// a sign-in record, publish claims. `functions/index.js` keeps only the delete
+// callable, for a project on Blaze.
 
 /** An error carrying the HTTP status the transport layer answers with. */
 export class ServiceError extends Error {

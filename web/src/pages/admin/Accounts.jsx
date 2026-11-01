@@ -9,8 +9,8 @@ import { Btn, Card, Field, Input, Modal, PageHeader, Select } from '../../compon
  * Admin account management (FR-040).
  *
  * Lists and inspects donor and hospital accounts, creates hospital accounts
- * through the `createHospitalAccount` callable, and suspends, restores or
- * removes an account. Every destructive action confirms first and records a
+ * from the browser (D30) or the account service (D29), and suspends, restores
+ * or removes an account. Every destructive action confirms first and records a
  * reason. Enforcement is server-side: `firestore.rules` (`accountActive()`)
  * closes every protected path for a Suspended or Removed profile, and
  * `pages/public/Blocked.jsx` explains it to the signed-in account.

@@ -62,8 +62,9 @@ export const googleProvider = firebaseApp ? new GoogleAuthProvider() : null
 export const db = firebaseApp ? getFirestore(firebaseApp) : null
 
 /**
- * Callable-function client for the privileged account operations (FR-040):
- * creating a hospital's Auth account and deleting one. Both need the Admin SDK,
- * so the browser calls a deployed function rather than holding credentials.
+ * Callable-function client for deleting a Firebase Auth account (FR-040). That
+ * needs the Admin SDK, so the browser calls a deployed function rather than
+ * holding credentials. Hospital creation runs in the browser (D30) or on the
+ * free account service (D29).
  */
 export const functions = firebaseApp ? getFunctions(firebaseApp) : null

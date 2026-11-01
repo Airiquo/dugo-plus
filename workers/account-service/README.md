@@ -6,7 +6,7 @@ Blaze plan. This folder does the **same work on a free host** (Vercel or
 Netlify), so `/admin/accounts` can create a hospital account without Blaze and
 without running a script by hand.
 
-It mirrors `functions/index.js` and is kept in step with it by hand.
+`functions/index.js` keeps only the delete callable, for a project on Blaze.
 
 ## What it exposes
 
