@@ -56,3 +56,9 @@ registration. It covers:
    recorded acceptance (PHASES §10).
 6. **Children.** The register screen has no age gate; the notice says 18+
    nowhere explicit yet. Owner decision needed.
+
+## Optional profile pictures (2026-11-01, D39)
+
+The notice version is `2026-11-01`. Pictures are optional and sent to Cloudinary through a public unsigned preset; the private `users` document stores `photoURL`, but its image delivery URL is public to anyone who has the link. The editor discloses this before upload. Registration stores the updated notice version; historical acceptance records remain unchanged.
+
+`anonymiseUser()` clears `photoURL`. Removing/replacing a photo also clears or replaces the account link, but does not delete the Cloudinary asset. Support must remove current/replaced assets from the Cloudinary Media Library and invalidate their delivery copies when processing erasure. There is no automated Cloudinary deletion job or signed backend in this feature; see `PROFILE_PICTURES.md`.

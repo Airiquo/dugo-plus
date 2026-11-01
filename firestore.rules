@@ -86,6 +86,14 @@ service cloud.firestore {
       return value in ['', 'O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
     }
 
+    // Pictures are optional HTTPS Cloudinary image delivery URLs.
+    function validProfilePhoto(data) {
+      return !('photoURL' in data) || (data.photoURL is string
+          && data.photoURL.size() <= 2048
+          && (data.photoURL == ''
+              || data.photoURL.matches('https://res[.]cloudinary[.]com/[a-zA-Z0-9_-]+/image/upload/[^\\s?#]+')));
+    }
+
     // Account profiles: `users/{uid}` (D16/D22). The owner and an admin claim
     // may read; the owner's read is deliberately status-blind so a suspended
     // session can show the notice, while every other path closes (D26).
@@ -100,6 +108,7 @@ service cloud.firestore {
       // only F8's server transaction writes lastDonationAt (D14), so a client
       // may not create it.
       allow create: if signedIn() && me() == uid
+                    && validProfilePhoto(request.resource.data)
                     && request.resource.data.role == 'donor'
                     && !request.resource.data.keys().hasAny(['loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased', 'hospitalId', 'statusReason', 'statusUpdatedAt'])
                     && request.resource.data.role is string
@@ -128,6 +137,7 @@ service cloud.firestore {
                     && ((
                          // Administrator corrections retain the profile's validated shape.
                          isAdmin()
+                         && validProfilePhoto(request.resource.data)
                          && request.resource.data.role in ['donor', 'hospital', 'admin']
                          && request.resource.data.fullName is string
                          && request.resource.data.email is string
@@ -150,6 +160,7 @@ service cloud.firestore {
                        )
                     || (
                          authenticated() && me() == uid
+                         && validProfilePhoto(request.resource.data)
                          // A suspended account cannot write its own profile
                          // (D26); reading it is still allowed so the blocked
                          // screen can name the reason.

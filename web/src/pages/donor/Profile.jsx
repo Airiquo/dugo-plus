@@ -6,7 +6,7 @@ import { readProfile, saveProfile, BLOOD_TYPES, roleLabel } from '../../services
 import { saveDonorLocation } from '../../services/donorLocations'
 import { eligibilityFor, toDate } from '../../utils/eligibility'
 import { validateProfile } from '../../utils/validate'
-import { FieldError, Icon, CarePageHeader, CareDonorCard } from '../../components'
+import { FieldError, Icon, CarePageHeader, CareDonorCard, ProfilePhotoEditor } from '../../components'
 import { DonorNav } from '../../layout/DonorNav'
 
 /** `2026-10-20` from a Date, for an `<input type="date">`. */
@@ -235,6 +235,8 @@ export default function Profile() {
               on screen. Check your connection and reload the page before editing.
             </p>
           )}
+
+          <ProfilePhotoEditor disabled={!profileLoaded || loadFailed || busy} />
 
           {/* Identity ------------------------------------------------ */}
           <div className="profile-section">

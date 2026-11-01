@@ -1,4 +1,4 @@
-# Admin account operations — batch 1 (D39)
+# Admin account operations — batch 1 (D40)
 
 Branch: `fix/admin-audit-recording`. Scope: F9 account mutations and their F10
 account/erasure events. Accounts layout, account-history presentation, and the

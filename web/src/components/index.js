@@ -30,3 +30,5 @@ export { default as CareDonationMark } from './CareDonationMark'
 export { NewsCard as CareNewsCard, NewsSection as CareNewsSection, NewsArticle as CareNewsArticle } from './CareNews'
 
 export { RequestStatusDialog } from './RequestStatusDialog'
+export { ProfileAvatar } from './ProfileAvatar'
+export { ProfilePhotoEditor } from './ProfilePhotoEditor'

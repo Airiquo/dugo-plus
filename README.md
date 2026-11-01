@@ -144,6 +144,12 @@ configured, `/admin/*` requires a signed-in account with `role: "admin"`; see
 [Authentication](#authentication). The remaining work is one screen at a time;
 see [Building a screen](#building-a-screen).
 
+### Optional profile pictures
+
+Donor, hospital and admin accounts can upload, replace or remove a profile
+picture. Configure the public Cloudinary cloud name and unsigned upload preset
+in `web/.env.local`; see [setup, privacy and verification](docs/PROFILE_PICTURES.md).
+
 ## Authentication
 
 Sign-in has one path through the app, and it is the same shape as
