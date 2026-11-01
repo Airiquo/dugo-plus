@@ -370,6 +370,10 @@ is cancelled. An assumption is never recorded in place of an answer.
   the `users` backfill** (`scripts/backfill-users-shape.mjs`, D22) and deleted
   from disk with its console access revoked once that has run and the
   read-time fallbacks are out.
+  **Corrected 2026-11-01:** the live rules release is `2026-11-01T05:46Z`
+  (ruleset `3e42ba9f`, consent freeze included), and hosting had not been
+  released since **2026-10-20** until the 2026-11-01 integration deploy, which
+  was the first production build carrying D20/D28.
 - **The `users` backfill has not run on the live project.** `npm run
   backfill:users` (dry by default; `--apply` writes) must run once before the
   fallbacks in `readProfile` are removed. Until then the app reads either shape

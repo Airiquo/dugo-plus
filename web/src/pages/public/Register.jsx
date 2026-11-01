@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { authErrorDetail } from '../../services/auth'
@@ -37,7 +37,7 @@ export default function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   // Required before either account-creation path runs; the acceptance is
-  // stored on the profile (`writeProfile`, `PRIVACY_NOTICE_VERSION`).
+  // stored on the profile (`ensureProfile`, `PRIVACY_NOTICE_VERSION`).
   const [consent, setConsent] = useState(false)
   const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
@@ -46,6 +46,13 @@ export default function Register() {
   // form has to stay mounted to show the recovery, since retrying it would
   // only hit "email already in use".
   const [profileMissing, setProfileMissing] = useState(false)
+
+  // A later session event can still provision the profile this form could not
+  // write, so a recovered role clears the recovery message and lets the
+  // redirect below take over.
+  useEffect(() => {
+    if (profileMissing && sessionRole) setProfileMissing(false)
+  }, [profileMissing, sessionRole])
 
   // Already signed in — go straight to where this account type lives (`homeFor`
   // sends admins on to the dashboard, donor accounts to /home). `busy`
