@@ -25,7 +25,7 @@ const PERIOD_TABS = [
 /** Formats a donation date for the history table. */
 function formatDate(value) {
   const date = toDate(value)
-  return date ? date.toLocaleDateString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—'
+  return date ? date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—'
 }
 
 /**
