@@ -33,14 +33,19 @@ export function validateLogin({ email, password } = {}) {
   return errors
 }
 
+/** Shown when registration is attempted without accepting the privacy notice. */
+export const CONSENT_REQUIRED =
+  'Accept the Privacy & consent notice to create an account.'
+
 /** Registration: name, email, and the shared password policy (NFR-13). */
-export function validateRegister({ name, email, password } = {}) {
+export function validateRegister({ name, email, password, consent } = {}) {
   const errors = {}
   if (!(name ?? '').trim()) errors.name = 'Enter your name.'
   const emailIssue = emailProblem(email)
   if (emailIssue) errors.email = emailIssue
   const passwordIssue = passwordProblem(password ?? '', (email ?? '').trim())
   if (passwordIssue) errors.password = passwordIssue
+  if (!consent) errors.consent = CONSENT_REQUIRED
   return errors
 }
 
@@ -115,6 +120,30 @@ export function validateProfile({ fullName, phoneNumber, dateOfBirth, city } = {
   if (!(city ?? '').trim()) {
     errors.city = 'Enter your city so nearby requests can reach you.'
   }
+
+  return errors
+}
+
+/**
+ * Hospital blood request (FR-011, FR-017). Every field is required: the matcher
+ * needs a type, a component, a count and an urgency to rank the request, so an
+ * incomplete one would only fail later at the write.
+ */
+export function validateRequest({ bloodType, component, quantity, urgencyLevel } = {}) {
+  const errors = {}
+
+  if (!(bloodType ?? '').trim()) errors.bloodType = 'Choose the blood type needed.'
+
+  if (!(component ?? '').trim()) errors.component = 'Choose the blood component.'
+
+  const units = Number(quantity)
+  if (!Number.isInteger(units) || units < 1) {
+    errors.quantity = 'Enter the number of units, a whole number of 1 or more.'
+  } else if (units > 99) {
+    errors.quantity = 'That is more units than a single request should need.'
+  }
+
+  if (!(urgencyLevel ?? '').trim()) errors.urgencyLevel = 'Choose how urgent this request is.'
 
   return errors
 }

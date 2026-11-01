@@ -8,8 +8,8 @@
  * to the facility (FR-031), so this is guidance, not a medical determination.
  */
 
-/** Whole blood deferral. Philippine Red Cross uses three months between donations. */
-export const DONATION_INTERVAL_DAYS = 90
+/** Whole-blood deferral from D13 and `donationTypes/whole-blood`. */
+export const WHOLE_BLOOD_INTERVAL_DAYS = 56
 
 /** Donor age window. */
 export const MIN_AGE = 18
@@ -40,11 +40,14 @@ export function daysBetween(from, to) {
 /**
  * The deferral date: the first day a donation is possible again. `null` when
  * there has been no donation to count from.
+ *
+ * @param {unknown} lastDonationAt
+ * @param {number} [intervalDays] deferral for the donation type; defaults to whole blood
  */
-export function nextEligibleDate(lastDonationAt) {
+export function nextEligibleDate(lastDonationAt, intervalDays = WHOLE_BLOOD_INTERVAL_DAYS) {
   const last = toDate(lastDonationAt)
   if (!last) return null
-  return new Date(last.getTime() + DONATION_INTERVAL_DAYS * DAY_MS)
+  return new Date(last.getTime() + intervalDays * DAY_MS)
 }
 
 /** `Date`, a Firestore Timestamp, a millisecond number, or an ISO string. */
@@ -63,7 +66,11 @@ export function toDate(value) {
 /**
  * Eligibility for a profile.
  *
- * @param {{ dateOfBirth?: unknown, lastDonationAt?: unknown }} profile
+ * @param {{
+ *   dateOfBirth?: unknown,
+ *   lastDonationAt?: unknown,
+ *   intervalDays?: number,
+ * }} profile
  * @param {Date} [now]
  * @returns {{
  *   status: 'unknown'|'underage'|'overage'|'eligible'|'deferred',
@@ -73,11 +80,16 @@ export function toDate(value) {
  *   nextEligibleOn: Date|null,
  * }}
  *
- * `status` is the machine-readable value; `label` and `detail` are the copy the
- * screen renders. `unknown` means the profile is missing the dates needed to
- * decide, which is the normal state for a new account.
+ * `intervalDays` is the selected donation type's deferral (D13); leaving it out
+ * uses the whole-blood interval. `status` is the machine-readable value;
+ * `label` and `detail` are the copy the screen renders. `unknown` means the
+ * profile is missing the dates needed to decide, which is the normal state for
+ * a new account.
  */
-export function eligibilityFor({ dateOfBirth, lastDonationAt } = {}, now = new Date()) {
+export function eligibilityFor(
+  { dateOfBirth, lastDonationAt, intervalDays = WHOLE_BLOOD_INTERVAL_DAYS } = {},
+  now = new Date(),
+) {
   const age = ageOn(dateOfBirth, now)
 
   if (age === null) {
@@ -110,7 +122,7 @@ export function eligibilityFor({ dateOfBirth, lastDonationAt } = {}, now = new D
     }
   }
 
-  const next = nextEligibleDate(lastDonationAt)
+  const next = nextEligibleDate(lastDonationAt, intervalDays)
   if (next) {
     const daysLeft = daysBetween(now, next)
     if (daysLeft > 0) {

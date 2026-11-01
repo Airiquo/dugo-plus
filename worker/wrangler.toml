@@ -1,0 +1,29 @@
+name = "dugo-matching"
+main = "src/index.js"
+compatibility_date = "2026-10-23"
+workers_dev = true
+
+# Set the allowed browser origins for this deployment, comma-separated. Local
+# Vite is included so the app can call the Worker in development; the Firebase
+# Hosting origins are what the deployed site runs on (a missing origin makes the
+# browser's CORS preflight fail, so /match and the audit endpoints error there).
+[vars]
+ALLOWED_ORIGINS = "http://localhost:5173,https://dugo-plus.web.app,https://dugo-plus.firebaseapp.com"
+
+# One-minute fallback for requests that were not triggered by the app.
+[triggers]
+crons = ["* * * * *"]
+
+# Secrets (see README/PHASES for values):
+#   wrangler secret put FIREBASE_SERVICE_ACCOUNT
+#   wrangler secret put FIREBASE_API_KEY
+#   wrangler secret put BREVO_API_KEY        # Brevo SMTP API key (free, 300/day)
+#   wrangler secret put BREVO_SENDER_EMAIL   # Verified sender (single-sender ok)
+#   wrangler secret put BREVO_SENDER_NAME    # e.g. Dugo+
+#   wrangler secret put AUDIT_HASH_SECRET    # HMAC secret for audit trail hashed refs
+
+# KV namespace for audit trail head checkpoint (optional)
+# [[kv_namespaces]]
+# binding = "AUDIT_KV"
+# id = "<production-kv-id>"
+# preview_id = "<preview-kv-id>"

@@ -4,6 +4,10 @@ node_modules/
 # Build output
 dist/
 
+# Wrangler output and local Worker secrets
+.wrangler/
+.dev.vars
+
 # Firebase project config — copy web/.env.example to web/.env.local
 .env
 .env.local

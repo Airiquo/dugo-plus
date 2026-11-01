@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
+import { getFunctions } from 'firebase/functions'
 
 /**
  * The six `VITE_FIREBASE_*` variables, mapped to the `firebaseConfig` field each
@@ -24,7 +25,7 @@ const ENV_TO_FIELD = {
  * identifier and access is enforced by Firebase's own rules. The file holding
  * them is gitignored all the same, so one project is never baked into the repo.
  */
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -59,3 +60,10 @@ export const firebaseApp = isFirebaseConfigured ? initializeApp(firebaseConfig) 
 export const auth = firebaseApp ? getAuth(firebaseApp) : null
 export const googleProvider = firebaseApp ? new GoogleAuthProvider() : null
 export const db = firebaseApp ? getFirestore(firebaseApp) : null
+
+/**
+ * Callable-function client for the privileged account operations (FR-040):
+ * creating a hospital's Auth account and deleting one. Both need the Admin SDK,
+ * so the browser calls a deployed function rather than holding credentials.
+ */
+export const functions = firebaseApp ? getFunctions(firebaseApp) : null

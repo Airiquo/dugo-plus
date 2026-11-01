@@ -17,8 +17,15 @@ import { dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { initializeApp, applicationDefault } from 'firebase-admin/app';
 import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { geohash } from '../web/src/utils/geohash.js';
 
 const force = process.argv.includes('--force');
+// Optional: link a hospital account to the seeded facility. Pass the account's
+// email; its users/{uid}.hospitalId is set to the dev hospital. `users.hospitalId`
+// is written but never read by a screen except the F3 hospital area.
+const linkEmail = process.argv.includes('--link-email')
+  ? process.argv[process.argv.indexOf('--link-email') + 1]
+  : null;
 const emulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 const project = process.argv.includes('--project')
   ? process.argv[process.argv.indexOf('--project') + 1]
@@ -80,6 +87,19 @@ const donationTypes = [
   { id: 'double-red-cells', name: 'Double Red Cells', intervalDays: 112 },
 ];
 
+// One dev facility so the F3 hospital area has a facility to post against
+// (schema §2.3). Requests copy its name/coordinates, so the coordinates must be
+// real for the matcher's radius search to mean anything.
+const devHospital = {
+  id: 'tagaytay-blood-bank',
+  name: 'Tagaytay City Blood Bank',
+  address: 'Tagaytay City, Cavite',
+  latitude: 14.1153,
+  longitude: 120.9621,
+  contactNumber: '046 483 0000',
+  status: 'Active',
+};
+
 // Radii follow NFR-05's 5→10→15→20–25 km ladder (D18); waitMinutes extends
 // the schema §8 pattern (10/15/20…) and stays tunable via FR-041 later.
 const systemConfig = {
@@ -136,6 +156,30 @@ for (const type of donationTypes) {
 }
 
 await writeDoc(db.doc('systemConfig/global'), systemConfig, 'systemConfig/global');
+
+await writeDoc(
+  db.doc(`hospitals/${devHospital.id}`),
+  {
+    createdBy: adminUid,
+    name: devHospital.name,
+    address: devHospital.address,
+    latitude: devHospital.latitude,
+    longitude: devHospital.longitude,
+    geohash: geohash(devHospital.latitude, devHospital.longitude, 7),
+    contactNumber: devHospital.contactNumber,
+    status: devHospital.status,
+  },
+  `hospitals/${devHospital.id}`,
+);
+
+if (linkEmail) {
+  const matches = await db.collection('users').where('email', '==', linkEmail).limit(1).get();
+  if (matches.empty) {
+    refuse(`no users/ document has email "${linkEmail}".`);
+  }
+  await matches.docs[0].ref.set({ hospitalId: devHospital.id }, { merge: true });
+  console.log(`~ linked users/${matches.docs[0].id} → hospitalId ${devHospital.id}`);
+}
 
 console.log(
   `\n${created} created, ${overwritten} overwritten, ${kept} kept` +
