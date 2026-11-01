@@ -3,7 +3,8 @@
  *
  * `POST /match` is the immediate trigger used by request creation. The cron
  * handler runs matching fallback and notification retries.
- * F10 adds audit trail endpoints.
+ * F10 adds audit trail endpoints; F9 adds `POST /accounts` for the privileged
+ * account operations (FR-040).
  */
 
 import { verifyIdToken } from './firebase-auth.js'
@@ -12,6 +13,7 @@ import { HttpError, corsHeaders, json } from './http.js'
 import { processRequest, runMatchingCycle } from './matcher.js'
 import { notifyNewMatches, retryNotifications } from './notify.js'
 import { getAllAuditBlocks, verifyAuditChain, appendAuditBlockSimple } from './audit.js'
+import { createHospitalAccount, deleteAuthAccount, setClaims } from './accounts.js'
 
 const REQUEST_ID_PATTERN = /^[^/\s]{1,128}$/
 
@@ -127,6 +129,38 @@ async function route(request, env) {
     })
     
     return json({ ok: true, ...result }, 200, cors)
+  }
+
+  // POST /accounts - privileged account operations (FR-040), admin only
+  if (request.method === 'POST' && url.pathname === '/accounts') {
+    const user = await verifyIdToken(env, bearerToken(request))
+    const profile = await getDocument(env, 'users', user.uid)
+    if (!profile) throw new HttpError(403, 'No DG+ profile for this account')
+    if (user.claims?.role !== 'admin') {
+      throw new HttpError(403, 'Only an administrator can manage accounts')
+    }
+
+    let body
+    try {
+      body = await request.json()
+    } catch {
+      throw new HttpError(400, 'Body must be JSON')
+    }
+
+    const action = typeof body?.action === 'string' ? body.action : ''
+    if (action === 'createHospitalAccount') {
+      const result = await createHospitalAccount(env, body, user.uid)
+      return json({ ok: true, ...result }, 200, cors)
+    }
+    if (action === 'deleteAuthAccount') {
+      const result = await deleteAuthAccount(env, body.uid, user.uid)
+      return json({ ok: true, ...result }, 200, cors)
+    }
+    if (action === 'setClaims') {
+      const result = await setClaims(env, body.uid)
+      return json({ ok: true, ...result }, 200, cors)
+    }
+    throw new HttpError(400, 'Unknown action')
   }
 
   return json({ ok: false, error: 'Not found' }, 404, cors)
