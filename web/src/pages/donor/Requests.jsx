@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet'
+import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useTheme } from '../../hooks/useTheme'
@@ -53,6 +53,48 @@ function text(value) {
 function directionsUrl(from, to) {
   if (!from || !to) return ''
   return `https://www.openstreetmap.org/directions?route=${from[0]},${from[1]};${to[0]},${to[1]}`
+}
+
+/**
+ * A usable coordinate pair, or null when either value is missing, not finite,
+ * or the `0,0` placeholder a hospital gets when it was created without
+ * coordinates. Every distance, pin and route goes through this.
+ */
+function asPoint(lat, lng) {
+  const point = { lat: Number(lat), lng: Number(lng) }
+  if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return null
+  if (point.lat === 0 && point.lng === 0) return null
+  return point
+}
+
+/** The facility's point: its own coordinates first, then the request's copy. */
+function facilityPoint(hospital, request) {
+  return (
+    asPoint(hospital?.latitude, hospital?.longitude) ??
+    asPoint(request?.latitude, request?.longitude)
+  )
+}
+
+/**
+ * Fit the map to the donor's point and the visible facility pins. A single
+ * point opens at street level; no points leave the initial centre alone.
+ * `signature` is the dependency because `points` is a new array each render.
+ */
+function FitBounds({ points }) {
+  const map = useMap()
+  const signature = points.map((point) => `${point.lat.toFixed(5)},${point.lng.toFixed(5)}`).join('|')
+  useEffect(() => {
+    if (points.length === 0) return
+    if (points.length === 1) {
+      map.setView([points[0].lat, points[0].lng], 14)
+      return
+    }
+    map.fitBounds(
+      points.map((point) => [point.lat, point.lng]),
+      { padding: [40, 40] },
+    )
+  }, [signature, map])
+  return null
 }
 
 export default function Requests() {
@@ -174,14 +216,18 @@ export default function Requests() {
   const typesById = useMemo(() => new Map(donationTypes.map((t) => [t.id, t])), [donationTypes])
   const donorBlood = text(profile?.bloodType)
 
-  // Live GPS first, saved profile coordinates as the fallback.
+  // Live GPS only when the device is confident (<= 200 m); otherwise the
+  // donor's corrected profile pin wins, because a desktop's IP-based fix is
+  // regularly tens of km out. An unconvincing fix with no saved pin is still
+  // better than nothing, so it is used and labelled approximate.
   const position = useMemo(() => {
-    if (live) return { lat: live.lat, lng: live.lng, source: 'live' }
-    const lat = Number(profile?.latitude)
-    const lng = Number(profile?.longitude)
-    if (Number.isFinite(lat) && Number.isFinite(lng) && profile?.latitude != null) {
-      return { lat, lng, source: 'profile' }
-    }
+    const saved = asPoint(profile?.latitude, profile?.longitude)
+    const devicePoint = asPoint(live?.lat, live?.lng)
+    const confident = devicePoint && Number.isFinite(live?.accuracy) && live.accuracy <= 200
+
+    if (confident) return { ...devicePoint, source: 'live' }
+    if (saved) return { ...saved, source: 'profile' }
+    if (devicePoint) return { ...devicePoint, source: 'approximate' }
     return null
   }, [live, profile])
 
@@ -191,9 +237,13 @@ export default function Requests() {
         const request = requestsById[match.requestId]
         if (!request) return null
         const hospital = hospitalsById[request.hospitalId] ?? null
-        const distance = position
-          ? distanceKm(position.lat, position.lng, request.latitude, request.longitude)
-          : null
+        const facility = facilityPoint(hospital, request)
+        // No donor point or no usable facility point means the distance is
+        // unknown, not zero; the radius filter treats unknown as "keep".
+        const distance =
+          position && facility
+            ? distanceKm(position.lat, position.lng, facility.lat, facility.lng)
+            : null
         const type = typesById.get(match.donationTypeId) || typesById.get(request.component) || null
         const compatible = donorBlood ? canDonateTo(donorBlood, request.bloodType) : true
         const eligibility = eligibilityFor(
@@ -204,7 +254,7 @@ export default function Requests() {
           },
           new Date(),
         )
-        return { match, request, hospital, distance, type, compatible, eligibility }
+        return { match, request, hospital, facility, distance, type, compatible, eligibility }
       })
       .filter(Boolean)
   }, [matches, requestsById, hospitalsById, typesById, donorBlood, position, profile])
@@ -213,21 +263,26 @@ export default function Requests() {
     return items.filter((it) => {
       if (filterBlood === 'compatible' && !it.compatible) return false
       if (filterComponent !== 'all' && it.request.component !== filterComponent) return false
-      if (it.distance !== null && it.distance > filterRadius) return false
+      // An unknown distance (no usable facility point) is never hidden by the
+      // radius filter, because the filter cannot know it is out of range.
+      if (Number.isFinite(it.distance) && it.distance > filterRadius) return false
       return true
     })
   }, [items, filterBlood, filterComponent, filterRadius])
 
   // One pin per facility: requests at the same hospital share coordinates.
+  // A facility with no usable point is not pinned; it is listed under the map.
   const hospitalPins = useMemo(() => {
     const byHospital = new Map()
     visible.forEach((it) => {
-      const key = it.request.hospitalId || `${it.request.latitude},${it.request.longitude}`
+      if (!it.facility) return
+      const key = it.request.hospitalId || `${it.facility.lat},${it.facility.lng}`
       if (!byHospital.has(key)) {
         byHospital.set(key, {
           key,
           hospital: it.hospital,
           request: it.request,
+          facility: it.facility,
           items: [],
           distance: it.distance,
         })
@@ -242,14 +297,14 @@ export default function Requests() {
   const recipientPins = useMemo(() => {
     const byRecipient = new Map()
     visible.forEach((it) => {
-      const { recipientLatitude: lat, recipientLongitude: lng } = it.request
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
-      const key = it.request.recipientId || `${lat},${lng}`
+      const point = asPoint(it.request.recipientLatitude, it.request.recipientLongitude)
+      if (!point) return
+      const key = it.request.recipientId || `${point.lat},${point.lng}`
       if (!byRecipient.has(key)) {
         byRecipient.set(key, {
           key,
-          lat,
-          lng,
+          lat: point.lat,
+          lng: point.lng,
           city: it.request.recipientCity,
           requests: [],
         })
@@ -313,7 +368,10 @@ export default function Requests() {
       await respondToMatch(
         selected.match.id,
         status,
-        status === 'Accepted' && live ? { latitude: live.lat, longitude: live.lng } : null,
+        // Share the point the screen trusts and shows, not the raw device fix.
+        status === 'Accepted' && position
+          ? { latitude: position.lat, longitude: position.lng }
+          : null,
       )
       setSelected(null)
     } catch {
@@ -341,6 +399,24 @@ export default function Requests() {
   const mapCenter = position ? [position.lat, position.lng] : [14.5995, 120.9842]
   const accepted = items.filter((it) => it.match.responseStatus === 'Accepted' && it.hospital)
 
+  const positionLabel =
+    position?.source === 'live'
+      ? 'Using your live GPS'
+      : position?.source === 'profile'
+        ? 'Using your saved pin'
+        : position?.source === 'approximate'
+          ? 'Approximate location'
+          : ''
+
+  // The donor's point plus every visible facility pin; the map fits these.
+  const fitPoints = []
+  if (position) fitPoints.push({ lat: position.lat, lng: position.lng })
+  hospitalPins.forEach((pin) => fitPoints.push({ lat: pin.facility.lat, lng: pin.facility.lng }))
+
+  // Visible requests whose facility has no usable coordinates: no pin, listed
+  // under the map instead.
+  const missingLocation = visible.filter((it) => !it.facility)
+
   return (
     <div className="pub donor-surface" data-theme={theme} style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}>
       <DonorNav />
@@ -353,10 +429,12 @@ export default function Requests() {
               <h3 style={{ margin: '4px 0 0 0' }}>Compatible requests near you</h3>
               <p className="pub-muted">
                 {position?.source === 'live'
-                  ? 'Distances follow your live location.'
-                  : position
-                    ? 'Distances use the location saved on your profile.'
-                    : 'Set your location in your profile, or allow location access, to see distances.'}
+                  ? 'Distances follow your live GPS.'
+                  : position?.source === 'profile'
+                    ? 'Distances use your saved pin.'
+                    : position?.source === 'approximate'
+                      ? 'Distances use an approximate device location.'
+                      : 'Set your location in your profile, or allow location access, to see distances.'}
               </p>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -371,7 +449,9 @@ export default function Requests() {
 
           {geoState === 'denied' && (
             <p className="pub-msg" data-kind="info" role="status">
-              Location access is blocked, so live distance is off.{' '}
+              {position?.source === 'profile'
+                ? 'Location access is blocked, so distances use your saved pin.'
+                : 'Location access is blocked. Set your location in your profile to see distances.'}{' '}
               <button className="auth-forgot" type="button" onClick={() => setGeoToken((n) => n + 1)}>
                 Try again
               </button>
@@ -379,7 +459,9 @@ export default function Requests() {
           )}
           {geoState === 'unavailable' && (
             <p className="pub-msg" data-kind="info" role="status">
-              Your location could not be read. Distances fall back to your saved profile.
+              {position?.source === 'profile'
+                ? 'Your live location could not be read, so distances use your saved pin.'
+                : 'Your location could not be read. Set it in your profile to see distances.'}
             </p>
           )}
 
@@ -469,90 +551,130 @@ export default function Requests() {
               ))}
             </div>
 
-            <div className="donor-request-map" data-expanded={mapExpanded}>
-              <MapContainer ref={mapRef} center={mapCenter} zoom={12} style={{ height: '100%', width: '100%' }}>
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution="&copy; OpenStreetMap contributors"
-                />
-
-                {live && (
-                  <>
-                    <Circle
-                      center={[live.lat, live.lng]}
-                      radius={Math.max(30, live.accuracy || 0)}
-                      pathOptions={{ color: '#1f6feb', weight: 1, fillOpacity: 0.08 }}
-                    />
-                    <Marker position={[live.lat, live.lng]} icon={ME_ICON}>
-                      <Popup>Your location</Popup>
-                    </Marker>
-                  </>
-                )}
-
-                {accepted.map((it) =>
-                  position && it.hospital ? (
-                    <Polyline
-                      key={`route-${it.match.id}`}
-                      positions={[
-                        [position.lat, position.lng],
-                        [it.hospital.latitude ?? it.request.latitude, it.hospital.longitude ?? it.request.longitude],
-                      ]}
-                      pathOptions={{ color: '#c0392b', weight: 3, dashArray: '6 8', opacity: 0.8 }}
-                    />
-                  ) : null,
-                )}
-
-                {hospitalPins.map((pin) => (
-                  <Marker
-                    key={pin.key}
-                    position={[pin.request.latitude, pin.request.longitude]}
-                    icon={HOSPITAL_ICON}
+            <div style={{ display: 'grid', gap: 12 }}>
+              <div className="donor-request-map" data-expanded={mapExpanded}>
+                {positionLabel && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      right: 10,
+                      zIndex: 900,
+                      padding: '4px 10px',
+                      borderRadius: 999,
+                      border: '1px solid var(--line)',
+                      background: 'var(--card)',
+                      color: 'var(--ink)',
+                      fontSize: 12,
+                    }}
                   >
-                    <Popup>
-                      <div style={{ display: 'grid', gap: 6, minWidth: 200 }}>
-                        <strong>{pin.hospital?.name || pin.request.hospitalName}</strong>
-                        {pin.hospital?.address && <span>{pin.hospital.address}</span>}
-                        {pin.hospital?.contactNumber && <span>{pin.hospital.contactNumber}</span>}
-                        {pin.distance !== null && <span>{pin.distance.toFixed(1)} km away</span>}
-                        <div style={{ borderTop: '1px solid #ddd', paddingTop: 6, display: 'grid', gap: 6 }}>
-                          {pin.items.map((it) => (
-                            <div key={it.match.id} style={{ display: 'grid', gap: 2 }}>
-                              <span>
-                                <strong>{it.request.bloodType}</strong> • {it.type?.name || it.request.component} •{' '}
-                                {it.request.quantity} unit{it.request.quantity === 1 ? '' : 's'}
-                              </span>
-                              <span style={{ fontSize: 12 }}>
-                                {it.request.urgencyLevel} • {it.match.responseStatus}
-                              </span>
-                              {it.match.responseStatus === 'Pending' ? (
-                                <button className="pub-btn" type="button" onClick={() => openRespond(it)}>
-                                  Respond
-                                </button>
-                              ) : (
-                                <span style={{ fontSize: 12 }}>{it.match.responseStatus}</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
+                    {positionLabel}
+                  </span>
+                )}
+                <MapContainer ref={mapRef} center={mapCenter} zoom={12} style={{ height: '100%', width: '100%' }}>
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution="&copy; OpenStreetMap contributors"
+                  />
+                  <FitBounds points={fitPoints} />
 
-                {recipientPins.map((pin) => (
-                  <Marker key={`rec-${pin.key}`} position={[pin.lat, pin.lng]} icon={RECIPIENT_ICON}>
-                    <Popup>
-                      <div style={{ display: 'grid', gap: 4 }}>
-                        <strong>Recipient</strong>
-                        {pin.city && <span>{pin.city}</span>}
-                        <span style={{ fontSize: 12 }}>
-                          {pin.requests.map((it) => `${it.request.bloodType} ${it.request.component}`).join(', ')}
-                        </span>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
+                  {position && (
+                    <>
+                      {position.source !== 'profile' && live && (
+                        <Circle
+                          center={[position.lat, position.lng]}
+                          radius={Math.max(30, live.accuracy || 0)}
+                          pathOptions={{ color: '#1f6feb', weight: 1, fillOpacity: 0.08 }}
+                        />
+                      )}
+                      <Marker position={[position.lat, position.lng]} icon={ME_ICON}>
+                        <Popup>Your location</Popup>
+                      </Marker>
+                    </>
+                  )}
+
+                  {accepted.map((it) =>
+                    position && it.facility ? (
+                      <Polyline
+                        key={`route-${it.match.id}`}
+                        positions={[
+                          [position.lat, position.lng],
+                          [it.facility.lat, it.facility.lng],
+                        ]}
+                        pathOptions={{ color: '#c0392b', weight: 3, dashArray: '6 8', opacity: 0.8 }}
+                      />
+                    ) : null,
+                  )}
+
+                  {hospitalPins.map((pin) => (
+                    <Marker
+                      key={pin.key}
+                      position={[pin.facility.lat, pin.facility.lng]}
+                      icon={HOSPITAL_ICON}
+                    >
+                      <Popup>
+                        <div style={{ display: 'grid', gap: 6, minWidth: 200 }}>
+                          <strong>{pin.hospital?.name || pin.request.hospitalName}</strong>
+                          {pin.hospital?.address && <span>{pin.hospital.address}</span>}
+                          {pin.hospital?.contactNumber && <span>{pin.hospital.contactNumber}</span>}
+                          {pin.distance !== null && <span>{pin.distance.toFixed(1)} km away</span>}
+                          <div style={{ borderTop: '1px solid #ddd', paddingTop: 6, display: 'grid', gap: 6 }}>
+                            {pin.items.map((it) => (
+                              <div key={it.match.id} style={{ display: 'grid', gap: 2 }}>
+                                <span>
+                                  <strong>{it.request.bloodType}</strong> • {it.type?.name || it.request.component} •{' '}
+                                  {it.request.quantity} unit{it.request.quantity === 1 ? '' : 's'}
+                                </span>
+                                <span style={{ fontSize: 12 }}>
+                                  {it.request.urgencyLevel} • {it.match.responseStatus}
+                                </span>
+                                {it.match.responseStatus === 'Pending' ? (
+                                  <button className="pub-btn" type="button" onClick={() => openRespond(it)}>
+                                    Respond
+                                  </button>
+                                ) : (
+                                  <span style={{ fontSize: 12 }}>{it.match.responseStatus}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+
+                  {recipientPins.map((pin) => (
+                    <Marker key={`rec-${pin.key}`} position={[pin.lat, pin.lng]} icon={RECIPIENT_ICON}>
+                      <Popup>
+                        <div style={{ display: 'grid', gap: 4 }}>
+                          <strong>Recipient</strong>
+                          {pin.city && <span>{pin.city}</span>}
+                          <span style={{ fontSize: 12 }}>
+                            {pin.requests.map((it) => `${it.request.bloodType} ${it.request.component}`).join(', ')}
+                          </span>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  ))}
+                </MapContainer>
+              </div>
+
+              {missingLocation.length > 0 && (
+                <div className="card" style={{ padding: 12, display: 'grid', gap: 8 }}>
+                  {missingLocation.map((it) => (
+                    <div
+                      key={it.match.id}
+                      style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}
+                    >
+                      <span>
+                        <strong>{it.hospital?.name || it.request.hospitalName || 'Hospital'}</strong>{' '}
+                        {it.request.bloodType} • {it.type?.name || it.request.component}
+                      </span>
+                      <span className="pub-fine">Hospital location missing.</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -561,15 +683,15 @@ export default function Requests() {
               <h4 style={{ marginBottom: 8 }}>Directions to your accepted donations</h4>
               <div style={{ display: 'grid', gap: 8 }}>
                 {accepted.map((it) => {
-                  const to = [
-                    it.hospital.latitude ?? it.request.latitude,
-                    it.hospital.longitude ?? it.request.longitude,
-                  ]
-                  const url = position ? directionsUrl([position.lat, position.lng], to) : ''
+                  const url =
+                    position && it.facility
+                      ? directionsUrl([position.lat, position.lng], [it.facility.lat, it.facility.lng])
+                      : ''
                   return (
                     <div key={`dir-${it.match.id}`} className="card" style={{ padding: 12 }}>
                       <strong>{it.hospital.name || it.request.hospitalName}</strong>
                       <div className="pub-fine">{it.hospital.address}</div>
+                      {!it.facility && <div className="pub-fine">Hospital location missing.</div>}
                       {url && (
                         <a className="pub-btn pub-btn-ghost" href={url} target="_blank" rel="noreferrer">
                           Open directions
@@ -589,7 +711,7 @@ export default function Requests() {
         <div className="donor-response-backdrop" role="dialog" aria-modal="true" aria-labelledby="donor-response-title">
           <div
             className="pub-card"
-            style={{ maxWidth: 640, width: '100%', maxHeight: '90vh', overflow: 'auto', padding: 24 }}
+            style={{ maxWidth: 640, width: '100%', maxHeight: '90vh', overflow: 'auto', overflowX: 'hidden', padding: 24 }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <h3 id="donor-response-title" style={{ margin: 0 }}>Respond to request</h3>
@@ -606,7 +728,7 @@ export default function Requests() {
               Eligibility: {selected.eligibility.label} — {selected.eligibility.detail}
             </p>
 
-            <div style={{ marginTop: 16 }}>
+            <div style={{ marginTop: 16, marginBottom: 16 }}>
               <strong>Eligibility guidelines</strong>
               <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
                 {guidelines.length === 0 && <p className="pub-fine">No guidelines published for this component.</p>}
