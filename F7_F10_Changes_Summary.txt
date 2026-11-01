@@ -1,0 +1,91 @@
+F7 and F10 Changes Summary
+==========================
+
+## F7 Changes (Implemented, Committed to feat/f7 6d642ce)
+
+### Worker (worker/src/)
+- index.js - Added /match endpoint with auth checks, cron handler for runMatchingCycle() and retryNotifications()
+- matcher.js - Core matching logic, tier expansion with nextTierAt, queue processing, urgency/age sorting, compatibility checks
+- notify.js - Deterministic notification creation, Brevo email fan-out, retry logic based on notifRetryLimit and notifRetryInterval
+- email.js - Brevo REST API sender and email body generation
+- firestore.js - Firestore REST client, token caching, tagged value conversions, runQuery, writeNewDocuments, conditional writes
+- firebase-auth.js - Identity Toolkit token verification for the worker
+- http.js - HTTP utilities, HttpError, CORS, and JSON helpers
+
+### Web Utils & Services (web/src/)
+- utils/matching.js - Pure compatibility, radius, and queue sorting rules
+- utils/eligibility.js - Per-component deferral intervals (D13) for eligibility checks
+- utils/geohash.js - Geohash encoding, decoding, and neighbor calculations
+- services/matching.js - triggerMatch() client to call the Worker, with configuration checks
+
+### Web Pages & Routes
+- pages/donor/Alerts.jsx - Read-only notification inbox for matched donors
+- App.jsx - Routed /donor/alerts
+
+### Configuration & Tooling
+- worker/wrangler.toml - Worker config, cron trigger (* * * * *), CORS origins, and secret names
+- package.json - Added test:matching, worker:dev, worker:check, worker:deploy, and wrangler
+- .gitignore - Added .wrangler/ and .dev.vars
+
+### Documentation
+- docs/REQUIREMENTS.md - F7 rows updated to partial
+- docs/PHASES.md - P5 marked as in progress
+- docs/firestore_schema.md - Added matching fields to bloodRequests and notification context
+
+### Verification
+- npm run test:matching - 29 passing
+- npm run worker:check - Dry run successful
+- cd web && npx vite build - Successful
+- node tools/check-docs.mjs - Passing
+
+
+## F10 Changes (Implemented - F10a)
+
+### Worker (worker/src/)
+- audit.js - Hash chain: canonical JSON (sorted fields) + SHA-256 recordHash; HMAC-SHA256 hashed refs via hashRef() (AUDIT_HASH_SECRET, falls back to SHA-256 when unset); getLatestAuditBlock(), computeRecordHash(), appendAuditBlockSimple(), verifyAuditChain(), getAllAuditBlocks()
+- index.js - Admin-only routes: POST /audit/verify (full-chain verification, optional KV head anchor), GET /audit/blocks (list), POST /audit/append (internal append for F10b). All verified with verifyIdToken() then role === 'admin'
+
+### Web (web/src/)
+- services/audit.js - getAuditBlocks(), verifyAuditChain(), appendAuditBlock() via the Worker endpoint (VITE_MATCHING_ENDPOINT)
+- pages/admin/AuditTrail.jsx - Hash-chain viewer: block table, detail drawer (record/prev hash, refs, sequence), Refresh + Verify Chain actions; replaces ScreenStub
+- App.jsx - /admin/audit-trail wired to AuditTrail
+
+### Schema & Documentation
+- docs/firestore_schema.md §2.13 - auditBlocks (server-only, append-only); correctsBlockId added for FR-043
+- docs/SCHEMA_CHANGELOG.md - 2026-10-24 entry for the correctsBlockId extension
+- docs/REQUIREMENTS.md - FR-035, FR-042, FR-043, FR-044, FR-045, NFR-15 moved to partial with F10a notes
+- docs/PHASES.md §2 - P7 marked "in progress (F10a); needs event hookups for F10b"
+- firestore.rules - auditBlocks: admin read, no client writes (already present)
+
+### Deployment fix (403 PERMISSION_DENIED)
+
+Symptom: clicking Verify Chain returned
+  Firestore request failed: 403 { "error": { "code": 403, "message": "Missing or insufficient permissions.", "status": "PERMISSION_DENIED" } }
+
+Cause: the message is produced by the Worker (worker/src/firestore.js), not the
+browser. The Worker reaches Firestore as the service account
+firebase-adminsdk-fbsvc@dugo-plus, which bypasses firestore.rules. Newer Firebase
+projects create that account without Firestore (datastore) access, so the OAuth
+token exchange succeeds but Firestore rejects every call. F7 /match was affected
+the same way.
+
+Fix:
+- Granted the service account roles/datastore.user in GCP IAM
+- Rotated the service-account key (the previous key was exposed)
+- Updated the Worker secret: wrangler secret put FIREBASE_SERVICE_ACCOUNT
+
+Verified: Verify Chain -> "Chain Verification (valid) - Blocks verified: 0 -
+Empty chain" (deployment f4ee0c83, 2026-10-24T14:26:53Z)
+
+### Not implemented (F10b)
+- Event hookups that call appendAuditBlockSimple(): donation confirmation (F8),
+  inventory updates (F6), data-access events (F9). These depend on features that
+  are not built yet, so F10b is deferred. POST /audit/append exists for when they
+  land.
+
+### Verification
+- npm run worker:check - Dry run successful
+- cd web && npx vite build - Successful
+- node tools/check-docs.mjs - Passing
+- npm run test:matching - Passing
+- Manual (live): Verify Chain returns valid on an empty chain
