@@ -1,6 +1,7 @@
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { geohash, isCoordinate } from '../utils/geohash'
+import { recordAuditEvent } from './audit'
 
 /**
  * `users/{uid}` profiles — the account type the guards read back.
@@ -42,11 +43,10 @@ export function roleLabel(role) {
 
 /**
  * Where a signed-in account of this type lands. Admins get the built admin
- * area; donors get their profile screen; hospital accounts have no screens yet
- * and get the "you're in" notice (`pages/shared/Welcome.jsx`, which also
- * forwards any account that ends up there wrongly). An account with no role yet
- * goes to the landing page — self-registration is donor-only (D20), so a
- * missing role means the auto-provision write failed, not a choice to make.
+ * area; donors get their profile screen; hospital accounts get their requests
+ * screen (F3). An account with no role yet goes to the landing page —
+ * self-registration is donor-only (D20), so a missing role means the
+ * auto-provision write failed, not a choice to make.
  *
  * @param {string|null} role
  * @returns {string} a route path
@@ -54,7 +54,7 @@ export function roleLabel(role) {
 export function homeFor(role) {
   if (role === 'admin') return '/admin/dashboard'
   if (role === 'donor') return '/home'
-  if (ROLES.includes(role)) return '/welcome'
+  if (role === 'hospital') return '/hospital/requests'
   return '/'
 }
 
@@ -104,6 +104,7 @@ function normaliseLocation(location) {
  *   bloodType: string, dateOfBirth: Date|null,
  *   latitude: number, longitude: number, geohash: string, city: string,
  *   hospitalId: string, status: string,
+ *   privacyConsentAt: Date|null, privacyNoticeVersion: string,
  *   lastDonationAt: Date|null, updatedAt: Date|null,
  * }} Profile
  */
@@ -125,19 +126,31 @@ function normaliseLocation(location) {
  * Create the profile for a new account. Written after `createUserWithEmailAndPassword`
  * so `request.auth.uid` already matches, which is what the rules check.
  *
+ * `consentVersion` is the privacy-notice version the person accepted at
+ * registration. When it is given, the acceptance is stored on the profile
+ * (`privacyConsentAt` held as a server time); the rules freeze it afterwards.
+ * It is omitted for accounts provisioned outside registration (first Google
+ * sign-in, hospital accounts made by the team), which have no recorded consent.
+ *
  * @param {string} uid - the freshly created account's uid
  * @param {{ role: string, fullName?: string, email?: string }} profile
+ * @param {string} [consentVersion] - e.g. `PRIVACY_NOTICE_VERSION`
  */
-export async function writeProfile(uid, profile) {
+export async function writeProfile(uid, profile, consentVersion) {
   requireDb()
-  await setDoc(doc(db, 'users', uid), {
+  const data = {
     role: profile.role,
     fullName: profile.fullName ?? '',
     email: profile.email ?? '',
     phoneNumber: '',
     status: 'Active',
     createdAt: serverTimestamp(),
-  })
+  }
+  if (consentVersion) {
+    data.privacyConsentAt = serverTimestamp()
+    data.privacyNoticeVersion = consentVersion
+  }
+  await setDoc(doc(db, 'users', uid), data)
 }
 
 /**
@@ -188,6 +201,30 @@ export async function saveProfile(uid, changes) {
   await setDoc(doc(db, 'users', uid), data, { merge: true })
 }
 
+/**
+ * Correct the identity fields an administrator is answering a rectification
+ * request with (FR-039). Unlike `saveProfile` this never touches the stored
+ * coordinates or geohash: a corrected city must not silently move a donor out of
+ * every search radius. Only the named fields are written.
+ *
+ * @param {string} uid
+ * @param {{ fullName: string, phoneNumber?: string, city?: string }} changes
+ */
+export async function correctUserProfile(uid, changes) {
+  requireDb()
+  if (!uid) throw new Error('Choose an account first.')
+  const fullName = text(changes.fullName)
+  if (!fullName) throw new Error('A corrected name is required.')
+
+  const data = { fullName, updatedAt: serverTimestamp() }
+  if ('phoneNumber' in changes) data.phoneNumber = text(changes.phoneNumber)
+  if ('city' in changes) data.city = text(changes.city)
+
+  await updateDoc(doc(db, 'users', uid), data)
+  // F10b: a data-access event (FR-042).
+  await recordAuditEvent({ eventType: 'DataAccess.Rectification', entityType: 'user', entityId: uid })
+}
+
 /** A Firestore value that may be a Timestamp, Date, or absent, as a Date. */
 function asDate(value) {
   if (!value) return null
@@ -231,7 +268,118 @@ export async function readProfile(uid) {
     city: text(data.city),
     hospitalId: text(data.hospitalId),
     status: STATUSES.includes(data.status) ? data.status : 'Active',
+    statusReason: text(data.statusReason),
+    statusUpdatedAt: asDate(data.statusUpdatedAt),
+    privacyConsentAt: asDate(data.privacyConsentAt),
+    privacyNoticeVersion: text(data.privacyNoticeVersion),
     updatedAt: asDate(data.updatedAt),
   }
+}
+
+/**
+ * List accounts for admin management (FR-040). Requires admin claim.
+ * @returns {Promise<Array<Profile & {id:string}>>}
+ */
+export async function listUsers() {
+  requireDb()
+  const snap = await getDocs(collection(db, 'users'))
+  const out = []
+  snap.forEach((docSnap) => {
+    const data = docSnap.data() ?? {}
+    const latitude = Number(data.latitude)
+    const longitude = Number(data.longitude)
+    out.push({
+      id: docSnap.id,
+      role: ROLES.includes(data.role) ? data.role : null,
+      fullName: text(data.fullName),
+      email: text(data.email),
+      phoneNumber: text(data.phoneNumber),
+      bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : '',
+      dateOfBirth: asDate(data.dateOfBirth),
+      lastDonationAt: asDate(data.lastDonationAt),
+      latitude: isCoordinate(latitude, longitude) ? latitude : 0,
+      longitude: isCoordinate(latitude, longitude) ? longitude : 0,
+      geohash: text(data.geohash),
+      city: text(data.city),
+      hospitalId: text(data.hospitalId),
+      status: STATUSES.includes(data.status) ? data.status : 'Active',
+      statusReason: text(data.statusReason),
+      statusUpdatedAt: asDate(data.statusUpdatedAt),
+      privacyConsentAt: asDate(data.privacyConsentAt),
+      privacyNoticeVersion: text(data.privacyNoticeVersion),
+      updatedAt: asDate(data.updatedAt),
+    })
+  })
+  return out
+}
+
+/**
+ * Update account status (FR-040). Admin claim required (D26).
+ *
+ * @param {string} uid
+ * @param {{status: 'Active'|'Suspended'|'Removed', statusReason?: string}} changes
+ */
+export async function updateUserStatus(uid, changes) {
+  requireDb()
+  if (!uid) throw new Error('Choose an account first.')
+  if (!STATUSES.includes(changes.status)) throw new Error('Unknown account status.')
+  const reason = typeof changes.statusReason === 'string' ? changes.statusReason.trim() : ''
+  if (changes.status !== 'Active' && !reason) {
+    throw new Error('Add a reason for closing or suspending this account.')
+  }
+  await updateDoc(doc(db, 'users', uid), {
+    status: changes.status,
+    statusReason: changes.status === 'Active' ? '' : reason,
+    statusUpdatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  // F10b: an administrative account event (FR-042).
+  const event = { Active: 'Account.Reactivated', Suspended: 'Account.Suspended', Removed: 'Account.Removed' }[changes.status]
+  await recordAuditEvent({ eventType: event, entityType: 'user', entityId: uid })
+}
+
+/**
+ * Close an account permanently (FR-040 "remove"). The profile document stays so
+ * the account's donations and audit history keep a valid reference; the rules
+ * treat `Removed` like `Suspended`, so every protected path is closed.
+ *
+ * @param {string} uid
+ * @param {string} reason
+ */
+export async function removeUser(uid, reason) {
+  await updateUserStatus(uid, { status: 'Removed', statusReason: reason })
+}
+
+/**
+ * Erase the identifying fields of a profile in answer to a deletion request
+ * (FR-039). Donation, match and audit records are retained under their own ids
+ * for the retention reasons in `docs/PRIVACY_AND_CONSENT.md`; this scrubs the
+ * profile and closes the account.
+ *
+ * @param {string} uid
+ * @param {string} reason
+ */
+export async function anonymiseUser(uid, reason) {
+  requireDb()
+  if (!uid) throw new Error('Choose an account first.')
+  const note = typeof reason === 'string' ? reason.trim() : ''
+  if (!note) throw new Error('Record why the personal data was erased.')
+  await updateDoc(doc(db, 'users', uid), {
+    fullName: 'Removed account',
+    email: '',
+    phoneNumber: '',
+    city: '',
+    geohash: '',
+    latitude: 0,
+    longitude: 0,
+    bloodType: '',
+    dateOfBirth: null,
+    status: 'Removed',
+    statusReason: note,
+    statusUpdatedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  })
+  // F10b: an erasure is a data-access event (FR-042).
+  await recordAuditEvent({ eventType: 'DataAccess.Erasure', entityType: 'user', entityId: uid })
 }
 

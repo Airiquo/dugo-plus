@@ -3,9 +3,11 @@ import { Link, Navigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 import { readProfile, saveProfile, BLOOD_TYPES, roleLabel } from '../../services/users'
+import { saveDonorLocation } from '../../services/donorLocations'
 import { eligibilityFor, toDate } from '../../utils/eligibility'
 import { validateProfile } from '../../utils/validate'
-import { FieldError, Badge, Icon, PubThemeToggle } from '../../components'
+import { FieldError, Badge, Icon } from '../../components'
+import { DonorNav } from '../../layout/DonorNav'
 
 /** `2026-10-20` from a Date, for an `<input type="date">`. */
 function dateInputValue(value) {
@@ -185,6 +187,18 @@ export default function Profile() {
             }
           : {}),
       })
+      // Keep a thin mirror for the hospital's nearby-donor view (D31); the
+      // donor's own `users` document stays owner+admin (NFR-11).
+      try {
+        await saveDonorLocation(user.uid, {
+          latitude: form.coordinates?.lat,
+          longitude: form.coordinates?.lng,
+          city: form.city,
+          bloodType: form.bloodType,
+        })
+      } catch {
+        // best effort — profile save already succeeded
+      }
       setSaved(form)
       setNote('Profile saved.')
     } catch {
@@ -200,20 +214,7 @@ export default function Profile() {
       data-theme={theme}
       style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}
     >
-      <header className="pub-nav">
-        <Link className="pub-logo" to="/" aria-label="Dugo+ home">
-          <span className="pub-mark" aria-hidden="true" />
-          <span className="pub-word">
-            Dugo<span>+</span>
-          </span>
-        </Link>
-        <nav aria-label="Sections">
-          <Link to="/home">Home</Link>
-        </nav>
-        <div className="pub-nav-end">
-          <PubThemeToggle />
-        </div>
-      </header>
+      <DonorNav />
 
       <main id="top" className="profile-main">
         <form className="pub-card pub-form profile-card" noValidate onSubmit={submit}>
@@ -376,6 +377,14 @@ export default function Profile() {
               Calculated from your date of birth and donations. A facility confirms eligibility at
               the donation itself.
             </p>
+          </div>
+
+          <div className="profile-section">
+            <h4 className="profile-section-h">Blood requests</h4>
+            <Link id="nav-donor-requests" className="pub-btn" to="/donor/requests" style={{ marginTop: 8 }}>
+              View blood requests
+              <Icon name="arrow-right" size={14} />
+            </Link>
           </div>
 
           {message && (

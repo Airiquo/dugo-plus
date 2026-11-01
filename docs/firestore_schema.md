@@ -84,6 +84,7 @@ donations/{matchId}                                  ← doc ID = matchId (enfor
 rewardTransactions/{donationId}                      ← doc ID = donationId (enforces UK donation_id, 1:1)
 systemConfig/global                                  ← single doc in practice; the rules allow any configId
 dataSubjectRequests/{dsrId}
+donorLocations/{donorId}                             [ADDED] donor coordinate mirror for staff (D31)
 auditBlocks/{blockId}                                (server-only, append-only)
 errorLogs/{logId}                                    [ADDED] client-written, open-create (D8, D10, D17)
 ```
@@ -111,6 +112,7 @@ errorLogs/{logId}                                    [ADDED] client-written, ope
 | Data_Subject_Request | `dataSubjectRequests/{id}` | Top-level |
 | Audit_Block | `auditBlocks/{id}` | Top-level, server-only |
 | *(no ERD table)* | `errorLogs/{id}` | [ADDED] Client error records, create-only (D8, D10, D17) |
+| *(no ERD table)* | `donorLocations/{id}` | [ADDED] Donor coordinate mirror for the nearby-donor view (D31) |
 
 ---
 
@@ -141,10 +143,20 @@ Legend: **R** = required, **O** = optional/nullable.
 | dateOfBirth | Timestamp | R | |
 | ~~eligibilityInfo~~ | – | – | **Removed from the model of record** (D25). The ERD's field was never implemented and eligibility is computed, not stored |
 | ~~isVerified~~ | – | – | **[DECISION]** Do NOT store. Firebase Auth owns email verification (`user.emailVerified`); a copy would need a writer to stay true. See D5 |
-| status | string | R | `Active \| Suspended \| Removed`. Admin-writable (FR-040); no screen reads it yet (D22) |
+| status | string | R | `Active \| Suspended \| Removed`. Admin-writable (FR-040) |
+| statusReason | string | O | Admin reason recorded when suspending (D26); cleared on reactivate |
+| statusUpdatedAt | Timestamp | O | Set when status changes (D26) |
+| privacyConsentAt | Timestamp | O | Server time the privacy notice was accepted at registration (D28); owner-frozen |
+| privacyNoticeVersion | string | O | Version of the `/privacy` notice accepted, e.g. `2026-10-29` (D28); owner-frozen |
 | createdAt | Timestamp | R | |
 
 Role/hospital claims: also set Firebase Auth **custom claims** `{ role, hospitalId }` for security rules **[ADDED]**.
+
+> Note: `privacyConsentAt` / `privacyNoticeVersion` are optional because accounts
+> provisioned outside registration (a first Google sign-in, hospital accounts
+> made by the team) have no recorded acceptance. The rules type-check them and
+> freeze both presence and value for the owner, so the browser cannot rewrite or
+> remove an acceptance.
 
 > Note: `address` is deliberately **not** collected on a donor profile (D22), so it is
 > not part of this shape even though the ERD implies a postal address.
@@ -224,10 +236,16 @@ Write the log and the inventory update in **one transaction/batch**.
 | status | string | R | `urgent \| collecting \| matched \| fulfilled \| cancelled` — the shipped `.chip[data-status]` set (D24). The ERD's `Active \| Suspended \| Removed` was a copy-paste error (see §9) |
 | createdAt | Timestamp | R | |
 | hospitalName, latitude, longitude, geohash | string / number | R | **[ADDED, denormalized]** copied from the hospital at creation, so matching by radius needs no extra read |
+| matching | map | O | **[ADDED]** Server-written by the F7 matching Worker: `{ currentTier, nextTierAt, lastRunAt, lastRunMs, matchedDonorCount, exhausted }`. Clients never write it — the create rule ignores the key and only the Worker's Admin path sets it. |
 
 > Note: `urgent` appears in **both** `status` and `urgencyLevel`. That is the
 > shipped vocabulary, not an accident to normalise away (D24) — an urgent request
 > is also urgent priority.
+
+> Note: `matching` is the matcher's state on the request (which radius tier it
+> is on, when the next tier opens, and whether it exhausted the ladder). It is
+> absent until the first match run; the matcher treats a missing block as
+> `currentTier: 0`.
 
 ### 2.5 `donorMatches/{requestId}_{donorId}`
 
@@ -278,7 +296,7 @@ Relationship in ERD is **1 → 1..many**: every donation type should have at lea
 | channel | string | R | Values not in ERD. Suggested: `Push \| SMS \| Email` |
 | deliveryStatus | string | R | Suggested: `Pending \| Sent \| Failed` |
 | retryCount | number (int) | R | Default `0`. Compare against `systemConfig.notifRetryLimit` |
-| sentAt | Timestamp | O | Null until sent |
+| sentAt | Timestamp | O | Null until sent. **Write it as an explicit `null` at create**: the donor inbox (§4) orders by `sentAt`, and Firestore omits documents that lack the orderBy field. |
 
 ### 2.9 `donations/{matchId}`
 
@@ -310,21 +328,22 @@ ERD `System_Config` + `Radius_Tiler` merged. Tiers are small and always read tog
 
 | Field | Type | R/O | Notes |
 |---|---|---|---|
-| updatedBy | string | R | FK → `users` (Admin) |
-| notifRetryLimit | number (int) | R | Max retries per notification |
-| notifRetryInterval | number | R | Unit unspecified. **[DECISION]** minutes |
-| radiusTiers | array of map | R | See below |
-| updatedAt | Timestamp | R | |
+| updatedBy | string | R | FK → `users` (Admin). Must equal the writer's uid (D27) |
+| notifRetryLimit | number (int) | R | Max retries per notification, 0–10 (D27) |
+| notifRetryInterval | number | R | Unit unspecified. **[DECISION]** minutes, 1–1440 (D27) |
+| radiusTiers | array of map | R | 1–8 items, each within the bounds below (D27) |
+| updatedAt | Timestamp | R | Server time; must equal `request.time` (D27) |
 
 `radiusTiers[]` item (ERD `Radius_Tiler`; `tier_id` and `config_id` dropped as redundant):
 
 | Field | Type | Notes |
 |---|---|---|
-| tierOrder | number (int) | 1 = searched first |
-| radiusKm | number | Search radius |
-| waitMinutes | number | Wait before expanding to the next tier |
+| tierOrder | number (int) | 1 = searched first; 1–8 (D27) |
+| radiusKm | number | Search radius, 1–100 km (D27) |
+| waitMinutes | number | Wait before expanding to the next tier, 1–1440 min (D27) |
 
-Keep the array sorted by `tierOrder`.
+Keep the array sorted by `tierOrder`, with each `radiusKm` larger than the one
+before it; the settings screen and `isRadiusTiers()` refuse anything else.
 
 ### 2.12 `dataSubjectRequests/{dsrId}`
 
@@ -332,10 +351,13 @@ Keep the array sorted by `tierOrder`.
 |---|---|---|---|
 | userId | string | R | FK → `users` |
 | processedBy | string | O | `users` id of the admin (ERD has no FK marker. See §9) |
-| requestType | string | R | Suggested: `Access \| Erasure \| Rectification \| Export` |
-| status | string | R | Suggested: `Pending \| InProgress \| Completed \| Rejected` |
-| createdAt | Timestamp | R | |
-| resolvedAt | Timestamp | O | ERD `?` |
+| requestType | string | R | `Access \| Erasure \| Rectification \| Export`; required by the rules and by the submit form (D27) |
+| status | string | R | `Pending \| InProgress \| Completed \| Rejected`; required by the rules (D27) |
+| details | string | R | [ADDED] What the subject is asking for, ≤2000 chars; required on create (D27) |
+| adminNote | string | O | [ADDED] Admin note/summary of the action taken, ≤2000 chars (D26/D27) |
+| resolutionAction | string | O | [ADDED] `'' \| Export \| Correction \| Deletion` — the action that closed the request (D27) |
+| createdAt | Timestamp | R | Server time; frozen after create |
+| resolvedAt | Timestamp | O | ERD `?`. Null while open; server time when `Completed`/`Rejected` |
 
 ### 2.13 `auditBlocks/{blockId}` — server-only, append-only
 
@@ -346,12 +368,37 @@ Hash-chained audit log. **Never update or delete.**
 | prevHash | string | R | `recordHash` of the previous block (genesis block: `"0"`) |
 | recordHash | string | R | **UK**. Use as doc ID, or check in transaction |
 | eventType | string | R | |
+| entityType | string | O | Type of entity affected (e.g., donation, inventory, user, request) |
 | hashedEntityRef | string | R | Hash of the affected entity ID, never the raw ID |
 | hashedActorRef | string | R | Hash of the actor ID, never the raw ID |
+| actorRole | string | O | Role of the actor who performed the action |
 | createdAt | Timestamp | R | |
 | sequence | number (int) | R | **[ADDED]** monotonically increasing, assigned in a transaction reading the last block. Firestore has no auto-increment |
+| correctsBlockId | string | O | **[ADDED]** Doc ID of the block this entry corrects (for append-only corrections per FR-043) |
+
+> Note: a reserved document `auditBlocks/_meta` (`{ headSequence, headHash,
+> updatedAt }`) is written by the append transaction. It carries **no
+> `sequence` field**, so it never appears in the sequence-ordered chain queries.
+> Appends read it inside the transaction to serialize, so two concurrent
+> appends cannot fork the chain (schema §5).
 
 ---
+
+### 2.14 `donorLocations/{donorId}` — [ADDED] (D31)
+
+A thin coordinate mirror for the hospital's nearby-donor view (FR-023). Doc ID
+is the donor's uid; written by the donor when they save a profile that has
+coordinates, read by staff of the matching hospital and admins.
+
+| Field | Type | R/O | Notes |
+|---|---|---|---|
+| donorId | string | R | = doc ID; FK → `users` |
+| latitude | number | R | |
+| longitude | number | R | |
+| city | string | O | |
+| geohash | string | O | |
+| bloodType | string | O | so staff can filter without reading `users` |
+| updatedAt | Timestamp | R | |
 
 ## 3. Relationships (from ERD)
 
@@ -620,6 +667,12 @@ interface AuditBlock {
 - One Admin user — created in the Firebase console. The seed script
   (`scripts/seed-reference-data.mjs`) requires one to already exist and
   attributes `systemConfig/global.updatedBy` to it.
+- One dev facility, `hospitals/tagaytay-blood-bank` (`createdBy` = the admin),
+  so the F3 hospital area has a facility to post against. The seed writes it
+  (`scripts/seed-reference-data.mjs`; `--link-email <address>` sets an existing
+  account's `users.hospitalId`), and `npm run create:hospital`
+  (`scripts/create-hospital.mjs`) creates the facility's login when none
+  exists. Not part of the spec's seed list — a build convenience.
 
 ---
 

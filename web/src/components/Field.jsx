@@ -21,14 +21,16 @@ export function Input(props) {
   const { className, ...rest } = props
   return <input className={cx(className)} {...rest} />
 }
-export function Select({ options, className, ...rest }) {
+export function Select({ options, className, children, ...rest }) {
   return (
     <select className={cx(className)} {...rest}>
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
+      {options
+        ? options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))
+        : children}
     </select>
   )
 }

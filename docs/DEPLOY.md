@@ -54,6 +54,24 @@ change from shipping the frontend, and folding them together would push a rules
 edit live on every UI deploy. Check the console's *Firestore → Rules* tab before
 running this, so you know what is being replaced.
 
+## Account service (free, no Blaze)
+
+Creating a hospital account needs the Admin SDK, and Cloud Functions can host it
+only on the Blaze plan. `workers/account-service/` does the same work on a free
+Node host (Vercel or Netlify), so `/admin/accounts` can create hospital accounts
+without a paid plan and without a script.
+
+1. Deploy the worker — `workers/account-service/README.md` has the steps (the
+   service-account key in the host's environment, root directory
+   `workers/account-service`).
+2. Grant the first admin its claim from the worker's `bootstrap` page.
+3. Set `VITE_ACCOUNT_SERVICE_URL` in `web/.env.local` to the deployed
+   `/api/account` URL.
+4. Rebuild and deploy hosting (`./tools/deploy.sh`).
+
+With the variable unset, the app falls back to the `functions/` callables, so a
+Blaze project is unaffected. See D33 in `docs/REQUIREMENTS.md`.
+
 ## Verifying a deploy
 
 1. Open the URL the CLI prints, `https://dugo-plus.web.app`.
@@ -64,6 +82,24 @@ running this, so you know what is being replaced.
 4. Sign up with a real address. The verification mail arrives regardless of where
    the app is hosted, because the emailed link points at Firebase's own action
    page.
+
+## The matching Worker's service account
+
+The Cloudflare Worker (`worker/wrangler.toml`, deployed with `npm run
+worker:deploy`) reaches Firestore with a service-account key, which bypasses
+`firestore.rules`. That account needs Firestore data access of its own, or every
+call fails with `403 PERMISSION_DENIED / "Missing or insufficient permissions."`:
+
+1. Generate a key: Firebase console → *Project settings → Service accounts →
+   Generate new private key*, or the account's *Keys* tab in GCP IAM.
+2. Grant it **Cloud Datastore User** (`roles/datastore.user`) in GCP IAM. Newer
+   `firebase-adminsdk-*` accounts are created without it.
+3. Load the key into the Worker secret. Secrets are write-only — the old value
+   cannot be read back:
+   `npx wrangler secret put FIREBASE_SERVICE_ACCOUNT -c worker/wrangler.toml < key.json`
+   Updating a secret publishes a new Worker deployment.
+4. If a key is exposed, delete it in the account's *Keys* tab and repeat with a
+   new one.
 
 ## Automatic deploys (not set up)
 

@@ -143,6 +143,123 @@
   margin-top: 4px;
 }
 
+/* --- privacy and data requests -------------------------------------------
+   FR-019 / FR-039. Both screens carry the donor/public `.pub` chrome; these
+   rules widen the card for the request history, lay the history out as rows,
+   and set the notice's prose as sections rather than one wall of text. */
+
+.privacy-stack {
+  display: grid;
+  gap: 20px;
+  width: 100%;
+  max-width: 720px;
+}
+.privacy-card {
+  max-width: none;
+}
+.privacy-requests {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.privacy-requests > li {
+  display: grid;
+  gap: 7px;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+}
+.privacy-requests > li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.privacy-request-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.privacy-request-type {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 500;
+}
+.privacy-request-details,
+.privacy-request-note {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.privacy-request-note strong {
+  margin-right: 6px;
+  font-weight: 600;
+}
+.privacy-request-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.privacy-stack .pub-btn,
+.privacy-notice-foot .pub-btn {
+  text-decoration: none;
+}
+
+.privacy-notice {
+  width: 100%;
+  max-width: 760px;
+  padding: 40px;
+}
+.privacy-notice > header {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+.privacy-notice h3 {
+  font-size: clamp(26px, 3vw, 34px);
+}
+.privacy-section {
+  display: grid;
+  gap: 10px;
+  padding-top: 24px;
+}
+.privacy-section h4 {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+.privacy-section p,
+.privacy-section li {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.privacy-section ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+}
+.privacy-notice-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 28px;
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 600px) {
+  .privacy-notice {
+    padding: 28px 22px;
+  }
+}
+
 /* --- field errors --------------------------------------------------------
    Shown under the input they belong to. `--red` rather than `--accent`: these
    are failures, and in light mode the two are close hues, so the divider and
@@ -164,6 +281,17 @@
   margin-top: 2px;
 }
 
+/* The error is placed inside the field's `<label>`, where `.pub-form label span`
+   would otherwise set the label treatment (uppercase, 11.5px, muted) on the
+   message itself. Undo it so the failure reads as a sentence in red. */
+.pub .pub-form .field-error span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
 /* The invalid input is marked on the field itself, not only in the text
    beneath it, so the mistake is findable at a glance. */
 .pub .pub-form input[aria-invalid='true'] {
@@ -171,6 +299,99 @@
 }
 .pub .pub-form input[aria-invalid='true']:focus-visible {
   outline-color: var(--red);
+}
+
+/* --- registration consent ------------------------------------------------
+   A required checkbox on `/register`. `.pub input` sizes every input as a
+   pill, and the native control renders differently per platform, so the input
+   stays in the accessibility tree while a square is drawn beside it; the
+   checked tick is the accent colour, the tick itself the page background.
+   The notice link opens in a new tab so a half-filled form survives reading it. */
+
+.pub .pub-form .pub-consent {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.pub .pub-form .pub-consent > input[type='checkbox'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.pub .pub-form .pub-consent-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pub .pub-form .pub-consent-main {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.pub .pub-form .pub-consent-box {
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  background: var(--input);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+}
+.pub .pub-form .pub-consent-main .pub-consent-text {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  line-height: 1.5;
+}
+.pub .pub-form .pub-consent > input:checked + .pub-consent-copy .pub-consent-box {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.pub .pub-form .pub-consent > input:checked + .pub-consent-copy .pub-consent-box::after {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 5px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--bg);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+.pub .pub-form .pub-consent > input:focus-visible + .pub-consent-copy .pub-consent-box {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.pub .pub-form .pub-consent > input[aria-invalid='true'] + .pub-consent-copy .pub-consent-box {
+  border-color: var(--red);
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+.pub .pub-form .pub-consent-link {
+  align-self: flex-start;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pub .pub-form .pub-consent-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
 }
 
 /* The reveal sits inside the field, so the input keeps its own surface and
@@ -288,4 +509,189 @@
    capped wider to keep one card proportion across the band. */
 .pub .pub-form.pub-form-wide {
   max-width: 520px;
+}
+
+/* --- hospital area (F3) ---------------------------------------------------
+   Lives in the admin-style shell (`#page-content`), so it styles off the
+   `--d-*` tokens the shell and component library already use, and both themes
+   come along unchanged. */
+
+.hospital-requests {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* The status filters are inline tabs; the base `.tab` has no gap of its own. */
+.hospital-requests [role='tablist'] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Empty / loading / error line for the list and the linked-facility checks. */
+.hospital-state {
+  margin: 0;
+  padding: 16px 4px;
+  color: var(--d-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.hospital-state[data-kind='error'] {
+  color: var(--d-red);
+}
+.hospital-state[data-kind='warn'] {
+  color: var(--d-ink);
+}
+
+.hospital-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 520px;
+}
+.hospital-note {
+  margin: 0;
+  color: var(--d-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.hospital-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* --- donor top navigation -------------------------------------------------
+   One shared nav across the donor screens (`layout/DonorNav.jsx`); the base
+   `.pub-nav` styles the bar, this only marks the current section. */
+
+.pub .pub-nav nav a[data-active='true'] {
+  color: var(--accent);
+}
+
+/* --- donor alerts (F7) ----------------------------------------------------
+   Sits in the same `.pub` donor surface as the profile, so it styles off the
+   profile tokens and both themes come along unchanged. */
+
+.alerts-main {
+  display: grid;
+  justify-items: center;
+  padding: 32px 20px 56px;
+}
+.alerts-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 640px;
+}
+.alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.alerts-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.alerts-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.alerts-item-when {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.alerts-item-text {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.alerts-item-ref {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+/* --- admin profile -------------------------------------------------------
+   Two-column account screen: editable identity on the left, read-only account
+   facts on the right (FR-047). Both cards pad from the shared spacing token;
+   the facts row is a definition list so the label/value pairing reads as data,
+   not prose. */
+
+.admin-profile {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: var(--d-gap);
+  align-items: start;
+}
+.admin-profile > .card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: var(--d-pad);
+}
+.admin-profile h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.admin-profile .muted {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 12.5px;
+  font-weight: 400;
+}
+.admin-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding-top: 4px;
+}
+.admin-profile-actions .muted {
+  margin-left: auto;
+}
+.admin-profile-facts {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+.admin-profile-facts > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--d-line);
+}
+.admin-profile-facts > div:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.admin-profile-facts dt {
+  color: var(--d-muted);
+}
+.admin-profile-facts dd {
+  margin: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .admin-profile {
+    grid-template-columns: 1fr;
+  }
 }
