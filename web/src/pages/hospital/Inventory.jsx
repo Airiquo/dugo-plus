@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getFacilityMatches,
@@ -129,7 +130,6 @@ export default function Inventory() {
   const [tab, setTab] = useState('stock')
 
   const [history, setHistory] = useState([])
-  const [cursor, setCursor] = useState(null)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyFailed, setHistoryFailed] = useState(false)
 
@@ -145,7 +145,6 @@ export default function Inventory() {
   const [form, setForm] = useState(null)
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [historyKey, setHistoryKey] = useState(0)
 
@@ -302,7 +301,6 @@ export default function Inventory() {
 
         if (donationResult.status === 'fulfilled') {
           setHistory(donationResult.value.rows)
-          setCursor(donationResult.value.cursor)
         } else {
           setHistoryFailed(true)
         }
@@ -393,20 +391,6 @@ export default function Inventory() {
   const update = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }))
     setFormError('')
-  }
-
-  const loadMore = async () => {
-    if (!hospitalId || !cursor || loadingMore) return
-    setLoadingMore(true)
-    try {
-      const page = await getHospitalDonations(hospitalId, { cursor, limit: HISTORY_PAGE })
-      setHistory((prev) => [...prev, ...page.rows])
-      setCursor(page.cursor)
-    } catch {
-      setHistoryFailed(true)
-    } finally {
-      setLoadingMore(false)
-    }
   }
 
   // Confirm every selected match in turn. Sequential transactions avoid
@@ -512,14 +496,19 @@ export default function Inventory() {
         tag={isAdmin ? 'Dugo+ admin' : 'Dugo+ hospital'}
         title="Blood inventory"
         actions={
-          <Btn
-            variant="primary"
-            icon="droplet"
-            onClick={() => open('transfusion')}
-            disabled={busy || !hospitalId}
-          >
-            Record transfusion
-          </Btn>
+          <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
+            <Link to={isAdmin ? '/admin/inventory-log' : '/hospital/inventory-log'}>
+              <Btn icon="list">Inventory Log</Btn>
+            </Link>
+            <Btn
+              variant="primary"
+              icon="droplet"
+              onClick={() => open('transfusion')}
+              disabled={busy || !hospitalId}
+            >
+              Record transfusion
+            </Btn>
+          </div>
         }
       />
       <div id="page-body">
@@ -861,89 +850,29 @@ export default function Inventory() {
                     )}
                   </Card>
 
-                  <Card className="hospital-inventory-table hospital-inventory-history">
-                    <header>
-                      <h2>Confirmed donations</h2>
-                      <p className="muted">
-                        Every confirmed donation at this facility, newest first (schema §2.9).
-                      </p>
-                    </header>
-
-                    {historyLoading && <p className="hospital-state">Loading donations…</p>}
-
-                    {!historyLoading && historyFailed && (
-                      <div role="alert">
-                        <p className="hospital-state" data-kind="error">
-                          Confirmed donations could not be loaded.
+                  <Card className="hospital-inventory-table">
+                    <header
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: 'var(--space-md)',
+                      }}
+                    >
+                      <div>
+                        <h2>Confirmed donations & stock audit</h2>
+                        <p className="muted">
+                          {history.length > 0
+                            ? `${history.length} confirmed donation${history.length === 1 ? '' : 's'} recorded at this facility.`
+                            : 'No donations confirmed here yet.'}{' '}
+                          Full archives and stock movement audit logs live in the dedicated Inventory Log.
                         </p>
-                        <Btn onClick={bumpHistory}>Try again</Btn>
                       </div>
-                    )}
-
-                    {!historyLoading && !historyFailed && history.length === 0 && (
-                      <p className="hospital-note">
-                        No donations confirmed here yet. Confirm a match above and it lands on this
-                        list.
-                      </p>
-                    )}
-
-                    {!historyLoading && !historyFailed && history.length > 0 && (
-                      <>
-                        <Table
-                          columns={[
-                            {
-                              key: 'donationDate',
-                              header: 'Date',
-                              render: (row) => formatDate(row.donationDate),
-                            },
-                            {
-                              key: 'donorName',
-                              header: 'Donor',
-                              render: (row) =>
-                                row.donorName ? (
-                                  row.donorName
-                                ) : row.donorId ? (
-                                  <code title={row.donorId}>{shortId(row.donorId)}</code>
-                                ) : (
-                                  '—'
-                                ),
-                            },
-                            {
-                              key: 'bloodType',
-                              header: 'Blood type',
-                              render: (row) =>
-                                row.bloodType ? (
-                                  <Badge data-blood-type={row.bloodType}>{row.bloodType}</Badge>
-                                ) : (
-                                  '—'
-                                ),
-                            },
-                            {
-                              key: 'units',
-                              header: 'Units',
-                              render: (row) => row.units,
-                            },
-                            {
-                              key: 'requestId',
-                              header: 'Request',
-                              render: (row) =>
-                                row.requestId ? <code>{row.requestId}</code> : '—',
-                            },
-                          ]}
-                          rows={history}
-                          rowKey={(row) => row.id}
-                        />
-                        <div className="hospital-form-actions">
-                          {cursor ? (
-                            <Btn onClick={loadMore} disabled={loadingMore}>
-                              {loadingMore ? 'Loading…' : 'Load more'}
-                            </Btn>
-                          ) : (
-                            <span className="muted">End of the log</span>
-                          )}
-                        </div>
-                      </>
-                    )}
+                      <Link to={isAdmin ? '/admin/inventory-log' : '/hospital/inventory-log'}>
+                        <Btn icon="list">Open Inventory Log</Btn>
+                      </Link>
+                    </header>
                   </Card>
                 </>
               )}

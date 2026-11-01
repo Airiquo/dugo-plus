@@ -20,6 +20,7 @@ import HospitalDashboard from './pages/hospital/Dashboard'
 import Inventory from './pages/hospital/Inventory'
 import HospitalMap from './pages/hospital/Map'
 import HospitalProfile from './pages/hospital/Profile'
+import InventoryLog from './pages/hospital/InventoryLog'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
@@ -112,6 +113,7 @@ export default function App() {
             <Route path="/admin/dashboard" element={<Dashboard />} />
             <Route path="/admin/blood-requests" element={<BloodRequests />} />
             <Route path="/admin/inventory" element={<Inventory />} />
+            <Route path="/admin/inventory-log" element={<InventoryLog />} />
             {NAV.filter((item) => !TRANSLATED.has(item.slug)).map((item) => (
               <Route
                 key={item.slug}
@@ -134,6 +136,7 @@ export default function App() {
             <Route path="/hospital" element={<Navigate to="/hospital/dashboard" replace />} />
             <Route path="/hospital/dashboard" element={<HospitalDashboard />} />
             <Route path="/hospital/inventory" element={<Inventory />} />
+            <Route path="/hospital/inventory-log" element={<InventoryLog />} />
             <Route path="/hospital/map" element={<HospitalMap />} />
             <Route path="/hospital/profile" element={<HospitalProfile />} />
           </Route>

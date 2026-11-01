@@ -4,6 +4,7 @@ import { AppShell } from './AppShell'
 export const HOSPITAL_NAV = [
   { slug: 'dashboard', label: 'Dashboard', icon: 'grid' },
   { slug: 'inventory', label: 'Inventory', icon: 'box' },
+  { slug: 'inventory-log', label: 'Inventory Log', icon: 'list' },
   { slug: 'map', label: 'Hospital Map', icon: 'map' },
   { slug: 'profile', label: 'Facility profile', icon: 'settings' },
 ]
