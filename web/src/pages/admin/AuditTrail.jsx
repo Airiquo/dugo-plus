@@ -1,5 +1,5 @@
 import { AppShell } from '../../layout/AppShell'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Table } from '../../components/Table'
 import { Drawer } from '../../components/Overlay'
 import { getAuditBlocks, verifyAuditChain } from '../../services/audit'
@@ -18,21 +18,35 @@ export default function AuditTrail() {
   const [verifying, setVerifying] = useState(false)
   const [verifyResult, setVerifyResult] = useState(null)
   const [selectedBlock, setSelectedBlock] = useState(null)
+  const [updatedAt, setUpdatedAt] = useState(null)
+  const inFlight = useRef(false)
 
   useEffect(() => {
     loadBlocks()
   }, [])
 
-  async function loadBlocks() {
-    setLoading(true)
-    setError('')
+  // Poll while the page is open so appended blocks appear without a manual refresh.
+  useEffect(() => {
+    const id = setInterval(() => {
+      loadBlocks({ silent: true })
+    }, 5000)
+    return () => clearInterval(id)
+  }, [])
+
+  async function loadBlocks({ silent = false } = {}) {
+    if (inFlight.current) return
+    inFlight.current = true
+    if (!silent) setLoading(true)
     try {
       const data = await getAuditBlocks()
       setBlocks(data)
+      setUpdatedAt(new Date())
+      setError('')
     } catch (err) {
       setError(err.message || 'Failed to load audit blocks')
     } finally {
-      setLoading(false)
+      inFlight.current = false
+      if (!silent) setLoading(false)
     }
   }
 
@@ -103,7 +117,8 @@ export default function AuditTrail() {
           <h1 id="page-title">Audit Trail</h1>
         </div>
         <div id="page-actions" className="row" style={{ gap: 8 }}>
-          <button className="btn" type="button" onClick={loadBlocks} disabled={loading}>
+          {updatedAt && <span className="k">Updated {updatedAt.toLocaleTimeString()}</span>}
+          <button className="btn" type="button" onClick={() => loadBlocks()} disabled={loading}>
             Refresh
           </button>
           <button className="btn" type="button" onClick={handleVerify} disabled={verifying}>
