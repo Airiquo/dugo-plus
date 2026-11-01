@@ -352,6 +352,7 @@ route renders `pages/shared/NotConfigured`.
 Stated every session until answered, explicitly withdrawn, or the work they block
 is cancelled. An assumption is never recorded in place of an answer.
 
+- **Hosting cache/build identity authorized (2026-11-01, D36).** Owner requests the fix on `fix/registration-single-writer`, PR/merge into integration and a Hosting-only redeploy. Header policy and build stamp are implemented; `tools/verify-hosting-build.mjs` checks the deployed HTML/JS bytes and cache headers after release. Real signup verification is pending owner credential/consent/email interaction; the pasted existing-account claim is not evidence of a completed smoke test.
 - **Design direction resolved (2026-11-01, D35).** Owner requests the approved landing design across the app, light default and donor desktop/mobile responsiveness; free redesign is authorized. Contextual auth headings replace the role-count line, and bounded centered gutters correct its left stretch. No further design question is blocking this branch. See `docs/CARE_REDESIGN.md` for verification scope.
 - **NFR-14, idle session timeout**: deferred (D9). No timeout value, no policy
   on what counts as activity, no decision on whether it applies to all roles.
