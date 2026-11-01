@@ -29,7 +29,7 @@ numbers rather than trusting this section.
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | in progress (F3: hospital posts, lists, and manages its requests; smoke pending) |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; FR-010 derived on the profile; F5 history/rewards/tracker open. F4 smoke pending) |
-| **P4** | Hospital dashboard, inventory, screening | not started |
+| **P4** | Hospital dashboard, inventory, screening | core workflows not started; NFR-23 request-queue usability half partial (D37), full dashboard still unbuilt |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; claims not set on a live project, functions not deployed, no signed-in smoke here) |
 | **P7** | Hash-chain audit trail | in progress (F10a; F10b data-access hooks in; donation/inventory events wait on F8/F6) |
@@ -352,6 +352,7 @@ route renders `pages/shared/NotConfigured`.
 Stated every session until answered, explicitly withdrawn, or the work they block
 is cancelled. An assumption is never recorded in place of an answer.
 
+- **Hospital table and release direction resolved (2026-11-01, D37).** Owner authorizes the request-table UX redesign and directs deploying from integration for now. Feature PRs still require checks; the clean merged integration commit is the temporary Hosting source. Table path/recovery checks use isolated fixtures; real staff credentials/persistence verification remain unavailable. See `docs/HOSPITAL_REQUEST_QUEUE.md`.
 - **Hosting cache/build identity authorized (2026-11-01, D36).** Owner requests the fix on `fix/registration-single-writer`, PR/merge into integration and a Hosting-only redeploy. Header policy and build stamp are implemented; `tools/verify-hosting-build.mjs` checks the deployed HTML/JS bytes and cache headers after release. Real signup verification is pending owner credential/consent/email interaction; the pasted existing-account claim is not evidence of a completed smoke test.
 - **Design direction resolved (2026-11-01, D35).** Owner requests the approved landing design across the app, light default and donor desktop/mobile responsiveness; free redesign is authorized. Contextual auth headings replace the role-count line, and bounded centered gutters correct its left stretch. No further design question is blocking this branch. See `docs/CARE_REDESIGN.md` for verification scope.
 - **NFR-14, idle session timeout**: deferred (D9). No timeout value, no policy

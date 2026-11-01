@@ -32,6 +32,8 @@ Then, in the Firebase console:
 
 ## Deploying
 
+**Active temporary direction (D37, 2026-11-01): deploy from clean integration after its protected PR/checks, per the owner.** The main/prod promotion path is temporarily superseded; do not advance those branches for this release. Pass `--project dugo-plus` explicitly if this worktree has no local Firebase alias.
+
 ```bash
 ./tools/deploy.sh
 ```

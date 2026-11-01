@@ -28,3 +28,5 @@ export { MotionProvider as CareMotionProvider, MotionSection as CareMotionSectio
 export { default as CareDonationMark } from './CareDonationMark'
 
 export { NewsCard as CareNewsCard, NewsSection as CareNewsSection, NewsArticle as CareNewsArticle } from './CareNews'
+
+export { RequestStatusDialog } from './RequestStatusDialog'

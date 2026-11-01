@@ -70,6 +70,8 @@ whatever is already collected instead of on top of an older tree.
 
 ## Shipping
 
+**Temporary owner override, 2026-11-01 (D37): deploy frontend releases from integration for now.** Feature PRs still target protected integration and must pass its checks. Build/deploy the clean merged integration commit; do not promote this release through main/prod. The normal release path below resumes only when the owner changes this instruction.
+
 Two steps. First get `integration` onto `main`, once the collected work is known
 good and the checks are green:
 
