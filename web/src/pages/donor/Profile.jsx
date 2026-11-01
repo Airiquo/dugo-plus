@@ -53,7 +53,7 @@ function formFrom(profile) {
  */
 export default function Profile() {
   const { theme } = useTheme()
-  const { user, loading, role, roleLoading, signOut } = useAuth()
+  const { user, profile, loading, role, roleLoading, signOut } = useAuth()
 
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [loadFailed, setLoadFailed] = useState(false)
@@ -413,7 +413,7 @@ export default function Profile() {
             </button>
           </div>
         </form>
-        <CareDonorCard bloodType={form.bloodType} city={form.city} eligibility={eligibility} loaded={profileLoaded && !loadFailed} error={loadFailed} />
+        <CareDonorCard bloodType={form.bloodType} city={form.city} eligibility={eligibility} loaded={profileLoaded && !loadFailed} error={loadFailed} photoURL={profile?.photoURL} name={form.fullName || user.displayName || user.email} />
         </div>
       </main>
     </div>

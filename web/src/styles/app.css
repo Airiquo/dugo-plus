@@ -1580,34 +1580,43 @@ input[type=checkbox],input[type=radio] {
   height: 30px;
 }
 
-.care-blood-orbit {
-  position: relative;
-  height: 168px;
+.care-donor-identity {
   display: flex;
   align-items: center;
-  justify-content: center;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
+  text-align: center;
 }
 
-.care-blood-orbit::before {
-  content: '';
-  position: absolute;
-  width: 164px;
-  height: 164px;
-  border: 1px dashed var(--d-dashed);
-  border-radius: 50%;
+.care-donor-photo {
+  width: 124px;
+  height: 124px;
+  border: 5px solid var(--d-panel);
+  box-shadow: 0 0 0 1px var(--d-line), 0 12px 30px color-mix(in srgb, var(--d-red) 13%, transparent);
 }
 
-.care-blood-value {
-  font-size: 70px;
-  font-weight: 300;
-  line-height: 1.1;
-  letter-spacing: -.06em;
+.care-donor-identity>strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.care-donor-blood {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--d-muted);
+  font-size: 11px;
+}
+
+.care-donor-blood>span:first-child {
   color: var(--d-red);
+  font-size: 15px;
+  font-weight: 700;
 }
 
-.care-blood-orbit>span:last-child {
+.care-donor-blood>span:last-child {
   font-size: 10px;
   color: var(--d-muted);
 }
@@ -2275,7 +2284,7 @@ input[type=checkbox],input[type=radio] {
   .care-donor-card-top {
     grid-column: 1/-1;
   }
-  .care-blood-orbit {
+  .care-donor-identity {
     grid-row: 2 / span 2;
   }
   .care-donor-card-detail {
@@ -2532,15 +2541,9 @@ input[type=checkbox],input[type=radio] {
     display: flex;
     gap: 20px;
   }
-  .care-blood-orbit {
-    height: 150px;
-  }
-  .care-blood-orbit::before {
-    width: 144px;
-    height: 144px;
-  }
-  .care-blood-value {
-    font-size: 64px;
+  .care-donor-photo {
+    width: 112px;
+    height: 112px;
   }
   .care-donor-card-detail {
     padding-top: 20px;
