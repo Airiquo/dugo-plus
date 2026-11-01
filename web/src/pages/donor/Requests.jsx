@@ -5,7 +5,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
-import { Icon } from '../../components'
+import { Icon, CarePageHeader } from '../../components'
 import { DonorNav } from '../../layout/DonorNav'
 import { listenDonorMatches, respondToMatch } from '../../services/matches'
 import { getBloodRequest } from '../../services/requests'
@@ -82,6 +82,11 @@ export default function Requests() {
   const [consentScr, setConsentScr] = useState(false)
   const [acting, setActing] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => mapRef.current?.invalidateSize())
+    return () => cancelAnimationFrame(frame)
+  }, [mapExpanded])
 
   // Matches arrive from the matcher (F7) and stay live (FR-006).
   useEffect(() => {
@@ -337,11 +342,11 @@ export default function Requests() {
   const accepted = items.filter((it) => it.match.responseStatus === 'Accepted' && it.hospital)
 
   return (
-    <div className="pub" data-theme={theme} style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}>
+    <div className="pub donor-surface" data-theme={theme} style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}>
       <DonorNav />
 
-      <main id="top" className="profile-main">
-        <div className="pub-card" style={{ maxWidth: 1240, width: '100%', margin: '0 auto', padding: 24 }}>
+      <main id="top" className="profile-main donor-main donor-requests-main"><CarePageHeader kicker="Give where it matters" title={<>The right match.<br /><em>Closer to you.</em></>} description="Explore your compatible requests, see the destination, and choose where you can help." />
+        <div className="pub-card donor-request-workspace">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <div>
               <p className="pub-kicker">Blood requests</p>
@@ -378,7 +383,7 @@ export default function Requests() {
             </p>
           )}
 
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
+          <div className="donor-request-filters">
             <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <span className="pub-fine">Blood type</span>
               <select value={filterBlood} onChange={(e) => setFilterBlood(e.target.value)}>
@@ -416,23 +421,15 @@ export default function Requests() {
             </label>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: mapExpanded ? '1fr' : 'minmax(300px, 460px) 1fr',
-              gap: 16,
-              marginTop: 16,
-              alignItems: 'start',
-            }}
-          >
-            <div style={{ display: 'grid', gap: 12 }}>
+          <div className="donor-matches-layout" data-map-expanded={mapExpanded}>
+            <div className="donor-match-list">
               {visible.length === 0 && (
                 <p className="pub-muted">
                   No compatible requests match your filters. You will be notified when one does.
                 </p>
               )}
               {visible.map((it) => (
-                <div key={it.match.id} className="card" style={{ padding: 16, display: 'grid', gap: 8 }}>
+                <div key={it.match.id} className="card donor-match-card">
                   <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                     <div>
                       <strong>{it.hospital?.name || it.request.hospitalName || 'Hospital'}</strong>
@@ -472,15 +469,7 @@ export default function Requests() {
               ))}
             </div>
 
-            <div
-              style={{
-                height: mapExpanded ? '72vh' : 560,
-                borderRadius: 12,
-                overflow: 'hidden',
-                position: 'sticky',
-                top: 16,
-              }}
-            >
+            <div className="donor-request-map" data-expanded={mapExpanded}>
               <MapContainer ref={mapRef} center={mapCenter} zoom={12} style={{ height: '100%', width: '100%' }}>
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -597,25 +586,13 @@ export default function Requests() {
       </main>
 
       {selected && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'grid',
-            placeItems: 'center',
-            padding: 16,
-            zIndex: 1000,
-          }}
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="donor-response-backdrop" role="dialog" aria-modal="true" aria-labelledby="donor-response-title">
           <div
             className="pub-card"
             style={{ maxWidth: 640, width: '100%', maxHeight: '90vh', overflow: 'auto', padding: 24 }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <h3 style={{ margin: 0 }}>Respond to request</h3>
+              <h3 id="donor-response-title" style={{ margin: 0 }}>Respond to request</h3>
               <button className="pub-btn pub-btn-ghost" type="button" onClick={closeRespond} disabled={acting}>
                 Close
               </button>

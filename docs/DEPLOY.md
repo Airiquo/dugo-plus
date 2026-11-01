@@ -54,6 +54,36 @@ change from shipping the frontend, and folding them together would push a rules
 edit live on every UI deploy. Check the console's *Firestore → Rules* tab before
 running this, so you know what is being replaced.
 
+## Cache policy and source revision
+
+`firebase.json` revalidates HTML and unversioned files with `no-cache`. Its later
+`/assets/**` rule uses `public, max-age=31536000, immutable` for fingerprinted Vite
+assets. Keep the specific rule after the catch-all. Header matching happens
+before SPA rewrites, so `/register` also receives `no-cache`.
+
+Builds require a Git checkout. `web/vite.config.js` embeds the current 12-character
+HEAD revision into `<meta name="dugo-build">` and `import.meta.env.VITE_BUILD_SHA`.
+New client error records store `build: production:<revision>` (or the development
+mode), identifying the source revision without changing the Firestore shape.
+Commit changes before the release build; a build made before the commit carries
+the earlier revision.
+
+After building/deploying from clean `prod`, run:
+
+```bash
+node tools/verify-hosting-build.mjs https://dugo-plus.web.app
+```
+
+This asserts the HTML stamp matches HEAD, the bundle includes the same log stamp,
+`/` and `/register` have `no-cache`, the entry JS is immutable, and the deployed
+HTML/JS SHA-256 hashes match local `web/dist` byte for byte. Without a URL it
+checks the local build only. It performs no account or database mutation.
+A successful deployment check does not establish that a real signup, verification
+email, or `users/{uid}` write succeeded; report those checks separately.
+
+References: [Firebase Hosting headers](https://firebase.google.com/docs/hosting/full-config#headers),
+[Vite define](https://vite.dev/config/shared-options.html#define).
+
 ## Account service (free, no Blaze)
 
 Creating a hospital account needs the Admin SDK, and Cloud Functions can host it

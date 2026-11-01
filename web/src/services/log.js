@@ -15,8 +15,8 @@ function clip(value) {
 
 /**
  * One error record, as stored. Every field is a string so the rules can check
- * type without walking nested maps; `build` is the Vite mode, which is how a
- * production report is told apart from a local one.
+ * type without walking nested maps; `build` includes the Vite mode and source
+ * revision so reports identify the bundle that produced them.
  *
  * @typedef {{ message: string, stack: string, route: string, uid: string,
  *             build: string, createdAt: unknown }} ErrorRecord
@@ -38,7 +38,7 @@ export function errorRecord(error, context = {}) {
     stack: clip(error instanceof Error ? error.stack : ''),
     route: clip(context.route ?? (typeof location !== 'undefined' ? location.pathname : '')),
     uid: clip(auth?.currentUser?.uid ?? ''),
-    build: clip(import.meta.env.MODE),
+    build: clip(`${import.meta.env.MODE}:${import.meta.env.VITE_BUILD_SHA}`),
     createdAt: serverTimestamp(),
   }
 }

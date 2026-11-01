@@ -73,7 +73,7 @@ export default function Login() {
   }
 
   return (
-    <AuthLayout kicker="Sign in" heading="One account, three roles">
+    <AuthLayout kicker="Sign in" heading="Connected by care." blurb="Sign in to stay connected to the people and places that need you.">
       <form
         className="pub-card pub-form"
         noValidate

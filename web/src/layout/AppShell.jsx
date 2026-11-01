@@ -55,12 +55,12 @@ function Sidebar() {
           dugo<span className="plus">+</span>
         </Link>
         <span id="sidebar-logo-facility" className="pill">
-          Tagaytay City Blood Bank, Cavite
+          Account management
         </span>
       </div>
       <div id="sidebar-section-label">{roleLabel(role)}</div>
       <nav id="sidebar-nav" aria-label="Main">
-        {NAV.map((item) => {
+        {NAV.filter(item => ['dashboard', 'accounts', 'audit-trail', 'data-requests', 'settings', 'profile'].includes(item.slug)).map((item) => {
           const to = `/admin/${item.slug}`
           const active = pathname === to
           return (
@@ -84,7 +84,7 @@ function Sidebar() {
         })}
       </nav>
       <div id="sidebar-signed-in">
-        ~/signed in as {name}
+        Signed in as {name}
         <div className="row" style={{ gap: 8, alignItems: 'center' }}>
           <button
             className="theme-toggle"
@@ -103,7 +103,7 @@ function Sidebar() {
               navigate('/')
             }}
           >
-            $ exit
+            Sign out
           </button>
         </div>
       </div>

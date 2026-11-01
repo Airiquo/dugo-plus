@@ -21,7 +21,7 @@ and do not "correct" the live code back to the text below:
 | Reward points | an ERD-side total | one record per donation, summed on read | D12 |
 | Deferral intervals | one interval | per component, in `donationTypes.intervalDays` | D13 |
 | `users.lastDonationAt` | writable | frozen for the owner; only F8's server transaction writes it | D14 |
-| `errorLogs` | an ERD-free collection §1 lists as [ADDED] | client-written, open-create | D8, D10, D17 |
+| `errorLogs` | an ERD-free collection §1 lists as [ADDED] | client-written, open-create; `build` is `mode:12-character Git SHA` | D8, D10, D17, D36 |
 | `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
 | `users.address` | an ERD postal address | not collected; no field | D22 |
 

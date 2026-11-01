@@ -1,4 +1,15 @@
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  runTransaction,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { geohash, isCoordinate } from '../utils/geohash'
 import { recordAuditEvent } from './audit'
@@ -123,8 +134,15 @@ function normaliseLocation(location) {
  */
 
 /**
- * Create the profile for a new account. Written after `createUserWithEmailAndPassword`
- * so `request.auth.uid` already matches, which is what the rules check.
+ * Create the profile for a new account if it does not exist yet. Written after
+ * `createUserWithEmailAndPassword` so `request.auth.uid` already matches, which
+ * is what the rules check.
+ *
+ * Two callers can reach this for the same account — the sign-up screen and the
+ * session listener that provisions a missing profile (D20). The check and the
+ * write share one transaction so only the first creates the document; a second
+ * write would land as an update, and the rules refuse to rewrite the recorded
+ * consent (`privacyConsentAt`), which the client must never attempt.
  *
  * `consentVersion` is the privacy-notice version the person accepted at
  * registration. When it is given, the acceptance is stored on the profile
@@ -135,9 +153,12 @@ function normaliseLocation(location) {
  * @param {string} uid - the freshly created account's uid
  * @param {{ role: string, fullName?: string, email?: string }} profile
  * @param {string} [consentVersion] - e.g. `PRIVACY_NOTICE_VERSION`
+ * @returns {Promise<{ created: boolean, profile: object }>} the stored profile,
+ *          which is the caller's own data when it created the document
  */
-export async function writeProfile(uid, profile, consentVersion) {
+export async function ensureProfile(uid, profile, consentVersion) {
   requireDb()
+  const ref = doc(db, 'users', uid)
   const data = {
     role: profile.role,
     fullName: profile.fullName ?? '',
@@ -150,7 +171,12 @@ export async function writeProfile(uid, profile, consentVersion) {
     data.privacyConsentAt = serverTimestamp()
     data.privacyNoticeVersion = consentVersion
   }
-  await setDoc(doc(db, 'users', uid), data)
+  return runTransaction(db, async (transaction) => {
+    const found = await transaction.get(ref)
+    if (found.exists()) return { created: false, profile: found.data() }
+    transaction.set(ref, data)
+    return { created: true, profile: data }
+  })
 }
 
 /**

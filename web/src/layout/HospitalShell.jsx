@@ -53,7 +53,7 @@ function Sidebar({ facility }) {
         })}
       </nav>
       <div id="sidebar-signed-in">
-        ~/signed in as {name}
+        Signed in as {name}
         <div className="row" style={{ gap: 8, alignItems: 'center' }}>
           <button
             className="theme-toggle"
@@ -72,7 +72,7 @@ function Sidebar({ facility }) {
               navigate('/')
             }}
           >
-            $ exit
+            Sign out
           </button>
         </div>
       </div>
