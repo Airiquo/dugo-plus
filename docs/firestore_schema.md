@@ -25,6 +25,7 @@ and do not "correct" the live code back to the text below:
 | `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
 | `users.address` | an ERD postal address | not collected; no field | D22 |
 | Inventory logs | child path, staff-writable, `Donation \| Usage \| Adjustment \| Expired` suggested | same child path, staff/admin-writable in one client transaction, `DONATION \| TRANSFUSION \| ADJUSTMENT \| EXPIRED` with `reason` | D26, D27 |
+| Subscriptions | admin/server-writable, `Active \| Suspended \| Removed` in ERD | staff/admin-writable, `Active \| Expired \| Cancelled`, `Community Plan \| Standard Partner \| Regional Network` | D28 |
 
 §9 below is the file's own list of ERD inconsistencies. **They are open questions,
 not defaults**: an owner answer is recorded as a `D*` row, and unanswered ones are
@@ -633,14 +634,14 @@ interface AuditBlock {
 
 ## 9. Open questions / ERD inconsistencies (agent: flag, don't guess)
 
-> **Answered:** 2 (requests — D24; subscriptions still open), 5's `urgencyLevel` (D24), 6 (D25).
+> **Answered:** 2 (requests — D24; subscriptions — D28), 5's `urgencyLevel` (D24), `changeType` (D26), subscription `plan` (D28), 6 (D25).
 > The rest are open and re-stated in `docs/PHASES.md` §10.
 
 1. **Passwords and verification**: ERD stores `hashed_password` and an `Email_Verification` table. With Firebase Auth both are normally handled by Auth. I omitted `hashedPassword` and kept `emailVerifications` in case you use custom OTP codes. Confirm.
-2. **Copy-pasted status enum**: `Blood_Requests.status` and `Subscriptions.status` show `Active, Suspended, Removed` like Users/Hospitals. **Answered for requests:** the build's set is `urgent | collecting | matched | fulfilled | cancelled` (D24). **Still open for subscriptions**: `Active | Expired | Cancelled` is the suggestion, not a decision.
+2. **Copy-pasted status enum**: `Blood_Requests.status` and `Subscriptions.status` show `Active, Suspended, Removed` like Users/Hospitals. **Answered for requests:** the build's set is `urgent | collecting | matched | fulfilled | cancelled` (D24). **Answered for subscriptions:** `Active | Expired | Cancelled` under hospital self-serve plan management (D28).
 3. **Missing FK edges in the diagram**: `Hospitals.created_by`, `Donor_Matches.screened_by_user_id`, `Donations.confirmed_by`, `Data_Subject_Request.processed_by`, `Blood_Requests.created_by` — all assumed → `users`.
 4. **`Donations` has no `donor_id`** — derived via match. I added `donorId`, `hospitalId`, `bloodType` as denormalized fields.
-5. **Unspecified enum values** (suggested values given above): `urgencyLevel` **answered** — `urgent | stat | routine` (D24). `changeType` **answered** — `DONATION | TRANSFUSION | ADJUSTMENT | EXPIRED` with a required `reason` on adjustments (D26). Still open: `responseStatus`, `consentType`, `channel`, `deliveryStatus`, `requestType`, DSR `status`, subscription `plan`.
+5. **Unspecified enum values** (suggested values given above): `urgencyLevel` **answered** — `urgent | stat | routine` (D24). `changeType` **answered** — `DONATION | TRANSFUSION | ADJUSTMENT | EXPIRED` with a required `reason` on adjustments (D26). `plan` **answered** — `Community Plan | Standard Partner | Regional Network` (D28). Still open: `responseStatus`, `consentType`, `channel`, `deliveryStatus`, `requestType`, DSR `status`.
 6. **`eligibility_info`** type unknown. **Answered (D25):** the field was never implemented, eligibility is computed on read, and it was removed from the model of record. If a screening record is ever needed, it gets a purpose-designed field in that feature.
 7. **`notif_retry_interval`** unit unknown. Assumed minutes.
 8. **Radius_Tiler** is spelled "Tiler" in the ERD; treated as "Tiers".

@@ -1082,3 +1082,57 @@
     animation: none;
   }
 }
+
+/* --- hospital partnership plan (FR-018) ----------------------------------- */
+
+.hospital-plan-page {
+  display: grid;
+  gap: 20px;
+}
+.hospital-plan-active-card {
+  width: 100%;
+}
+.hospital-plan-active-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.hospital-plan-active-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--d-border);
+}
+.hospital-plan-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.hospital-plan-meta-item span {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--d-muted);
+  letter-spacing: 0.06em;
+}
+.hospital-plan-meta-item strong {
+  font-size: 14px;
+  color: var(--d-fg);
+}
+.hospital-plan-confirm-card {
+  border: 1px solid var(--accent, #e53e3e);
+  background: var(--card-2);
+}
+.hospital-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.hospital-plan-tier-card {
+  height: 100%;
+  gap: 0;
+}
+

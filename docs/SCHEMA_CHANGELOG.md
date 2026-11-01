@@ -143,3 +143,16 @@ Feature: F6 (FR-034).
 
 §0's divergence row and §2.3.3/§2.9 note the change; the vocabulary of D26
 (`changeType`, `reason`, child log path) is unchanged.
+
+## 2026-11-01 — hospital partnership subscriptions self-serve (D28)
+
+**Origin:** build (FR-018 hospital subscription plan management).
+
+**Refs:** D28. Feature: F6 (FR-018).
+
+| Area | Before | After |
+|---|---|---|
+| `hospitals/{h}/subscriptions/{id}` writes | admin claim only | **staff-of-that-facility and admin claims**, shape-validated (`plan is string`, `status in ['Active', 'Expired', 'Cancelled']`, timestamps) |
+| `subscriptions.plan` | open (§9.5) | decided: `Community Plan \| Standard Partner \| Regional Network` |
+| `subscriptions.status` | suggested `Active \| Expired \| Cancelled` (§9.2 open) | decided: `Active \| Expired \| Cancelled` |
+

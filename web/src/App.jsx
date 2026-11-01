@@ -20,6 +20,7 @@ import HospitalDashboard from './pages/hospital/Dashboard'
 import Inventory from './pages/hospital/Inventory'
 import HospitalMap from './pages/hospital/Map'
 import HospitalProfile from './pages/hospital/Profile'
+import HospitalPlan from './pages/hospital/Plan'
 import InventoryLog from './pages/hospital/InventoryLog'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
@@ -138,6 +139,7 @@ export default function App() {
             <Route path="/hospital/inventory" element={<Inventory />} />
             <Route path="/hospital/inventory-log" element={<InventoryLog />} />
             <Route path="/hospital/map" element={<HospitalMap />} />
+            <Route path="/hospital/plan" element={<HospitalPlan />} />
             <Route path="/hospital/profile" element={<HospitalProfile />} />
           </Route>
           <Route path="/gallery" element={<Gallery />} />

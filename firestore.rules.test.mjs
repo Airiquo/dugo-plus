@@ -144,8 +144,10 @@ await no('signed-out cannot create a hospital', setDoc(doc(db(anon()), 'hospital
 console.log('hospitals/subscriptions');
 await ok('own staff reads subscriptions', readDoc(staff1(), 'hospitals/h1/subscriptions/s1'));
 await no('staff of another hospital cannot read subscriptions', readDoc(staff2(), 'hospitals/h1/subscriptions/s1'));
-await no('staff cannot write subscriptions', setDoc(doc(db(staff1()), 'hospitals/h1/subscriptions/s2'), { plan: 'x', startDate: new Date(), endDate: new Date(), status: 'Active' }));
-await ok('admin claim writes subscriptions', setDoc(doc(db(admin()), 'hospitals/h1/subscriptions/s2'), { plan: 'pilot', startDate: new Date(), endDate: new Date(), status: 'Active' }));
+await ok('own staff writes subscription', setDoc(doc(db(staff1()), 'hospitals/h1/subscriptions/s2'), { plan: 'Standard Partner', startDate: new Date(), endDate: new Date(), status: 'Active' }));
+await no('staff of another hospital cannot write subscription', setDoc(doc(db(staff2()), 'hospitals/h1/subscriptions/s3'), { plan: 'Standard Partner', startDate: new Date(), endDate: new Date(), status: 'Active' }));
+await no('subscription requires valid status', setDoc(doc(db(staff1()), 'hospitals/h1/subscriptions/s4'), { plan: 'Standard Partner', startDate: new Date(), endDate: new Date(), status: 'Invalid' }));
+await ok('admin claim writes subscriptions', setDoc(doc(db(admin()), 'hospitals/h1/subscriptions/s5'), { plan: 'pilot', startDate: new Date(), endDate: new Date(), status: 'Active' }));
 
 console.log('hospitals/inventory');
 await ok('own staff reads inventory', readDoc(staff1(), 'hospitals/h1/inventory/O+'));

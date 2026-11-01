@@ -29,7 +29,7 @@ numbers rather than trusting this section.
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | not started |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (FR-010 derived on the profile only) |
-| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile, FR-014 blood units collected over period, FR-020 inventory reads + donation history, initial dashboard shell + FR-015 hospital map, FR-034 writes as client transactions (D27); the deferral clock and reward points wait for a server path — see §10) |
+| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile, FR-014 blood units collected over period, FR-018 partnership plan (D28), FR-020 inventory reads + donation history, initial dashboard shell + FR-015 hospital map, FR-034 writes as client transactions (D27); the deferral clock and reward points wait for a server path — see §10) |
 | **P5** | Matching and notifications | not started; needs Cloud Functions (Blaze) |
 | **P6** | Admin account management, data-request queue | partial (admin gate and FR-040/FR-047 beginnings) |
 | **P7** | Hash-chain audit trail | not started; needs Cloud Functions |
@@ -422,10 +422,11 @@ is cancelled. An assumption is never recorded in place of an answer.
   `eligibilityInfo` was removed from the model of record — the ERD field was
   never implemented and eligibility is computed on read (D25); `changeType` is
   `DONATION | TRANSFUSION | ADJUSTMENT | EXPIRED` with a required `reason` on
-  adjustments (D26). Still open from
-  §9: `Subscriptions.status`, `responseStatus`, `consentType`, `channel`,
-  `deliveryStatus`, `requestType`, DSR `status`, subscription
-  `plan`, and the `notif_retry_interval` unit.
+  adjustments (D26); `Subscriptions.status` is `Active | Expired | Cancelled` and
+  subscription `plan` is `Community Plan | Standard Partner | Regional Network`
+  under self-serve hospital plan management (D28). Still open from
+  §9: `responseStatus`, `consentType`, `channel`, `deliveryStatus`,
+  `requestType`, DSR `status`, and the `notif_retry_interval` unit.
 - **Write-up is now enforced, not just requested.** `node tools/check-docs.mjs`
   gained mechanical cross-checks: every `D*` in `docs/` resolves, the changelog's
   refs resolve, schema §1 collections and `firestore.rules` match paths agree in

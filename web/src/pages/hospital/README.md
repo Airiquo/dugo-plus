@@ -22,8 +22,12 @@ Built:
   the device location and marks it with a blue dot. Relocate mode accepts a
   candidate point from a map click or device geolocation, then asks for
   confirmation before saving coordinates plus a derived geohash.
+- **Partnership plan** — `/hospital/plan` (FR-018, D28). Allows hospital staff
+  to review current partnership tier, select or upgrade tiers (Community,
+  Standard Partner, Regional Network), extend duration/renew, and view
+  subscription history on `hospitals/{hospitalId}/subscriptions` (§2.3.1).
 
-All three use `layout/HospitalShell.jsx` and sit behind `RequireRole(['hospital'])`
+All five use `layout/HospitalShell.jsx` and sit behind `RequireRole(['hospital'])`
 in `web/src/App.jsx`.
 
 The role's intended surface, and the collections each screen reads or writes
