@@ -22,7 +22,9 @@ const SECTIONS = [
       <>
         Dugo+ is a blood-donation service for the Philippines. The Dugo+ team decides what is
         collected and answers requests. For anything in this notice, write to{' '}
-        <a href="mailto:support@dugoplus.ph">support@dugoplus.ph</a>.
+        <a href="mailto:support@dugoplus.ph">support@dugoplus.ph</a>. A named Data Protection
+        Officer and a dedicated privacy mailbox have not been published yet; that is an open item,
+        not a claim that one exists.
       </>
     ),
   },
@@ -31,7 +33,7 @@ const SECTIONS = [
     items: [
       'Account details: full name, email address, phone number, account type and account status.',
       'Donor profile: blood type, date of birth, city, and — only if you allow the browser prompt — your coordinates, stored as latitude/longitude and a coarse geohash.',
-      'Donation activity: matches, donations, reward points, consents you grant and the blood requests you post.',
+      'Donation activity: matches, donations, reward points, the blood requests you post, and your hospital-access consent (whether it is granted or withdrawn, its version, the fields it covers, and the dates).',
       'Requests to Dugo+: your data-subject requests and the administrator’s note recording what was done.',
       'Operational records: error reports written by the browser, and a server-side audit chain that holds hashed references rather than readable personal data.',
     ],
@@ -49,8 +51,8 @@ const SECTIONS = [
     title: 'Who can read it',
     items: [
       'You, for your own profile and your own requests.',
-      'Dugo+ administrators, for account management, support and data-subject requests.',
-      'Hospital staff, only for matches, donations and stock belonging to their own hospital. They do not get a donor directory.',
+      'Dugo+ administrators, for account management, support and data-subject requests. They can read a consent record to answer you, but they cannot grant consent for you; they can only withdraw it when they close an account in answer to an erasure request.',
+      'Hospital staff, only after you agree on the hospital-access consent screen, and only for the fields that screen lists: name, contact details, blood type, date of birth, city and last donation date. They do not get a donor directory, and withdrawing consent stops their access immediately.',
       'Other donors cannot read your profile, matches, donations or requests.',
     ],
   },
@@ -61,8 +63,9 @@ const SECTIONS = [
         Data lives in Google Firebase (Cloud Firestore and Firebase Authentication). Google encrypts
         data in transit and at rest as part of the platform. Access is enforced by server-side
         Firestore rules, not by the screens: a suspended or removed account loses every protected
-        read and write, and a changed role in the browser does not grant administrator access. Dugo+
-        does not hold a service-account key in the web app.
+        read and write, a changed role in the browser does not grant administrator access, and a
+        hospital read of a donor profile is refused unless the consent record is current and granted.
+        Dugo+ does not hold a service-account key in the web app.
       </>
     ),
   },
@@ -70,7 +73,8 @@ const SECTIONS = [
     title: 'How long we keep it',
     items: [
       'Your profile stays while your account is active.',
-      'If you ask for erasure, the identifying fields (name, email, phone, city, coordinates, blood type, birth date) are scrubbed and the account is closed, and an administrator deletes the sign-in record that holds your email. Donation and audit records are kept in de-identified form so blood-safety and traceability records stay complete.',
+      'If you ask for erasure, any hospital-access consent is withdrawn first, the identifying fields (name, email, phone, city, coordinates, blood type, birth date) are scrubbed, the account is closed, and an administrator deletes the sign-in record that holds your email. Donation and audit records are kept in de-identified form so blood-safety and traceability records stay complete.',
+      'A withdrawn consent record is kept, with the withdrawal time and any reason you gave, as evidence that consent once existed and was withdrawn. It is not deleted, because the law requires the controller to be able to show the consent it relied on.',
       'A suspended or removed account keeps its profile for audit until a deletion request is processed.',
       'Error reports are kept for troubleshooting and hold no profile data beyond an optional account id.',
     ],
@@ -81,7 +85,10 @@ const SECTIONS = [
       <>
         Under the Data Privacy Act of 2012 (RA 10173) you may ask to be informed, to access, to
         correct, to object, to have data erased or blocked, and to receive a copy in a portable
-        format. You may also complain to the National Privacy Commission.
+        format. You may also complain to the National Privacy Commission. For health information,
+        Dugo+ follows the Department of Health’s Administrative Order No. 2020-0030: consent is
+        taken before a hospital may use your health information for matching, the purpose is stated,
+        access is limited to what that purpose needs, and you can withdraw consent for future use.
       </>
     ),
   },
@@ -91,7 +98,9 @@ const SECTIONS = [
       <>
         Sign in and open <Link to="/donor/privacy">Privacy &amp; data requests</Link>. Say what you
         want exported, corrected or erased. An administrator works the queue, records the action
-        taken, and closes the request. We aim to answer within 15 working days.
+        taken, and closes the request. We aim to answer within 15 working days. To withdraw
+        hospital access immediately, use <Link to="/donor/consent">Hospital consent</Link> instead
+        of waiting for a request to be processed.
       </>
     ),
   },
@@ -102,10 +111,23 @@ const SECTIONS = [
         Registration asks you to tick a box accepting this notice before a Dugo+ account is
         created, and the acceptance is recorded on your profile with the notice version
         ({PRIVACY_NOTICE_VERSION}) and the time. Creating an account means you agree to Dugo+
-        storing the fields above for the purposes listed. Blood type and donation history are
-        health-related, so we ask for your consent before a hospital can use them to contact you.
-        You can withdraw consent or ask for erasure at any time through the request flow;
-        withdrawing does not undo processing that already happened.
+        storing the fields above for the purposes listed. That registration acceptance is{' '}
+        <strong>not</strong> consent for a hospital to open your profile.
+      </>
+    ),
+  },
+  {
+    title: 'Hospital access needs separate consent',
+    body: (
+      <>
+        Before a hospital can open your donor profile,{' '}
+        <Link to="/donor/consent">Hospital consent</Link> describes the fields that would be shared
+        and asks you to agree. Agreeing is optional. The consent record stores whether it is granted
+        or withdrawn, its version, the categories covered, the purpose, and the dates. A hospital
+        read is refused by the Firestore rules unless that record is current and granted, so the
+        limit is enforced by the server rather than only hidden in the screen. You can withdraw at
+        any time; withdrawal stops future access and does not undo processing that already happened
+        or delete a donation record kept for blood safety.
       </>
     ),
   },
@@ -114,10 +136,10 @@ const SECTIONS = [
     body: (
       <>
         This is the project’s working notice, written against the data the app actually stores. It
-        is not a legal opinion, and Dugo+ has not been certified compliant with RA 10173 by a lawyer
-        or the National Privacy Commission. The open items — a named Data Protection Officer, a
-        formal retention schedule, and legal review of the consent wording — are tracked in the
-        project documentation.
+        is not a legal opinion, and Dugo+ has not been certified compliant with RA 10173 or DOH AO
+        2020-0030 by a lawyer or the National Privacy Commission. The open items — a named Data
+        Protection Officer, a dedicated privacy mailbox, a scheduled retention job, and legal review
+        of the consent wording — are tracked in the project documentation.
       </>
     ),
   },
@@ -155,7 +177,7 @@ export default function PrivacyPolicy() {
             <p className="pub-kicker">Dugo+ · privacy</p>
             <h3>Privacy &amp; consent notice</h3>
             <p className="pub-muted">
-              Last updated 29 October 2026 (version {PRIVACY_NOTICE_VERSION}). This notice covers
+              Last updated 1 November 2026 (version {PRIVACY_NOTICE_VERSION}). This notice covers
               the Dugo+ web app and its donor, hospital and administrator accounts.
             </p>
           </header>

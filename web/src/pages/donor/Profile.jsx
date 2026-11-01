@@ -209,6 +209,8 @@ export default function Profile() {
         </Link>
         <nav aria-label="Sections">
           <Link to="/welcome">Home</Link>
+          <Link to="/donor/consent">Hospital consent</Link>
+          <Link to="/donor/privacy">Privacy &amp; requests</Link>
         </nav>
         <div className="pub-nav-end">
           <PubThemeToggle />

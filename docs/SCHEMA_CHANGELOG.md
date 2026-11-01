@@ -168,3 +168,35 @@ account view shows the recorded date and version.
 
 Not deployed: the live project still enforces the 2026-10-21 ruleset
 (PHASES §10), so the freeze is written and tested in the suite but not live yet.
+
+## 2026-11-01 — `donorConsents` becomes the hospital-access gate (F11)
+
+**Origin:** build.
+
+**Refs:** D32. Features: FR-038 (F11 half), NFR-16, NFR-10, NFR-17, NFR-18, NFR-19 (F11 half).
+
+| Field | Before | After |
+|---|---|---|
+| `donorConsents` document id | auto-id, one row per consent event | **the donor's uid** — one record per donor, so `firestore.rules` can `get()` it without a query |
+| `donorConsents.matchId` | optional FK → `donorMatches` | **removed** — this collection is the donor's hospital-access consent, not a per-match record (a match-specific consent is left to the feature that needs it) |
+| `donorConsents.consentType` | free string | `HospitalProfileAccess`, required by the rules |
+| `donorConsents.consentVersion` | not present | **added** — string, the consent-text version (`2026-11-01`); the hospital gate requires the current value |
+| `donorConsents.scope` | not present | **added** — list, exactly `identity`, `contact`, `bloodType`, `age`, `location`, `donationHistory` |
+| `donorConsents.purpose` | not present | **added** — `hospital-donor-matching` |
+| `donorConsents.status` | not present (revocation was `revokedAt` only) | **added** — `granted \| revoked` |
+| `donorConsents.revokedReason` | not present | **added** — optional string (≤500), recorded with a withdrawal |
+| `donorConsents.recordedBy` / `updatedAt` | not present | **added** — the donor's uid and the server time of the last write |
+
+The rules now refuse a hospital staff read of `users/{uid}` unless
+`donorConsents/{uid}` is `granted`, carries the current version and the full
+scope set, and names the hospital-donor-matching purpose; the `users` rule also
+checks the target's `role == 'donor'` and the collection cannot be listed by
+staff. An owner may grant, re-grant and withdraw their own record; an admin may
+read consent but only revoke it, which is the erasure path `/admin/data-requests`
+runs before it scrubs a profile. No consent record is ever deleted.
+
+Registration's `privacyConsentAt`/`privacyNoticeVersion` remain a separate
+record and are not treated as hospital-access consent.
+
+Not deployed: the ruleset is committed and asserted in `firestore.rules.test.mjs`
+but the live project still enforces the 2026-10-21 rules (PHASES §10).

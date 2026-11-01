@@ -10,7 +10,8 @@ import {
   requestStatusLabel,
   requestTypeLabel,
 } from '../../services/dataRequests'
-import { Badge, FieldError, PubThemeToggle } from '../../components'
+import { readMyConsent } from '../../services/consents'
+import { Badge, ConsentStatus, FieldError, PubThemeToggle } from '../../components'
 
 /**
  * Donor privacy and data requests (FR-039/NFR-19).
@@ -60,6 +61,9 @@ export default function Privacy() {
   const [type, setType] = useState('Access')
   const [details, setDetails] = useState('')
   const [formError, setFormError] = useState('')
+  const [consent, setConsent] = useState(null)
+  const [consentLoading, setConsentLoading] = useState(true)
+  const [consentError, setConsentError] = useState('')
 
   const load = () => {
     if (!user?.uid) return
@@ -72,6 +76,26 @@ export default function Privacy() {
   }
 
   useEffect(load, [user?.uid])
+
+  useEffect(() => {
+    if (!user?.uid) return
+    let current = true
+    setConsentLoading(true)
+    setConsentError('')
+    readMyConsent(user.uid)
+      .then((found) => {
+        if (current) setConsent(found)
+      })
+      .catch(() => {
+        if (current) setConsentError('Your consent record could not be loaded.')
+      })
+      .finally(() => {
+        if (current) setConsentLoading(false)
+      })
+    return () => {
+      current = false
+    }
+  }, [user?.uid])
 
   const submit = async (event) => {
     event.preventDefault()
@@ -119,6 +143,7 @@ export default function Privacy() {
         </Link>
         <nav aria-label="Sections">
           <Link to="/donor/profile">Profile</Link>
+          <Link to="/donor/consent">Hospital consent</Link>
           <Link to="/privacy">Privacy notice</Link>
         </nav>
         <div className="pub-nav-end">
@@ -128,6 +153,27 @@ export default function Privacy() {
 
       <main id="top" className="profile-main">
         <div className="privacy-stack">
+          <section className="pub-card pub-form profile-card privacy-card" aria-labelledby="privacy-consent-h">
+            <p className="pub-kicker">Hospital access</p>
+            <h3 id="privacy-consent-h">Who can open your donor profile</h3>
+            <ConsentStatus
+              consent={consent}
+              loading={consentLoading}
+              error={consentError}
+              compact
+            />
+            <p className="pub-muted">
+              Hospital staff cannot browse donors. They can open a profile only after you agree,
+              and only the fields listed on the consent screen. Withdrawing stops future access;
+              it does not delete donation records a hospital already holds for blood safety.
+            </p>
+            <div className="profile-actions">
+              <Link className="pub-btn pub-btn-ghost pub-btn-wide" to="/donor/consent">
+                Review hospital consent
+              </Link>
+            </div>
+          </section>
+
           <form className="pub-card pub-form profile-card privacy-card" noValidate onSubmit={submit}>
             <p className="pub-kicker">Your data</p>
             <h3>Privacy &amp; data requests</h3>

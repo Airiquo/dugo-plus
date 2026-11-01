@@ -77,6 +77,15 @@ export default function Welcome() {
             The hospital screens are still being built. This is where they will open. Your account
             is ready.
           </p>
+          <p className="pub-fine">
+            Hospital staff cannot browse donors. A donor profile opens only from a matched request,
+            and only while that donor has agreed to hospital access. The donor can withdraw at any
+            time and the profile then stops loading. Read the{' '}
+            <Link to="/privacy">privacy notice</Link>.
+          </p>
+          <Link className="pub-btn pub-btn-ghost pub-btn-wide" to="/hospital/donor">
+            Donor access screen
+          </Link>
           <Link className="pub-btn pub-btn-wide" to="/">
             Back to Dugo+
           </Link>

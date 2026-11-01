@@ -47,6 +47,55 @@ service cloud.firestore {
       return value in ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
     }
 
+    // ---- Hospital-access consent (FR-038 / NFR-16) -----------------------
+    // One record per donor at `donorConsents/{uid}` so a rule can look it up
+    // with get() (a rule cannot run a query). The version is duplicated from
+    // web/src/utils/consent.js: bump both together, which invalidates older
+    // consents until the donor agrees again.
+    function consentScope() {
+      return ['identity', 'contact', 'bloodType', 'age', 'location', 'donationHistory'];
+    }
+
+    function consentRecord(donorId) {
+      return get(/databases/$(database)/documents/donorConsents/$(donorId)).data;
+    }
+
+    function hasHospitalConsent(donorId) {
+      return exists(/databases/$(database)/documents/donorConsents/$(donorId))
+          && consentRecord(donorId).donorId == donorId
+          && consentRecord(donorId).consentType == 'HospitalProfileAccess'
+          && consentRecord(donorId).consentVersion == '2026-11-01'
+          && consentRecord(donorId).purpose == 'hospital-donor-matching'
+          && consentRecord(donorId).status == 'granted'
+          && consentRecord(donorId).revokedAt == null
+          && consentRecord(donorId).grantedAt is timestamp
+          && consentRecord(donorId).scope is list
+          && consentRecord(donorId).scope.size() == 6
+          && consentRecord(donorId).scope.hasAll(consentScope())
+          && consentRecord(donorId).scope.hasOnly(consentScope());
+    }
+
+    function isConsentShape(data, donorId) {
+      return data.donorId == donorId
+          && data.consentType == 'HospitalProfileAccess'
+          && data.consentVersion == '2026-11-01'
+          && data.purpose == 'hospital-donor-matching'
+          && data.status in ['granted', 'revoked']
+          && data.grantedAt is timestamp
+          && (
+               (data.status == 'granted' && data.revokedAt == null)
+               || (data.status == 'revoked' && data.revokedAt is timestamp)
+             )
+          && data.revokedReason is string
+          && data.revokedReason.size() <= 500
+          && data.recordedBy == donorId
+          && data.scope is list
+          && data.scope.size() == 6
+          && data.scope.hasAll(consentScope())
+          && data.scope.hasOnly(consentScope())
+          && data.updatedAt is timestamp;
+    }
+
     // One search tier (schema §2.11). Ranges are the screen's bounds
     // (pages/admin/Settings.jsx); keeping them here means a hand-written
     // client cannot save a tier the matcher would fail to expand.
@@ -87,8 +136,16 @@ service cloud.firestore {
     // may read; the owner's read is deliberately status-blind so a suspended
     // session can show the notice, while every other path closes (D26).
     match /users/{uid} {
-      // The owner (even suspended), and an admin claim, may read the profile.
-      allow read: if isAdmin() || (authenticated() && me() == uid);
+      // The owner (even suspended) and an admin claim may read any profile.
+      // Hospital staff may read a donor profile only while that donor's
+      // deterministic consent record is current and granted (FR-038/NFR-16),
+      // and never list the collection: there is no donor directory.
+      allow get: if isAdmin()
+                  || (authenticated() && me() == uid)
+                  || (isStaff()
+                      && hasHospitalConsent(uid)
+                      && get(/databases/$(database)/documents/users/$(uid)).data.role == 'donor');
+      allow list: if isAdmin();
 
       // This validates shape, not intent. The account type is chosen in the
       // browser, so a determined client can still write role: 'admin'; the
@@ -366,25 +423,64 @@ service cloud.firestore {
     }
 
     match /donorConsents/{consentId} {
+      // The donor reads their own record; an admin may read it to answer a
+      // request. Hospital staff cannot read the record itself — the gate above
+      // reads it server-side, which is what lets a refusal look the same for
+      // "not granted", "withdrawn" and "no such donor".
       allow read: if isAdmin() || (signedIn() && resource.data.donorId == me());
 
-      // The donor consents for themself and nothing is ever deleted: revoking
-      // sets revokedAt (schema §6).
+      // One record per donor: the id is the donor's uid, so the rule can find
+      // it without a query. A first grant is granted; re-granting after a
+      // withdrawal is an update below. Nothing is ever deleted.
       allow create: if signedIn()
-                    && request.resource.data.donorId == me()
-                    && request.resource.data.consentType is string
-                    && (
-                         request.resource.data.matchId == null
-                         || request.resource.data.matchId is string
-                       )
-                    && request.resource.data.grantedAt is timestamp
-                    && request.resource.data.revokedAt == null;
+                    && consentId == me()
+                    && isConsentShape(request.resource.data, me())
+                    && request.resource.data.status == 'granted'
+                    && request.resource.data.grantedAt == request.time
+                    && request.resource.data.updatedAt == request.time;
 
-      allow update: if signedIn()
-                    && resource.data.donorId == me()
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['revokedAt'])
-                    && request.resource.data.revokedAt is timestamp;
+      allow update: if (
+                         // The donor rewrites the state: withdraw from granted,
+                         // or start a new grant from withdrawn. The scope and
+                         // purpose cannot be edited.
+                         signedIn()
+                         && resource.data.donorId == me()
+                         && (
+                              (
+                                   request.resource.data.status == 'revoked'
+                                   && request.resource.data.revokedAt == request.time
+                                   && request.resource.data.updatedAt == request.time
+                                   && request.resource.data.diff(resource.data).affectedKeys()
+                                        .hasOnly(['status', 'revokedAt', 'revokedReason', 'updatedAt'])
+                                   && request.resource.data.revokedReason is string
+                                   && request.resource.data.revokedReason.size() <= 500
+                              )
+                              ||
+                              (
+                                   request.resource.data.status == 'granted'
+                                   && request.resource.data.grantedAt == request.time
+                                   && request.resource.data.revokedAt == null
+                                   && request.resource.data.revokedReason == ''
+                                   && request.resource.data.updatedAt == request.time
+                                   && isConsentShape(request.resource.data, me())
+                              )
+                            )
+                       )
+                    || (
+                         // An admin closes the record when an erasure request is
+                         // processed. Revoke only: the donor's grant time, scope
+                         // and identity are frozen, and an admin can never grant
+                         // or edit consent.
+                         isAdmin()
+                         && resource.data.donorId == consentId
+                         && request.resource.data.diff(resource.data).affectedKeys()
+                              .hasOnly(['status', 'revokedAt', 'revokedReason', 'updatedAt'])
+                         && request.resource.data.status == 'revoked'
+                         && request.resource.data.revokedAt == request.time
+                         && request.resource.data.updatedAt == request.time
+                         && request.resource.data.revokedReason is string
+                         && request.resource.data.revokedReason.size() <= 500
+                       );
 
       allow delete: if false;
     }

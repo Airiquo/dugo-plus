@@ -33,7 +33,7 @@ numbers rather than trusting this section.
 | **P5** | Matching and notifications | not started; needs Cloud Functions (Blaze) |
 | **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; claims not set on a live project, functions not deployed, no signed-in smoke here) |
 | **P7** | Hash-chain audit trail | not started; needs Cloud Functions |
-| **P8** | Compliance and privacy | not started; mostly documents |
+| **P8** | Compliance and privacy | partial (F11: donor hospital-access consent + rules gate, consent/withdrawal screen, privacy set (`PRIVACY_POLICY`, `CONSENT_AND_WITHDRAWAL`, `PERSONAL_DATA_REQUESTS`, `HEALTH_INFORMATION_HANDLING`, `DATA_RETENTION_AND_DISPOSAL`, `SECURITY_AND_INCIDENT_HANDLING`, `ENCRYPTION_AND_FIREBASE_SECURITY`), notice v`2026-11-01`, hospital donor screen; rules not deployed, the emulator suite ran 156 asserts green on 2026-11-01 (via a portable Temurin JRE 21, since the machine has no system Java), no live smoke, no legal/DPO/console evidence) |
 | **P9** | Non-functional hardening (responsiveness, scale, compatibility) | not started |
 
 Phase numbers order the table. They are not a build order and not a work
@@ -378,14 +378,17 @@ is cancelled. An assumption is never recorded in place of an answer.
   correctly, so a missed document degrades to an empty field rather than an
   error.
 - **Custom claims not set yet** (D15): `scripts/set-claims.mjs` (D26/A1) publishes them and `useAuth` forces one `getIdToken(true)` per session so a claim applies within a session. Until the script runs against the live project, admin/staff paths are inert. It has not run from this checkout (no service-account key here). D29's account service publishes claims too (its `setClaims` action, and the bootstrap page for the first admin), so the script is no longer the only path.
-- **F9** built (D26/D27/D28): `/admin/profile` (FR-047), suspension/removal gate (`accountActive()` + `Blocked.jsx`), `/admin/accounts` with hospital creation (FR-040), `/admin/settings` (FR-041 settings half), `/admin/data-requests` and `/donor/privacy` (FR-039/NFR-19), `/privacy` (FR-019 notice), and the required registration consent whose acceptance is stored as `privacyConsentAt` + `privacyNoticeVersion` (D28). Open, in priority order: (1) **The live site is behind this branch.** `https://dugo-plus.web.app` still serves a bundle from before D27/D28, so hospital creation is not reachable there; shipping is `./tools/deploy.sh` from `prod` (docs/DEPLOY.md) and needs a Firebase login, which this checkout does not have. Blaze is no longer needed for creation: the D30 browser path needs no server, and the D29 worker runs on a free Node host (D31 dropped the CLI path). (2) **Claims not run** on the live project (`scripts/set-claims.mjs`), so admin/staff rules paths are inert there. (3) **No signed-in live smoke**: the checkout is configured against `dugo-plus` through the gitignored `web/.env`, but there are no test-account credentials or published admin claim here, so none of the four §6 checks, the suspension behaviour, the DSR flow, the consent write or settings persistence has been exercised against the project — only the public pages (`/privacy` in both themes, the `/register` consent checkbox, `/login`, and the `/donor/privacy` → `/login` redirect) were rendered in a browser. (4) **`npm run test:rules` could not run here** — the Firestore emulator needs Java 21 and `java` is not installed; the extended suite (including the consent cases) is written but unexecuted locally (the CI `rules` job is the backstop). (5) **FR-041 "saved values are used" is undemonstrable**: the P5 matcher and notification worker that read `systemConfig/global` are F7's rows and do not exist in this checkout. (6) **First Google sign-in from `/login` records no consent** — the required checkbox is on `/register` only, so an account created through the `/login` provider button is auto-provisioned without `privacyConsentAt`/`privacyNoticeVersion`. The owner has not decided whether to gate that button, record acceptance inside the auto-provision path, or accept the gap; the question stays open until answered.
+- **F9** built (D26/D27/D28): `/admin/profile` (FR-047), suspension/removal gate (`accountActive()` + `Blocked.jsx`), `/admin/accounts` with hospital creation (FR-040), `/admin/settings` (FR-041 settings half), `/admin/data-requests` and `/donor/privacy` (FR-039/NFR-19), `/privacy` (FR-019 notice), and the required registration consent whose acceptance is stored as `privacyConsentAt` + `privacyNoticeVersion` (D28). Open, in priority order: (1) **The live site is behind this branch.** `https://dugo-plus.web.app` still serves a bundle from before D27/D28, so hospital creation is not reachable there; shipping is `./tools/deploy.sh` from `prod` (docs/DEPLOY.md) and needs a Firebase login, which this checkout does not have. Blaze is no longer needed for creation: the D30 browser path needs no server, and the D29 worker runs on a free Node host (D31 dropped the CLI path). (2) **Claims not run** on the live project (`scripts/set-claims.mjs`), so admin/staff rules paths are inert there. (3) **No signed-in live smoke**: the checkout is configured against `dugo-plus` through the gitignored `web/.env`, but there are no test-account credentials or published admin claim here, so none of the four §6 checks, the suspension behaviour, the DSR flow, the consent write or settings persistence has been exercised against the project — only the public pages (`/privacy` in both themes, the `/register` consent checkbox, `/login`, and the `/donor/privacy` → `/login` redirect) were rendered in a browser. (4) **`npm run test:rules` ran here on 2026-11-01** — the Firestore emulator needs Java 21, which the machine does not have, so a portable Temurin JRE 21 was unpacked into the temp directory for the run; the suite exited 0 with **156 asserts, 0 failed**, covering this feature's rules plus the F11 consent cases. The earlier "could not run" note is superseded. (5) **FR-041 "saved values are used" is undemonstrable**: the P5 matcher and notification worker that read `systemConfig/global` are F7's rows and do not exist in this checkout. (6) **First Google sign-in from `/login` records no consent** — the required checkbox is on `/register` only, so an account created through the `/login` provider button is auto-provisioned without `privacyConsentAt`/`privacyNoticeVersion`. The owner has not decided whether to gate that button, record acceptance inside the auto-provision path, or accept the gap; the question stays open until answered.
 - **F9 blockers to unblock (owner action).** *Who deploys `firestore.rules`, and when?* — the F9 ruleset (admin update shape, `systemConfig` bounds, DSR enums/freeze, the D28 consent freeze) is **written but not deployed**; this checkout cannot deploy without authorization. *When is the Blaze plan enabled?* — required for `functions/index.js`; until then hospital creation runs through the free account service (D29) or the script. *When is hosting redeployed?* — the live site still serves a bundle built before D27/D28 (it has no `/privacy` route and no consent checkbox), so the registration consent will not appear on `https://dugo-plus.web.app` until hosting is rebuilt and deployed. None of these has an answer recorded, so all three are restated here.
 - **The Blaze question has a free answer now (D29).** `workers/account-service/` runs the same privileged operations as `functions/index.js` on a free Node host (Vercel or Netlify), so hospital creation no longer needs Blaze or a script: set `VITE_ACCOUNT_SERVICE_URL` and the `/admin/accounts` form works. Open, owner action: a host account, the service-account key in its environment, and one run of the bootstrap page to publish the first admin claim — none done from this checkout, so the worker is written and building-clean but not deployed. Vercel's Hobby plan is non-commercial, so a commercial host has to be chosen before this becomes the production path. D30 adds a second free path for the common case: with no service configured, `/admin/accounts` writes the sign-in record (on a second app instance) and both documents straight from the browser — it needs the admin's `admin` claim and leaves the new account's `staff` claim unset.
 - **Contradiction to resolve: did the `users` backfill run?** D22 (REQUIREMENTS) says `scripts/backfill-users-shape.mjs` migrated the live collection on 2026-10-22 (12 documents, verified, re-run a no-op) and the old-shape fallbacks were removed; the bullet above says it has not run and that the app still reads either shape. D22 is the later record and `readProfile` no longer has fallbacks, but the older bullet is not corrected until the owner confirms which is true.
-- **No staff read of `users`** — the rules grant an owner read plus an admin
-  claim, and nothing else. Schema §6 allows a limited "staff of same hospital"
-  read; hospital screens (F3/F6) will need to decide what it exposes before it
-  is added. The shape itself is aligned (D22); this is about who may read it.
+- **Staff read of `users` is answered by D32.** It is a consent-gated
+  single-document `get`, not a same-hospital list: hospital staff may read
+  `users/{uid}` only while that donor's `donorConsents/{uid}` is granted, current
+  and full-scope, and can never list the collection. The consent is to "Dugo+
+  partner hospitals" rather than one facility, which is a deliberate choice
+  (D32) — the consent text says so. If a future hospital screen needs a
+  facility-scoped read, that is a new decision, not an assumption.
 - **TTL policy on `emailVerifications.expiresAt`** (schema §4) is not
   deployable from `firebase.json`/the CLI — it needs a console or `gcloud`
   firestore field-ttl configuration. Not done.
@@ -466,3 +469,38 @@ is cancelled. An assumption is never recorded in place of an answer.
   Firestore rules — `firestore.rules.test.mjs` runs ~100 asserts in the
   emulator, locally (`npm run test:rules`) and in CI (D19). The React app has
   no tests; the smoke list below is its check.
+- **F11 (compliance and privacy), built on `feat/f11-compliance-privacy` (D32).**
+  Donor hospital-access consent: `/donor/consent` (grant, review, withdraw with
+  reason), `services/consents.js`, `utils/consent.js`, `components/ConsentStatus.jsx`,
+  the `/donor/privacy` summary, and the hospital screen `/hospital/donor`
+  (donor id in router state, not the URL). Rules: `donorConsents/{uid}` is the
+  one-record-per-donor gate, hospital staff may `get` a donor profile only with
+  a current granted record and can never list, and an admin may read consent but
+  only revoke it — the path `/admin/data-requests` now runs before it scrubs a
+  profile. Docs: `PRIVACY_POLICY`, `CONSENT_AND_WITHDRAWAL`,
+  `PERSONAL_DATA_REQUESTS`, `HEALTH_INFORMATION_HANDLING`,
+  `DATA_RETENTION_AND_DISPOSAL`, `SECURITY_AND_INCIDENT_HANDLING`,
+  `ENCRYPTION_AND_FIREBASE_SECURITY`, and an updated `PRIVACY_AND_CONSENT`; the
+  `/privacy` notice is version `2026-11-01`. Open, in priority order:
+  (1) **the ruleset is written and asserted but not deployed** — the live
+  project still enforces the 2026-10-21 rules, and nothing here has deployment
+  authorization; (2) **the emulator suite ran green** — `npm run test:rules`
+  exited 0 with **156 asserts, 0 failed** on 2026-11-01 after installing a
+  portable Temurin JRE 21 into the temp directory (the machine has no system
+  Java); the run covers the new `donorConsents` and staff-gate cases. The suite
+  is local evidence, not a substitute for the CI `rules` job or a live smoke;
+  (3) **no signed-in live smoke** — no test-account
+  credentials or published claims, so the four §6 checks and the hospital
+  consent allow/deny have not been run against a project; (4) **NFR-10's
+  at-rest encryption is Google's platform default, not console-verified** —
+  no project console access here; (5) **no named DPO, dedicated privacy
+  mailbox, scheduled retention job or legal review** — the docs mark these as
+  gaps rather than claims; (6) **F4's per-match consent is not built in this
+  branch**, so FR-038/NFR-16 are `partial` and shared rows stay open;
+  (7) **screenshots could not be captured** in this harness (the browser tool
+  reports no visible tab), so the visual check was done against the rendered DOM
+  instead: `/privacy` and `/register` render in both themes with no console
+  error and no horizontal overflow, `/donor/consent` and `/hospital/donor`
+  redirect a signed-out session to `/login`, and `/gallery` renders all five
+  `ConsentStatus` states (Not given / Granted / Withdrawn / Checking /
+  Unavailable) in both themes.

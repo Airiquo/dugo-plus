@@ -28,6 +28,7 @@ import {
   KpiCard,
   GoogleMark,
   FieldError,
+  ConsentStatus,
 } from '../../components'
 /**
  * Gallery — renders the shipped React components and demonstrates live theme
@@ -89,6 +90,31 @@ export default function Gallery() {
           <FieldError id="gallery-field-error" showIcon={false}>
             Shown without the leading glyph.
           </FieldError>
+        </Card>
+
+        <Card>
+          <CardHeader>Hospital-access consent</CardHeader>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <ConsentStatus consent={null} />
+            <ConsentStatus
+              consent={{
+                status: 'granted',
+                consentVersion: '2026-11-01',
+                grantedAt: new Date('2026-11-01T09:00:00Z'),
+              }}
+            />
+            <ConsentStatus
+              consent={{
+                status: 'revoked',
+                consentVersion: '2026-11-01',
+                grantedAt: new Date('2026-10-01T09:00:00Z'),
+                revokedAt: new Date('2026-10-20T09:00:00Z'),
+              }}
+              compact
+            />
+            <ConsentStatus consent={null} loading />
+            <ConsentStatus consent={null} error="Your consent record could not be loaded." />
+          </div>
         </Card>
 
         <Card>

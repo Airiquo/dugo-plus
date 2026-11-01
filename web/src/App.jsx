@@ -21,7 +21,9 @@ import AdminAccounts from './pages/admin/Accounts'
 import AdminSettings from './pages/admin/Settings'
 import AdminDataRequests from './pages/admin/DataRequests'
 import Profile from './pages/donor/Profile'
+import DonorConsent from './pages/donor/Consent'
 import DonorPrivacy from './pages/donor/Privacy'
+import HospitalDonorProfile from './pages/hospital/DonorProfile'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
@@ -146,6 +148,36 @@ export default function App() {
                 <RequireVerified>
                   <RequireRole roles={['donor']}>
                     <DonorPrivacy />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          />
+          {/* Hospital-access consent (FR-038 / NFR-16). The rules refuse a
+              hospital profile read without a granted record here, so this is
+              the screen that opens and closes that gate. */}
+          <Route
+            path="/donor/consent"
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['donor']}>
+                    <DonorConsent />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          />
+          {/* Hospital-side donor profile (F11). The donor is passed through
+              router state, not a URL segment, so the identifier stays out of
+              the address bar and history. */}
+          <Route
+            path="/hospital/donor"
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['hospital']}>
+                    <HospitalDonorProfile />
                   </RequireRole>
                 </RequireVerified>
               </RequireAuth>

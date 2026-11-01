@@ -581,3 +581,230 @@
   }
 }
 
+/* --- hospital-access consent ---------------------------------------------
+   FR-038 / NFR-16. The consent readout is reused on the consent screen and as
+   a summary on the privacy page, so its tones come from the shared `Badge`
+   `data-status` vocabulary and only the layout lives here. */
+
+.consent-status {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.consent-status-compact {
+  padding: 12px 14px;
+}
+.consent-status-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.consent-status-title {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.consent-status-detail {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.consent-status-mono {
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.95em;
+}
+
+/* The categories a donor is agreeing to share. Each row pairs the field with
+   the reason it is needed, so the decision is made from the same list the
+   rules check. */
+.consent-categories {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.consent-categories > li {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr);
+  gap: 4px 18px;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+.consent-categories > li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.consent-categories strong {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.consent-categories span {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.consent-modal {
+  display: grid;
+  gap: 14px;
+}
+.consent-modal > p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.consent-modal label {
+  display: grid;
+  gap: 6px;
+}
+.consent-modal label > span {
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.consent-modal textarea {
+  width: 100%;
+  resize: vertical;
+}
+.consent-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* --- hospital-side donor profile ----------------------------------------
+   F11's hospital screen. The donor is opened from a match, so the layout is a
+   single reading column: identity and contact as facts, then the limit the
+   consent record puts on them. */
+
+.hospital-donor {
+  max-width: 680px;
+}
+.hospital-donor-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.hospital-donor-head h4 {
+  font-family: var(--font-serif);
+  font-size: clamp(24px, 3vw, 30px);
+  font-weight: 500;
+  line-height: 1.2;
+}
+.hospital-donor-head .pub-muted {
+  margin-top: 4px;
+}
+.hospital-donor-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 30px;
+  margin: 0;
+}
+.hospital-donor-facts > div {
+  display: grid;
+  gap: 4px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.hospital-donor-facts > div:nth-child(-n + 2) {
+  border-top: 0;
+}
+.hospital-donor-facts dt {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.hospital-donor-facts dd {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.hospital-donor-facts a {
+  color: var(--ink);
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+.hospital-donor-facts a:hover {
+  color: var(--accent);
+}
+.hospital-donor-sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.hospital-donor-state {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: 8px;
+}
+.hospital-donor-state strong {
+  font-size: 14px;
+}
+.hospital-donor-state span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.hospital-donor-state[data-state='denied'] {
+  border-left-color: var(--red);
+}
+.hospital-donor-consent {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--card-2);
+  border-radius: 8px;
+}
+.hospital-donor-consent strong {
+  font-size: 13px;
+}
+.hospital-donor-consent p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+@media (max-width: 560px) {
+  .consent-categories > li,
+  .hospital-donor-facts {
+    grid-template-columns: 1fr;
+  }
+  .hospital-donor-facts > div:nth-child(2) {
+    border-top: 1px solid var(--line);
+  }
+  .consent-modal-actions {
+    flex-direction: column-reverse;
+  }
+  .consent-modal-actions .pub-btn {
+    width: 100%;
+  }
+}
+

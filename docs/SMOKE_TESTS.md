@@ -109,9 +109,9 @@ they are this feature's screen rather than generic shell chrome.
 
 | ID | Run | Passes when |
 | --- | --- | --- |
-| RUL-1 | `npm run test:rules` | Every assert passes on the current `firestore.rules` |
-| RUL-2 | Read the coverage in `firestore.rules.test.mjs` | It covers: suspended and removed accounts reading only their own profile (reference data, hospitals, own writes and requests denied); reactivation restores; a donor cannot list `users`; the admin `users` update shape; `systemConfig` bounds/self-attribution; `dataSubjectRequests` create/process enums, frozen subject/type/createdAt, and `resolvedAt` on close |
-| RUL-3 | CI | The `rules` job is green on the PR (D19) — this is the run of record when the local machine has no Java |
+| RUL-1 | `npm run test:rules` | Every assert passes on the current `firestore.rules`. **Ran 2026-11-01: 156 passed, 0 failed** (portable Temurin JRE 21 unpacked to a temp directory, since the machine has no system Java) |
+| RUL-2 | Read the coverage in `firestore.rules.test.mjs` | It covers: suspended and removed accounts reading only their own profile (reference data, hospitals, own writes and requests denied); reactivation restores; no donor and no staff can list `users`; the admin `users` update shape; the `donorConsents/{uid}` grant/withdraw/version/scope rules and the consent-gated staff `users` get (allowed with consent, denied without/old-version/withdrawn, admin revoke-only, no deletes); `systemConfig` bounds/self-attribution; `dataSubjectRequests` create/process enums, frozen subject/type/createdAt, and `resolvedAt` on close |
+| RUL-3 | CI | The `rules` job is green on the PR (D19) — the run of record. A local run is also possible by pointing `JAVA_HOME` at a JRE 21 |
 
 ## 7. Feature coverage — what can be smoked today
 
@@ -156,18 +156,29 @@ several of them close an account.
 | F9-19 | Erasure | Admin opens an Erasure request, types a reason, erases | Identifying fields are blanked, the account is closed, donations/audit rows remain, and `resolutionAction: Deletion`; the sign-in record is then deleted from Accounts (F9-10) so the stored email goes too |
 | F9-20 | Queue transitions | Start → Complete and Start → Reject | `processedBy` is the admin, `resolvedAt` is a server time, the note is stored, and the donor sees the status and note |
 | F9-21 | Admin profile | `/admin/profile` → change name and phone → save → reload | Values persist, role is unchanged and not editable, and a refresh shows the same data |
-| F9-22 | Privacy notice | `/privacy`, and the required consent box on `/register` | The notice renders, the version matches `PRIVACY_NOTICE_VERSION`, links work, and the claims in it match the rules (`docs/PRIVACY_AND_CONSENT.md`) |
+| F9-22 | Privacy notice | `/privacy`, and the required consent box on `/register` | The notice renders, the version matches `PRIVACY_NOTICE_VERSION` (`2026-11-01`), links work, and the claims in it match the rules (`docs/PRIVACY_AND_CONSENT.md`) |
+| F11-1 | Consent review | Donor signs in → `/donor/consent` with no record | The field categories and reasons render, the status reads "Not given", and hospitals cannot open the profile until the box is ticked |
+| F11-2 | Grant consent | Tick, record consent, reload | Status "Granted" with the date and version; `donorConsents/{uid}` holds type/version/scope/purpose/status; a hospital `get` of `users/{uid}` then succeeds (RUL-1) |
+| F11-3 | Withdraw consent | Withdraw with a reason, reload | Status "Withdrawn" with the date; the same hospital `get` now fails with `permission-denied`; re-granting works and starts a new `grantedAt` |
+| F11-4 | Hospital denied | Open `/hospital/donor` with no router state, then with an unconsented donor id | No donor is listed anywhere; both show the plain "Consent required"/"No donor selected" state, with no profile fields |
+| F11-5 | Direct bypass | As a hospital session, read `users/{uid}` from the console for an unconsented donor, and try to list `users` | Both `permission-denied`; the consent record itself is `permission-denied` to staff |
+| F11-6 | Admin limits | As an admin, try to grant or edit `donorConsents/{uid}`, then revoke it | Grant/edit refused; revoke succeeds; a revoked record cannot be re-granted by the admin |
+| F11-7 | Erasure closes the gate | Admin runs an Erasure request through `/admin/data-requests` | The consent record is withdrawn *before* the profile is scrubbed; the hospital loses access; donations/audit rows remain |
+| F11-8 | Notice sections | `/privacy` and `/donor/privacy` in both themes | Registration acceptance is stated as separate from hospital-access consent; rights, retention and the RA 10173 / DOH AO 2020-0030 references are present; no "certified compliant" claim |
 
-**Status of this list: written, not run.** The checkout is configured against the
+**Status of this list: mostly not run.** The checkout is configured against the
 `dugo-plus` project through the gitignored `web/.env`, but no test-account
-credentials or published admin claim are available here, and Java is missing for
-the emulator. Only the public surfaces were rendered in a browser and inspected:
-`/privacy` in both themes (tokens flip, no horizontal overflow, contrast
-measured on the body text), the consent link on `/register` resolving to
-`/privacy`, `/login` with no console errors, `/nope` returning 404, and
-`/donor/privacy` redirecting to `/login` when signed out. The signed-in cases
-F9-1 to F9-22 and RUL-1/RUL-2 remain pending. Do not mark an
-FR-039/FR-040/FR-041 row done on the strength of this list.
+credentials or published admin claim are available here, so the signed-in UI
+cases cannot be walked. The emulator half **did run**: **RUL-1 passed on
+2026-11-01 with 156 asserts, 0 failed**, using a portable Temurin JRE 21 because
+the machine has no system Java (RUL-2's new consent cases are covered by that
+run). The public surfaces were rendered in a browser and inspected: `/privacy`
+in both themes (tokens flip, no horizontal overflow, contrast measured on the
+body text), the consent link on `/register` resolving to `/privacy`, `/login`
+with no console errors, `/nope` returning 404, and `/donor/privacy` redirecting
+to `/login` when signed out. The signed-in cases F9-1 to F9-22 and F11-1 to
+F11-8 remain pending. Do not mark an FR-039/FR-040/FR-041/FR-038/NFR-16 row done
+on the strength of this list.
 
 ## 8. Recording the run
 

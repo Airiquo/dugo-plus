@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AppShell } from '../../layout/AppShell'
 import { useAuth } from '../../hooks/useAuth'
 import { listUsers, anonymiseUser, correctUserProfile } from '../../services/users'
+import { revokeConsentOnErasure } from '../../services/consents'
 import { collectUserData, downloadUserData } from '../../services/dataExport'
 import {
   defaultResolutionAction,
@@ -169,11 +170,25 @@ export default function DataRequests() {
     setError('')
     setNote('')
     try {
+      // Close the hospital-access gate first. This is best-effort while the
+      // F11 ruleset is undeployed: an older ruleset refuses the admin revoke,
+      // and the erasure still has to run. The warning names the follow-up.
+      let consentClosed = false
+      let consentWarning = ''
+      try {
+        consentClosed = await revokeConsentOnErasure(active.userId, adminNote.trim())
+      } catch {
+        consentWarning =
+          ' Hospital-access consent could not be withdrawn with the ruleset currently deployed; deploy the F11 rules and re-check this donor\u2019s consent record.'
+      }
       await anonymiseUser(active.userId, adminNote.trim())
       setResolution('Deletion')
       setNote(
-        'Profile personal data erased and the account closed. Donation history is retained. Delete the sign-in record from Accounts to remove the stored email.',
+        `Profile personal data erased and the account closed.${
+          consentClosed ? ' Hospital-access consent was withdrawn.' : ''
+        } Donation history is retained. Delete the sign-in record from Accounts to remove the stored email.${consentWarning}`,
       )
+      if (consentWarning) setError(consentWarning.trim())
       await load()
       setConfirmErase(false)
     } catch (err) {
@@ -335,11 +350,14 @@ export default function DataRequests() {
               <div style={{ marginBottom: 12 }}>
                 <h3>Erasure</h3>
                 <p className="muted">
-                  Scrubs the profile (name, email, phone, city, location, blood type, birth date) and closes
-                  the account. Donation, match and audit records are kept under the retention reasons in{' '}
-                  <code>docs/PRIVACY_AND_CONSENT.md</code>. The Firebase Auth sign-in record still holds the
-                  email address; delete it from Accounts with “Delete sign-in record” once the account
-                  service is deployed.
+                  Withdraws any hospital-access consent, then scrubs the profile (name, email,
+                  phone, city, location, blood type, birth date) and closes the account. Donation,
+                  match and audit records are kept under the retention reasons in{' '}
+                  <code>docs/DATA_RETENTION_AND_DISPOSAL.md</code>. Withdrawing consent needs the
+                  F11 ruleset deployed; until then the erasure still runs and reports that the
+                  withdrawal could not be recorded. The Firebase Auth sign-in record still holds the
+                  email address; delete it from Accounts with “Delete sign-in record” once the
+                  account service is deployed.
                 </p>
                 {!confirmErase ? (
                   <Btn variant="alert" onClick={() => setConfirmErase(true)} disabled={Boolean(working)}>

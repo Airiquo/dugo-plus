@@ -64,12 +64,35 @@ const staff1 = () => env.authenticatedContext('staff1', { role: 'staff', hospita
 const staff2 = () => env.authenticatedContext('staff2', { role: 'staff', hospitalId: 'h2' });
 const readDoc = (ctx, path) => getDoc(doc(db(ctx), path));
 
+const CONSENT_SCOPE = ['identity', 'contact', 'bloodType', 'age', 'location', 'donationHistory'];
+const newConsent = (donorId) => ({
+  donorId,
+  consentType: 'HospitalProfileAccess',
+  consentVersion: '2026-11-01',
+  scope: CONSENT_SCOPE,
+  purpose: 'hospital-donor-matching',
+  status: 'granted',
+  grantedAt: serverTimestamp(),
+  revokedAt: null,
+  revokedReason: '',
+  recordedBy: donorId,
+  updatedAt: serverTimestamp(),
+});
+
 // ---- fixtures ------------------------------------------------------------
 await env.withSecurityRulesDisabled(async (ctx) => {
   const f = db(ctx);
   await setDoc(doc(f, 'users/alice'), { role: 'donor', fullName: 'Alice D.', email: 'alice@dugo.ph', phoneNumber: '09170000000', city: 'Malolos', geohash: 'wdt4', latitude: 14.84, longitude: 120.81, status: 'Active', createdAt: new Date() });
   await setDoc(doc(f, 'users/bob'), { role: 'donor', fullName: 'Bob B.', email: 'bob@dugo.ph', createdAt: new Date() });
   await setDoc(doc(f, 'users/dave'), { role: 'donor', fullName: 'Dave D.', email: 'dave@dugo.ph', createdAt: new Date(), lastDonationAt: new Date('2026-10-01') });
+  // `mia` starts with no hospital-access consent; `owen` carries an older
+  // consent version. `rick` carries a valid granted record so the gate has a
+  // positive case from the first read.
+  await setDoc(doc(f, 'users/mia'), { role: 'donor', fullName: 'Mia M.', email: 'mia@dugo.ph', phoneNumber: '09170000003', city: 'Malolos', bloodType: 'O+', status: 'Active', createdAt: new Date() });
+  await setDoc(doc(f, 'users/owen'), { role: 'donor', fullName: 'Owen O.', email: 'owen@dugo.ph', status: 'Active', createdAt: new Date() });
+  await setDoc(doc(f, 'users/rick'), { role: 'donor', fullName: 'Rick R.', email: 'rick@dugo.ph', status: 'Active', createdAt: new Date() });
+  await setDoc(doc(f, 'donorConsents/owen'), { donorId: 'owen', consentType: 'HospitalProfileAccess', consentVersion: '2020-01-01', scope: ['identity', 'contact', 'bloodType', 'age', 'location', 'donationHistory'], purpose: 'hospital-donor-matching', status: 'granted', grantedAt: new Date(), revokedAt: null, revokedReason: '', recordedBy: 'owen', updatedAt: new Date() });
+  await setDoc(doc(f, 'donorConsents/rick'), { donorId: 'rick', consentType: 'HospitalProfileAccess', consentVersion: '2026-11-01', scope: ['identity', 'contact', 'bloodType', 'age', 'location', 'donationHistory'], purpose: 'hospital-donor-matching', status: 'granted', grantedAt: new Date(), revokedAt: null, revokedReason: '', recordedBy: 'rick', updatedAt: new Date() });
   // `erin` exercises the suspension gate (D26); `admin1` gives the admin claim
   // a profile of its own so the self-update path is covered.
   await setDoc(doc(f, 'users/erin'), { role: 'donor', fullName: 'Erin E.', email: 'erin@dugo.ph', status: 'Active', createdAt: new Date() });
@@ -81,7 +104,6 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(f, 'hospitals/h1/inventory/O+'), { bloodType: 'O+', unitsAvailable: 3, lastUpdated: new Date() });
   await setDoc(doc(f, 'bloodRequests/r1'), { hospitalId: 'h1', hospitalName: 'St. Mary General', recipientId: null, createdBy: 'alice', bloodType: 'O+', quantity: 2, urgencyLevel: 'High', status: 'Open', createdAt: new Date(), latitude: 14.609, longitude: 120.984, geohash: 'qc7bw' });
   await setDoc(doc(f, 'donorMatches/r1_alice'), { requestId: 'r1', donorId: 'alice', donationTypeId: 'whole-blood', screenedByUserId: null, responseStatus: 'Pending', screeningStatus: null, guidelinesAcknowledged: false, acknowledgedAt: null, matchedAt: new Date() });
-  await setDoc(doc(f, 'donorConsents/c1'), { donorId: 'alice', matchId: 'r1_alice', consentType: 'ProfileAccess', grantedAt: new Date(), revokedAt: null });
   await setDoc(doc(f, 'donationTypes/whole-blood'), { name: 'Whole Blood', intervalDays: 56 });
   await setDoc(doc(f, 'donationTypes/whole-blood/guidelines/g1'), { title: 'Wait the full interval', description: 'Whole blood may be donated every 56 days.' });
   await setDoc(doc(f, 'notifications/n1'), { userId: 'alice', requestId: 'r1', channel: 'Email', deliveryStatus: 'Pending', retryCount: 0, sentAt: null });
@@ -99,9 +121,16 @@ await ok('owner reads own profile', readDoc(as('alice'), 'users/alice'));
 await no('another donor cannot read a profile', readDoc(as('bob'), 'users/alice'));
 await no('signed-out cannot read a profile', readDoc(anon(), 'users/alice'))
 await no('a donor cannot list every profile (FR-040)', getDocs(collection(db(as('alice')), 'users')))
-await ok('admin claim lists every profile (FR-040)', getDocs(collection(db(admin())), 'users'));
+await ok('admin claim lists every profile (FR-040)', getDocs(collection(db(admin()), 'users')));
 await ok('admin claim reads any profile', readDoc(admin(), 'users/alice'));
 await ok('admin claim reads its own profile', readDoc(admin(), 'users/admin1'));
+// Hospital staff read a donor only through a current HospitalProfileAccess
+// consent record (FR-038/NFR-16), and never list the collection.
+await ok('staff reads a donor with current consent', readDoc(staff1(), 'users/rick'));
+await no('staff cannot read a donor without consent', readDoc(staff1(), 'users/mia'));
+await no('staff cannot read a donor with an old consent version', readDoc(staff1(), 'users/owen'));
+await no('staff cannot read a non-donor profile through the consent path', readDoc(staff1(), 'users/admin1'));
+await no('staff cannot list donor profiles', getDocs(collection(db(staff1()), 'users')));
 await ok('owner creates own profile', setDoc(doc(db(as('carol')), 'users/carol'), { role: 'donor', fullName: 'Carol C.', email: 'carol@dugo.ph', createdAt: new Date() }));
 await ok('role is still client-chosen at create (UI boundary, D15)', setDoc(doc(db(as('dan')), 'users/dan'), { role: 'admin', fullName: 'Dan D.', email: 'dan@dugo.ph', createdAt: new Date() }));
 await no('create cannot set lastDonationAt (D14)', setDoc(doc(db(as('eve')), 'users/eve'), { role: 'donor', fullName: 'Eve E.', email: 'eve@dugo.ph', createdAt: new Date(), lastDonationAt: new Date() }));
@@ -227,15 +256,28 @@ await ok('staff writes the screening result', updateDoc(doc(db(staff1()), 'donor
 await no('screening status follows the decided enum', updateDoc(doc(db(staff1()), 'donorMatches/r1_alice'), { screeningStatus: 'Green' }));
 await no('matches are never deleted', deleteDoc(doc(db(admin()), 'donorMatches/r1_alice')));
 
-// ---- donorConsents -------------------------------------------------------
+// ---- donorConsents + hospital gate --------------------------------------
 console.log('donorConsents');
-await ok('donor consents for themself', setDoc(doc(db(as('alice')), 'donorConsents/c2'), { donorId: 'alice', matchId: null, consentType: 'ProfileAccess', grantedAt: serverTimestamp(), revokedAt: null }));
-await no('donor cannot consent in someone else’s name', setDoc(doc(db(as('alice')), 'donorConsents/c3'), { donorId: 'bob', matchId: null, consentType: 'ProfileAccess', grantedAt: serverTimestamp(), revokedAt: null }));
-await ok('donor revokes (revokedAt only)', updateDoc(doc(db(as('alice')), 'donorConsents/c1'), { revokedAt: new Date() }));
-await no('revocation cannot reshape the consent', updateDoc(doc(db(as('alice')), 'donorConsents/c1'), { consentType: 'Other' }));
-await no('consents are never deleted', deleteDoc(doc(db(as('alice')), 'donorConsents/c1')));
-await no('staff cannot read consents', readDoc(staff1(), 'donorConsents/c1'));
-await ok('admin claim reads a consent', readDoc(admin(), 'donorConsents/c1'));
+await no('a donor cannot write consent under someone else’s id', setDoc(doc(db(as('alice')), 'donorConsents/mia'), newConsent('mia')));
+await no('consent needs the full scope', setDoc(doc(db(as('alice')), 'donorConsents/alice'), { ...newConsent('alice'), scope: ['identity'] }));
+await no('a first consent must be granted', setDoc(doc(db(as('alice')), 'donorConsents/alice'), { ...newConsent('alice'), status: 'revoked', revokedAt: serverTimestamp() }));
+await ok('donor grants hospital access for themself', setDoc(doc(db(as('alice')), 'donorConsents/alice'), newConsent('alice')));
+await ok('owner reads their own consent', readDoc(as('alice'), 'donorConsents/alice'));
+await ok('staff reads a donor profile once consent is granted', readDoc(staff1(), 'users/alice'));
+await ok('staff of another hospital also reads a consented donor', readDoc(staff2(), 'users/alice'));
+await no('staff cannot read the consent record itself', readDoc(staff1(), 'donorConsents/alice'));
+await ok('donor withdraws consent (state fields only)', updateDoc(doc(db(as('alice')), 'donorConsents/alice'), { status: 'revoked', revokedAt: serverTimestamp(), revokedReason: 'No longer want contact.', updatedAt: serverTimestamp() }));
+await no('staff loses access after withdrawal', readDoc(staff1(), 'users/alice'));
+await no('withdrawal cannot reshape the consent', updateDoc(doc(db(as('alice')), 'donorConsents/alice'), { consentType: 'Other' }));
+await ok('donor grants again after withdrawal', setDoc(doc(db(as('alice')), 'donorConsents/alice'), newConsent('alice')));
+await ok('staff regains access after the new grant', readDoc(staff1(), 'users/alice'));
+await ok('admin claim reads a consent', readDoc(admin(), 'donorConsents/alice'));
+await ok('admin withdraws consent for an erasure (revoke only)', updateDoc(doc(db(admin()), 'donorConsents/alice'), { status: 'revoked', revokedAt: serverTimestamp(), revokedReason: 'Erasure request processed.', updatedAt: serverTimestamp() }));
+await no('staff loses access after the admin withdrawal', readDoc(staff1(), 'users/alice'));
+await no('admin cannot grant consent', updateDoc(doc(db(admin()), 'donorConsents/alice'), { status: 'granted', grantedAt: serverTimestamp(), updatedAt: serverTimestamp() }));
+await no('admin cannot edit the consent scope', updateDoc(doc(db(admin()), 'donorConsents/alice'), { scope: ['identity'], updatedAt: serverTimestamp() }));
+await no('consents are never deleted', deleteDoc(doc(db(as('alice')), 'donorConsents/alice')));
+await no('admin cannot delete a consent either', deleteDoc(doc(db(admin()), 'donorConsents/alice')));;
 
 // ---- notifications -------------------------------------------------------
 console.log('notifications');

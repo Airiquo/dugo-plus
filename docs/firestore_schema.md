@@ -24,6 +24,7 @@ and do not "correct" the live code back to the text below:
 | `errorLogs` | an ERD-free collection §1 lists as [ADDED] | client-written, open-create | D8, D10, D17 |
 | `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
 | `users.address` | an ERD postal address | not collected; no field | D22 |
+| `donorConsents` | one row per consent event, auto-id, optional `matchId` | one record per donor at `donorConsents/{uid}`, covering hospital-profile access | D32 |
 
 §9 below is the file's own list of ERD inconsistencies. **They are open questions,
 not defaults**: an owner answer is recorded as a `D*` row, and unanswered ones are
@@ -76,7 +77,7 @@ hospitals/{hospitalId}
        └─ logs/{logId}
 bloodRequests/{requestId}
 donorMatches/{requestId}_{donorId}                   ← deterministic ID prevents duplicate matches
-donorConsents/{consentId}
+donorConsents/{uid}                                  ← doc ID = donor uid, 1 per donor (D32)
 donationTypes/{donationTypeId}
   └─ guidelines/{guidelineId}
 notifications/{notificationId}
@@ -100,7 +101,7 @@ errorLogs/{logId}                                    [ADDED] client-written, ope
 | Donation_Types | `donationTypes/{id}` | Small reference data |
 | Eligibility_Guidelines | `donationTypes/{id}/guidelines/{id}` | Always read with its donation type |
 | Donor_Matches | `donorMatches/{requestId}_{donorId}` | Queried by donor and by request |
-| Donor_Consents | `donorConsents/{id}` | Legal record, queried by donor |
+| Donor_Consents | `donorConsents/{uid}` | Legal record, one per donor so the rules can `get()` it (D32) |
 | Notifications | `notifications/{id}` | Queried by user |
 | Donations | `donations/{matchId}` | 1:1 with match |
 | Reward_Transaction | `rewardTransactions/{donationId}` | 1:1 with donation |
@@ -253,15 +254,32 @@ Write the log and the inventory update in **one transaction/batch**.
 | acknowledgedAt | Timestamp | O | Set when guidelinesAcknowledged becomes true |
 | matchedAt | Timestamp | R | |
 
-### 2.6 `donorConsents/{consentId}`
+### 2.6 `donorConsents/{uid}`
+
+One record per donor, at the donor's uid, covering **hospital-profile access**
+(FR-038 / NFR-16, D32). The deterministic id lets `firestore.rules` look the
+record up with `get()` instead of running a query. Nothing is ever deleted: a
+withdrawal changes `status` to `revoked` and keeps the record as evidence that
+consent once existed.
 
 | Field | Type | R/O | Notes |
 |---|---|---|---|
-| donorId | string | R | FK → `users` |
-| matchId | string | O | FK → `donorMatches` (ERD `?`) |
-| consentType | string | R | Values not in ERD |
-| grantedAt | Timestamp | R | |
-| revokedAt | Timestamp | O | Null while active. Never delete the doc, set this |
+| donorId | string | R | FK → `users`; equals the document id |
+| consentType | string | R | `HospitalProfileAccess` |
+| consentVersion | string | R | The consent text version (`2026-11-01`, D32); the rules require it |
+| scope | list<string> | R | Exactly `identity`, `contact`, `bloodType`, `age`, `location`, `donationHistory`; the rules check the set |
+| purpose | string | R | `hospital-donor-matching` |
+| status | string | R | `granted \| revoked` (D32) |
+| grantedAt | Timestamp | R | Most recent grant, server time |
+| revokedAt | Timestamp | O | Null while granted; server time when withdrawn |
+| revokedReason | string | O | Optional note (≤500 chars) recorded with the withdrawal |
+| recordedBy | string | R | The donor's uid |
+| updatedAt | Timestamp | R | Server time of the last write |
+
+`matchId` from the ERD is no longer on this record (D32): this document is the
+hospital-access consent for the donor, not a per-match record. A consent that is
+specific to one match is not modelled here; a later feature adds what it needs
+without overloading this record.
 
 ### 2.7 `donationTypes/{donationTypeId}`
 
@@ -382,7 +400,7 @@ Cardinality read from the crow's-foot notation.
 | users | donorMatches | `donorId` | 1 → 0..N |
 | donationTypes | donorMatches | `donationTypeId` | 1 → 0..N |
 | donationTypes | guidelines | path | 1 → 1..N |
-| donorMatches | donorConsents | `matchId` | 1 → 0..N |
+| users | donorConsents | doc ID | **1 ↔ 1** (D32) |
 | users | notifications | `userId` | 1 → 0..N |
 | bloodRequests | notifications | `requestId` | 1 → 0..N |
 | donorMatches | donations | doc ID | **1 ↔ 1** |
@@ -415,7 +433,7 @@ Cardinality read from the crow's-foot notation.
 | `notifications` | `deliveryStatus` ASC, `retryCount` ASC | Retry worker |
 | `donations` | `donorId` ASC, `donationDate` DESC | Donor history |
 | `donations` | `hospitalId` ASC, `donationDate` DESC | Hospital reporting |
-| `donorConsents` | `donorId` ASC, `grantedAt` DESC | Consent history |
+| `donorConsents` | `donorId` ASC, `grantedAt` DESC | Data-export lookup by donor (D32); the record itself is read by document id |
 | `dataSubjectRequests` | `status` ASC, `createdAt` ASC | Admin work queue |
 | `auditBlocks` | `sequence` DESC | Fetch the latest block |
 | collection group `logs` | `createdAt` DESC | Cross-hospital inventory audit |
@@ -443,14 +461,14 @@ Use custom claims `request.auth.token.role` and `request.auth.token.hospitalId`.
 
 | Collection | Read | Write |
 |---|---|---|
-| `users/{uid}` | Owner; Admin; Staff of same hospital (limited) | Owner (non-privileged fields only: not `role`, `status`, `isVerified`); Admin |
+| `users/{uid}` | Owner; Admin; hospital staff only while `donorConsents/{uid}` is current and granted | Owner (non-privileged fields only: not `role`, `status`); Admin |
 | `emailVerifications` | none | server-only |
 | `hospitals` | Authenticated | Staff of that hospital (limited), Admin |
 | `hospitals/*/subscriptions` | Staff of that hospital, Admin | Admin / server |
 | `hospitals/*/inventory` + `logs` | Staff of that hospital, Admin | Staff of that hospital, Admin (via function preferred) |
 | `bloodRequests` | Authenticated | Create: Recipient / Staff. Update status: Staff of hospital, Admin |
 | `donorMatches` | Donor (own), Staff of request's hospital, Admin | Donor may update only `responseStatus`, `guidelinesAcknowledged`, `acknowledgedAt`; Staff update screening fields; creation server-only |
-| `donorConsents` | Donor (own), Admin | Donor create / set `revokedAt` only. No delete |
+| `donorConsents` | Donor (own), Admin | Donor create/grant/withdraw own; Admin may revoke only, never grant or edit; no delete |
 | `donationTypes` + `guidelines` | Authenticated | Admin |
 | `notifications` | Owner | server-only |
 | `donations` | Donor (own), Staff of hospital, Admin | Staff / server only |
@@ -459,7 +477,7 @@ Use custom claims `request.auth.token.role` and `request.auth.token.hospitalId`.
 | `dataSubjectRequests` | Owner, Admin | Owner create; Admin update |
 | `auditBlocks` | Admin | server-only, no update/delete |
 
-Sensitive/health data (`bloodType`, `dateOfBirth`, screening results) should never be readable by other donors.
+Sensitive/health data (`bloodType`, `dateOfBirth`, screening results) should never be readable by other donors. A hospital staff read of `users/{uid}` is a single-document get, not a list: the rule calls `get()` on `donorConsents/{uid}` and requires `status == 'granted'`, the current `consentVersion`, the full `scope` set and the hospital purpose, so a direct Firestore request cannot bypass the consent screen (D32).
 
 ---
 
@@ -558,12 +576,18 @@ interface DonorMatch {               // id = `${requestId}_${donorId}`
   matchedAt: Timestamp;
 }
 
-interface DonorConsent {
+interface DonorConsent {              // id = donor uid (D32)
   donorId: string;
-  matchId?: string | null;
-  consentType: string;
+  consentType: "HospitalProfileAccess";
+  consentVersion: string;
+  scope: string[];
+  purpose: string;
+  status: "granted" | "revoked";
   grantedAt: Timestamp;
   revokedAt?: Timestamp | null;
+  revokedReason?: string;
+  recordedBy: string;
+  updatedAt: Timestamp;
 }
 
 interface DonationType { name: string; intervalDays: number; }
@@ -646,7 +670,7 @@ interface AuditBlock {
 2. **Copy-pasted status enum**: `Blood_Requests.status` and `Subscriptions.status` show `Active, Suspended, Removed` like Users/Hospitals. **Answered for requests:** the build's set is `urgent | collecting | matched | fulfilled | cancelled` (D24). **Still open for subscriptions**: `Active | Expired | Cancelled` is the suggestion, not a decision.
 3. **Missing FK edges in the diagram**: `Hospitals.created_by`, `Donor_Matches.screened_by_user_id`, `Donations.confirmed_by`, `Data_Subject_Request.processed_by`, `Blood_Requests.created_by` — all assumed → `users`.
 4. **`Donations` has no `donor_id`** — derived via match. I added `donorId`, `hospitalId`, `bloodType` as denormalized fields.
-5. **Unspecified enum values** (suggested values given above): `urgencyLevel` **answered** — `urgent | stat | routine` (D24). Still open: `responseStatus`, `consentType`, `channel`, `deliveryStatus`, `changeType`, `requestType`, DSR `status`, subscription `plan`.
+5. **Unspecified enum values** (suggested values given above): `urgencyLevel` **answered** — `urgent | stat | routine` (D24); `consentType` **answered for this record** — `HospitalProfileAccess` (D32), with any other consent type left to the feature that needs it. Still open: `responseStatus`, `channel`, `deliveryStatus`, `changeType`, `requestType`, DSR `status`, subscription `plan`.
 6. **`eligibility_info`** type unknown. **Answered (D25):** the field was never implemented, eligibility is computed on read, and it was removed from the model of record. If a screening record is ever needed, it gets a purpose-designed field in that feature.
 7. **`notif_retry_interval`** unit unknown. Assumed minutes.
 8. **Radius_Tiler** is spelled "Tiler" in the ERD; treated as "Tiers".
