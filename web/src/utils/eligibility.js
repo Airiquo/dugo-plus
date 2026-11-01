@@ -8,8 +8,26 @@
  * to the facility (FR-031), so this is guidance, not a medical determination.
  */
 
-/** Whole blood deferral. Philippine Red Cross uses three months between donations. */
-export const DONATION_INTERVAL_DAYS = 90
+/**
+ * Deferral intervals per component in days (FR-024, FR-025, FR-026, FR-027, D13).
+ */
+export const COMPONENT_INTERVAL_DAYS = {
+  'whole-blood': 56, // FR-024: 56 days (8 weeks)
+  platelets: 7, // FR-025: 7 days (1 week)
+  plasma: 28, // FR-026: 28 days (4 weeks)
+  'double-red-cells': 112, // FR-027: 112 days (16 weeks)
+}
+
+/** Component display names. */
+export const COMPONENT_NAMES = {
+  'whole-blood': 'Whole Blood',
+  platelets: 'Platelets',
+  plasma: 'Plasma',
+  'double-red-cells': 'Double Red Cells',
+}
+
+/** Fallback deferral when component is unspecified. Whole Blood interval is standard. */
+export const DONATION_INTERVAL_DAYS = COMPONENT_INTERVAL_DAYS['whole-blood']
 
 /** Donor age window. */
 export const MIN_AGE = 18
@@ -40,11 +58,18 @@ export function daysBetween(from, to) {
 /**
  * The deferral date: the first day a donation is possible again. `null` when
  * there has been no donation to count from.
+ *
+ * @param {Date|unknown} lastDonationAt
+ * @param {string} [component] - 'whole-blood' | 'platelets' | 'plasma' | 'double-red-cells'
+ * @param {number} [customIntervalDays]
  */
-export function nextEligibleDate(lastDonationAt) {
+export function nextEligibleDate(lastDonationAt, component = 'whole-blood', customIntervalDays = null) {
   const last = toDate(lastDonationAt)
   if (!last) return null
-  return new Date(last.getTime() + DONATION_INTERVAL_DAYS * DAY_MS)
+  const days = Number.isInteger(customIntervalDays)
+    ? customIntervalDays
+    : (COMPONENT_INTERVAL_DAYS[component] ?? DONATION_INTERVAL_DAYS)
+  return new Date(last.getTime() + days * DAY_MS)
 }
 
 /** `Date`, a Firestore Timestamp, a millisecond number, or an ISO string. */
@@ -65,19 +90,21 @@ export function toDate(value) {
  *
  * @param {{ dateOfBirth?: unknown, lastDonationAt?: unknown }} profile
  * @param {Date} [now]
+ * @param {{ component?: string, intervalDays?: number }} [options]
  * @returns {{
  *   status: 'unknown'|'underage'|'overage'|'eligible'|'deferred',
  *   eligible: boolean,
  *   label: string,
  *   detail: string,
  *   nextEligibleOn: Date|null,
+ *   daysLeft: number|null,
  * }}
  *
  * `status` is the machine-readable value; `label` and `detail` are the copy the
  * screen renders. `unknown` means the profile is missing the dates needed to
  * decide, which is the normal state for a new account.
  */
-export function eligibilityFor({ dateOfBirth, lastDonationAt } = {}, now = new Date()) {
+export function eligibilityFor({ dateOfBirth, lastDonationAt } = {}, now = new Date(), options = {}) {
   const age = ageOn(dateOfBirth, now)
 
   if (age === null) {
@@ -110,7 +137,7 @@ export function eligibilityFor({ dateOfBirth, lastDonationAt } = {}, now = new D
     }
   }
 
-  const next = nextEligibleDate(lastDonationAt)
+  const next = nextEligibleDate(lastDonationAt, options?.component, options?.intervalDays)
   if (next) {
     const daysLeft = daysBetween(now, next)
     if (daysLeft > 0) {
@@ -120,6 +147,7 @@ export function eligibilityFor({ dateOfBirth, lastDonationAt } = {}, now = new D
         label: 'Deferred',
         detail: `You can donate again in ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}.`,
         nextEligibleOn: next,
+        daysLeft,
       }
     }
   }
@@ -132,5 +160,35 @@ export function eligibilityFor({ dateOfBirth, lastDonationAt } = {}, now = new D
       ? 'Your last donation was long enough ago. A facility confirms at the donation itself.'
       : 'No donation on record yet. A facility confirms at the donation itself.',
     nextEligibleOn: next,
+    daysLeft: 0,
   }
+}
+
+/**
+ * Breakdown of eligibility across each component donation type (FR-024 to FR-027).
+ *
+ * @param {{ dateOfBirth?: unknown, lastDonationAt?: unknown }} profile
+ * @param {Date} [now]
+ * @returns {Array<{
+ *   id: string,
+ *   name: string,
+ *   intervalDays: number,
+ *   status: 'unknown'|'underage'|'overage'|'eligible'|'deferred',
+ *   eligible: boolean,
+ *   label: string,
+ *   detail: string,
+ *   nextEligibleOn: Date|null,
+ *   daysLeft: number|null
+ * }>}
+ */
+export function componentEligibilityList(profile = {}, now = new Date()) {
+  return Object.keys(COMPONENT_INTERVAL_DAYS).map((component) => {
+    const res = eligibilityFor(profile, now, { component })
+    return {
+      id: component,
+      name: COMPONENT_NAMES[component] || component,
+      intervalDays: COMPONENT_INTERVAL_DAYS[component],
+      ...res,
+    }
+  })
 }
