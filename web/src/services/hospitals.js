@@ -11,7 +11,7 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { auth, db } from '../lib/firebase'
 import { geohash, isCoordinate } from '../utils/geohash'
 import { BLOOD_TYPES } from './users'
 
@@ -315,4 +315,61 @@ export async function getDonorDonations(donorId) {
     ),
   )
   return snap.docs.map(donationRow)
+}
+
+/**
+ * Update the screening status of a donor match (FR-032).
+ * Allowed by rules for staff of the request's hospital.
+ *
+ * @param {string} matchId
+ * @param {'Cleared' | 'Deferred' | 'Rejected'} screeningStatus
+ * @returns {Promise<void>}
+ */
+export async function screenDonorMatch(matchId, screeningStatus) {
+  requireDb()
+  const id = text(matchId)
+  if (!id) throw new Error('A match ID is required.')
+  const valid = ['Cleared', 'Deferred', 'Rejected']
+  if (!valid.includes(screeningStatus)) {
+    throw new Error('Screening status must be Cleared, Deferred, or Rejected.')
+  }
+  const uid = auth?.currentUser?.uid ?? ''
+  if (!uid) throw new Error('Sign in again to record screening result.')
+  await updateDoc(doc(db, 'donorMatches', id), {
+    screenedByUserId: uid,
+    screeningStatus,
+  })
+}
+
+/**
+ * Recent inventory change logs for a blood type (schema §2.3.3).
+ *
+ * @param {string} hospitalId
+ * @param {string} bloodType
+ * @param {{ limit?: number }} [options]
+ * @returns {Promise<Array<{ id: string, changeType: string, unitsChanged: number, reason: string, userId: string, createdAt: Date|null }>>}
+ */
+export async function getInventoryLogs(hospitalId, bloodType, { limit: take = 20 } = {}) {
+  requireDb()
+  const hid = text(hospitalId)
+  const bt = text(bloodType)
+  if (!hid || !bt) return []
+  const snap = await getDocs(
+    query(
+      collection(db, 'hospitals', hid, 'inventory', bt, 'logs'),
+      orderBy('createdAt', 'desc'),
+      limit(take),
+    ),
+  )
+  return snap.docs.map((item) => {
+    const data = item.data() ?? {}
+    return {
+      id: item.id,
+      changeType: text(data.changeType),
+      unitsChanged: Number(data.unitsChanged) || 0,
+      reason: text(data.reason),
+      userId: text(data.userId),
+      createdAt: asDate(data.createdAt),
+    }
+  })
 }

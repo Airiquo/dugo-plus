@@ -3,8 +3,10 @@ import { useAuth } from '../../hooks/useAuth'
 import {
   getFacilityMatches,
   getHospitalDonations,
+  getInventoryLogs,
   listHospitals,
   readHospital,
+  screenDonorMatch,
   watchInventory,
 } from '../../services/hospitals'
 import {
@@ -32,6 +34,12 @@ import {
 } from '../../components'
 
 const BLOOD_TYPE_OPTIONS = BLOOD_TYPES.map((value) => ({ value, label: value }))
+
+const SCREENING_OPTIONS = [
+  { value: 'Cleared', label: 'Cleared (Ready to donate)' },
+  { value: 'Deferred', label: 'Deferred (Temporarily ineligible)' },
+  { value: 'Rejected', label: 'Rejected (Permanently ineligible)' },
+]
 
 const ADJUST_OPTIONS = ADJUSTMENT_TYPES.map((value) => ({
   value,
@@ -142,6 +150,62 @@ export default function Inventory() {
   const [historyKey, setHistoryKey] = useState(0)
 
   const bumpHistory = () => setHistoryKey((key) => key + 1)
+
+  const [screeningRow, setScreeningRow] = useState(null)
+  const [screeningStatus, setScreeningStatus] = useState('Cleared')
+  const [screeningSaving, setScreeningSaving] = useState(false)
+  const [screeningError, setScreeningError] = useState('')
+
+  const [logBloodType, setLogBloodType] = useState(null)
+  const [stockLogs, setStockLogs] = useState([])
+  const [stockLogsLoading, setStockLogsLoading] = useState(false)
+  const [stockLogsError, setStockLogsError] = useState('')
+
+  const openScreening = (row) => {
+    setScreeningRow(row)
+    setScreeningStatus(row.screeningStatus || 'Cleared')
+    setScreeningError('')
+  }
+
+  const submitScreening = async (event) => {
+    event.preventDefault()
+    if (!screeningRow || screeningSaving) return
+    setScreeningSaving(true)
+    setScreeningError('')
+    try {
+      await screenDonorMatch(screeningRow.id, screeningStatus)
+      setNote(`Screening for donor ${shortId(screeningRow.donorId)} marked as ${screeningStatus}.`)
+      setScreeningRow(null)
+      bumpHistory()
+    } catch (error) {
+      setScreeningError(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Could not save screening. Check your connection.',
+      )
+    } finally {
+      setScreeningSaving(false)
+    }
+  }
+
+  const openLogs = async (bt) => {
+    setLogBloodType(bt)
+    setStockLogs([])
+    setStockLogsLoading(true)
+    setStockLogsError('')
+    try {
+      const list = await getInventoryLogs(hospitalId, bt)
+      setStockLogs(list)
+    } catch (error) {
+      setStockLogsError(
+        error instanceof Error && error.message
+          ? error.message
+          : 'Could not load inventory movement history.',
+      )
+    } finally {
+      setStockLogsLoading(false)
+    }
+  }
 
   // Facility name for the sidebar, once.
   useEffect(() => {
@@ -610,6 +674,9 @@ export default function Inventory() {
                               <Btn icon="settings" onClick={() => open('adjust', row.bloodType)}>
                                 Adjust
                               </Btn>
+                              <Btn variant="subtle" onClick={() => openLogs(row.bloodType)}>
+                                History
+                              </Btn>
                             </div>
                           ),
                         },
@@ -772,6 +839,19 @@ export default function Inventory() {
                                 const status = pendingStatus(row)
                                 return <Badge data-status={status.tone}>{status.label}</Badge>
                               },
+                            },
+                            {
+                              key: 'actions',
+                              header: 'Actions',
+                              render: (row) => (
+                                <Btn
+                                  variant="subtle"
+                                  onClick={() => openScreening(row)}
+                                  disabled={confirming || saving}
+                                >
+                                  {row.screeningStatus ? 'Re-screen' : 'Screen'}
+                                </Btn>
+                              ),
                             },
                           ]}
                           rows={pending}
@@ -1008,6 +1088,139 @@ export default function Inventory() {
             </div>
           </form>
         )}
+      </Modal>
+
+      <Modal
+        name="hospital-screening"
+        open={Boolean(screeningRow)}
+        onClose={() => !screeningSaving && setScreeningRow(null)}
+        title="Screen donor"
+      >
+        {screeningRow && (
+          <form
+            className="hospital-inventory-form"
+            onSubmit={submitScreening}
+            aria-busy={screeningSaving || undefined}
+          >
+            <p className="hospital-note">
+              Record health screening for donor <code>{shortId(screeningRow.donorId)}</code>.
+              Cleared donors become eligible for donation confirmation.
+            </p>
+            <div className="hospital-inventory-form-grid">
+              <Field label="Donor">
+                <Input value={screeningRow.donorId} disabled readOnly />
+              </Field>
+              <Field label="Blood type">
+                <Input value={screeningRow.bloodType || '—'} disabled readOnly />
+              </Field>
+              <Field label="Request ID">
+                <Input value={screeningRow.requestId || '—'} disabled readOnly />
+              </Field>
+            </div>
+            <Field label="Screening result">
+              <Select
+                options={SCREENING_OPTIONS}
+                value={screeningStatus}
+                onChange={(e) => setScreeningStatus(e.target.value)}
+                disabled={screeningSaving}
+              />
+            </Field>
+
+            {screeningError && (
+              <p className="hospital-state" data-kind="error" role="alert">
+                {screeningError}
+              </p>
+            )}
+
+            <div className="hospital-dialog-actions">
+              <Btn onClick={() => setScreeningRow(null)} disabled={screeningSaving}>
+                Cancel
+              </Btn>
+              <Btn type="submit" variant="primary" disabled={screeningSaving}>
+                {screeningSaving ? 'Saving…' : 'Save result'}
+              </Btn>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal
+        name="hospital-stock-logs"
+        open={Boolean(logBloodType)}
+        onClose={() => setLogBloodType(null)}
+        title={`${logBloodType || ''} movement history`}
+      >
+        <div className="hospital-inventory-form">
+          <p className="hospital-note">
+            Every movement recorded for {logBloodType} at this facility (schema §2.3.3).
+          </p>
+
+          {stockLogsLoading && <p className="hospital-state">Loading movements…</p>}
+
+          {!stockLogsLoading && stockLogsError && (
+            <p className="hospital-state" data-kind="error" role="alert">
+              {stockLogsError}
+            </p>
+          )}
+
+          {!stockLogsLoading && !stockLogsError && stockLogs.length === 0 && (
+            <p className="hospital-note">No movements recorded for {logBloodType} yet.</p>
+          )}
+
+          {!stockLogsLoading && !stockLogsError && stockLogs.length > 0 && (
+            <Table
+              columns={[
+                {
+                  key: 'createdAt',
+                  header: 'Date',
+                  render: (row) => formatDate(row.createdAt),
+                },
+                {
+                  key: 'changeType',
+                  header: 'Type',
+                  render: (row) => (
+                    <Badge
+                      data-status={
+                        row.changeType === 'DONATION'
+                          ? 'ok'
+                          : row.changeType === 'EXPIRED'
+                            ? 'rejected'
+                            : 'pending'
+                      }
+                    >
+                      {row.changeType}
+                    </Badge>
+                  ),
+                },
+                {
+                  key: 'unitsChanged',
+                  header: 'Change',
+                  render: (row) => (
+                    <strong>
+                      {row.unitsChanged > 0 ? `+${row.unitsChanged}` : row.unitsChanged}
+                    </strong>
+                  ),
+                },
+                {
+                  key: 'reason',
+                  header: 'Reason',
+                  render: (row) => row.reason || '—',
+                },
+                {
+                  key: 'userId',
+                  header: 'Actor',
+                  render: (row) => (row.userId ? <code>{shortId(row.userId)}</code> : '—'),
+                },
+              ]}
+              rows={stockLogs}
+              rowKey={(row) => row.id}
+            />
+          )}
+
+          <div className="hospital-dialog-actions">
+            <Btn onClick={() => setLogBloodType(null)}>Close</Btn>
+          </div>
+        </div>
       </Modal>
     </Shell>
   )
