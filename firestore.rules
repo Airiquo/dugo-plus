@@ -323,6 +323,7 @@ service cloud.firestore {
     // transaction (D12, D14).
     match /donations/{matchId} {
       allow read: if isAdmin()
+                  || (signedIn() && resource == null)
                   || (signedIn() && resource.data.donorId == me())
                   || isStaffOf(resource.data.hospitalId);
 

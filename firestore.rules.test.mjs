@@ -214,6 +214,7 @@ console.log('donations');
 await ok('donor reads own donation history', readDoc(as('alice'), 'donations/r1_alice'));
 await no('another donor cannot read a donation', readDoc(as('bob'), 'donations/r1_alice'));
 await ok('staff of the hospital reads donations', readDoc(staff1(), 'donations/r1_alice'));
+await ok('signed-in user can check non-existent donation prior to confirmation', readDoc(staff1(), 'donations/non_existent'));
 await no('staff of another hospital cannot read donations', readDoc(staff2(), 'donations/r1_alice'));
 await ok('own staff records a donation', setDoc(doc(db(staff1()), 'donations/r2_alice'), { matchId: 'r2_alice', confirmedBy: 'staff1', donationDate: new Date(), units: 1, confirmedAt: new Date(), donorId: 'alice', hospitalId: 'h1', bloodType: 'O+' }));
 await no('staff of another hospital cannot record a donation', setDoc(doc(db(staff2()), 'donations/r2_bob'), { matchId: 'r2_bob', confirmedBy: 'staff2', donationDate: new Date(), units: 1, confirmedAt: new Date(), donorId: 'bob', hospitalId: 'h1', bloodType: 'O+' }));
