@@ -310,6 +310,12 @@
   display: grid;
   gap: 24px;
 }
+.hospital-welcome h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--d-fg);
+}
 .hospital-overview {
   display: grid;
   gap: 16px;

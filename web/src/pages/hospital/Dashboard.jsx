@@ -6,13 +6,6 @@ import { toDate } from '../../utils/eligibility'
 import { HospitalShell } from '../../layout/HospitalShell'
 import { Badge, Card, PageHeader, Table, Tabs } from '../../components'
 
-/** The status tone for a facility badge. */
-function statusTone(status) {
-  if (status === 'Active') return 'active'
-  if (status === 'Suspended') return 'warning'
-  return 'inactive'
-}
-
 /** Pre-set period filters for blood collection tracking (FR-014). */
 const PERIOD_TABS = [
   { value: '7d', label: '7 days', days: 7 },
@@ -125,63 +118,26 @@ export default function Dashboard() {
       <PageHeader tag="Dugo+ hospital" title="Dashboard" />
       <div id="page-body">
         <div className="hospital-dashboard">
-          <section className="hospital-overview">
-            <Card>
-              <header>
-                <h2>Facility</h2>
-                <p className="muted">
-                  The facility your account acts for. Details are edited on the facility profile.
-                </p>
-              </header>
+          {loading && <p className="hospital-state">Loading facility…</p>}
 
-              {loading && <p className="hospital-state">Loading facility…</p>}
+          {!loading && !hospitalId && (
+            <p className="hospital-state" data-kind="warn" role="status">
+              This account is not linked to a facility yet. Ask an administrator to set your
+              hospital, then reload.
+            </p>
+          )}
 
-              {!loading && !hospitalId && (
-                <p className="hospital-state" data-kind="warn" role="status">
-                  This account is not linked to a facility yet. Ask an administrator to set your
-                  hospital, then reload.
-                </p>
-              )}
+          {!loading && hospitalId && loadFailed && (
+            <p className="hospital-state" data-kind="error" role="alert">
+              Your facility could not be loaded. Check your connection and reload the page.
+            </p>
+          )}
 
-              {!loading && hospitalId && loadFailed && (
-                <p className="hospital-state" data-kind="error" role="alert">
-                  Your facility could not be loaded. Check your connection and reload the page.
-                </p>
-              )}
-
-              {!loading && hospitalId && !loadFailed && !hospital && (
-                <p className="hospital-state" data-kind="warn" role="status">
-                  No facility record was found for this account. Ask an administrator to check the
-                  link.
-                </p>
-              )}
-
-              {hospital && (
-                <dl className="hospital-facts">
-                  <div>
-                    <dt>Name</dt>
-                    <dd>{hospital.name || '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>Address</dt>
-                    <dd>{hospital.address || '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>Contact</dt>
-                    <dd>{hospital.contactNumber || '—'}</dd>
-                  </div>
-                  <div>
-                    <dt>Status</dt>
-                    <dd>
-                      <Badge data-status={statusTone(hospital.status)}>
-                        {hospital.status || 'Unknown'}
-                      </Badge>
-                    </dd>
-                  </div>
-                </dl>
-              )}
-            </Card>
-          </section>
+          {!loading && hospital && (
+            <div className="hospital-welcome">
+              <h2>Welcome, {hospital.name || 'Facility'}</h2>
+            </div>
+          )}
 
           {hospitalId && (
             <section className="hospital-collections">

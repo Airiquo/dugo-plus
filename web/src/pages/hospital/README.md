@@ -8,9 +8,8 @@ a hospital account is created by the Dugo+ team from a request on
 Built:
 
 - **Dashboard** — `/hospital/dashboard`. The account's landing and the initial
-  hospital layout: admin-style shell, facility summary from
-  `hospitals/{hospitalId}` (§2.3), and the link to the profile. Analytics and
-  inventory panels belong to the rest of F6.
+  hospital layout: admin-style shell, facility welcome greeting, and blood collection
+  analytics panels (FR-014).
 - **Facility profile** — `/hospital/profile` (FR-013). Edits the facility's
   name, address and contact number through `services/hospitals.js`; the
   Location section preview links to the map. Status is read-only (an
