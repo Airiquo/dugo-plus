@@ -1,9 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
-const STORAGE_KEY = 'dugo-theme'
+const STORAGE_KEY = 'dugo-care-theme'
 function initialTheme() {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored === 'light' || stored === 'dark') return stored
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return 'light'
 }
 const ThemeContext = createContext(null)
 /**

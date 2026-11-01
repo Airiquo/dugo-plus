@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 import { readProfile, saveProfile, BLOOD_TYPES, roleLabel } from '../../services/users'
 import { saveDonorLocation } from '../../services/donorLocations'
 import { eligibilityFor, toDate } from '../../utils/eligibility'
 import { validateProfile } from '../../utils/validate'
-import { FieldError, Badge, Icon } from '../../components'
+import { FieldError, Icon, CarePageHeader, CareDonorCard } from '../../components'
 import { DonorNav } from '../../layout/DonorNav'
 
 /** `2026-10-20` from a Date, for an `<input type="date">`. */
@@ -210,13 +210,15 @@ export default function Profile() {
 
   return (
     <div
-      className="pub"
+      className="pub donor-surface"
       data-theme={theme}
       style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}
     >
       <DonorNav />
 
-      <main id="top" className="profile-main">
+      <main id="top" className="profile-main donor-main">
+        <CarePageHeader kicker="Your donor space" title={<>{form.fullName ? `Hello, ${form.fullName.trim().split(' ')[0]}.` : 'A little of you.'}<br /><em>A lot of possibility.</em></>} description="A connection starts with knowing you. Keep your details ready for the next person who needs a donor." />
+        <div className="donor-profile-layout">
         <form className="pub-card pub-form profile-card" noValidate onSubmit={submit}>
           <p className="pub-kicker">Your profile</p>
           <h3>Donor details</h3>
@@ -360,33 +362,6 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Eligibility --------------------------------------------- */}
-          <div className="profile-section">
-            <h4 className="profile-section-h">Donor eligibility</h4>
-            {/* The badge carries the shared `data-eligibility` tone (green for
-                eligible, red for a refusal, neutral for not enough data), so
-                both themes colour it from the same tokens as every other
-                status in the app. */}
-            <div className="profile-elig">
-              <Badge data-eligibility={eligibilityTone(eligibility.status)}>
-                {eligibility.label}
-              </Badge>
-              <span className="profile-elig-detail">{eligibility.detail}</span>
-            </div>
-            <p className="pub-fine">
-              Calculated from your date of birth and donations. A facility confirms eligibility at
-              the donation itself.
-            </p>
-          </div>
-
-          <div className="profile-section">
-            <h4 className="profile-section-h">Blood requests</h4>
-            <Link id="nav-donor-requests" className="pub-btn" to="/donor/requests" style={{ marginTop: 8 }}>
-              View blood requests
-              <Icon name="arrow-right" size={14} />
-            </Link>
-          </div>
-
           {message && (
             <p className="pub-msg" data-kind="error" role="alert">
               {message}
@@ -400,7 +375,7 @@ export default function Profile() {
 
           <div className="profile-actions">
             <button className="pub-btn pub-btn-wide" type="submit" disabled={busy || !dirty || !profileLoaded || loadFailed}>
-              {busy ? 'Saving…' : !profileLoaded ? 'Loading…' : dirty ? 'Save profile' : 'Saved'}
+              {loadFailed ? 'Profile unavailable' : busy ? 'Saving…' : !profileLoaded ? 'Loading…' : dirty ? 'Save profile' : 'Saved'}
               {!busy && dirty && <Icon name="arrow-right" size={14} />}
             </button>
             <button
@@ -413,21 +388,11 @@ export default function Profile() {
             </button>
           </div>
         </form>
+        <CareDonorCard bloodType={form.bloodType} city={form.city} eligibility={eligibility} loaded={profileLoaded && !loadFailed} error={loadFailed} />
+        </div>
       </main>
     </div>
   )
-}
-
-/**
- * Map a derived eligibility status onto the shared `data-eligibility` tone
- * vocabulary, which the stylesheet already colours for both themes: `eligible`
- * green, `deferred` and the refusals red, `unknown` neutral.
- */
-function eligibilityTone(status) {
-  if (status === 'eligible') return 'eligible'
-  if (status === 'unknown') return 'unknown'
-  if (status === 'deferred') return 'deferred'
-  return 'permanently-deferred'
 }
 
 /** True when any location field differs from what was loaded. */
