@@ -28,8 +28,8 @@ numbers rather than trusting this section.
 | --- | --- | --- |
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | in progress (F3: hospital posts, lists, and manages its requests; smoke pending) |
-| **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; FR-010 derived on the profile; F5 history/rewards/tracker open. F4 smoke pending) |
-| **P4** | Hospital dashboard, inventory, screening | not started |
+| **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; FR-010 derived on the profile; FR-024–027 component intervals in eligibility engine; F5 history/rewards/tracker open. F4 smoke pending) |
+| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile, FR-014 blood units collected over period, FR-018 partnership plan (D28), FR-020 inventory reads + donation history, initial dashboard shell + FR-015 hospital map, FR-034 writes as client transactions (D27); the deferral clock and reward points wait for a server path — see §10) |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; claims not set on a live project, functions not deployed, no signed-in smoke here) |
 | **P7** | Hash-chain audit trail | in progress (F10a; F10b data-access hooks in; donation/inventory events wait on F8/F6) |
@@ -379,6 +379,7 @@ is cancelled. An assumption is never recorded in place of an answer.
 - **F9 blockers to unblock (owner action).** *Who deploys `firestore.rules`, and when?* — the F9 ruleset (admin update shape, `systemConfig` bounds, DSR enums/freeze, the D28 consent freeze) is **written but not deployed**; this checkout cannot deploy without authorization. *When is the Blaze plan enabled?* — required for `functions/index.js`; until then hospital creation runs through the free account service (D33) or the script. *When is hosting redeployed?* — the live site still serves a bundle built before D27/D28 (it has no `/privacy` route and no consent checkbox), so the registration consent will not appear on `https://dugo-plus.web.app` until hosting is rebuilt and deployed. None of these has an answer recorded, so all three are restated here.
 - **The Blaze question has a free answer now (D33).** `workers/account-service/` runs the same privileged operations as `functions/index.js` on a free Node host (Vercel or Netlify), so hospital creation no longer needs Blaze or a script: set `VITE_ACCOUNT_SERVICE_URL` and the `/admin/accounts` form works. Open, owner action: a host account, the service-account key in its environment, and one run of the bootstrap page to publish the first admin claim — none done from this checkout, so the worker is written and building-clean but not deployed. Vercel's Hobby plan is non-commercial, so a commercial host has to be chosen before this becomes the production path. D34 adds a second free path for the common case: with no service configured, `/admin/accounts` writes the sign-in record (on a second app instance) and both documents straight from the browser — it needs the admin's `admin` claim and leaves the new account's `staff` claim unset.
 - **Contradiction to resolve: did the `users` backfill run?** D22 (REQUIREMENTS) says `scripts/backfill-users-shape.mjs` migrated the live collection on 2026-10-22 (12 documents, verified, re-run a no-op) and the old-shape fallbacks were removed; the bullet above says it has not run and that the app still reads either shape. D22 is the later record and `readProfile` no longer has fallbacks, but the older bullet is not corrected until the owner confirms which is true.
+- **F6 hospital inventory and subscription management built** (D27, D28): , , , , , and .
 - **No staff read of `users`** — the rules grant an owner read plus an admin
   claim, and nothing else. Schema §6 allows a limited "staff of same hospital"
   read; hospital screens (F3/F6) will need to decide what it exposes before it
@@ -423,10 +424,13 @@ is cancelled. An assumption is never recorded in place of an answer.
   shipped `.chip[data-status]`/`.chip[data-priority]` codes, not chosen for the
   schema (D24); `component` is added as an FK to `donationTypes` (D24).
   `eligibilityInfo` was removed from the model of record — the ERD field was
-  never implemented and eligibility is computed on read (D25). Still open from
-  §9: `Subscriptions.status`, `responseStatus`, `consentType`, `channel`,
-  `deliveryStatus`, `changeType`, `requestType`, DSR `status`, subscription
-  `plan`, and the `notif_retry_interval` unit.
+  never implemented and eligibility is computed on read (D25); `changeType` is
+  `DONATION | TRANSFUSION | ADJUSTMENT | EXPIRED` with a required `reason` on
+  adjustments (D26); `Subscriptions.status` is `Active | Expired | Cancelled` and
+  subscription `plan` is `Community Plan | Standard Partner | Regional Network`
+  under self-serve hospital plan management (D28). Still open from
+  §9: `responseStatus`, `consentType`, `channel`, `deliveryStatus`,
+  `requestType`, DSR `status`, and the `notif_retry_interval` unit.
 - **Write-up is now enforced, not just requested.** `node tools/check-docs.mjs`
   gained mechanical cross-checks: every `D*` in `docs/` resolves, the changelog's
   refs resolve, schema §1 collections and `firestore.rules` match paths agree in
@@ -460,72 +464,12 @@ is cancelled. An assumption is never recorded in place of an answer.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
 - **No app test suite**: recorded as a gap, not scheduled. The exception is the
-  Firestore rules — `firestore.rules.test.mjs` runs 106 asserts in the
+  Firestore rules — `firestore.rules.test.mjs` runs 112 asserts in the
   emulator, locally (`npm run test:rules`) and in CI (D19). The React app has
   no tests; the smoke list below is its check.
-- **The matching Worker's service account needs `roles/datastore.user`.** The
-  Worker authenticates Firestore as `firebase-adminsdk-…@dugo-plus` (a service
-  account, so rules do not apply). Newer projects create that account without
-  datastore access, so every Firestore call 403s until the role is granted —
-  found and fixed live 2026-10-24, recorded in `docs/DEPLOY.md`.
-- **F3 ships post + list + manage; the audit trail stays out of F3.** An active
-  request can be moved to collecting/matched/fulfilled/cancelled from
-  `/hospital/requests`; the write is staff-claim gated and claims are publishable
-  via `scripts/set-claims.mjs` (F9), so FR-016 is `partial` pending live smoke,
-  not blocked. Request creation is not one of
-  FR-042's named audit events (donation / inventory / data-access), and
-  `POST /audit/append` is admin-only (`worker/src/index.js`), so F3 writes no
-  `auditBlocks` — F10b still waits on F4/F6/F8/F9. The dev facility
-  `hospitals/tagaytay-blood-bank` is a seed (`scripts/seed-reference-data.mjs`;
-  `--link-email` also sets an account's `users.hospitalId`), not part of the
-  spec's seed list: it exists so the hospital area has something to post against.
-  `npm run create:hospital` (`scripts/create-hospital.mjs`) creates that
-  facility's login — a verified Auth user plus a `role: hospital` profile with
-  the `hospitalId` — when an account is not already there. **F3's smoke ran live
-  2026-10-27** (post → urgency-first → reload keeps it; the posted request's
-  `matching` block shows F7 ran; the §6 donor checks and the verify-email gate
-  both pass). The Admin-SDK `createUser` and the console "Add user" both fail on
-  this project (`auth/internal-error`), so the hospital login was created by
-  hand; the optional edge smokes (cross-role gate, form validation, filters,
-  `/welcome` forward, a real match) are listed in `F3_Changes_Summary.txt` and
-  not yet run.
-- **F7/F10a bug sweep (2026-10-27).** Fixed while combining F3 + F7 + F10a:
-  the donor inbox never showed a pending notification (`notifications.sentAt` is
-  now written as an explicit `null`; Firestore omits documents missing an
-  orderBy field); the Worker CORS allowed only `localhost:5173`, so the deployed
-  site could not call `/match` or the audit endpoints (hosting origins added —
-  **needs a Worker redeploy**); the F10 audit append was untransactional and
-  could fork the chain (now a Firestore transaction over a reserved
-  `auditBlocks/_meta` head doc); and the Worker's admin-only audit routes trusted
-  the client-written `users.role`, which a client could set on its own document
-  at create — the `users` create rule now enforces donor-only self-create (D29,
-  **needs a rules deploy**). `/donor/alerts` also rendered the admin `AppShell`
-  and `AuditTrail.jsx` used undefined tokens (`--danger`, `data-status="warn"`);
-  both corrected.
-- **F4 + F9 rows corrected; account creation stays server-side (2026-10-27).**
-  F4's donor screens were built but its rows (FR-005/006/022/023/028/029/030/038)
-  still read "not started"; they are now `partial` (built, live smoke pending),
-  pointing at the F4 files. F9's admin screens existed but `accounts` and
-  `data-requests` had no sidebar entry, so the suspend UI was unreachable — both
-  are now in `AppShell` NAV. **Creating a hospital account is not in the app and
-  cannot be**: a browser cannot create Auth users or set claims, so it stays
-  `scripts/create-hospital.mjs` / the console, and the admin UI
-  suspends/reactivates only (`Removed` not offered). D26 and FR-040 corrected to
-  say so. F4/F9 live smoke pending.
-- **F7 fixes (2026-10-27).** Standalone to F7: a notification whose send reaches
-  the retry limit is now marked `deliveryStatus: 'Failed'` (was stuck Pending,
-  NFR-07); the matcher logs per-phase timing (`queryMs`/`existingMs`/`writeMs`,
-  NFR-01/02/05 can be measured); and the Worker's `/match` and `/audit/*` routes
-  read admin/staff authority from the token's custom claims instead of the
-  client-written `users.role` (D26). None of these need another feature. The F7
-  timing targets and the SMS leg still need deployment / provider keys.
-- **F10b data-access hooks landed (2026-10-29).** With F9's data-access surfaces
-  built, `recordAuditEvent` (`services/audit.js`) now appends a block for DSR
-  export/rectification/erasure/close and account suspend/reactivate/remove/
-  anonymise, via the deployed Worker `POST /audit/append` (admin-claim; the actor
-  comes from the token; refs are HMAC-hashed). It is **best-effort**: the data
-  action has already happened, so a failed append is logged, not rolled back —
-  a transactional guarantee needs the append inside the (undeployed) Cloud
-  Functions. Donation-confirmation and inventory events still wait on F8/F6.
-  The transactional Worker append fix from the earlier sweep is still
-  **not deployed**.
+- **The deferral clock and reward points have no writer.** F6's
+  `confirmDonation` runs as a client transaction (D27 — the owner chose to stay
+  on Spark instead of the Blaze-plan functions build) and writes the donation
+  record, the stock and its log only. `users.lastDonationAt` (D14, FR-033) and
+  `rewardTransactions` (D12, FR-036) stay server-only, so those two rows stay
+  open until a server path exists outside the React app.

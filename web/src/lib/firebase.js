@@ -52,7 +52,7 @@ export const missingFirebaseKeys = Object.entries(ENV_TO_FIELD)
   .map(([envName]) => envName)
 
 /**
- * The app, its auth service, and its Firestore database. All three are `null`
+ * The app, its auth service and its Firestore database. All three are `null`
  * until `VITE_FIREBASE_*` is set. Always go through `services/*` (and then
  * `hooks/useAuth.jsx`) rather than importing these directly.
  */

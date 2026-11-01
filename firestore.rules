@@ -7,7 +7,8 @@ service cloud.firestore {
     // Admin and staff authority comes from Firebase Auth custom claims
     // (`request.auth.token.role`, `.hospitalId`) set by the server, never from
     // the client-written `users.role` field. Claims are published by
-    // `scripts/set-claims.mjs` (D26).
+    // `scripts/set-claims.mjs` (D26). `role == 'hospital'` or `role == 'staff'`
+    // are accepted for hospital staff claims.
     function me() {
       return request.auth.uid;
     }
@@ -39,7 +40,10 @@ service cloud.firestore {
     }
 
     function isStaff() {
-      return signedIn() && request.auth.token.get('role', '') == 'staff';
+      return signedIn() && (
+        request.auth.token.get('role', '') == 'staff' ||
+        request.auth.token.get('role', '') == 'hospital'
+      );
     }
 
     function isStaffOf(hospitalId) {
@@ -244,15 +248,20 @@ service cloud.firestore {
 
       allow delete: if false;
 
+      // Partnership subscriptions (services/subscriptions.js, schema §2.3.1, FR-018, D28):
+      // hospital staff and admins may read and manage subscription plans.
       match /subscriptions/{subscriptionId} {
         allow read: if isAdmin() || isStaffOf(hospitalId);
-        allow create, update: if isAdmin();
+        allow create, update: if (isAdmin() || isStaffOf(hospitalId))
+                              && request.resource.data.plan is string
+                              && request.resource.data.status in ['Active', 'Expired', 'Cancelled']
+                              && request.resource.data.startDate is timestamp
+                              && request.resource.data.endDate is timestamp;
         allow delete: if false;
       }
 
-      // Stock counts: staff of this hospital and admins read and write. The
-      // confirmation screen batches its increment with the log write below
-      // (schema §2.3.3).
+      // Stock counts and their change log move in one client transaction
+      // (services/inventory.js, D27): staff of this facility or an admin claim.
       match /inventory/{bloodType} {
         allow read: if isAdmin() || isStaffOf(hospitalId);
         allow create, update: if (isAdmin() || isStaffOf(hospitalId))
@@ -261,12 +270,14 @@ service cloud.firestore {
                               && request.resource.data.lastUpdated is timestamp;
         allow delete: if false;
 
-        // Change log: append-only, written by the session that moved stock.
+        // Change log: append-only, the entry the transaction writes — the
+        // shape (donationId, userId, changeType, unitsChanged, optional
+        // reason, createdAt) is schema §2.3.3 (D26).
         match /logs/{logId} {
           allow read: if isAdmin() || isStaffOf(hospitalId);
           allow create: if (isAdmin() || isStaffOf(hospitalId))
                         && request.resource.data.keys().hasOnly(
-                             ['donationId', 'userId', 'changeType', 'unitsChanged', 'createdAt']
+                             ['donationId', 'userId', 'changeType', 'unitsChanged', 'reason', 'createdAt']
                            )
                         && (
                              request.resource.data.donationId == null
@@ -275,6 +286,10 @@ service cloud.firestore {
                         && request.resource.data.userId is string
                         && request.resource.data.changeType is string
                         && request.resource.data.unitsChanged is int
+                        && (
+                             !('reason' in request.resource.data)
+                             || request.resource.data.reason is string
+                           )
                         && request.resource.data.createdAt == request.time;
           allow update, delete: if false;
         }
@@ -481,6 +496,7 @@ service cloud.firestore {
     // transaction (D12, D14).
     match /donations/{matchId} {
       allow read: if isAdmin()
+                  || (signedIn() && resource == null)
                   || (signedIn() && resource.data.donorId == me())
                   || isStaffOf(resource.data.hospitalId);
 

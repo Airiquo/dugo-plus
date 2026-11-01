@@ -203,3 +203,53 @@ account view shows the recorded date and version.
 
 Not deployed: the live project still enforces the 2026-10-21 ruleset
 (PHASES §10), so the freeze is written and tested in the suite but not live yet.
+
+## 2026-10-31 — inventory movements move to the server
+
+**Origin:** build (FR-034 rewritten as callables).
+
+**Refs:** D26. Feature: F6 (FR-034, FR-020).
+
+| Area | Before | After |
+|---|---|---|
+| `hospitals/{h}/inventory/{bt}` writes | staff-of-that-hospital or admin claim, client transaction | **server-only** — `firestore.rules` denies create/update/delete; `functions/index.js` writes with the Admin SDK |
+| `.../logs/{id}` writes | staff/admin create, shape validated in rules | **server-only**, same denial; shape (and the new `reason`) validated in the callable |
+| `logs.changeType` | suggested `Donation \| Usage \| Adjustment \| Expired` (§9.5 open) | `DONATION \| TRANSFUSION \| ADJUSTMENT \| EXPIRED` |
+| `logs.reason` | not present | **added** — optional, required by the callable for `ADJUSTMENT` / `EXPIRED` |
+| log location | `hospitals/{h}/inventory/{bt}/logs/{id}` | **unchanged** — a top-level `inventoryLogs` collection was considered and rejected; the deployed ruleset and its tests already enforce the child path |
+| `donations/{matchId}` | matchId, donorId, hospitalId, bloodType, units, dates | **added** `donorName`, `donationType`, `requestId` — denormalised from the match/request at confirmation so history lists need no join |
+
+§9.5's `changeType` question is answered by this change, and §0 carries the
+divergence row.
+
+## 2026-10-31 — inventory writes return to the client (D27)
+
+**Origin:** build (the owner declined the Blaze plan, so the D26 callables
+could not be deployed).
+
+**Refs:** D27 (supersedes the writer of D26's entry, not its vocabulary).
+Feature: F6 (FR-034).
+
+| Area | Before (2026-10-31 entry) | After |
+|---|---|---|
+| `hospitals/{h}/inventory/{bt}` writes | server-only (`if false` in rules), Admin SDK | staff-of-that-facility and admin claims, **shape-validated**, written by `services/inventory.js` `runTransaction` |
+| `.../logs/{id}` writes | server-only | same reopening; `reason` optional in rules |
+| `donations/{matchId}.donorName` | copied from the donor profile by the callable | **null** — a staff session cannot read `users/{donor}`; history falls back to `donorId` |
+| `users/{donorId}.lastDonationAt` | written by the confirmation transaction (D26) | **descoped** — D14's freeze stands unwritten until a server path exists (FR-033 open) |
+| `rewardTransactions/{id}` | written by the confirmation transaction (D26) | **descoped** — D12's server-only rule stands (FR-036 open) |
+| `functions/` | three callables, built and self-checked | **deleted** from the repo |
+
+§0's divergence row and §2.3.3/§2.9 note the change; the vocabulary of D26
+(`changeType`, `reason`, child log path) is unchanged.
+
+## 2026-11-01 — hospital partnership subscriptions self-serve (D28)
+
+**Origin:** build (FR-018 hospital subscription plan management).
+
+**Refs:** D28. Feature: F6 (FR-018).
+
+| Area | Before | After |
+|---|---|---|
+| `hospitals/{h}/subscriptions/{id}` writes | admin claim only | **staff-of-that-facility and admin claims**, shape-validated (`plan is string`, `status in ['Active', 'Expired', 'Cancelled']`, timestamps) |
+| `subscriptions.plan` | open (§9.5) | decided: `Community Plan \| Standard Partner \| Regional Network` |
+| `subscriptions.status` | suggested `Active \| Expired \| Cancelled` (§9.2 open) | decided: `Active \| Expired \| Cancelled` |

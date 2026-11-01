@@ -4,7 +4,7 @@ import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 import { readProfile, saveProfile, BLOOD_TYPES, roleLabel } from '../../services/users'
 import { saveDonorLocation } from '../../services/donorLocations'
-import { eligibilityFor, toDate } from '../../utils/eligibility'
+import { componentEligibilityList, eligibilityFor, toDate } from '../../utils/eligibility'
 import { validateProfile } from '../../utils/validate'
 import { FieldError, Badge, Icon } from '../../components'
 import { DonorNav } from '../../layout/DonorNav'
@@ -93,6 +93,11 @@ export default function Profile() {
 
   const eligibility = useMemo(
     () => eligibilityFor({ dateOfBirth: form.dateOfBirth, lastDonationAt: saved.lastDonationAt }),
+    [form.dateOfBirth, saved.lastDonationAt],
+  )
+
+  const componentBreakdown = useMemo(
+    () => componentEligibilityList({ dateOfBirth: form.dateOfBirth, lastDonationAt: saved.lastDonationAt }),
     [form.dateOfBirth, saved.lastDonationAt],
   )
 
@@ -372,10 +377,35 @@ export default function Profile() {
                 {eligibility.label}
               </Badge>
               <span className="profile-elig-detail">{eligibility.detail}</span>
+
+              {/* Component breakdown list (FR-024, FR-025, FR-026, FR-027) */}
+              <div className="profile-component-grid">
+                {componentBreakdown.map((item) => (
+                  <div key={item.id} className="profile-component-item">
+                    <div className="profile-component-head">
+                      <span className="profile-component-name">{item.name}</span>
+                      <span className="profile-component-interval">{item.intervalDays}d interval</span>
+                    </div>
+                    <div className="profile-component-status">
+                      <Badge data-eligibility={eligibilityTone(item.status)}>
+                        {item.label}
+                      </Badge>
+                      <span className="profile-component-detail">
+                        {item.status === 'deferred'
+                          ? `Eligible in ${item.daysLeft}d`
+                          : item.status === 'eligible'
+                            ? 'Ready to donate'
+                            : item.label}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
             <p className="pub-fine">
-              Calculated from your date of birth and donations. A facility confirms eligibility at
-              the donation itself.
+              Calculated from your date of birth and donations. Component deferral intervals follow
+              Whole Blood (56d), Platelets (7d), Plasma (28d), and Double Red Cells (112d). A facility
+              confirms eligibility at the donation itself.
             </p>
           </div>
 

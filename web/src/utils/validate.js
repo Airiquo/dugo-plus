@@ -1,4 +1,5 @@
 import { passwordProblem } from './password'
+import { phNational } from './phone'
 
 /**
  * Per-field validation for the auth screens (NFR-20, NFR-21).
@@ -144,6 +145,30 @@ export function validateRequest({ bloodType, component, quantity, urgencyLevel }
   }
 
   if (!(urgencyLevel ?? '').trim()) errors.urgencyLevel = 'Choose how urgent this request is.'
+
+  return errors
+}
+
+/** Hospital facility profile (FR-013). Coordinates live on the map screen. */
+export function validateHospital({ name, address, contactNumber } = {}) {
+  const errors = {}
+
+  if (!(name ?? '').trim()) {
+    errors.name = 'Enter the facility name.'
+  } else if ((name ?? '').trim().length < 2) {
+    errors.name = 'That name looks too short.'
+  }
+
+  if (!(address ?? '').trim()) {
+    errors.address = 'Enter the facility address.'
+  }
+
+  const contact = phNational(contactNumber)
+  if (!contact) {
+    errors.contactNumber = 'Enter a contact number for the facility.'
+  } else if (contact.length < 9) {
+    errors.contactNumber = 'Enter a Philippine number, for example +63 917 000 0000.'
+  }
 
   return errors
 }
