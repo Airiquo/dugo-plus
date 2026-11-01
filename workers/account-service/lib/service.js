@@ -86,6 +86,11 @@ export async function handle(request) {
 
   if (method === 'OPTIONS') return { status: 204, headers: cors, body: '' }
   if (method === 'GET') {
+    // With no bootstrap token configured the service is running but has nothing
+    // to hand out, so answer with its status instead of a form that would fail.
+    if (!process.env.BOOTSTRAP_TOKEN) {
+      return json(200, cors, { ok: true, service: 'dugo-plus-account-service' })
+    }
     return {
       status: 200,
       headers: { ...cors, 'Content-Type': 'text/html; charset=utf-8' },

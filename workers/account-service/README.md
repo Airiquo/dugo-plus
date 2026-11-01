@@ -19,7 +19,9 @@ One endpoint, `POST /api/account`, with a JSON body and a Firebase ID token:
 | `setClaims` | admin | `{ uid? }` (omitted = all) | publishes claims from `users/{uid}` |
 | `bootstrap` | `BOOTSTRAP_TOKEN` | `{ email, token }` | grants the first admin its claim |
 
-`GET /api/account` serves a one-time page for the `bootstrap` step.
+`GET /api/account` serves the one-time page for the `bootstrap` step while
+`BOOTSTRAP_TOKEN` is set, and a `{"ok":true,"service":"…"}` status once it is
+removed — the quickest way to confirm the deploy is live.
 
 ## Deploy (Vercel)
 
@@ -45,9 +47,11 @@ One endpoint, `POST /api/account`, with a JSON body and a Firebase ID token:
    VITE_ACCOUNT_SERVICE_URL=https://dugo-plus-account.vercel.app/api/account
    ```
 
-   Sign out and back in, then create a hospital from `/admin/accounts`.
-7. **Remove `BOOTSTRAP_TOKEN`** from the host's environment and redeploy. The
-   page then reports the action is disabled.
+   Vite inlines this at build time, so **rebuild and redeploy hosting** before
+   testing — a browser refresh alone keeps the old bundle. Then sign out and
+   back in and create a hospital from `/admin/accounts`.
+7. **Remove `BOOTSTRAP_TOKEN`** from the host's environment and redeploy. A
+   `GET /api/account` then returns the status JSON instead of the form.
 
 ## Netlify instead
 
