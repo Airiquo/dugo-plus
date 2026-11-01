@@ -8,6 +8,15 @@ without running a script by hand.
 
 It mirrors `functions/index.js` and is kept in step with it by hand.
 
+> **Shipped path is now the Cloudflare Worker (D35).** `firebase-admin` cannot
+> run in the Workers runtime, so the same operations were reimplemented on the
+> existing `dugo-matching` Worker against Google REST APIs —
+> `worker/src/identitytoolkit.js` (Identity Toolkit Admin) plus the Firestore
+> REST client — and served at `POST /accounts`. Point
+> `VITE_ACCOUNT_SERVICE_URL` at `https://<worker>/accounts`. This folder stays
+> as the reference Admin-SDK implementation; use it only when a Node host is
+> preferred.
+
 ## What it exposes
 
 One endpoint, `POST /api/account`, with a JSON body and a Firebase ID token:
@@ -60,7 +69,8 @@ return `{ statusCode, headers, body }`. Map `event.httpMethod`/`event.headers`/
 - The browser never holds the service key; it sends only its own ID token, and
   the service checks the `role: 'admin'` claim before doing anything.
 - `firebase-admin` runs as-is on a Node host (Vercel/Netlify). It does **not**
-  run on Cloudflare Workers or Deno Deploy — those would need the Google REST
-  APIs instead.
+  run on Cloudflare Workers or Deno Deploy — for Cloudflare the REST
+  reimplementation in `worker/src/accounts.js` + `worker/src/identitytoolkit.js`
+  is the shipped path (D35).
 - Vercel's Hobby plan is for personal, non-commercial use. For a commercial
   launch, use a paid plan, Cloud Run, or Cloud Functions on Blaze.

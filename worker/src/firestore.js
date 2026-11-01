@@ -10,10 +10,18 @@
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const SCOPE = 'https://www.googleapis.com/auth/datastore'
 const TOKEN_EARLY_MS = 60_000
+
+/** OAuth scopes a caller may request; the token cache is keyed by both. */
+export const DATASTORE_SCOPE = SCOPE
 const GRPC_ALREADY_EXISTS = 6
 const GRPC_FAILED_PRECONDITION = 9
 
 let tokenCache = { key: '', token: '', expiresAt: 0 }
+
+/** Cache key for one service account + scope pair. */
+function tokenKey(account, scope) {
+  return `${account.client_email}\n${scope}`
+}
 let accountCache = { raw: '', account: null }
 
 /** A Firestore or transport failure that the HTTP layer can map to a status. */
@@ -67,10 +75,15 @@ function pemBytes(pem) {
   return bytes
 }
 
-async function accessToken(env) {
+/**
+ * A cached OAuth access token for the service account, scoped by the caller.
+ * Different scopes get different tokens, so both parts form the cache key.
+ */
+export async function accessToken(env, scope = SCOPE) {
   const account = accountFrom(env)
   const now = Date.now()
-  if (tokenCache.key === account.client_email && tokenCache.expiresAt > now + TOKEN_EARLY_MS) {
+  const cacheKey = tokenKey(account, scope)
+  if (tokenCache.key === cacheKey && tokenCache.expiresAt > now + TOKEN_EARLY_MS) {
     return tokenCache.token
   }
 
@@ -78,7 +91,7 @@ async function accessToken(env) {
   const header = { alg: 'RS256', typ: 'JWT' }
   const payload = {
     iss: account.client_email,
-    scope: SCOPE,
+    scope,
     aud: TOKEN_URL,
     iat: issuedAt,
     exp: issuedAt + 3600,
@@ -114,15 +127,20 @@ async function accessToken(env) {
   const token = await response.json()
   if (!token.access_token) throw new FirestoreError(502, 'Firestore token exchange returned no token')
   tokenCache = {
-    key: account.client_email,
+    key: cacheKey,
     token: token.access_token,
     expiresAt: now + (Number(token.expires_in ?? 3600) * 1000),
   }
   return tokenCache.token
 }
 
+/** The service-account project id, for building Google API URLs. */
+export function serviceAccountProject(env) {
+  return accountFrom(env).project_id
+}
+
 function documentsUrl(env) {
-  const project = accountFrom(env).project_id
+  const project = serviceAccountProject(env)
   return `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(project)}/databases/(default)/documents`
 }
 
@@ -229,6 +247,23 @@ export async function getDocument(env, collection, id) {
     `/${encodeURIComponent(collection)}/${encodeURIComponent(id)}`,
   )
   return decodeDocument(document)
+}
+
+/** Delete one document by path (e.g. `users/abc`). A missing document is fine. */
+export async function deleteDocument(env, path) {
+  const token = await accessToken(env)
+  const response = await fetch(`${documentsUrl(env)}/${path}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (response.status === 404) return
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    throw new FirestoreError(
+      response.status,
+      `Firestore delete failed: ${response.status}${detail ? ` ${detail.slice(0, 300)}` : ''}`,
+    )
+  }
 }
 
 /** Run one structured query and return decoded documents. */
