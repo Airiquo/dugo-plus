@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { ProfileAvatar } from '../components/ProfileAvatar'
 import { useTheme } from '../hooks/useTheme'
 import { useAuth, userName } from '../hooks/useAuth'
 import { roleLabel } from '../services/users'
@@ -10,11 +11,11 @@ import { roleLabel } from '../services/users'
  * Same shell markup and ids as `AppShell`, so the shared stylesheet carries
  * both themes unchanged.
  */
-export const HOSPITAL_NAV = [{ slug: 'requests', label: 'Requests', icon: 'list' }]
+export const HOSPITAL_NAV = [{ slug: 'requests', label: 'Requests', icon: 'list' }, { slug: 'profile', label: 'My profile', icon: 'user' }]
 
 function Sidebar({ facility }) {
   const { pathname } = useLocation()
-  const { user, role, signOut } = useAuth()
+  const { user, profile, role, signOut } = useAuth()
   const { theme, toggle } = useTheme()
   const navigate = useNavigate()
   const name = userName(user)
@@ -53,7 +54,7 @@ function Sidebar({ facility }) {
         })}
       </nav>
       <div id="sidebar-signed-in">
-        Signed in as {name}
+        <Link className="sidebar-profile-link" to="/hospital/profile" aria-label={`Your profile, ${name}`}><ProfileAvatar src={profile?.photoURL} name={name} /><span>Signed in as {name}</span></Link>
         <div className="row" style={{ gap: 8, alignItems: 'center' }}>
           <button
             className="theme-toggle"

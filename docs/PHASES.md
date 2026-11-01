@@ -349,6 +349,8 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Profile pictures (2026-11-01, D39).** Owner requests Cloudinary pictures for all three account types in a separate worktree and supplies cloud `dmecmkdww` / preset `dugo-plus-profiles`; the owner enables Unsigned after the first provider rejection, and a tiny generated test icon then uploads successfully. No provider configuration question remains. Removal/replacement/erasure clear only the profile URL; support must delete retained Cloudinary assets. No deployment is included. Verification and the retained test asset are recorded in `docs/PROFILE_PICTURES.md`. Phase counts are unchanged.
+
 Stated every session until answered, explicitly withdrawn, or the work they block
 is cancelled. An assumption is never recorded in place of an answer.
 

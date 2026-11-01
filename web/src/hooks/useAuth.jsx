@@ -9,7 +9,7 @@ import {
   signOut as signOutOfFirebase,
   signUp as createAccount,
 } from '../services/auth'
-import { ensureProfile, readProfile } from '../services/users'
+import { ensureProfile, readProfile, saveProfilePhoto } from '../services/users'
 import { logError } from '../services/log'
 
 // No picker screen: self-registration is donor-only (D20), so a session with
@@ -66,6 +66,7 @@ export function AuthProvider({ children }) {
    * session event fires *before* the profile document is written.
    */
   const profileSeq = useRef(0)
+  const sessionUid = useRef(null)
 
   /**
    * Privacy-notice version accepted on the current sign-up, held only until the
@@ -91,6 +92,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const stop = observeAuth((next) => {
       const snap = next ? snapshot(next) : null
+      sessionUid.current = snap?.uid ?? null
       const seq = (profileSeq.current += 1)
       const current = () => seq === profileSeq.current
 
@@ -249,6 +251,20 @@ export function AuthProvider({ children }) {
 
   const resendVerification = useCallback(() => sendVerificationEmail(), [])
 
+  /** Persist the current account's picture and refresh navigation immediately. */
+  const updateProfilePhoto = useCallback(async (photoURL) => {
+    const uid = user?.uid
+    if (!uid || uid !== sessionUid.current) throw new Error('Sign in again to save your picture.')
+    try {
+      await saveProfilePhoto(uid, photoURL)
+    } catch {
+      throw new Error('Your picture could not be saved. Check your connection and try again.')
+    }
+    if (sessionUid.current === uid) {
+      setProfile(current => sessionUid.current === uid && current ? { ...current, photoURL } : current)
+    }
+  }, [user?.uid])
+
   const value = useMemo(
     () => ({
       user,
@@ -266,6 +282,7 @@ export function AuthProvider({ children }) {
       signOut,
       reloadUser,
       resendVerification,
+      updateProfilePhoto,
     }),
     [
       user,
@@ -278,6 +295,7 @@ export function AuthProvider({ children }) {
       signOut,
       reloadUser,
       resendVerification,
+      updateProfilePhoto,
     ],
   )
 

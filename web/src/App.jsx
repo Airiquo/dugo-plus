@@ -27,6 +27,7 @@ import Requests from './pages/donor/Requests'
 import Alerts from './pages/donor/Alerts'
 import HospitalRequests from './pages/hospital/Requests'
 import NewRequest from './pages/hospital/NewRequest'
+import HospitalProfile from './pages/hospital/Profile'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
@@ -170,6 +171,7 @@ export default function App() {
           >
             <Route path="/hospital/requests" element={<HospitalRequests />} />
             <Route path="/hospital/requests/new" element={<NewRequest />} />
+            <Route path="/hospital/profile" element={<HospitalProfile />} />
           </Route>
           <Route
             element={
