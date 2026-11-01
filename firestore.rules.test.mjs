@@ -122,6 +122,9 @@ await ok('owner edit leaves lastDonationAt untouched', updateDoc(doc(db(as('dave
 await ok('owner edit keeps recorded consent', updateDoc(doc(db(as('ivy')), 'users/ivy'), { fullName: 'Ivy I.', phoneNumber: '09170000002' }));
 await no('owner cannot rewrite recorded consent', updateDoc(doc(db(as('ivy')), 'users/ivy'), { privacyNoticeVersion: '2099-01-01' }));
 await no('owner cannot clear recorded consent', updateDoc(doc(db(as('ivy')), 'users/ivy'), { privacyConsentAt: null }));
+// The duplicate sign-up write: a second full document with a fresh consent
+// stamp is refused, so the client must create the profile at most once.
+await no('owner cannot re-create a profile over an existing one', setDoc(doc(db(as('ivy')), 'users/ivy'), { role: 'donor', fullName: 'Ivy I.', email: 'ivy@dugo.ph', phoneNumber: '', status: 'Active', privacyConsentAt: new Date(), privacyNoticeVersion: '2026-10-29', createdAt: new Date() }));
 await no('owner cannot delete profile', deleteDoc(doc(db(as('alice')), 'users/alice')));
 await ok('admin claim updates any profile', updateDoc(doc(db(admin()), 'users/alice'), { fullName: 'Alice D.' }));
 await ok('admin claim updates its own profile (same-doc read)', updateDoc(doc(db(admin()), 'users/admin1'), { fullName: 'Admin One' }));
