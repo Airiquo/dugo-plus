@@ -8,14 +8,16 @@
  */
 
 import { HttpError } from './http.js'
+import { getDocument, runQuery, transactionStore } from './firestore.js'
 import {
-  deleteDocument,
-  getDocument,
-  runQuery,
-  updateDocumentIfUnchanged,
-  writeNewDocuments,
-} from './firestore.js'
-import { createUser, deleteUser, setCustomUserClaims } from './identitytoolkit.js'
+  createUser,
+  deleteUser,
+  enableUser,
+  getUser,
+  setCustomUserClaims,
+} from './identitytoolkit.js'
+import { createAccountManager } from './accountOperations.js'
+import { deliverAuditOutbox, hashRef } from './audit.js'
 import { geohash, isCoordinate } from '../../web/src/utils/geohash.js'
 
 const HOSPITAL_ID = /^[a-z0-9][a-z0-9-]{2,59}$/
@@ -34,15 +36,6 @@ function text(value, field, { required = true, max = 200 } = {}) {
 
 function coordinate(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
-}
-
-function slugify(name) {
-  return name
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48)
 }
 
 /**
@@ -72,7 +65,8 @@ export async function createHospitalAccount(env, input, actorUid) {
   const payload = input ?? {}
 
   const email = text(payload.email, 'Email', { max: 254 }).toLowerCase()
-  if (!EMAIL.test(email)) throw new HttpError(400, 'Enter a valid email address.')
+  if (!EMAIL.test(email))
+    throw new HttpError(400, 'Enter a valid email address.')
   const password = typeof payload.password === 'string' ? payload.password : ''
   if (password.length < 8 || password.length > 128) {
     throw new HttpError(400, 'The temporary password must be 8-128 characters.')
@@ -81,9 +75,15 @@ export async function createHospitalAccount(env, input, actorUid) {
   const fullName = text(payload.fullName, 'Contact name', { max: 120 })
   const facilityName = text(payload.facilityName, 'Facility name', { max: 160 })
   const address = text(payload.address, 'Address', { max: 240 })
-  const contactNumber = text(payload.contactNumber, 'Contact number', { max: 40 })
+  const contactNumber = text(payload.contactNumber, 'Contact number', {
+    max: 40,
+  })
   const city = text(payload.city, 'City', { required: false, max: 120 })
 
+  for (const value of [payload.latitude, payload.longitude]) {
+    if (value != null && (typeof value !== 'number' || !Number.isFinite(value)))
+      throw new HttpError(400, 'Coordinates must be finite numbers.')
+  }
   const latitude = coordinate(payload.latitude)
   const longitude = coordinate(payload.longitude)
   if ((latitude === null) !== (longitude === null)) {
@@ -94,112 +94,92 @@ export async function createHospitalAccount(env, input, actorUid) {
   }
   const hasPoint = latitude !== null && longitude !== null
 
-  const requestedId = text(payload.hospitalId, 'Facility id', { required: false, max: 60 })
+  const requestedId = text(payload.hospitalId, 'Facility id', {
+    required: false,
+    max: 60,
+  })
   if (requestedId && !HOSPITAL_ID.test(requestedId)) {
     throw new HttpError(
       400,
       'Facility id must be lowercase letters, numbers and dashes (3-60 characters).',
     )
   }
-  const hospitalId =
-    requestedId || `${slugify(facilityName) || 'hospital'}-${Math.random().toString(36).slice(2, 6)}`
 
-  const existing = await getDocument(env, 'hospitals', hospitalId)
-  if (existing) throw new HttpError(409, 'A facility with that id already exists.')
-
-  const { uid } = await createUser(env, {
-    email,
+  return manager(env).createHospital(
+    {
+      email,
+      fullName,
+      facilityName,
+      address,
+      contactNumber,
+      city,
+      hospitalId: requestedId,
+      latitude: latitude ?? 0,
+      longitude: longitude ?? 0,
+      geohash: hasPoint ? geohash(latitude, longitude) : '',
+    },
+    actorUid,
+    payload.operationId,
     password,
-    displayName: fullName,
-    // The team creates the account over a verified channel, so the address is
-    // treated as confirmed; the hospital can still change the password.
-    emailVerified: true,
-  })
-
-  const now = new Date()
-  const hash = hasPoint ? geohash(latitude, longitude) : ''
-  try {
-    const { existing: conflicts } = await writeNewDocuments(env, [
-      {
-        path: `users/${uid}`,
-        data: {
-          role: 'hospital',
-          fullName,
-          email,
-          phoneNumber: contactNumber,
-          hospitalId,
-          city,
-          latitude: latitude ?? 0,
-          longitude: longitude ?? 0,
-          geohash: hash,
-          status: 'Active',
-          createdAt: now,
-          updatedAt: now,
-        },
-      },
-      {
-        path: `hospitals/${hospitalId}`,
-        data: {
-          name: facilityName,
-          address,
-          contactNumber,
-          city,
-          latitude: latitude ?? 0,
-          longitude: longitude ?? 0,
-          geohash: hash,
-          status: 'Active',
-          createdBy: actorUid || 'account-service',
-          createdAt: now,
-          updatedAt: now,
-        },
-      },
-    ])
-    if (conflicts > 0) {
-      throw new HttpError(409, 'A facility or profile with those details already exists.')
-    }
-    await setCustomUserClaims(env, uid, { role: 'staff', hospitalId })
-  } catch (error) {
-    // Roll back the sign-in record so a retry does not hit "email already in use".
-    await deleteUser(env, uid).catch(() => {})
-    await deleteDocument(env, `users/${uid}`).catch(() => {})
-    await deleteDocument(env, `hospitals/${hospitalId}`).catch(() => {})
-    if (error instanceof HttpError) throw error
-    throw new HttpError(500, 'The hospital record could not be created. Nothing was kept.')
-  }
-
-  return { uid, hospitalId }
+  )
 }
 
-/**
- * Delete the sign-in record for an account whose profile is already closed
- * (Suspended/Removed). Firestore history is retained on purpose.
- *
- * @returns {Promise<{ uid: string }>}
- */
-export async function deleteAuthAccount(env, uid, actorUid) {
-  const target = text(uid, 'Account id', { max: 128 })
-  if (actorUid && target === actorUid) {
+/** Delete a removed account's login through a recoverable operation. */
+export async function deleteAuthAccount(
+  env,
+  uid,
+  actorUid,
+  reason,
+  operationId,
+) {
+  if (uid === actorUid)
     throw new HttpError(412, 'You cannot delete your own sign-in account.')
-  }
+  return manager(env).deleteLogin(uid, reason, actorUid, operationId)
+}
 
-  await deleteUser(env, target)
+/** Change account access and queue its audit event in one transaction. */
+export async function updateAccountStatus(env, input, actorUid) {
+  return manager(env).changeStatus(
+    input.uid,
+    input.status,
+    input.reason,
+    actorUid,
+    input.operationId,
+  )
+}
 
-  const profile = await getDocument(env, 'users', target)
-  if (profile && profile.data?.status !== 'Removed') {
-    await updateDocumentIfUnchanged(
-      env,
-      `users/${target}`,
-      {
-        status: 'Removed',
-        statusReason: 'Sign-in account deleted by an administrator.',
-        statusUpdatedAt: new Date(),
-        updatedAt: new Date(),
-      },
-      profile.updateTime,
-    )
-  }
+/** Erase profile details and queue context redaction with the account event. */
+export async function eraseAccountData(env, input, actorUid) {
+  return manager(env).changeStatus(
+    input.uid,
+    'Removed',
+    input.reason,
+    actorUid,
+    input.operationId,
+    true,
+  )
+}
 
-  return { uid: target }
+/** Resume a bounded page of interrupted account operations. */
+export async function retryAccountOperations(env) {
+  return manager(env).retryPending()
+}
+
+function manager(env) {
+  if (!env.AUDIT_HASH_SECRET)
+    throw new HttpError(503, 'Account changes are temporarily unavailable.')
+  return createAccountManager({
+    store: transactionStore(env),
+    hash: (value) => hashRef(env, value),
+    identity: {
+      get: (uid) => getUser(env, uid),
+      create: (input) => createUser(env, input),
+      claims: (uid, claims) => setCustomUserClaims(env, uid, claims),
+      enable: (uid) => enableUser(env, uid),
+      delete: (uid) => deleteUser(env, uid),
+    },
+    deliver: (id) => deliverAuditOutbox(env, id),
+  })
 }
 
 /**
@@ -226,7 +206,11 @@ export async function setClaims(env, targetUid) {
   let updated = 0
   const skipped = []
   for (const [uid, data] of entries) {
-    const claims = claimsForUser(data)
+    const claims =
+      (data.status && data.status !== 'Active') ||
+      ['Provisioning', 'Deleting', 'Deleted'].includes(data.loginState)
+        ? null
+        : claimsForUser(data)
     if (!claims) {
       skipped.push(uid)
       continue

@@ -86,23 +86,25 @@ email, or `users/{uid}` write succeeded; report those checks separately.
 References: [Firebase Hosting headers](https://firebase.google.com/docs/hosting/full-config#headers),
 [Vite define](https://vite.dev/config/shared-options.html#define).
 
-## Account service (free, no Blaze)
+## Account service (Cloudflare Worker, D38/D39)
 
-Creating a hospital account needs the Admin SDK, and Cloud Functions can host it
-only on the Blaze plan. `workers/account-service/` does the same work on a free
-Node host (Vercel or Netlify), so `/admin/accounts` can create hospital accounts
-without a paid plan and without a script.
+The version-2 account service runs at `POST /accounts` in the matching Worker
+(`worker/wrangler.toml`). Set `VITE_ACCOUNT_SERVICE_URL` to that Worker URL plus
+`/accounts`. The browser requires the v2 capability response before mutation;
+there is no browser/callable fallback. The Node `workers/account-service/` and
+`functions/` implementations are historical references, not v2 alternatives.
 
-1. Deploy the worker — `workers/account-service/README.md` has the steps (the
-   service-account key in the host's environment, root directory
-   `workers/account-service`).
-2. Grant the first admin its claim from the worker's `bootstrap` page.
-3. Set `VITE_ACCOUNT_SERVICE_URL` in `web/.env.local` to the deployed
-   `/api/account` URL.
-4. Rebuild and deploy hosting (`./tools/deploy.sh`).
+Account operations require the existing Firebase service-account/API-key secrets
+and a stable `AUDIT_HASH_SECRET`. Publish the first administrator's claim with
+`npm run set:claims` using the documented trusted operator credentials. Runtime
+requests require both that claim and an Active admin profile.
 
-With the variable unset, the app falls back to the `functions/` callables, so a
-Blaze project is unaffected. See D33 in `docs/REQUIREMENTS.md`.
+For D39 rollout: deploy Firestore indexes and wait until ready; deploy/verify
+the Worker; build/deploy Hosting from the owner-authorized release branch;
+then deploy the tightened Firestore rules. Old browser bundles lose direct
+account writes once rules are tightened and must refresh. See
+`docs/ADMIN_ACCOUNT_OPERATIONS.md` for recovery states, verification and the
+full compatibility contract. Never rotate the HMAC secret without migration.
 
 ## Verifying a deploy
 

@@ -45,6 +45,9 @@ jobs:
       - name: Validate the traceability table
         run: node tools/check-docs.mjs
 
+      - name: Account, audit, and matching regression tests
+        run: npm run test:matching
+
       - name: Build
         working-directory: web
         run: npm run build
@@ -69,3 +72,6 @@ jobs:
 
       - name: Firestore security-rules suite
         run: npm run test:rules
+
+      - name: Account Worker REST transaction suite
+        run: npm run test:accounts:emulator

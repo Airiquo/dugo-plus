@@ -106,7 +106,7 @@ await ok('admin claim reads its own profile', readDoc(admin(), 'users/admin1'));
 await ok('owner creates own profile', setDoc(doc(db(as('carol')), 'users/carol'), { role: 'donor', fullName: 'Carol C.', email: 'carol@dugo.ph', createdAt: new Date() }));
 await no('self-create cannot claim admin (D20/D29)', setDoc(doc(db(as('dan')), 'users/dan'), { role: 'admin', fullName: 'Dan D.', email: 'dan@dugo.ph', createdAt: new Date() }));
 await no('self-create cannot claim hospital (D20/D29)', setDoc(doc(db(as('hana')), 'users/hana'), { role: 'hospital', fullName: 'Hana H.', email: 'hana@dugo.ph', createdAt: new Date() }));
-await ok('admin claim creates a hospital profile (D26)', setDoc(doc(db(admin()), 'users/hosp1'), { role: 'hospital', fullName: 'St. Mary', email: 'staff@dugo.ph', createdAt: new Date() }));
+await no('admin clients cannot bypass audited hospital provisioning (D39)', setDoc(doc(db(admin()), 'users/hosp1'), { role: 'hospital', fullName: 'St. Mary', email: 'staff@dugo.ph', createdAt: new Date() }));
 await no('create cannot set lastDonationAt (D14)', setDoc(doc(db(as('eve')), 'users/eve'), { role: 'donor', fullName: 'Eve E.', email: 'eve@dugo.ph', createdAt: new Date(), lastDonationAt: new Date() }));
 await no('signed-out cannot create a profile', setDoc(doc(db(anon()), 'users/frank'), { role: 'donor', fullName: 'Frank F.', email: 'frank@dugo.ph', createdAt: new Date() }));
 await no('create cannot invent a status', setDoc(doc(db(as('gina')), 'users/gina'), { role: 'donor', fullName: 'Gina G.', email: 'gina@dugo.ph', status: 'Admin', createdAt: new Date() }));
@@ -128,20 +128,22 @@ await no('owner cannot re-create a profile over an existing one', setDoc(doc(db(
 await no('owner cannot delete profile', deleteDoc(doc(db(as('alice')), 'users/alice')));
 await ok('admin claim updates any profile', updateDoc(doc(db(admin()), 'users/alice'), { fullName: 'Alice D.' }));
 await ok('admin claim updates its own profile (same-doc read)', updateDoc(doc(db(admin()), 'users/admin1'), { fullName: 'Admin One' }));
-await ok('admin claim suspends a profile (FR-040)', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Suspended' }));
+await no('admin clients cannot bypass audited status changes (D39)', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Suspended' }));
 
 // ---- suspension gate (D26) ----------------------------------------------
 // A suspended account keeps its own profile read (the blocked screen names the
 // state) but loses every other authenticated path until an admin restores it.
 console.log('suspension (D26)');
 await ok('active account reads reference data', readDoc(as('erin'), 'donationTypes/whole-blood'));
-await ok('admin claim suspends the account', updateDoc(doc(db(admin()), 'users/erin'), { status: 'Suspended' }));
+await no('admin client cannot change status directly', updateDoc(doc(db(admin()), 'users/erin'), { status: 'Suspended' }));
+await env.withSecurityRulesDisabled(ctx => updateDoc(doc(db(ctx), 'users/erin'), { status: 'Suspended' }));
 await ok('suspended account still reads its own profile', readDoc(as('erin'), 'users/erin'));
 await no('suspended account cannot read reference data', readDoc(as('erin'), 'donationTypes/whole-blood'));
 await no('suspended account cannot read hospitals', readDoc(as('erin'), 'hospitals/h1'));
 await no('suspended account cannot edit its own profile', updateDoc(doc(db(as('erin')), 'users/erin'), { fullName: 'Erin E.' }));
 await no('suspended account cannot open a data request', setDoc(doc(db(as('erin')), 'dataSubjectRequests/dsr4'), { userId: 'erin', processedBy: null, requestType: 'Access', status: 'Pending', createdAt: serverTimestamp(), resolvedAt: null }));
-await ok('admin claim restores the account', updateDoc(doc(db(admin()), 'users/erin'), { status: 'Active' }));
+await no('admin client cannot restore status directly', updateDoc(doc(db(admin()), 'users/erin'), { status: 'Active' }));
+await env.withSecurityRulesDisabled(ctx => updateDoc(doc(db(ctx), 'users/erin'), { status: 'Active' }));
 await ok('restored account reads reference data again', readDoc(as('erin'), 'donationTypes/whole-blood'));
 // A removed account is closed exactly like a suspended one (FR-040).
 await ok('removed account still reads its own profile', readDoc(as('henry'), 'users/henry'));
@@ -149,7 +151,20 @@ await no('removed account cannot read hospitals', readDoc(as('henry'), 'hospital
 await no('removed account cannot write its own profile', updateDoc(doc(db(as('henry')), 'users/henry'), { fullName: 'Henry H.' }));
 await ok('admin claim scrubs a removed profile (FR-039 erasure)', updateDoc(doc(db(admin()), 'users/henry'), { fullName: 'Removed account', email: '', phoneNumber: '', city: '', geohash: '', latitude: 0, longitude: 0, bloodType: '', dateOfBirth: null }));
 // Put alice back so the rest of the suite exercises an active session.
-await ok('admin claim reactivates a profile', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Active' }));
+await no('admin client cannot reactivate a profile directly', updateDoc(doc(db(admin()), 'users/henry'), { status: 'Active' }));
+
+// Server-owned recovery and audit metadata cannot be read or forged by clients.
+for (const collection of ['accountOperations', 'auditOutbox', 'auditContexts', 'auditRedactions']) {
+  await no(`admin cannot read ${collection}`, readDoc(admin(), `${collection}/private`));
+  await no(`admin cannot write ${collection}`, setDoc(doc(db(admin()), `${collection}/private`), { state: 'Completed' }));
+  await no(`donor cannot write ${collection}`, setDoc(doc(db(as('alice')), `${collection}/private`), { state: 'Completed' }));
+}
+for (const field of ['loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased']) {
+  await no(`owner cannot forge ${field}`, updateDoc(doc(db(as('alice')), 'users/alice'), { [field]: 'forged' }));
+  await no(`admin client cannot forge ${field}`, updateDoc(doc(db(admin()), 'users/alice'), { [field]: 'forged' }));
+}
+await no('owner cannot remove status by replacing the profile', setDoc(doc(db(as('alice')), 'users/alice'), { role: 'donor', fullName: 'Alice', email: 'alice@dugo.ph' }));
+await no('self-registration cannot forge login state', setDoc(doc(db(as('forged')), 'users/forged'), { role: 'donor', fullName: 'Forged', email: 'forged@dugo.ph', loginState: 'Available' }));
 
 // ---- errorLogs (D17) -----------------------------------------------------
 console.log('errorLogs');
