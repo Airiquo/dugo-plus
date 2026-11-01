@@ -7278,7 +7278,7 @@ input[type="checkbox"],input[type="radio"] {
 .hreq-confirm-copy>p.hreq-confirm-error { margin-top: 18px; color: var(--d-red-ink); }
 .hreq-confirm-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; padding: 20px 24px; border-top: 1px solid var(--d-line); background: var(--d-field); }
 .hreq-confirm-actions .btn { font-size: 12px; }
-@media(max-width:500px) { .hreq-confirm-copy { padding: 26px 24px; } .hreq-confirm-actions { flex-direction: column-reverse; padding: 20px 24px; } }
+@media(max-width:500px) { .hreq-confirm-copy { padding: 26px 24px; } .hreq-confirm-actions { flex-direction: column; padding: 20px 24px; } }
 
 .hreq-confirm { inset: 0; transform: none; }
 
