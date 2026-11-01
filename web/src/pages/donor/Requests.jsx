@@ -743,47 +743,52 @@ export default function Requests() {
               </div>
             </div>
 
-            <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 16 }}>
+            <label className="pub-check">
               <input
                 type="checkbox"
                 checked={ack}
                 onChange={(e) => setAck(e.target.checked)}
                 disabled={acting || selected.match.responseStatus !== 'Pending'}
               />
+              <span className="pub-check-box" aria-hidden="true" />
               <span>I have read and acknowledge the eligibility guidelines.</span>
             </label>
 
             <div style={{ marginTop: 16 }}>
               <strong>Consent</strong>
               <p className="pub-fine">Both are required to accept. Declining needs neither.</p>
-              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={consentDs}
-                  onChange={(e) => setConsentDs(e.target.checked)}
-                  disabled={acting || selected.match.responseStatus !== 'Pending'}
-                />
-                <span>
-                  <strong>{CONSENT_DATA_SHARING.title}</strong>
-                  <span className="pub-fine" style={{ display: 'block' }}>
-                    {CONSENT_DATA_SHARING.text}
+              <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+                <label className="pub-check">
+                  <input
+                    type="checkbox"
+                    checked={consentDs}
+                    onChange={(e) => setConsentDs(e.target.checked)}
+                    disabled={acting || selected.match.responseStatus !== 'Pending'}
+                  />
+                  <span className="pub-check-box" aria-hidden="true" />
+                  <span>
+                    <strong>{CONSENT_DATA_SHARING.title}</strong>
+                    <span className="pub-fine" style={{ display: 'block' }}>
+                      {CONSENT_DATA_SHARING.text}
+                    </span>
                   </span>
-                </span>
-              </label>
-              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={consentScr}
-                  onChange={(e) => setConsentScr(e.target.checked)}
-                  disabled={acting || selected.match.responseStatus !== 'Pending'}
-                />
-                <span>
-                  <strong>{CONSENT_SCREENING.title}</strong>
-                  <span className="pub-fine" style={{ display: 'block' }}>
-                    {CONSENT_SCREENING.text}
+                </label>
+                <label className="pub-check">
+                  <input
+                    type="checkbox"
+                    checked={consentScr}
+                    onChange={(e) => setConsentScr(e.target.checked)}
+                    disabled={acting || selected.match.responseStatus !== 'Pending'}
+                  />
+                  <span className="pub-check-box" aria-hidden="true" />
+                  <span>
+                    <strong>{CONSENT_SCREENING.title}</strong>
+                    <span className="pub-fine" style={{ display: 'block' }}>
+                      {CONSENT_SCREENING.text}
+                    </span>
                   </span>
-                </span>
-              </label>
+                </label>
+              </div>
             </div>
 
             {error && (
