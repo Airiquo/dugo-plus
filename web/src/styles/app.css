@@ -7344,3 +7344,25 @@ input[type="checkbox"],input[type="radio"] {
   .profile-photo-editor { flex-direction: column; gap: 16px; }
   .profile-photo-preview { width: 80px; height: 80px; }
 }
+
+/* The impact and transparency loops keep playing across visibility and motion preferences. */
+.care-landing .motion-zone.impact-section .metric-line>i {
+  animation: connection-line 7s var(--landing-ease) infinite !important;
+  animation-play-state: running !important;
+}
+
+.care-landing .motion-zone.transparency-section .address-revealed {
+  animation: address-reveal 7s var(--landing-ease) infinite !important;
+  animation-play-state: running !important;
+  clip-path: circle(82px at 22% 42%);
+}
+
+.care-landing .motion-zone.transparency-section .address-blurred {
+  visibility: visible;
+}
+
+.care-landing .motion-zone.transparency-section .magnifier {
+  animation: lens-scan 7s var(--landing-ease) infinite !important;
+  animation-play-state: running !important;
+  opacity: 1;
+}
