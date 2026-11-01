@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { ProfileAvatar } from '../components/ProfileAvatar'
 import { useTheme } from '../hooks/useTheme'
 import { useAuth, userName } from '../hooks/useAuth'
 import { roleLabel } from '../services/users'
@@ -40,7 +41,7 @@ export const NAV = [
 ]
 function Sidebar() {
   const { pathname } = useLocation()
-  const { user, role, signOut } = useAuth()
+  const { user, profile, role, signOut } = useAuth()
   const { theme, toggle } = useTheme()
   const navigate = useNavigate()
   // `RequireAuth` guarantees a signed-in user; there is no demo identity to fall
@@ -84,7 +85,7 @@ function Sidebar() {
         })}
       </nav>
       <div id="sidebar-signed-in">
-        Signed in as {name}
+        <Link className="sidebar-profile-link" to="/admin/profile" aria-label={`Your profile, ${name}`}><ProfileAvatar src={profile?.photoURL} name={name} /><span>Signed in as {name}</span></Link>
         <div className="row" style={{ gap: 8, alignItems: 'center' }}>
           <button
             className="theme-toggle"

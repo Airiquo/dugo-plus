@@ -203,3 +203,11 @@ account view shows the recorded date and version.
 
 Not deployed: the live project still enforces the 2026-10-21 ruleset
 (PHASES §10), so the freeze is written and tested in the suite but not live yet.
+
+## 2026-11-01 — optional account profile picture
+
+**Origin:** build → schema.
+
+Added optional `users/{uid}.photoURL`: a Cloudinary HTTPS image delivery URL, bounded to 2048 characters. Missing/empty values use initials. Active owners of all three account types may edit their own picture; admin writes use the same URL validation. Anonymisation clears the field. Image storage and provider deletion are outside Firestore. No new collection or index.
+
+**Refs:** D39; F1, F9; FR-04, FR-012, FR-047.

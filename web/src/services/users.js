@@ -13,6 +13,7 @@ import {
 import { db } from '../lib/firebase'
 import { geohash, isCoordinate } from '../utils/geohash'
 import { recordAuditEvent } from './audit'
+import { isProfilePhotoUrl } from '../utils/profilePhoto'
 
 /**
  * `users/{uid}` profiles — the account type the guards read back.
@@ -114,7 +115,7 @@ function normaliseLocation(location) {
  *   role: string, fullName: string, email: string, phoneNumber: string,
  *   bloodType: string, dateOfBirth: Date|null,
  *   latitude: number, longitude: number, geohash: string, city: string,
- *   hospitalId: string, status: string,
+ *   hospitalId: string, status: string, photoURL: string,
  *   privacyConsentAt: Date|null, privacyNoticeVersion: string,
  *   lastDonationAt: Date|null, updatedAt: Date|null,
  * }} Profile
@@ -227,6 +228,13 @@ export async function saveProfile(uid, changes) {
   await setDoc(doc(db, 'users', uid), data, { merge: true })
 }
 
+/** Save or clear the picture on an existing account without changing its other details. */
+export async function saveProfilePhoto(uid, photoURL) {
+  requireDb()
+  if (!uid || !isProfilePhotoUrl(photoURL)) throw new Error('Choose a valid profile picture.')
+  await updateDoc(doc(db, 'users', uid), { photoURL, updatedAt: serverTimestamp() })
+}
+
 /**
  * Correct the identity fields an administrator is answering a rectification
  * request with (FR-039). Unlike `saveProfile` this never touches the stored
@@ -283,6 +291,7 @@ export async function readProfile(uid) {
     // so the guards do not open a route for it.
     role: ROLES.includes(data.role) ? data.role : null,
     fullName: text(data.fullName),
+    photoURL: isProfilePhotoUrl(data.photoURL) ? data.photoURL : '',
     email: text(data.email),
     phoneNumber: text(data.phoneNumber),
     bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : '',
@@ -392,6 +401,7 @@ export async function anonymiseUser(uid, reason) {
   if (!note) throw new Error('Record why the personal data was erased.')
   await updateDoc(doc(db, 'users', uid), {
     fullName: 'Removed account',
+    photoURL: '',
     email: '',
     phoneNumber: '',
     city: '',

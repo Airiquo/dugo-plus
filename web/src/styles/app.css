@@ -7299,3 +7299,48 @@ input[type="checkbox"],input[type="radio"] {
 .hreq-workspace-heading p { font-size: 13px; }
 .card.hreq-workspace .hreq-search input[type="search"] { font-size: 13px; }
 @media(max-width:700px) { .card.hreq-workspace .hreq-search input[type="search"] { font-size: 16px; } .hreq-workspace-heading p { font-size: 12px; } }
+/* Intentional circular crop for account pictures; colors use shared theme tokens. */
+.profile-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--care-pink);
+  color: var(--d-red-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.care-avatar .profile-avatar { width: 100%; height: 100%; }
+.sidebar-profile-link { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; color: inherit; text-decoration: none; }
+.sidebar-profile-link span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.profile-photo-editor { display: flex; align-items: flex-start; gap: 22px; padding: 24px 0; margin: 8px 0 20px; border-block: 1px solid var(--d-line); }
+.profile-photo-preview { width: 96px; height: 96px; font-size: 28px; border: 4px solid var(--d-panel); box-shadow: 0 0 0 1px var(--d-line); }
+.profile-photo-content { flex: 1; min-width: 0; }
+.profile-photo-editor .profile-photo-content h3 { margin: 0 0 8px; font-size: 16px; color: var(--d-ink); }
+.profile-photo-content h3 span { margin-left: 8px; font-size: 11px; font-weight: 400; }
+.profile-photo-content p { margin: 8px 0; font-size: 12px; line-height: 1.6; color: var(--d-muted); }
+.profile-photo-content p[data-state="error"] { color: var(--d-red-ink); }
+.profile-photo-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.profile-photo-filename { overflow-wrap: anywhere; }
+.profile-photo-status:empty { display: none; }
+.profile-photo-input { position: absolute; width: 1px; height: 1px; padding: 0; clip-path: inset(50%); overflow: hidden; white-space: nowrap; }
+.profile-photo-editor:focus-within { outline-offset: 6px; }
+.profile-photo-actions .btn:focus-visible, .sidebar-profile-link:focus-visible { outline: 2px solid var(--d-blue); outline-offset: 3px; }
+.hospital-profile-card { max-width: 760px; }
+.hospital-profile-card header h2 { margin: 8px 0 12px; }
+@media (max-width: 900px) {
+  .sidebar-profile-link { margin: 0; gap: 0; }
+  .sidebar-profile-link>span:last-child { display: none; }
+  .sidebar-profile-link .profile-avatar { width: 30px; height: 30px; }
+  #sidebar-signed-in { gap: 8px; }
+  #sidebar-signed-in .row { flex: none; }
+  #sidebar-sign-out { white-space: nowrap; padding-inline: 10px; }
+}
+@media (max-width: 540px) {
+  .profile-photo-editor { flex-direction: column; gap: 16px; }
+  .profile-photo-preview { width: 80px; height: 80px; }
+}

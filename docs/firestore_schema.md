@@ -133,6 +133,7 @@ Legend: **R** = required, **O** = optional/nullable.
 | fullName | string | R | |
 | email | string | R | **UK**. Uniqueness enforced by Firebase Auth |
 | phoneNumber | string | R | |
+| photoURL | string | O | [ADDED] HTTPS Cloudinary image delivery URL, up to 2048 characters. Missing or `''` displays initials. Owner-editable for donor, hospital and admin accounts; cleared by account anonymisation. The image is hosted outside Firestore (D39). |
 | ~~hashedPassword~~ | – | – | **[DECISION]** Do NOT store. Firebase Auth manages credentials. See §9 |
 | geohash | string | O | Geohash of the user's location, for proximity queries |
 | latitude | number | O | |
@@ -512,6 +513,7 @@ interface User {
   fullName: string;
   email: string;
   phoneNumber: string;
+  photoURL?: string;
   geohash?: string | null;
   latitude?: number | null;
   longitude?: number | null;

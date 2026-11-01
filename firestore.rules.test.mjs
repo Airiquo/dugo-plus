@@ -113,6 +113,18 @@ await no('create cannot invent a status', setDoc(doc(db(as('gina')), 'users/gina
 await ok('owner creates profile with recorded consent (FR-019)', setDoc(doc(db(as('jane')), 'users/jane'), { role: 'donor', fullName: 'Jane J.', email: 'jane@dugo.ph', privacyConsentAt: new Date(), privacyNoticeVersion: '2026-10-29', createdAt: new Date() }));
 await no('create cannot store consent as text', setDoc(doc(db(as('kate')), 'users/kate'), { role: 'donor', fullName: 'Kate K.', email: 'kate@dugo.ph', privacyConsentAt: '2026-10-29', privacyNoticeVersion: '2026-10-29', createdAt: new Date() }));
 await ok('owner edits profile fields', updateDoc(doc(db(as('alice')), 'users/alice'), { fullName: 'Alice D.', phoneNumber: '09170000001', city: 'Malolos', latitude: 14.85, longitude: 120.82, geohash: 'wdt5' }));
+const photoURL = 'https://res.cloudinary.com/example/image/upload/v1/profile.jpg';
+await ok('donor saves a profile picture', updateDoc(doc(db(as('alice')), 'users/alice'), { photoURL }));
+await ok('hospital saves its own profile picture', updateDoc(doc(db(as('hosp1')), 'users/hosp1'), { photoURL }));
+await ok('admin saves its own profile picture', updateDoc(doc(db(admin()), 'users/admin1'), { photoURL }));
+await ok('owner clears a profile picture', updateDoc(doc(db(as('alice')), 'users/alice'), { photoURL: '' }));
+await no('another donor cannot change a profile picture', updateDoc(doc(db(as('bob')), 'users/alice'), { photoURL }));
+await no('signed-out cannot change a profile picture', updateDoc(doc(db(anon()), 'users/alice'), { photoURL }));
+for (const invalid of [123, null, 'javascript:alert(1)', 'http://res.cloudinary.com/example/image/upload/photo.jpg', 'https://res.cloudinary.com.evil.test/example/image/upload/photo.jpg', 'https://res.cloudinary.com/example/video/upload/photo.jpg', 'https://res.cloudinary.com/example/image/upload/a b.jpg', photoURL + '?x=y', photoURL + 'a'.repeat(2048)]) {
+  await no('owner rejects invalid profile picture: ' + String(invalid).slice(0, 80), updateDoc(doc(db(as('alice')), 'users/alice'), { photoURL: invalid }));
+  await no('admin rejects invalid profile picture: ' + String(invalid).slice(0, 80), updateDoc(doc(db(admin()), 'users/admin1'), { photoURL: invalid }));
+}
+await no('create rejects an invalid profile picture', setDoc(doc(db(as('photo-invalid')), 'users/photo-invalid'), { role: 'donor', fullName: 'Photo', email: 'photo@example.test', photoURL: 'https://other.test/photo.jpg' }));
 await no('owner cannot change role', updateDoc(doc(db(as('alice')), 'users/alice'), { role: 'admin' }));
 await no('owner cannot suspend themselves (status is an admin decision)', updateDoc(doc(db(as('alice')), 'users/alice'), { status: 'Suspended' }));
 await no('owner cannot set hospitalId', updateDoc(doc(db(as('alice')), 'users/alice'), { hospitalId: 'h1' }));
@@ -140,6 +152,7 @@ await ok('suspended account still reads its own profile', readDoc(as('erin'), 'u
 await no('suspended account cannot read reference data', readDoc(as('erin'), 'donationTypes/whole-blood'));
 await no('suspended account cannot read hospitals', readDoc(as('erin'), 'hospitals/h1'));
 await no('suspended account cannot edit its own profile', updateDoc(doc(db(as('erin')), 'users/erin'), { fullName: 'Erin E.' }));
+await no('suspended account cannot change its picture', updateDoc(doc(db(as('erin')), 'users/erin'), { photoURL }));
 await no('suspended account cannot open a data request', setDoc(doc(db(as('erin')), 'dataSubjectRequests/dsr4'), { userId: 'erin', processedBy: null, requestType: 'Access', status: 'Pending', createdAt: serverTimestamp(), resolvedAt: null }));
 await ok('admin claim restores the account', updateDoc(doc(db(admin()), 'users/erin'), { status: 'Active' }));
 await ok('restored account reads reference data again', readDoc(as('erin'), 'donationTypes/whole-blood'));
