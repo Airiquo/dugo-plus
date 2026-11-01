@@ -185,15 +185,19 @@ export function watchInventory(hospitalId, onNext, onError) {
   )
 }
 
-/** One `donorMatches` document, shaped for the donation log (schema §2.5). */
-function matchRow(snap) {
+/**
+ * One `donorMatches` document, shaped for the donation log (schema §2.5).
+ * A match stores neither its facility nor its blood type, so both come from
+ * the request it belongs to.
+ */
+function matchRow(snap, request) {
   const data = snap.data() ?? {}
   return {
     id: snap.id,
-    requestId: typeof data.requestId === 'string' ? data.requestId : '',
+    requestId: request.id,
     donorId: typeof data.donorId === 'string' ? data.donorId : '',
-    hospitalId: typeof data.hospitalId === 'string' ? data.hospitalId : '',
-    bloodType: typeof data.bloodType === 'string' ? data.bloodType : '',
+    hospitalId: request.hospitalId,
+    bloodType: text(data.bloodType) || request.bloodType,
     donationTypeId: typeof data.donationTypeId === 'string' ? data.donationTypeId : '',
     responseStatus: typeof data.responseStatus === 'string' ? data.responseStatus : '',
     screeningStatus: typeof data.screeningStatus === 'string' ? data.screeningStatus : '',
@@ -202,28 +206,57 @@ function matchRow(snap) {
   }
 }
 
+/** How many of the facility's newest requests the donation log looks through. */
+const MATCH_REQUESTS = 30
+
 /**
  * The facility's donor matches, newest first — the donation log's pending
- * rows (FR-020, FR-034). Matches carry the facility and blood type from their
- * request (schema §2.5) so staff can query them in one read.
+ * rows (FR-020, FR-034).
+ *
+ * Matches do not carry a hospital (schema §2.5) and the rules only let staff
+ * read a match through its request's hospital, so this goes request-first:
+ * the facility's requests, then each request's matches with an equality
+ * query on `requestId`, which the rules can evaluate. Both reads use
+ * single-field equality filters, so no composite index is needed; ordering
+ * happens here.
  *
  * @param {string} hospitalId
- * @param {{ limit?: number }} [options]
+ * @param {{ requests?: number }} [options] - how many recent requests to read
  * @returns {Promise<Array<ReturnType<typeof matchRow>>>}
  */
-export async function getFacilityMatches(hospitalId, { limit: take = 50 } = {}) {
+export async function getFacilityMatches(hospitalId, { requests: take = MATCH_REQUESTS } = {}) {
   requireDb()
   const id = text(hospitalId)
   if (!id) return []
-  const snap = await getDocs(
-    query(
-      collection(db, 'donorMatches'),
-      where('hospitalId', '==', id),
-      orderBy('matchedAt', 'desc'),
-      limit(take),
-    ),
+
+  const requestSnap = await getDocs(
+    query(collection(db, 'bloodRequests'), where('hospitalId', '==', id)),
   )
-  return snap.docs.map(matchRow)
+  const requests = requestSnap.docs
+    .map((item) => {
+      const data = item.data() ?? {}
+      return {
+        id: item.id,
+        hospitalId: id,
+        bloodType: text(data.bloodType),
+        createdAt: asDate(data.createdAt)?.getTime() ?? 0,
+      }
+    })
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, take)
+
+  const groups = await Promise.all(
+    requests.map(async (request) => {
+      const snap = await getDocs(
+        query(collection(db, 'donorMatches'), where('requestId', '==', request.id)),
+      )
+      return snap.docs.map((item) => matchRow(item, request))
+    }),
+  )
+
+  return groups
+    .flat()
+    .sort((a, b) => (b.matchedAt?.getTime() ?? 0) - (a.matchedAt?.getTime() ?? 0))
 }
 
 /**

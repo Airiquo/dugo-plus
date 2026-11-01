@@ -1,4 +1,4 @@
-import { doc, runTransaction, serverTimestamp } from 'firebase/firestore'
+import { collection, doc, runTransaction, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 import { BLOOD_TYPES } from './users'
 
@@ -38,15 +38,19 @@ function positiveInt(value) {
   return count
 }
 
-/** A blood type the service accepts, or a message for the form. */
-function bloodType(value) {
+/**
+ * A blood type the service accepts, or a message for the form. Not named
+ * `bloodType`: the exported functions take a `bloodType` argument, which
+ * would shadow a helper of that name and break the call.
+ */
+function parseBloodType(value) {
   const type = text(value)
   if (!BLOOD_TYPES.includes(type)) throw new Error('Choose a valid blood type.')
   return type
 }
 
 /** A facility ID the write needs up front, or the screen's warning. */
-function hospital(value) {
+function requireHospital(value) {
   const id = text(value)
   if (!id) {
     throw new Error('This account is not linked to a facility yet. Ask an administrator to set your hospital.')
@@ -56,7 +60,7 @@ function hospital(value) {
 
 /** The stock of one blood type: zero when the facility has no such document. */
 function currentUnits(snap) {
-  if (!snap.exists) return 0
+  if (!snap.exists()) return 0
   return Math.max(0, Math.trunc(Number(snap.data()?.unitsAvailable) || 0))
 }
 
@@ -72,6 +76,10 @@ function readable(error) {
   return error?.message || 'The stock change could not be saved. Check your connection and try again.'
 }
 
+function requireDb() {
+  if (!db) throw new Error(NOT_CONFIGURED)
+}
+
 /** Unwraps a `runTransaction` failure into the screen's wording. */
 async function submit(work) {
   requireDb()
@@ -82,10 +90,6 @@ async function submit(work) {
     wrapped.code = typeof error?.code === 'string' ? error.code : ''
     throw wrapped
   }
-}
-
-function requireDb() {
-  if (!db) throw new Error(NOT_CONFIGURED)
 }
 
 /**
@@ -106,7 +110,7 @@ export async function confirmDonation({ matchId, units } = {}) {
 
   const work = async (tx) => {
     const matchSnap = await tx.get(doc(db, 'donorMatches', id))
-    if (!matchSnap.exists) throw new Error('That match does not exist.')
+    if (!matchSnap.exists()) throw new Error('That match does not exist.')
     const match = matchSnap.data()
 
     // The match may hold the facility and blood type, or inherit them from
@@ -117,11 +121,14 @@ export async function confirmDonation({ matchId, units } = {}) {
     if (!facility || !type) {
       if (!requestId) throw new Error('This match is not linked to a request.')
       const requestSnap = await tx.get(doc(db, 'bloodRequests', requestId))
-      if (!requestSnap.exists) throw new Error('This match points at a missing request.')
+      if (!requestSnap.exists()) throw new Error('This match points at a missing request.')
       facility = facility || text(requestSnap.data().hospitalId)
       type = type || text(requestSnap.data().bloodType)
     }
     if (!facility) throw new Error('No facility is linked to this match.')
+    if (['Declined', 'Expired'].includes(text(match.responseStatus))) {
+      throw new Error('The donor did not accept this match.')
+    }
     if (text(match.screeningStatus) !== 'Cleared') {
       throw new Error('This donor has not been cleared to donate.')
     }
@@ -134,7 +141,7 @@ export async function confirmDonation({ matchId, units } = {}) {
 
     const donationRef = doc(db, 'donations', id)
     const donationSnap = await tx.get(donationRef)
-    if (donationSnap.exists) throw new Error('This match has already been confirmed.')
+    if (donationSnap.exists()) throw new Error('This match has already been confirmed.')
 
     const donorId = text(match.donorId)
     if (!donorId) throw new Error('This match has no donor.')
@@ -186,16 +193,16 @@ export async function confirmDonation({ matchId, units } = {}) {
  */
 export async function recordTransfusion({ bloodType, units, requestId, hospitalId } = {}) {
   requireDb()
-  const type = bloodType(bloodType)
+  const type = parseBloodType(bloodType)
   const unitCount = positiveInt(units)
-  const facility = hospital(hospitalId)
+  const facility = requireHospital(hospitalId)
   const userId = requireUser()
   const request = text(requestId)
 
   const work = async (tx) => {
     if (request) {
       const requestSnap = await tx.get(doc(db, 'bloodRequests', request))
-      if (!requestSnap.exists) throw new Error('That request does not exist.')
+      if (!requestSnap.exists()) throw new Error('That request does not exist.')
       const served = requestSnap.data().bloodType
       if (text(served) && text(served) !== type) {
         throw new Error(`That request is for ${served}, not ${type}.`)
@@ -239,7 +246,7 @@ export async function recordTransfusion({ bloodType, units, requestId, hospitalI
  */
 export async function adjustInventory({ bloodType, delta, reason, changeType, hospitalId } = {}) {
   requireDb()
-  const type = bloodType(bloodType)
+  const type = parseBloodType(bloodType)
   const step = Number(delta)
   if (!Number.isInteger(step) || step === 0) {
     throw new Error('Enter a whole number of units to add or remove.')
@@ -247,7 +254,7 @@ export async function adjustInventory({ bloodType, delta, reason, changeType, ho
   const code = text(changeType)
   if (!ADJUSTMENT_TYPES.includes(code)) throw new Error('Choose a valid adjustment type.')
   if (!text(reason)) throw new Error('A reason is required for an adjustment.')
-  const facility = hospital(hospitalId)
+  const facility = requireHospital(hospitalId)
   const userId = requireUser()
 
   const work = async (tx) => {

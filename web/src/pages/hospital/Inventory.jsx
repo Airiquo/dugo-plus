@@ -57,13 +57,23 @@ const TITLES = {
   adjust: 'Adjust stock',
 }
 
+/** Donor responses that end a match: nothing left to confirm. */
+const CLOSED_RESPONSES = ['Declined', 'Expired']
+
 /** A match can be confirmed only when screening and guidelines are complete. */
 function isConfirmable(row) {
-  return row.screeningStatus === 'Cleared' && row.guidelinesAcknowledged && Boolean(row.bloodType)
+  return (
+    row.screeningStatus === 'Cleared' &&
+    row.guidelinesAcknowledged &&
+    Boolean(row.bloodType) &&
+    !CLOSED_RESPONSES.includes(row.responseStatus)
+  )
 }
 
 /** The log's status tone for a match that has no donation record yet. */
 function pendingStatus(row) {
+  if (row.responseStatus === 'Declined') return { label: 'Declined', tone: 'rejected' }
+  if (row.responseStatus === 'Expired') return { label: 'Expired', tone: 'deferred' }
   if (row.screeningStatus === 'Rejected') return { label: 'Rejected', tone: 'rejected' }
   if (row.screeningStatus === 'Deferred') return { label: 'Deferred', tone: 'deferred' }
   if (row.screeningStatus !== 'Cleared') return { label: 'Not screened', tone: 'pending' }
@@ -80,8 +90,12 @@ function shortId(value) {
  * Blood inventory — `/hospital/inventory` for staff (FR-020, FR-034) and
  * `/admin/inventory` for an admin, who picks the facility first.
  *
- * Reads: live stock per blood type and the facility's donation history, both
- * from `services/hospitals.js`. Writes: three client transactions from
+ * Two tabs. Stock: live counts per blood type, with Issue and Adjust on each
+ * row. Donation log: matches waiting for confirmation (multi-select) above the
+ * facility's confirmed donations. The one header action is Record transfusion.
+ *
+ * Reads: live stock, the facility's matches and its donation history, all from
+ * `services/hospitals.js`. Writes: client transactions from
  * `services/inventory.js` — a confirmed match, an issued transfusion, or a
  * reasoned adjustment — each moving the count and its log in one transaction.
  * Staff address their own facility through the claim; an admin sends the
@@ -197,7 +211,9 @@ export default function Inventory() {
   }, [hospitalId, reloadKey])
 
   // Donation log: pending matches and confirmed donations load together so a
-  // confirmed match drops out of the pending table in the same paint.
+  // confirmed match drops out of the pending table in the same paint. The
+  // error line is not cleared here: a partial failure sets it in the same
+  // tick that reloads the log, and it has to survive the reload.
   useEffect(() => {
     if (!hospitalId) return undefined
     let current = true
@@ -210,27 +226,28 @@ export default function Inventory() {
     setCursor(null)
     setSelected([])
     setUnitsById({})
-    setLogError('')
 
     Promise.allSettled([
-      getFacilityMatches(hospitalId, { limit: HISTORY_PAGE }),
+      getFacilityMatches(hospitalId),
       getHospitalDonations(hospitalId, { limit: HISTORY_PAGE }),
-    ]).then(([matchResult, donationResult]) => {
-      if (!current) return
-      if (matchResult.status === 'fulfilled') setMatches(matchResult.value)
-      else setMatchesFailed(true)
+    ])
+      .then(([matchResult, donationResult]) => {
+        if (!current) return
+        if (matchResult.status === 'fulfilled') setMatches(matchResult.value)
+        else setMatchesFailed(true)
 
-      if (donationResult.status === 'fulfilled') {
-        setHistory(donationResult.value.rows)
-        setCursor(donationResult.value.cursor)
-      } else {
-        setHistoryFailed(true)
-      }
-    }).finally(() => {
-      if (!current) return
-      setHistoryLoading(false)
-      setMatchesLoading(false)
-    })
+        if (donationResult.status === 'fulfilled') {
+          setHistory(donationResult.value.rows)
+          setCursor(donationResult.value.cursor)
+        } else {
+          setHistoryFailed(true)
+        }
+      })
+      .finally(() => {
+        if (!current) return
+        setHistoryLoading(false)
+        setMatchesLoading(false)
+      })
 
     return () => {
       current = false
@@ -252,8 +269,7 @@ export default function Inventory() {
     : null
   const currentUnits = selectedStock?.unitsAvailable ?? 0
 
-  // The preview only knows the stock of the type chosen in the dialog; the
-  // match dialog shows none because the server derives its blood type.
+  // The preview only knows the stock of the type chosen in the dialog.
   const projected = useMemo(() => {
     if (!form) return null
     if (form.kind === 'transfusion') {
@@ -341,6 +357,7 @@ export default function Inventory() {
 
     setConfirming(true)
     setLogError('')
+    setNote('')
     let confirmed = 0
     const failures = []
 
@@ -452,6 +469,7 @@ export default function Inventory() {
                   onChange={(event) => {
                     setPicked(event.target.value)
                     setNote('')
+                    setLogError('')
                   }}
                   disabled={facilitiesLoading || facilitiesFailed || saving}
                   aria-label="Facility"
@@ -612,8 +630,8 @@ export default function Inventory() {
                     <header>
                       <h2>Awaiting confirmation</h2>
                       <p className="muted">
-                        Cleared matches at this facility without a donation record. Select one or
-                        more, set the units collected, and confirm.
+                        Matches at this facility without a donation record. Select the cleared
+                        ones, set the units collected, and confirm.
                       </p>
                     </header>
 
@@ -640,8 +658,8 @@ export default function Inventory() {
 
                     {!matchesLoading && !historyFailed && !matchesFailed && pending.length === 0 && (
                       <p className="hospital-note">
-                        No donations are waiting to be confirmed. Cleared matches appear here as
-                        the matcher records them.
+                        No donations are waiting to be confirmed. Matches appear here as the
+                        matcher records them.
                       </p>
                     )}
 
@@ -685,19 +703,16 @@ export default function Inventory() {
                                 />
                               ),
                               cellProps: { className: 'hospital-inventory-check-cell' },
-                              render: (row) => {
-                                const confirmable = isConfirmable(row)
-                                return (
-                                  <input
-                                    type="checkbox"
-                                    className="hospital-inventory-check"
-                                    aria-label={`Select donation by ${row.donorId || row.id}`}
-                                    checked={selected.includes(row.id)}
-                                    disabled={!confirmable || confirming}
-                                    onChange={() => toggle(row.id)}
-                                  />
-                                )
-                              },
+                              render: (row) => (
+                                <input
+                                  type="checkbox"
+                                  className="hospital-inventory-check"
+                                  aria-label={`Select donation by ${row.donorId || row.id}`}
+                                  checked={selected.includes(row.id)}
+                                  disabled={!isConfirmable(row) || confirming}
+                                  onChange={() => toggle(row.id)}
+                                />
+                              ),
                             },
                             {
                               key: 'matchedAt',
@@ -956,7 +971,7 @@ export default function Inventory() {
               </>
             )}
 
-            {(form.kind === 'transfusion' || form.kind === 'adjust') && rows.length > 0 && (
+            {rows.length > 0 && (
               <dl className="hospital-inventory-preview">
                 <div>
                   <dt>Current</dt>
@@ -986,11 +1001,9 @@ export default function Inventory() {
               <Btn type="submit" variant="primary" disabled={saving}>
                 {saving
                   ? 'Saving…'
-                  : form.kind === 'confirm'
-                    ? 'Confirm donation'
-                    : form.kind === 'transfusion'
-                      ? 'Record transfusion'
-                      : 'Apply adjustment'}
+                  : form.kind === 'transfusion'
+                    ? 'Record transfusion'
+                    : 'Apply adjustment'}
               </Btn>
             </div>
           </form>
