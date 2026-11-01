@@ -128,7 +128,7 @@ service cloud.firestore {
                         || request.resource.data.privacyNoticeVersion is string)
                     && !('lastDonationAt' in request.resource.data);
 
-      // Account access and provisioning fields are server-owned (D39).
+      // Account access and provisioning fields are server-owned (D40).
       // Admins may correct personal details; owners may edit their own profile.
       // Both paths preserve the server-owned fields by presence and value.
       // lastDonationAt is frozen by presence AND value (D14): clearing it

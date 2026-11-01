@@ -76,6 +76,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(f, 'users/henry'), { role: 'donor', fullName: 'Henry H.', email: 'henry@dugo.ph', status: 'Removed', statusReason: 'DSR erasure', createdAt: new Date() });
   await setDoc(doc(f, 'users/ivy'), { role: 'donor', fullName: 'Ivy I.', email: 'ivy@dugo.ph', privacyConsentAt: new Date('2026-10-29T09:00:00Z'), privacyNoticeVersion: '2026-10-29', createdAt: new Date() });
   await setDoc(doc(f, 'users/admin1'), { role: 'admin', fullName: 'Admin One', email: 'admin@dugo.ph', status: 'Active', createdAt: new Date() });
+  await setDoc(doc(f, 'users/hosp1'), { role: 'hospital', fullName: 'St. Mary', email: 'staff@dugo.ph', status: 'Active', createdAt: new Date() });
   await setDoc(doc(f, 'hospitals/h1'), { createdBy: 'admin1', name: 'St. Mary General', address: '1200 Bonifacio Ave', latitude: 14.609, longitude: 120.984, geohash: 'qc7bw', contactNumber: '09170000000', status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/subscriptions/s1'), { plan: 'pilot', startDate: new Date('2026-01-01'), endDate: new Date('2027-01-01'), status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/inventory/O+'), { bloodType: 'O+', unitsAvailable: 3, lastUpdated: new Date() });
@@ -106,7 +107,7 @@ await ok('admin claim reads its own profile', readDoc(admin(), 'users/admin1'));
 await ok('owner creates own profile', setDoc(doc(db(as('carol')), 'users/carol'), { role: 'donor', fullName: 'Carol C.', email: 'carol@dugo.ph', createdAt: new Date() }));
 await no('self-create cannot claim admin (D20/D29)', setDoc(doc(db(as('dan')), 'users/dan'), { role: 'admin', fullName: 'Dan D.', email: 'dan@dugo.ph', createdAt: new Date() }));
 await no('self-create cannot claim hospital (D20/D29)', setDoc(doc(db(as('hana')), 'users/hana'), { role: 'hospital', fullName: 'Hana H.', email: 'hana@dugo.ph', createdAt: new Date() }));
-await no('admin clients cannot bypass audited hospital provisioning (D39)', setDoc(doc(db(admin()), 'users/hosp1'), { role: 'hospital', fullName: 'St. Mary', email: 'staff@dugo.ph', createdAt: new Date() }));
+await no('admin clients cannot bypass audited hospital provisioning (D40)', setDoc(doc(db(admin()), 'users/hosp1'), { role: 'hospital', fullName: 'St. Mary', email: 'staff@dugo.ph', createdAt: new Date() }));
 await no('create cannot set lastDonationAt (D14)', setDoc(doc(db(as('eve')), 'users/eve'), { role: 'donor', fullName: 'Eve E.', email: 'eve@dugo.ph', createdAt: new Date(), lastDonationAt: new Date() }));
 await no('signed-out cannot create a profile', setDoc(doc(db(anon()), 'users/frank'), { role: 'donor', fullName: 'Frank F.', email: 'frank@dugo.ph', createdAt: new Date() }));
 await no('create cannot invent a status', setDoc(doc(db(as('gina')), 'users/gina'), { role: 'donor', fullName: 'Gina G.', email: 'gina@dugo.ph', status: 'Admin', createdAt: new Date() }));
@@ -140,7 +141,7 @@ await no('owner cannot re-create a profile over an existing one', setDoc(doc(db(
 await no('owner cannot delete profile', deleteDoc(doc(db(as('alice')), 'users/alice')));
 await ok('admin claim updates any profile', updateDoc(doc(db(admin()), 'users/alice'), { fullName: 'Alice D.' }));
 await ok('admin claim updates its own profile (same-doc read)', updateDoc(doc(db(admin()), 'users/admin1'), { fullName: 'Admin One' }));
-await no('admin clients cannot bypass audited status changes (D39)', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Suspended' }));
+await no('admin clients cannot bypass audited status changes (D40)', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Suspended' }));
 
 // ---- suspension gate (D26) ----------------------------------------------
 // A suspended account keeps its own profile read (the blocked screen names the
