@@ -59,3 +59,17 @@ test('hashRef never returns the raw reference', async () => {
   const hashed = await hashRef({ AUDIT_HASH_SECRET: 'secret' }, 'user-123')
   assert.ok(!hashed.includes('user-123'))
 })
+
+
+test('context integrity is bound to new block hashes while legacy blocks remain unchanged', async () => {
+  const legacy = await computeRecordHash(base)
+  assert.equal(await computeRecordHash({ ...base, contextHash: undefined }), legacy)
+  const detailed = await computeRecordHash({ ...base, contextHash: 'c'.repeat(64) })
+  assert.notEqual(detailed, legacy)
+  assert.notEqual(detailed, await computeRecordHash({ ...base, contextHash: 'd'.repeat(64) }))
+})
+
+test('audit append refuses to write without its HMAC secret', async () => {
+  const { appendAuditBlockSimple } = await import('./audit.js')
+  await assert.rejects(() => appendAuditBlockSimple({}, { eventType: 'Example' }), /HMAC secret/)
+})

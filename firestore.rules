@@ -103,21 +103,21 @@ service cloud.firestore {
 
       // Self-registration is donor-only (D20) and the rules enforce it: a
       // self-creating owner may only write `role: 'donor'`, so a client cannot
-      // claim `admin` here and then ride the admin paths. Only an admin claim
-      // (or the console/Admin SDK, which bypasses rules) may create a
-      // hospital/admin profile. A profile also starts with no donation history:
+      // claim `admin` here and then ride the admin paths. Only the privileged
+      // server, which bypasses rules, creates a hospital/admin profile. A profile also starts with no donation history:
       // only F8's server transaction writes lastDonationAt (D14), so a client
       // may not create it.
-      allow create: if (isAdmin() || (signedIn() && me() == uid))
+      allow create: if signedIn() && me() == uid
                     && validProfilePhoto(request.resource.data)
-                    && (isAdmin() || request.resource.data.role == 'donor')
+                    && request.resource.data.role == 'donor'
+                    && !request.resource.data.keys().hasAny(['loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased', 'hospitalId', 'statusReason', 'statusUpdatedAt'])
                     && request.resource.data.role is string
                     && request.resource.data.fullName is string
                     && request.resource.data.email is string
                     && (!('phoneNumber' in request.resource.data)
                         || request.resource.data.phoneNumber is string)
                     && (!('status' in request.resource.data)
-                        || request.resource.data.status in ['Active', 'Suspended', 'Removed'])
+                        || request.resource.data.status == 'Active')
                     // The registration acceptance (FR-019): a server time and
                     // the notice version it was given for. Optional, because
                     // accounts provisioned outside registration (first Google
@@ -128,19 +128,14 @@ service cloud.firestore {
                         || request.resource.data.privacyNoticeVersion is string)
                     && !('lastDonationAt' in request.resource.data);
 
-      // Editable, but the role is frozen for the owner: allowing that would be
-      // the escalation path (README, "Granting admin"). An admin claim may
-      // update any profile — that is how suspensions land (FR-040), which is
-      // the one path that may change `status`. Donor profile fields (FR-04) are
-      // validated by type so a hand-written document cannot put a non-string
-      // where a screen expects one.
+      // Account access and provisioning fields are server-owned (D40).
+      // Admins may correct personal details; owners may edit their own profile.
+      // Both paths preserve the server-owned fields by presence and value.
       // lastDonationAt is frozen by presence AND value (D14): clearing it
       // would restart the deferral clock and defeat FR-031.
-      allow update: if (
-                         // An admin manages accounts from the console: suspension,
-                         // removal and the anonymising write a deletion request
-                         // performs all arrive here. Shape is still type-checked so
-                         // a broken administrator write cannot bend the document.
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'hospitalId', 'status', 'statusReason', 'statusUpdatedAt', 'loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased'])
+                    && ((
+                         // Administrator corrections retain the profile's validated shape.
                          isAdmin()
                          && validProfilePhoto(request.resource.data)
                          && request.resource.data.role in ['donor', 'hospital', 'admin']
@@ -193,7 +188,7 @@ service cloud.firestore {
                          // The name here is the key a client would try, not a
                          // field — keep it plain or the guard stops matching.
                          && !('eligibility' in request.resource.data)
-                         // Status is an admin decision, not a self-service field.
+                         // Account status is written by the privileged account service.
                          && (!('status' in request.resource.data)
                              || request.resource.data.status == resource.data.status)
                          && (!('statusReason' in request.resource.data)
@@ -222,10 +217,16 @@ service cloud.firestore {
                               || request.resource.data.lastDonationAt
                                    == resource.data.lastDonationAt
                             )
-                       );
+                       ));
 
       allow delete: if false;
     }
+
+    // Account operations and event details are served by the authorized Worker.
+    match /accountOperations/{id} { allow read, write: if false; }
+    match /auditOutbox/{id} { allow read, write: if false; }
+    match /auditContexts/{id} { allow read, write: if false; }
+    match /auditRedactions/{id} { allow read, write: if false; }
 
     // Verification codes (schema §2.2): minted and consumed server-side only.
     match /emailVerifications/{verificationId} {

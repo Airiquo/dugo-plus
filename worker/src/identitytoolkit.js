@@ -19,6 +19,7 @@ async function identityFetch(env, path, body) {
     `https://identitytoolkit.googleapis.com/v1/projects/${encodeURIComponent(project)}${path}`,
     {
       method: 'POST',
+      signal: AbortSignal.timeout(20000),
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -36,7 +37,10 @@ async function identityFetch(env, path, body) {
   }
   if (!response.ok) {
     const detail = payload?.error?.message || text.slice(0, 200)
-    throw new HttpError(response.status, detail || 'Identity Toolkit request failed')
+    throw new HttpError(
+      response.status,
+      detail || 'Identity Toolkit request failed',
+    )
   }
   return payload ?? {}
 }
@@ -46,7 +50,17 @@ async function identityFetch(env, path, body) {
  *
  * @returns {Promise<{ uid: string }>}
  */
-export async function createUser(env, { email, password, displayName, emailVerified = false }) {
+export async function createUser(
+  env,
+  {
+    uid,
+    email,
+    password,
+    displayName,
+    emailVerified = false,
+    disabled = false,
+  },
+) {
   let result
   try {
     result = await identityFetch(env, '/accounts', {
@@ -54,6 +68,8 @@ export async function createUser(env, { email, password, displayName, emailVerif
       password,
       displayName,
       emailVerified,
+      localId: uid,
+      disabled,
     })
   } catch (error) {
     const message = String(error?.message ?? '')
@@ -65,8 +81,25 @@ export async function createUser(env, { email, password, displayName, emailVerif
     }
     throw error
   }
-  if (!result.localId) throw new HttpError(500, 'Identity Toolkit returned no uid')
+  if (!result.localId)
+    throw new HttpError(500, 'Identity Toolkit returned no uid')
   return { uid: result.localId }
+}
+
+/** Read one sign-in record without exposing credentials. */
+export async function getUser(env, uid) {
+  const result = await identityFetch(env, '/accounts:lookup', {
+    localId: [uid],
+  })
+  return result.users?.[0] || null
+}
+
+/** Enable a provisioned login after its claims have been published. */
+export async function enableUser(env, uid) {
+  await identityFetch(env, '/accounts:update', {
+    localId: uid,
+    disableUser: false,
+  })
 }
 
 /** Publish custom claims. An empty object clears them. */
@@ -83,7 +116,11 @@ export async function deleteUser(env, uid) {
     await identityFetch(env, '/accounts:delete', { localId: uid })
   } catch (error) {
     // USER_NOT_FOUND means the record is already gone, which is the goal.
-    if (error?.status === 404 || /USER_NOT_FOUND/i.test(String(error?.message ?? ''))) return
+    if (
+      error?.status === 404 ||
+      /USER_NOT_FOUND/i.test(String(error?.message ?? ''))
+    )
+      return
     throw error
   }
 }

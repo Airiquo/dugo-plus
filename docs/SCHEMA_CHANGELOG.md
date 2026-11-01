@@ -204,6 +204,18 @@ account view shows the recorded date and version.
 Not deployed: the live project still enforces the 2026-10-21 ruleset
 (PHASES §10), so the freeze is written and tested in the suite but not live yet.
 
+
+## 2026-11-01 — Recoverable account operations and audit contexts (D40)
+
+Feature: F9/F10. Adds server-only `accountOperations`, `auditOutbox`,
+`auditContexts` and `auditRedactions`; due-work indexes on state/nextAttemptAt.
+Adds profile login/provisioning/erasure metadata and facility provisioning
+ownership. Adds optional `auditBlocks.contextHash` without changing old hashes.
+Profile access fields are now server-owned, including for browser admins.
+Erasure creates persistent hash-only tombstones; bounded jobs delete erasable
+context while preserving the chain. See schema §2.15–2.18 and
+`docs/ADMIN_ACCOUNT_OPERATIONS.md`. Written and emulator-tested, not deployed.
+
 ## 2026-11-01 — optional account profile picture
 
 **Origin:** build → schema.

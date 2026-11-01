@@ -9,7 +9,7 @@ import { Btn, Card, Field, Input, Modal, PageHeader, Select } from '../../compon
  * Admin account management (FR-040).
  *
  * Lists and inspects donor and hospital accounts, creates hospital accounts
- * through the `createHospitalAccount` callable, and suspends, restores or
+ * through the versioned account service, and suspends, restores or
  * removes an account. Every destructive action confirms first and records a
  * reason. Enforcement is server-side: `firestore.rules` (`accountActive()`)
  * closes every protected path for a Suspended or Removed profile, and
@@ -63,6 +63,11 @@ const CONFIRM_COPY = {
     title: 'Remove this account?',
     body: 'The account is closed and cannot sign back in to Dugo+. Its profile stays on file for audit; use a deletion request if the personal data must be erased.',
     confirm: 'Remove account',
+  },
+  delete: {
+    title: 'Permanently delete this login?',
+    body: 'This removes the sign-in record permanently. Restore will no longer be available. The closed profile and audit history stay on file.',
+    confirm: 'Delete login permanently',
   },
   reactivate: {
     title: 'Restore this account?',
@@ -153,8 +158,8 @@ export default function Accounts() {
     const target = modal.account
     const trimmed = reason.trim()
 
-    if ((modal.kind === 'suspend' || modal.kind === 'remove') && !trimmed) {
-      setError('Add a reason before closing an account.')
+    if ((modal.kind === 'suspend' || modal.kind === 'remove' || modal.kind === 'delete') && !trimmed) {
+      setError('Add a reason before changing this account.')
       return
     }
 
@@ -162,7 +167,10 @@ export default function Accounts() {
     setError('')
     setNote('')
     try {
-      if (modal.kind === 'suspend') {
+      if (modal.kind === 'delete') {
+        await deleteAuthAccount(target.id, trimmed)
+        setNote('The login was permanently deleted. Its closed profile and audit history remain.')
+      } else if (modal.kind === 'suspend') {
         await updateUserStatus(target.id, { status: 'Suspended', statusReason: trimmed })
         setNote(`Suspended ${target.fullName || target.email || 'the account'}.`)
       } else if (modal.kind === 'remove') {
@@ -177,21 +185,6 @@ export default function Accounts() {
       await load()
     } catch (err) {
       setError(err?.message || 'Could not update this account.')
-    } finally {
-      setBusyId('')
-    }
-  }
-
-  const runDeleteAuth = async (target) => {
-    setBusyId(target.id)
-    setError('')
-    setNote('')
-    try {
-      await deleteAuthAccount(target.id)
-      setNote('The sign-in record was deleted; the profile stays closed.')
-      await load()
-    } catch (err) {
-      setError(accountServiceError(err))
     } finally {
       setBusyId('')
     }
@@ -244,7 +237,7 @@ export default function Accounts() {
       setDraft(EMPTY_HOSPITAL)
       setShowCreate(false)
       setCreateNote(
-        `Hospital account created. Facility id ${result.hospitalId}; give the hospital its email and temporary password.`,
+        `Hospital account created. Facility id ${result.hospitalId}; give the hospital its email and temporary password.${result.auditRecorded ? '' : ' Its activity record is saved and awaiting audit delivery.'}`,
       )
       await load()
     } catch (err) {
@@ -265,9 +258,8 @@ export default function Accounts() {
           <header>
             <h2>Accounts</h2>
             <p className="muted">
-              Donor and hospital accounts. Suspending or removing one closes it on the server, not just in
-              this table. New hospital accounts are created through the account service (or
-              <code>scripts/create-hospital.mjs</code> when it is not deployed).
+              Manage donor and hospital access. Account changes record who acted, what changed,
+              and the reason.
             </p>
           </header>
 
@@ -369,7 +361,7 @@ export default function Accounts() {
                               </>
                             )}
                             {status !== 'Active' && !isSelf && u.role !== 'admin' && (
-                              <Btn onClick={() => openConfirm('reactivate', u)} disabled={busy}>
+                              <Btn onClick={() => openConfirm('reactivate', u)} disabled={busy || ['Deleting', 'Deleted', 'Provisioning'].includes(u.loginState) || u.personalDataErased}>
                                 Restore
                               </Btn>
                             )}
@@ -388,9 +380,8 @@ export default function Accounts() {
           <header>
             <h2>Create a hospital account</h2>
             <p className="muted">
-              Creates the sign-in account, its profile and the facility record in one step. With the
-              account service configured it also sets the hospital claim; without one the claim is
-              published later with <code>set-claims</code>.
+              Creates a hospital login linked to its facility. Setup progress and account activity are
+              recorded together.
             </p>
           </header>
 
@@ -463,7 +454,7 @@ export default function Accounts() {
                   />
                 </Field>
               </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                 <Btn variant="primary" type="submit" disabled={creating}>
                   {creating ? 'Creating…' : 'Create account'}
                 </Btn>
@@ -557,8 +548,8 @@ export default function Accounts() {
                 </p>
                 <Btn
                   variant="alert"
-                  onClick={() => runDeleteAuth(editing)}
-                  disabled={busyId === editing.id}
+                  onClick={() => openConfirm('delete', editing)}
+                  disabled={busyId === editing.id || ['Deleting', 'Deleted', 'Provisioning'].includes(editing.loginState)}
                 >
                   {busyId === editing.id ? 'Deleting…' : 'Delete sign-in record'}
                 </Btn>
@@ -581,14 +572,17 @@ export default function Accounts() {
               Account: <strong>{editing.fullName || editing.email || editing.id}</strong>
             </p>
 
-            {(modal.kind === 'suspend' || modal.kind === 'remove') && (
-              <Field label="Reason (shown to the account)">
+            {(modal.kind === 'suspend' || modal.kind === 'remove' || modal.kind === 'delete') && (
+              <Field label={modal.kind === 'delete' ? 'Reason for permanent login deletion' : 'Reason (shown to the account)'}>
                 <Input
                   value={reason}
                   onChange={(e) => {
                     setReason(e.target.value)
                     setError('')
                   }}
+                  required
+                  aria-invalid={Boolean(error && !reason.trim())}
+                  maxLength={2000}
                   placeholder="e.g. Duplicate account confirmed by the facility"
                   autoFocus
                 />
@@ -601,7 +595,7 @@ export default function Accounts() {
               </p>
             )}
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
               <Btn
                 variant={modal.kind === 'reactivate' ? 'primary' : 'alert'}
                 onClick={runAction}

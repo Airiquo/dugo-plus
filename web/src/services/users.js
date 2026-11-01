@@ -13,6 +13,7 @@ import {
 import { db } from '../lib/firebase'
 import { geohash, isCoordinate } from '../utils/geohash'
 import { recordAuditEvent } from './audit'
+import { callAccountService } from './accounts'
 import { isProfilePhotoUrl } from '../utils/profilePhoto'
 
 /**
@@ -21,15 +22,14 @@ import { isProfilePhotoUrl } from '../utils/profilePhoto'
  * The data model is `docs/firestore_schema.md` §2.1, and the stored shape now
  * matches it: `fullName`, `phoneNumber`, flat `latitude`/`longitude`, and the
  * lowercase role set. `address` is not collected, and `isVerified` is not
- * stored — Firebase Auth owns email verification (D5). `status` and `hospitalId`
- * are written but not yet read (D22). `firestore.rules` freezes `role` and
+ * stored — Firebase Auth owns email verification (D5). `status` gates protected access and `hospitalId` links facility accounts. `firestore.rules` freezes `role` and
  * `lastDonationAt`.
  */
 
 /** Every account type that exists. */
 export const ROLES = ['donor', 'hospital', 'admin']
 
-/** Every account status. Written by an admin screen; nothing reads it yet (D22). */
+/** Account access states enforced by rules and server account operations. */
 export const STATUSES = ['Active', 'Suspended', 'Removed']
 
 /** The eight blood types, in the order a picker should read them. */
@@ -304,6 +304,9 @@ export async function readProfile(uid) {
     hospitalId: text(data.hospitalId),
     status: STATUSES.includes(data.status) ? data.status : 'Active',
     statusReason: text(data.statusReason),
+    loginState: text(data.loginState),
+    loginDeletedAt: asDate(data.loginDeletedAt),
+    personalDataErased: data.personalDataErased === true,
     statusUpdatedAt: asDate(data.statusUpdatedAt),
     privacyConsentAt: asDate(data.privacyConsentAt),
     privacyNoticeVersion: text(data.privacyNoticeVersion),
@@ -339,6 +342,9 @@ export async function listUsers() {
       hospitalId: text(data.hospitalId),
       status: STATUSES.includes(data.status) ? data.status : 'Active',
       statusReason: text(data.statusReason),
+      loginState: text(data.loginState),
+      loginDeletedAt: asDate(data.loginDeletedAt),
+      personalDataErased: data.personalDataErased === true,
       statusUpdatedAt: asDate(data.statusUpdatedAt),
       privacyConsentAt: asDate(data.privacyConsentAt),
       privacyNoticeVersion: text(data.privacyNoticeVersion),
@@ -362,15 +368,7 @@ export async function updateUserStatus(uid, changes) {
   if (changes.status !== 'Active' && !reason) {
     throw new Error('Add a reason for closing or suspending this account.')
   }
-  await updateDoc(doc(db, 'users', uid), {
-    status: changes.status,
-    statusReason: changes.status === 'Active' ? '' : reason,
-    statusUpdatedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  })
-  // F10b: an administrative account event (FR-042).
-  const event = { Active: 'Account.Reactivated', Suspended: 'Account.Suspended', Removed: 'Account.Removed' }[changes.status]
-  await recordAuditEvent({ eventType: event, entityType: 'user', entityId: uid })
+  return callAccountService('updateAccountStatus', { uid, status: changes.status, reason })
 }
 
 /**
@@ -382,7 +380,7 @@ export async function updateUserStatus(uid, changes) {
  * @param {string} reason
  */
 export async function removeUser(uid, reason) {
-  await updateUserStatus(uid, { status: 'Removed', statusReason: reason })
+  return updateUserStatus(uid, { status: 'Removed', statusReason: reason })
 }
 
 /**
@@ -399,23 +397,6 @@ export async function anonymiseUser(uid, reason) {
   if (!uid) throw new Error('Choose an account first.')
   const note = typeof reason === 'string' ? reason.trim() : ''
   if (!note) throw new Error('Record why the personal data was erased.')
-  await updateDoc(doc(db, 'users', uid), {
-    fullName: 'Removed account',
-    photoURL: '',
-    email: '',
-    phoneNumber: '',
-    city: '',
-    geohash: '',
-    latitude: 0,
-    longitude: 0,
-    bloodType: '',
-    dateOfBirth: null,
-    status: 'Removed',
-    statusReason: note,
-    statusUpdatedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  })
-  // F10b: an erasure is a data-access event (FR-042).
-  await recordAuditEvent({ eventType: 'DataAccess.Erasure', entityType: 'user', entityId: uid })
+  return callAccountService('eraseAccountData', { uid, reason: note })
 }
 
