@@ -12,7 +12,7 @@ import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestor
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 import { db } from '../../lib/firebase'
-import { Badge } from '../../components'
+import { Badge, CarePageHeader } from '../../components'
 import { DonorNav } from '../../layout/DonorNav'
 
 /** `Sent` → the delivered tone; anything else is still pending. */
@@ -65,10 +65,10 @@ export default function Alerts() {
   if (!role) return <Navigate to="/" replace />
 
   return (
-    <div className="pub" data-theme={theme} style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}>
+    <div className="pub donor-surface" data-theme={theme} style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}>
       <DonorNav />
 
-      <main id="top" className="alerts-main">
+      <main id="top" className="alerts-main donor-main"><CarePageHeader kicker="Your care connections" title={<>Good news.<br /><em>One alert away.</em></>} description="Updates on the requests that match you, in one place." />
         <div className="alerts-wrap">
           <p className="pub-kicker">Alerts</p>
           <h3>Match notifications</h3>

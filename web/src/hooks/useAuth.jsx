@@ -9,7 +9,7 @@ import {
   signOut as signOutOfFirebase,
   signUp as createAccount,
 } from '../services/auth'
-import { readProfile, writeProfile } from '../services/users'
+import { ensureProfile, readProfile } from '../services/users'
 import { logError } from '../services/log'
 
 // No picker screen: self-registration is donor-only (D20), so a session with
@@ -74,6 +74,13 @@ export function AuthProvider({ children }) {
    */
   const pendingConsent = useRef(null)
 
+  /**
+   * Set while the register screen is creating an account and its profile. That
+   * write carries the typed name and the acceptance, so the session listener
+   * must not provision a second, parallel document for the same account.
+   */
+  const signUpInFlight = useRef(false)
+
   /** Store a profile and invalidate any read still in flight for this account. */
   const publishProfile = useCallback((next) => {
     profileSeq.current += 1
@@ -118,7 +125,9 @@ export function AuthProvider({ children }) {
           }
           // The sign-up screen writes the same document itself; if its write
           // already published, this read is stale and must not double-write.
-          if (!current()) return
+          // While a sign-up is in flight its write is the one that owns the
+          // document, so this branch stays out of the way.
+          if (!current() || signUpInFlight.current) return
           const data = {
             role: DEFAULT_ROLE,
             fullName: snap.displayName ?? '',
@@ -126,9 +135,9 @@ export function AuthProvider({ children }) {
           }
           const consentVersion = pendingConsent.current ?? undefined
           try {
-            await writeProfile(snap.uid, data, consentVersion)
+            const { created, profile: stored } = await ensureProfile(snap.uid, data, consentVersion)
             pendingConsent.current = null
-            if (current()) publishProfile(data)
+            if (current()) publishProfile(created ? data : stored)
           } catch (error) {
             // The write was refused (offline, rules): leave the profile missing
             // so guards report a broken account rather than guessing. Report
@@ -174,6 +183,10 @@ export function AuthProvider({ children }) {
       // Hold the acceptance for the auto-provision branch, which can win the
       // race against the profile write below; both writes then record it.
       pendingConsent.current = consentVersion ?? null
+      // The listener provisions a missing profile on every session event. This
+      // write carries the typed name, so it owns the document for the duration
+      // of the sign-up and the listener leaves it alone.
+      signUpInFlight.current = true
       let next
       try {
         next = await createAccount(name, email, password, (fresh) =>
@@ -181,6 +194,7 @@ export function AuthProvider({ children }) {
         )
       } catch (error) {
         pendingConsent.current = null
+        signUpInFlight.current = false
         throw error
       }
       const data = {
@@ -189,9 +203,9 @@ export function AuthProvider({ children }) {
         email: next.email ?? '',
       }
       try {
-        await writeProfile(next.uid, data, consentVersion)
+        const { created, profile: stored } = await ensureProfile(next.uid, data, consentVersion)
         pendingConsent.current = null
-        publishProfile(data)
+        publishProfile(created ? data : stored)
       } catch (error) {
         // The account exists but `users/{uid}` was never written. Report the
         // SDK error, then rethrow with a marker the register screen
@@ -202,6 +216,8 @@ export function AuthProvider({ children }) {
         const failure = new Error('The donor profile could not be saved.', { cause: error })
         failure.roleNotSaved = true
         throw failure
+      } finally {
+        signUpInFlight.current = false
       }
       return next
     },

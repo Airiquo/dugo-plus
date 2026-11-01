@@ -51,7 +51,7 @@ export default function ForgotPassword() {
   return (
     <AuthLayout
       kicker="Reset password"
-      heading="One account, three roles"
+      heading="Find your way back." blurb="Reconnect with your account and continue your Dugo+ journey."
     >
       <form className="pub-card pub-form" noValidate onSubmit={run}>
         <h3>Recover your account</h3>

@@ -34,7 +34,7 @@ registration. It covers:
 | A suspended/removed account loses every protected path | `accountActive()` in `firestore.rules`; `Blocked.jsx` |
 | Erasure scrubs the identifying fields | `anonymiseUser()` in `web/src/services/users.js` |
 | The Auth sign-in record is deleted as part of erasure | `deleteAuthAccount` in `functions/index.js` (not deployed in this checkout), called from `/admin/accounts` |
-| Registration acceptance is recorded with the notice version | required checkbox in `web/src/pages/public/Register.jsx`; `writeProfile()` stores `privacyConsentAt` + `privacyNoticeVersion`; owner-frozen in `firestore.rules`; shown in `/admin/accounts` |
+| Registration acceptance is recorded with the notice version | required checkbox in `web/src/pages/public/Register.jsx`; `ensureProfile()` stores `privacyConsentAt` + `privacyNoticeVersion`; owner-frozen in `firestore.rules`; shown in `/admin/accounts` |
 | Requests are owner-create, admin-process | `firestore.rules` `match /dataSubjectRequests/{dsrId}` |
 | No service-account key in the web app | privileged work is `functions/` or `scripts/*.mjs` with a key outside the repo |
 
