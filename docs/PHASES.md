@@ -34,7 +34,7 @@ numbers rather than trusting this section.
 | **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; claims not set on a live project, functions not deployed, no signed-in smoke here) |
 | **P7** | Hash-chain audit trail | in progress (F10a; F10b data-access hooks in; donation/inventory events wait on F8/F6) |
 | **P8** | Compliance and privacy | not started; mostly documents |
-| **P9** | Non-functional hardening (responsiveness, scale, compatibility) | not started |
+| **P9** | Non-functional hardening (responsiveness, scale, compatibility) | in progress (D35: responsive care redesign inspected with fixture data; live/mobile-device and performance verification remain) |
 
 Phase numbers order the table. They are not a build order and not a work
 assignment: see §5.
@@ -352,6 +352,7 @@ route renders `pages/shared/NotConfigured`.
 Stated every session until answered, explicitly withdrawn, or the work they block
 is cancelled. An assumption is never recorded in place of an answer.
 
+- **Design direction resolved (2026-11-01, D35).** Owner requests the approved landing design across the app, light default and donor desktop/mobile responsiveness; free redesign is authorized. Contextual auth headings replace the role-count line, and bounded centered gutters correct its left stretch. No further design question is blocking this branch. See `docs/CARE_REDESIGN.md` for verification scope.
 - **NFR-14, idle session timeout**: deferred (D9). No timeout value, no policy
   on what counts as activity, no decision on whether it applies to all roles.
 - **`firestore.rules` + `firestore.indexes.json` deployed 2026-10-21.** The
