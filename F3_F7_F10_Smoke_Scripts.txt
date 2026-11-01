@@ -1,0 +1,140 @@
+F3 / F7 / F10 Smoke Scripts (email-only)
+=========================================
+
+Scope: the hospital request flow (F3), matching + email notification (F7), and
+the audit chain (F10). SMS is **not** in scope — notifications are email-only
+(Brevo). Each flow lists preconditions, steps, and the evidence that makes it
+pass.
+
+PRE-FLIGHT (must all be true)
+-----------------------------
+1. Branch + app:
+     git rev-parse --abbrev-ref HEAD      # feat/f3
+     cd web && npm run dev                # http://localhost:5173
+2. Worker live (CORS + transactional append deployed):
+     curl -s https://dugo-matching.dugo-plus.workers.dev/health   # {"ok":true,...}
+3. Rules + indexes deployed; custom claims published; reload so claims apply
+   (admin must open /admin/accounts; hospital must be able to manage requests).
+4. web/.env.local has VITE_MATCHING_ENDPOINT (the deployed Worker).
+5. Email configured (for F7's email check):
+     npx wrangler secret list -c worker/wrangler.toml
+   Expect BREVO_API_KEY, BREVO_SENDER_EMAIL, BREVO_SENDER_NAME. If any is
+   missing, notifications are still created but stay Pending (no email).
+6. Accounts: admin (claim admin), hospital (claim staff + hospitalId, e.g.
+   hospital@test.com), and a donor that matches: compatible bloodType, status
+   Active, coordinates inside the tier radius of the facility, no recent
+   donation, and a real email inbox you can open.
+
+-------------------------------------------------------------------------------
+SCRIPT F3 — hospital posts a request and manages its status
+-------------------------------------------------------------------------------
+As the HOSPITAL account:
+1. Sign in -> lands on /hospital/requests.
+2. Click "New request" (/hospital/requests/new): choose blood type, component,
+   units (>=1), urgency -> "Post request".
+3. You return to the list; the new row is present, ordered urgency-first
+   (urgent, then stat, then routine).
+4. Press F5 (reload) -> the request is STILL listed (it persisted).
+5. In the row's "Manage" column pick "cancelled" (confirm the dialog) -> the
+   status chip becomes cancelled. F5 -> it persisted.
+
+PASS: posts, sorts urgency-first, survives reload, and the status change sticks.
+FAIL signs:
+- "This account is not linked to a facility yet" -> users/{uid}.hospitalId unset.
+- "You do not have permission to change this request" -> staff claim missing
+  (reload / sign out-in, or re-run `npm run set:claims`).
+
+-------------------------------------------------------------------------------
+SCRIPT F7 — matching + EMAIL notification (no SMS)
+-------------------------------------------------------------------------------
+As the HOSPITAL account, post a request whose component/type has that donor
+(e.g. A+ / whole-blood). The Worker runs POST /match, or the 1-minute cron.
+
+In the Firebase console (Firestore):
+1. bloodRequests/{requestId}.matching
+   -> currentTier advanced, matchedDonorCount >= 1 (0 means no eligible donor
+      was in range — fix the donor's type/coords/eligibility and repost).
+2. donorMatches/{requestId}_{donorId} exists, responseStatus "Pending".
+3. notifications/{requestId}_{donorId}
+   -> deliveryStatus "Sent", sentAt set, retryCount 0.
+
+Then:
+4. Donor signs in -> /donor/alerts shows the match notification (donor navbar).
+5. Brevo dashboard -> Transactional -> Logs: an entry for the donor's address,
+   status "delivered".
+
+Retry / "Failed" path:
+6. Break the send on purpose (set a wrong BREVO_API_KEY), or use a request with
+   no matching donor, and let the cron run:
+   - after each failed send -> retryCount increments (still Pending);
+   - once retryCount reaches systemConfig.notifRetryLimit -> deliveryStatus
+     becomes "Failed" (the cron retries Pending only).
+
+Timing (for NFR-01/02/05):
+   npx wrangler tail -c worker/wrangler.toml
+   watch for: match run { queryMs, existingMs, writeMs, totalMs }
+   (the matcher also stores lastRunMs in bloodRequests.matching)
+
+PASS: a donorMatch + a notifications row with deliveryStatus "Sent" and sentAt,
+the donor sees it in /donor/alerts, and Brevo logs the delivery; failures end on
+"Failed".
+FAIL signs:
+- notifications stay "Pending" -> a Brevo secret is missing / sender not
+  verified, or BREVO_API_KEY is wrong.
+- no donorMatches row -> donor incompatible / out of range / not eligible / no
+  email.
+
+-------------------------------------------------------------------------------
+SCRIPT F10 — audit chain (append, verify, tamper)
+-------------------------------------------------------------------------------
+As the ADMIN account:
+1. /admin/data-requests -> open a request -> "generate export" (or apply a
+   correction / erase) on a test subject.
+2. Firestore auditBlocks -> a new block:
+   - eventType "DataAccess.Export" (or .Rectification / .Erasure)
+   - entityType "user" / "dataSubjectRequest"
+   - hashedEntityRef + hashedActorRef set (HMAC hashes, never raw ids)
+   - sequence incrementing, prevHash == the previous block's recordHash
+     (genesis: prevHash "0")
+3. /admin/audit-trail -> Refresh -> "Verify Chain" -> Valid, blocks verified >= 1.
+4. Also exercise the account actions: /admin/accounts -> suspend a throwaway
+   donor -> an "Account.Suspended" block; reactivate -> "Account.Reactivated";
+   (if used) anonymise -> "DataAccess.Erasure".
+5. Tamper check (optional): in the console edit one block's recordHash -> back
+   on /admin/audit-trail "Verify Chain" -> Invalid with brokenAt at that
+   sequence.
+
+PASS: one block per action, hashes only, chain verifies Valid; a tamper makes it
+Invalid.
+FAIL signs:
+- no block after an action, and the browser console shows
+  "[audit] append skipped" -> VITE_MATCHING_ENDPOINT unset, or the Worker
+  /audit/append rejected (admin claim missing).
+- 5xx from the Worker -> npx wrangler tail -c worker/wrangler.toml.
+
+-------------------------------------------------------------------------------
+PASS / FAIL SUMMARY
+-------------------------------------------------------------------------------
+  F3 post        -> request present after reload
+  F3 manage      -> status change persisted
+  F7 match       -> bloodRequests.matching + donorMatches row
+  F7 email       -> notifications.deliveryStatus "Sent" + Brevo log
+  F7 retry       -> deliveryStatus "Failed" at the retry limit
+  F10 append     -> auditBlocks entry, hashed refs only
+  F10 verify     -> Verify Chain valid; tamper -> invalid
+
+TROUBLESHOOTING
+---------------
+- Admin/staff screens reject -> claims not applied: sign out/in (or hard
+  reload), then re-run `npm run set:claims`.
+- Email never sends -> check the three Brevo secrets; sender must be verified in
+  Brevo; watch for `brevo send failed { status, detail }` in the Worker tail.
+- No match -> donor not compatible / in range / eligible, or has no email.
+- Holding at /verify-email -> that account has not verified its email.
+
+AFTER THE SMOKE (write-back)
+----------------------------
+- Passing rows move partial -> done with evidence (FR-011/016/017, FR-007,
+  FR-035/042-045, NFR-15, ...), and PHASES §2/§10 updated.
+- Email-only decision: SMS is descoped, so FR-007 and NFR-09 lose the SMS leg
+  (record as a decision).
