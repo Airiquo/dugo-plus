@@ -9,7 +9,7 @@ export function CareDonorCard({ bloodType, city, eligibility, loaded, error, pho
   return <aside className={cx('care-donor-card', className)} {...rest}>
     <div className="care-donor-card-top"><span className="care-kicker">Your donor card</span><span className="care-mini-mark" aria-hidden="true" /></div>
     <div className="care-donor-identity">
-      <ProfileAvatar className="care-donor-photo" src={photoURL} name={name} />
+      <div className="care-donor-photo-ring"><ProfileAvatar className="care-donor-photo" src={photoURL} name={name} /></div>
       <strong>{name || 'Donor profile'}</strong>
       <div className="care-donor-blood"><span>{loaded ? bloodType || '—' : error ? '—' : '…'}</span><span>Your blood type</span></div>
     </div>
