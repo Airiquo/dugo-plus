@@ -11,6 +11,8 @@ import {
 import { getAccountHistory } from "../../services/audit";
 import {
   AdminDialog,
+  AccountProfileEditor,
+  HospitalLocationMap,
   Btn,
   Field,
   Icon,
@@ -18,7 +20,8 @@ import {
   PageHeader,
   Select,
 } from "../../components";
-import { accountActionReasons } from "../../utils/accountActions";
+import { accountActionReasons, accountProfileEditReason } from "../../utils/accountActions";
+import { asPoint } from "../../utils/geo";
 
 /** Account directory, hospital provisioning and per-account history (FR-040/035). */
 const EMPTY = {
@@ -65,6 +68,7 @@ const EVENTS = {
   "Account.Removed": "Access removed",
   "Account.Reactivated": "Access restored",
   "Account.LoginDeleted": "Sign-in permanently deleted",
+  "Account.ProfileUpdated": "Profile details updated",
   "DataAccess.Erasure": "Personal data erased",
 };
 const label = (account) =>
@@ -594,6 +598,12 @@ export default function Accounts() {
                         <td data-label="Actions">
                           <div className="aa-row-actions">
                             <Btn
+                              disabled={Boolean(accountProfileEditReason(account, user?.uid, busy))}
+                              title={accountProfileEditReason(account, user?.uid, busy) || "Edit profile and facility details"}
+                              onClick={() => open("edit", account)}
+                              aria-label={`Edit details for ${label(account)}`}
+                            >Edit details</Btn>
+                            <Btn
                               onClick={() => view(account)}
                               aria-label={`View history for ${label(account)}`}
                             >
@@ -669,6 +679,17 @@ export default function Accounts() {
           </footer>
         </div>
 
+        <AccountProfileEditor
+          account={selected}
+          open={dialog?.kind === "edit"}
+          onClose={close}
+          onSaved={(result) => {
+            setNotice(`Profile details saved for ${label(selected)}.${auditNote(result)}`);
+            setDialog(null);
+            load();
+          }}
+        />
+
         <AdminDialog
           name="hospital-create"
           open={dialog?.kind === "create"}
@@ -704,17 +725,23 @@ export default function Accounts() {
                   maxLength: 40,
                 })}
               </div>
-              <details className="aa-location-fields">
-                <summary>Add map coordinates (optional)</summary>
+              <div className="aa-location-fields">
+                <h3>Facility location</h3>
+                <HospitalLocationMap editable disabled={busy}
+                  position={asPoint(draft.latitude, draft.longitude)}
+                  label="Pin the new hospital location"
+                  onChange={({ lat, lng }) => {
+                    change("latitude", String(lat));
+                    change("longitude", String(lng));
+                  }} />
                 <div className="aa-form-grid">
                   {field("latitude", "Latitude", { type: "number" })}
                   {field("longitude", "Longitude", { type: "number" })}
                 </div>
                 <p>
-                  Enter both coordinates or leave both empty. The facility ID is
-                  generated if omitted.
+                  Place a pin or enter both coordinates. Leave both empty if the location is not known yet.
                 </p>
-              </details>
+              </div>
             </fieldset>
             <fieldset disabled={busy}>
               <legend>

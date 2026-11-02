@@ -148,6 +148,17 @@ export async function updateAccountStatus(env, input, actorUid) {
   )
 }
 
+/** Read the current editable profile and its concurrency revision. */
+export async function getAccountProfile(env, uid, actorUid) {
+  return manager(env).getProfile(uid, actorUid)
+}
+
+/** Save allowed profile/facility fields with a transactional audit event. */
+export async function updateAccountProfile(env, input, actorUid) {
+  const { uid, revision, profile, facility, reason } = input
+  return manager(env).editProfile({ uid, revision, profile, facility, reason }, actorUid, input.operationId)
+}
+
 /** Erase profile details and queue context redaction with the account event. */
 export async function eraseAccountData(env, input, actorUid) {
   return manager(env).changeStatus(

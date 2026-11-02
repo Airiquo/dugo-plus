@@ -1,7 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { accountActionReasons } from "./accountActions.js";
+import { accountActionReasons, accountProfileEditReason } from "./accountActions.js";
 const account = { id: "donor", role: "donor", status: "Active" };
+test('profile editing is available for live donor/hospital accounts and explains protected states', () => {
+  assert.equal(accountProfileEditReason(account, 'admin'), '')
+  assert.equal(accountProfileEditReason({ ...account, status: 'Suspended', role: 'hospital' }, 'admin'), '')
+  for (const update of [{ status: 'Removed' }, { personalDataErased: true }, { role: 'admin' },
+    { loginState: 'Deleted' }, { loginState: 'Deleting' }, { loginState: 'Provisioning' }])
+    assert.ok(accountProfileEditReason({ ...account, ...update }, 'admin'))
+  assert.ok(accountProfileEditReason(account, 'donor'))
+})
 test("active, suspended and removed accounts expose the correct action set", () => {
   assert.equal(accountActionReasons(account, "admin").suspend, "");
   assert.ok(accountActionReasons(account, "admin").restore);

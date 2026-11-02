@@ -1,5 +1,6 @@
 /** Recoverable account operations and their transactional audit outbox. */
 import { HttpError } from './http.js'
+import { accountProfileSnapshot, normalizeAccountProfile, PROFILE_FIELD_LABELS } from './accountProfile.js'
 
 const TARGET_ID = /^[^/\s]{1,128}$/
 const OPERATION_ID = /^[a-zA-Z0-9-]{16,80}$/
@@ -174,6 +175,82 @@ export function createAccountManager({
       auditRecorded,
       auditState: auditRecorded ? 'Recorded' : 'Pending',
     }
+  }
+
+  async function editableAccount(tx, target, actor) {
+    const profile = await tx.get('users', target)
+    assertTarget(profile, target, actor)
+    if (!['Active', 'Suspended'].includes(profile.data.status || 'Active') ||
+        profile.data.personalDataErased || ['Deleting', 'Deleted'].includes(profile.data.loginState) ||
+        profile.data.loginDeletedAt)
+      throw new HttpError(412, 'This account is closed, erased, or its sign-in is unavailable. Its profile cannot be edited.')
+    const hospital = profile.data.role === 'hospital'
+      ? await tx.get('hospitals', accountId(profile.data.hospitalId)) : null
+    if (profile.data.role === 'hospital' && (!hospital || hospital.data.provisioningOperationId))
+      throw new HttpError(412, 'The linked facility is missing or still being set up.')
+    const snapshot = accountProfileSnapshot(profile, hospital)
+    const revision = await hash(JSON.stringify({ snapshot,
+      profileUpdatedAt: profile.data.updatedAt || null,
+      facilityUpdatedAt: hospital?.data.updatedAt || null,
+    }))
+    return { profile, hospital, snapshot, revision }
+  }
+
+  async function getProfile(target, actor) {
+    accountId(target)
+    return store.transact(async (tx) => {
+      assertAdmin(await tx.get('users', actor))
+      const { snapshot, revision } = await editableAccount(tx, target, actor)
+      return { ...snapshot, revision }
+    })
+  }
+
+  async function editProfile(input, actor, key) {
+    const target = accountId(input.uid)
+    const reason = reasonText(input.reason)
+    if (reason.length > 1500) throw new HttpError(400, 'Keep the edit reason to 1500 characters or fewer.')
+    if (typeof input.revision !== 'string' || !/^[a-f0-9]{64}$/.test(input.revision))
+      throw new HttpError(400, 'Reload the account details before saving.')
+    const id = await operationId(actor, key)
+    const fingerprint = await hash(JSON.stringify({ action: 'editProfile', input }))
+    await store.transact(async (tx) => {
+      if (await existingOperation(tx, actor, id, fingerprint)) return
+      const { profile, hospital, revision } = await editableAccount(tx, target, actor)
+      if (input.revision !== revision)
+        throw new HttpError(412, 'These details changed while you were editing. Reload them before saving.')
+      const next = normalizeAccountProfile(input, profile.data.role, now())
+      const changes = []
+      for (const [scope, previous, updated] of [
+        ['Profile', profile.data, next.profile], ['Facility', hospital?.data, next.facility],
+      ]) {
+        if (!updated) continue
+        for (const [field, value] of Object.entries(updated)) {
+          if (field === 'geohash') continue
+          const emptyValue = ['latitude', 'longitude'].includes(field) ? 0 : typeof value === 'string' ? '' : null
+          if (JSON.stringify(previous[field] ?? emptyValue) !== JSON.stringify(value))
+            changes.push(`${scope}: ${PROFILE_FIELD_LABELS[field]}`)
+        }
+      }
+      if (!changes.length) throw new HttpError(400, 'Change at least one field before saving.')
+      const mirror = profile.data.role === 'donor'
+        ? await tx.get('donorLocations', target) : null
+      const at = now()
+      tx.update(`users/${target}`, { ...next.profile, updatedAt: at })
+      if (hospital) tx.update(`hospitals/${hospital.id}`, { ...next.facility, updatedAt: at })
+      if (profile.data.role === 'donor') {
+        if (next.profile.geohash) {
+          const { latitude, longitude, city, geohash, bloodType } = next.profile
+          const location = { donorId: target, latitude, longitude, city, geohash, bloodType, updatedAt: at }
+          if (mirror) tx.update(`donorLocations/${target}`, location)
+          else tx.create(`donorLocations/${target}`, location)
+        } else if (mirror) tx.delete(`donorLocations/${target}`)
+      }
+      const status = profile.data.status || 'Active'
+      finish(tx, id, { action: 'editProfile', actorId: actor, targetUid: target, fingerprint,
+        createdAt: at, reason: `Updated fields: ${changes.join('; ')}. Reason: ${reason}` },
+      'Account.ProfileUpdated', status, status, {}, true)
+    })
+    return resultFor(id)
   }
 
   async function createHospital(input, actor, key, password) {
@@ -594,5 +671,5 @@ export function createAccountManager({
     return { considered: operations.length }
   }
 
-  return { createHospital, changeStatus, deleteLogin, retryPending }
+  return { createHospital, changeStatus, deleteLogin, retryPending, getProfile, editProfile }
 }

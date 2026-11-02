@@ -92,6 +92,109 @@ const records = (store, collection) =>
     ([path]) => path.startsWith(collection + '/') && !path.endsWith('/_meta'),
   )
 
+const editInput = (details, changes = {}) => ({ uid: details.uid, revision: details.revision,
+  profile: { ...details.profile, ...changes }, facility: details.facility,
+  reason: 'Correct details supplied by the account owner.' })
+
+test('profile edits atomically correct donor identity/location and record one auditable event', async () => {
+  const { manager, store } = setup()
+  const details = await manager.getProfile('donor', 'admin')
+  const input = editInput(details, { fullName: 'Corrected name', bloodType: 'B-',
+    dateOfBirth: '1990-02-03', city: 'Malolos', latitude: 14.86, longitude: 120.82 })
+  const result = await manager.editProfile(input, 'admin', key)
+  assert.equal(result.auditRecorded, true)
+  const profile = store.docs.get('users/donor')
+  assert.equal(profile.fullName, 'Corrected name')
+  assert.equal(profile.bloodType, 'B-')
+  assert.equal(profile.dateOfBirth.toISOString(), '1990-02-03T00:00:00.000Z')
+  assert.equal(store.docs.get('donorLocations/donor').geohash, profile.geohash)
+  assert.equal(store.docs.get('donorLocations/donor').bloodType, 'B-')
+  assert.equal(records(store, 'auditBlocks')[0][1].eventType, 'Account.ProfileUpdated')
+  const context = records(store, 'auditContexts')[0][1]
+  assert.match(context.reason, /Profile: Blood type/)
+  assert.match(context.reason, /Profile: Latitude/)
+  assert.ok(!JSON.stringify(records(store, 'auditBlocks')).includes('Corrected name'))
+  assert.equal((await manager.editProfile(input, 'admin', key)).state, 'Completed')
+  assert.equal(records(store, 'auditBlocks').length, 1)
+  assert.equal(records(store, 'accountOperations').length, 1)
+})
+
+test('hospital edits keep facility and staff coordinates together when audit delivery is offline', async () => {
+  const { manager, store, failDelivery } = setup({
+    'users/staff': { role: 'hospital', status: 'Active', fullName: 'Contact', hospitalId: 'clinic', city: 'Old city' },
+    'hospitals/clinic': { name: 'Clinic', address: 'Address', contactNumber: '123', latitude: 14.8, longitude: 120.8 },
+  })
+  const details = await manager.getProfile('staff', 'admin')
+  const input = editInput(details)
+  input.facility = { ...details.facility, name: 'Updated clinic', city: 'Malolos', latitude: 14.86, longitude: 120.82 }
+  failDelivery()
+  const result = await manager.editProfile(input, 'admin', key)
+  assert.equal(result.auditRecorded, false)
+  assert.equal(store.docs.get('hospitals/clinic').name, 'Updated clinic')
+  assert.equal(store.docs.get('hospitals/clinic').geohash, store.docs.get('users/staff').geohash)
+  assert.equal(store.docs.get('users/staff').city, 'Malolos')
+  assert.equal(records(store, 'auditOutbox').length, 1)
+  assert.match(records(store, 'auditOutbox')[0][1].context.reason, /Facility: Facility name/)
+})
+
+test('stale profile edits cannot overwrite a newer correction', async () => {
+  const { manager } = setup()
+  const details = await manager.getProfile('donor', 'admin')
+  await manager.editProfile(editInput(details, { fullName: 'First correction' }), 'admin', key)
+  await assert.rejects(manager.editProfile(editInput(details, { fullName: 'Stale correction' }), 'admin', key + '2'), /changed while you were editing/)
+})
+
+test('unchanged profiles cannot create an edit event by filling empty coordinate defaults', async () => {
+  const { manager, store } = setup()
+  const details = await manager.getProfile('donor', 'admin')
+  await assert.rejects(manager.editProfile(editInput(details), 'admin', key), /Change at least one field/)
+  assert.equal(records(store, 'auditOutbox').length, 0)
+})
+
+test('profile validation rejects protected fields, malformed dates and invalid locations without writes', async () => {
+  const { manager, store } = setup()
+  const details = await manager.getProfile('donor', 'admin')
+  for (const changes of [{ role: 'admin' }, { email: 'other@example.test' }, { lastDonationAt: null },
+    { status: 'Removed' }, { bloodType: 'invalid' }, { dateOfBirth: '1990-02-30' },
+    { dateOfBirth: '2990-01-01' }, { latitude: 14.8, longitude: null }, { latitude: 100, longitude: 120 }]) {
+    await assert.rejects(manager.editProfile(editInput(details, changes), 'admin', key))
+  }
+  assert.equal(store.docs.get('users/donor').fullName, 'Donor')
+  assert.equal(records(store, 'accountOperations').length, 0)
+  assert.equal(records(store, 'auditOutbox').length, 0)
+})
+
+test('profile editing refuses closed, erased, provisioning, admin and self targets', async () => {
+  for (const changes of [{ status: 'Removed' }, { personalDataErased: true },
+    { loginState: 'Deleted' }, { loginState: 'Deleting' }, { loginState: 'Provisioning' }, { role: 'admin' }]) {
+    const { manager } = setup({ 'users/donor': { role: 'donor', status: 'Active', ...changes } })
+    await assert.rejects(manager.getProfile('donor', 'admin'))
+  }
+  const { manager } = setup()
+  await assert.rejects(manager.getProfile('admin', 'admin'))
+})
+
+test('failed profile transactions leave neither corrections nor audit events, and can be retried', async () => {
+  const { manager, store } = setup()
+  const input = editInput(await manager.getProfile('donor', 'admin'), { fullName: 'Correction' })
+  store.failNextCommit(new Error('transaction failed'))
+  await assert.rejects(manager.editProfile(input, 'admin', key), /transaction failed/)
+  assert.equal(store.docs.get('users/donor').fullName, 'Donor')
+  assert.equal(records(store, 'auditOutbox').length, 0)
+  assert.equal((await manager.editProfile(input, 'admin', key)).state, 'Completed')
+})
+
+test('clearing donor coordinates removes the nearby-donor mirror in the same transaction', async () => {
+  const { manager, store } = setup({
+    'users/donor': { role: 'donor', status: 'Active', fullName: 'Donor', latitude: 14.86, longitude: 120.82, geohash: 'wdtut6' },
+    'donorLocations/donor': { latitude: 14.86, longitude: 120.82 },
+  })
+  const details = await manager.getProfile('donor', 'admin')
+  await manager.editProfile(editInput(details, { latitude: null, longitude: null }), 'admin', key)
+  assert.equal(store.docs.has('donorLocations/donor'), false)
+  assert.equal(store.docs.get('users/donor').geohash, '')
+})
+
 test('hospital activation records one event, with a disabled login until claims exist', async () => {
   const { manager, store, logins, calls } = setup()
   const result = await manager.createHospital(

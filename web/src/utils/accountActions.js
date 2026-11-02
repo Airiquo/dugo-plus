@@ -1,4 +1,9 @@
 /** Empty reason means enabled; every other value explains the disabled action. */
+export function accountProfileEditReason(account, actorId, busy = false) {
+  if ((account.status || 'Active') === 'Removed') return 'Closed accounts cannot be edited.'
+  return accountActionReasons(account, actorId, busy).remove
+}
+
 export function accountActionReasons(account, actorId, busy = false) {
   const all = (reason) => ({
     suspend: reason,

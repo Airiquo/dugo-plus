@@ -27,6 +27,8 @@ import {
   deleteAuthAccount,
   setClaims,
   updateAccountStatus,
+  getAccountProfile,
+  updateAccountProfile,
   eraseAccountData,
   retryAccountOperations,
 } from './accounts.js'
@@ -208,6 +210,12 @@ async function route(request, env) {
     return json({ ok: true, ...result }, 200, cors)
   }
 
+  if (request.method === 'GET' && url.pathname === '/accounts/profile') {
+    const user = await verifyIdToken(env, bearerToken(request))
+    if (user.claims?.role !== 'admin') throw new HttpError(403, 'Admin only')
+    return json({ ok: true, ...(await getAccountProfile(env, url.searchParams.get('uid'), user.uid)) }, 200, cors)
+  }
+
   // POST /accounts - privileged account operations (FR-040), admin only
   if (request.method === 'POST' && url.pathname === '/accounts') {
     const user = await verifyIdToken(env, bearerToken(request))
@@ -248,6 +256,8 @@ async function route(request, env) {
         200,
         cors,
       )
+    if (action === 'updateAccountProfile')
+      return json({ ok: true, ...(await updateAccountProfile(env, body, user.uid)) }, 200, cors)
     if (action === 'eraseAccountData')
       return json(
         { ok: true, ...(await eraseAccountData(env, body, user.uid)) },

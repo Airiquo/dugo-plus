@@ -143,7 +143,7 @@ Legend: **R** = required, **O** = optional/nullable.
 | geohash | string | O | Geohash of the user's location, for proximity queries |
 | latitude | number | O | |
 | longitude | number | O | |
-| city | string | O | City name; what makes a donor matchable without coordinates |
+| city | string | O | City label; the scheduled proximity matcher currently queries coordinates/geohash |
 | lastDonationAt | Timestamp | O | Used for eligibility interval checks. Owner-frozen (D14) |
 | bloodType | string | O | `BloodType`. ERD `?` |
 | dateOfBirth | Timestamp | R | |
@@ -203,11 +203,19 @@ Role/hospital claims: also set Firebase Auth **custom claims** `{ role, hospital
 | updatedAt | Timestamp | O | Server provisioning/update timestamp |
 | name | string | R | |
 | address | string | R | |
+| city | string | O | Stored by hospital provisioning and admin profile editing; city label for the saved facility location (D52) |
 | latitude | number | R | |
 | longitude | number | R | |
 | geohash | string | R | **[ADDED]** needed for proximity search |
 | contactNumber | string | R | |
 | status | string | R | `Active \| Suspended \| Removed` |
+
+> D52: hospital staff cannot change facility address, city, latitude, longitude
+> or geohash through client writes. Hospital owners also cannot change the
+> mirrored city/coordinates/geohash on `users/{uid}`. The admin account editor
+> updates the facility and its selected staff profile together through the
+> Worker, with an audit event. Existing blood-request location snapshots are
+> not rewritten; corrected facility details apply to newly posted requests.
 
 #### 2.3.1 `hospitals/{hospitalId}/subscriptions/{subscriptionId}`
 
@@ -265,7 +273,13 @@ Write the log and the inventory update in **one transaction/batch**.
 > Note: `matching` is the matcher's state on the request (which radius tier it
 > is on, when the next tier opens, and whether it exhausted the ladder). It is
 > absent until the first match run; the matcher treats a missing block as
-> `currentTier: 0`.
+> `currentTier: 0`. D51: `exhausted: true` means the radius ladder has reached
+> its maximum, not that matching has stopped. Open (`urgent`/`collecting`)
+> requests continue searching at the current/max radius on scheduled runs for
+> donors who register or become eligible later. A rescan updates `lastRunAt`
+> but preserves `nextTierAt` until an expansion is due. The scheduled queue
+> rotates batches of 20 by oldest `lastRunAt`, then processes the batch in
+> urgency order. No additional fields or indexes are needed.
 
 ### 2.5 `donorMatches/{requestId}_{donorId}`
 
@@ -425,7 +439,7 @@ coordinates, read by staff of the matching hospital and admins.
 ### 2.15 `accountOperations/{operationHash}` — [ADDED] (D40)
 
 Server-only. ID is HMAC of actor UID and caller retry key. Fields:
-`action` (`createHospital|deleteLogin|status|erase`), `actorId`, `targetUid`, optional
+`action` (`createHospital|deleteLogin|status|erase|editProfile`), `actorId`, `targetUid`, optional
 `hospitalId`, keyed `fingerprint`, `state` (`Pending|Completed|Failed`),
 `createdAt`, `updatedAt`, optional `nextAttemptAt`, `completedAt`,
 `leaseToken`, `leaseUntil`, `recoveryState`, `failureMessage`, `reason`, and
@@ -551,9 +565,9 @@ Use custom claims `request.auth.token.role` and `request.auth.token.hospitalId`.
 
 | Collection | Read | Write |
 |---|---|---|
-| `users/{uid}` | Owner; Admin; Staff of same hospital (limited) | Owner/admin personal fields; access/provisioning fields server-owned (D40) |
+| `users/{uid}` | Owner; Admin; Staff of same hospital (limited) | Owner/admin personal fields; access/provisioning fields server-owned (D40); hospital-owner location fields frozen (D52) |
 | `emailVerifications` | none | server-only |
-| `hospitals` | Authenticated | Staff of that hospital (limited), Admin |
+| `hospitals` | Authenticated | Staff of that hospital: name/contact only; Admin; locations managed through the admin editor (D52) |
 | `hospitals/*/subscriptions` | Staff of that hospital, Admin | Admin / server |
 | `hospitals/*/inventory` + `logs` | Staff of that hospital, Admin | Staff of that hospital, Admin (via function preferred) |
 | `bloodRequests` | Authenticated | Create: Recipient / Staff. Update status: Staff of hospital, Admin |
@@ -613,6 +627,7 @@ interface Hospital {
   createdBy: string;
   name: string;
   address: string;
+  city?: string;
   latitude: number;
   longitude: number;
   geohash: string;

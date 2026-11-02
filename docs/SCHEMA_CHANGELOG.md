@@ -234,3 +234,28 @@ Added optional `users/{uid}.photoURL`: a Cloudinary HTTPS image delivery URL, bo
 ## 2026-11-02 — Account-history query (D50)
 
 Adds an `auditBlocks` composite index on `hashedEntityRef` ASC, `entityType` ASC, `sequence` DESC for the active-admin account-history endpoint. Pages contain at most 25 user-entity events with an exclusive sequence continuation. Existing `auditContexts` and actor/subject `auditRedactions` control private details. No new collection or field. Index/Worker deployment pending; unit and REST-emulator checks pass.
+
+## 2026-11-02 — Continuous discovery on open requests (D51)
+
+Clarifies `bloodRequests.matching.exhausted`: the radius ladder is complete,
+but `urgent`/`collecting` requests continue searching the maximum radius for
+later eligible donors. Intermediate-tier rescans preserve `nextTierAt`;
+`lastRunAt` also orders rotation through scheduled batches. No collection,
+field, rule or index is added. Five isolated matching REST-emulator checks pass;
+production Worker deployment remains pending.
+
+## 2026-11-02 — Hospital location locks and audited profile edits (D52)
+
+Documents the existing optional `hospitals.city` written by hospital provisioning
+and adds `editProfile` to `accountOperations.action`. The admin editor updates
+allowed donor/staff fields, the linked facility, and a donor's location mirror
+in one transaction with its `Account.ProfileUpdated` audit-outbox event. Existing
+erasable audit reason context includes changed field names and the required
+reason; no identifying before/after values are added to the immutable chain.
+No new collection, field or index is needed for the operation.
+
+Hospital owners cannot change city/coordinates/geohash on their profile; staff
+cannot change facility address/city/coordinates/geohash. Existing request
+location snapshots are preserved. Worker, Hosting and rules deployment remain
+pending; local REST, security-rules and browser verification is recorded in
+`docs/ACCOUNT_PROFILE_EDITING.md`.

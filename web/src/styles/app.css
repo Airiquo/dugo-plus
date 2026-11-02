@@ -7930,3 +7930,37 @@ dialog.aa-confirm-dialog[id$=-modal] { width: min(540px,calc(100vw - 32px)); }
   .admin-care-dialog-head { padding: 20px; }.admin-care-dialog-head h2 { font-size: 24px; }.admin-care-dialog-body { padding: 20px; }.aa-form-grid { grid-template-columns: 1fr; gap: 16px; }.aa-dialog-actions>span { flex-basis: 100%; }.aa-dialog-actions>.btn { flex: 1; }.aa-account-facts { gap: 16px; }.aa-confirm-account { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { .aa-overview button { transition: none; } }
+
+/* Intentional facility-profile composition and map sizing for account workflows. */
+.hospital-profile-grid { display: grid; grid-template-columns: minmax(260px,.7fr) minmax(0,1.3fr); gap: 24px; max-width: 1180px; align-items: start; }
+.hospital-profile-grid .hospital-profile-card { width: auto; margin: 0; }
+.hospital-facility-card { padding: 28px; min-width: 0; }
+.hospital-facility-card>header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.hospital-facility-card h2 { font: 500 27px/1.2 var(--d-font-sans); letter-spacing: -.035em; margin: 8px 0 0; }
+.hospital-facility-card>.muted { font-size: 13px; line-height: 1.7; margin: 18px 0 24px; max-width: 55ch; }
+.hospital-location-locked { display: inline-flex; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid var(--d-line); border-radius: 999px; color: var(--d-muted); font: 11px var(--d-font-sans); white-space: nowrap; }
+.hospital-location-map { margin: 20px 0; border: 1px solid var(--d-line); border-radius: 14px; overflow: hidden; background: var(--d-panel); }
+.hospital-location-canvas { height: 260px; width: 100%; z-index: 0; background: var(--d-page); }
+.hospital-location-caption { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; }
+.hospital-location-caption p, .hospital-map-error { margin: 0; color: var(--d-muted); font-size: 11px; line-height: 1.65; }
+.hospital-location-caption .btn { flex-shrink: 0; font-size: 11px; }
+.hospital-map-error { padding: 0 14px 14px; color: var(--d-red-ink); }
+.hospital-location-facts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; margin: 24px 0 0; }
+.hospital-location-facts>div:first-child { grid-column: 1/-1; }
+.hospital-location-facts dt { color: var(--d-muted); font-size: 11px; margin-bottom: 7px; }
+.hospital-location-facts dd { font-size: 13px; margin: 0; line-height: 1.6; overflow-wrap: anywhere; }
+.hospital-location-facts>div:nth-child(3) dd, .hospital-location-facts>div:nth-child(4) dd { font-family: var(--d-font-mono); }
+.hospital-location-empty { padding: 32px 20px; text-align: center; border: 1px dashed var(--d-line); border-radius: 14px; color: var(--d-muted); }
+.hospital-location-empty h3 { font-size: 15px; color: var(--d-ink); margin: 12px 0 8px; }
+.hospital-location-empty p { font-size: 12px; line-height: 1.7; margin: 0; }
+.aa-location-fields h3 { font-size: 13px; color: var(--d-ink); }
+.account-edit-location-help { font-size: 11px; line-height: 1.7; text-transform: none; letter-spacing: normal; }
+.account-edit-error { border: 1px solid var(--d-line); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+.account-profile-editor input[readonly] { color: var(--d-muted); background: var(--d-field); cursor: default; }
+.account-profile-editor .hospital-location-map { margin-top: 18px; }
+@media (max-width: 900px) { .hospital-profile-grid { grid-template-columns: 1fr; } }
+@media (max-width: 480px) {
+  .hospital-facility-card { padding: 20px; }.hospital-facility-card h2 { font-size: 23px; }
+  .hospital-location-canvas { height: 230px; }.hospital-location-caption { flex-wrap: wrap; }
+  .hospital-location-caption .btn { width: 100%; }.hospital-location-facts { gap: 18px; }
+}

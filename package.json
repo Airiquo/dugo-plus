@@ -18,6 +18,7 @@
     "worker:check": "wrangler deploy -c worker/wrangler.toml --dry-run --outdir .wrangler/tmp",
     "worker:deploy": "wrangler deploy -c worker/wrangler.toml",
     "test:donor:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/donorResponses.emulator.test.js\"",
+    "test:matching:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/matcher.emulator.test.js\"",
     "test:accounts:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/accounts.emulator.test.js\""
   },
   "devDependencies": {
