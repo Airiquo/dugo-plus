@@ -6,12 +6,17 @@ import { ProfileAvatar } from './ProfileAvatar'
 
 /** Live profile summary. Eligibility is derived by the caller, never self-declared. */
 export function CareDonorCard({ bloodType, city, eligibility, loaded, error, photoURL, name, className, ...rest }) {
+  const displayedBloodType = loaded ? bloodType || '—' : error ? '—' : '…'
+
   return <aside className={cx('care-donor-card', className)} {...rest}>
     <div className="care-donor-card-top"><span className="care-kicker">Your donor card</span><span className="care-mini-mark" aria-hidden="true" /></div>
     <div className="care-donor-identity">
       <div className="care-donor-photo-ring"><ProfileAvatar className="care-donor-photo" src={photoURL} name={name} /></div>
-      <strong>{name || 'Donor profile'}</strong>
-      <div className="care-donor-blood"><span>{loaded ? bloodType || '—' : error ? '—' : '…'}</span><span>Your blood type</span></div>
+      <strong className="care-donor-name">{name || 'Donor profile'}</strong>
+      <div className="care-donor-blood">
+        <span>Your blood type</span>
+        <strong>{displayedBloodType}</strong>
+      </div>
     </div>
     <div className="care-donor-card-detail"><p className="care-kicker">Donation readiness</p><Badge data-eligibility={eligibility?.status === 'eligible' ? 'eligible' : eligibility?.status === 'unknown' ? 'unknown' : 'deferred'}>{loaded ? eligibility?.label : error ? 'Profile unavailable' : 'Loading your profile'}</Badge><p>{loaded ? eligibility?.detail : error ? 'Reload the page to try your saved details again.' : 'Checking your saved details.'}</p></div>
     <p className="care-donor-location"><Icon name="target" />{city || 'Add your city to find nearby care'}</p>
