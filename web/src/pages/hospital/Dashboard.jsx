@@ -133,12 +133,6 @@ export default function Dashboard() {
             </p>
           )}
 
-          {!loading && hospital && (
-            <div className="hospital-welcome">
-              <h2>Welcome, {hospital.name || 'Facility'}</h2>
-            </div>
-          )}
-
           {hospitalId && (
             <section className="hospital-collections">
               <Card>
@@ -231,6 +225,7 @@ export default function Dashboard() {
                         </p>
                       ) : (
                         <Table
+                          className="hospital-table"
                           columns={[
                             {
                               key: 'donationDate',
@@ -259,6 +254,7 @@ export default function Dashboard() {
                           ]}
                           rows={donations}
                           rowKey={(row) => row.id}
+                          scroll={false}
                         />
                       )}
                     </div>
