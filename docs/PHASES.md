@@ -349,6 +349,8 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Admin Profile (2026-11-02, D60):** final requested screen redesign adds an identity/photo rail, contact form, read-only access facts and actor-filtered audit link. Existing service/auth/photo contracts remain; no backend rollout or production account mutation is claimed. Phase counts are unchanged; all four screen batches are documented in `docs/ADMIN_REMAINING_SCREENS.md`.
+
 - **Admin Settings (2026-11-02, D59):** grouped tier/retry editor, draft preview, persistent save/discard controls and load/save recovery are built on the existing configuration contract. Defaults remain a draft until saved; an unavailable read cannot overwrite settings. No data model, permissions or phase-count changes. See `docs/ADMIN_REMAINING_SCREENS.md`.
 
 - **Admin Dashboard (2026-11-02, D58):** overview now reads current account/privacy/configuration services and shows oldest open requests, precise count labels and independent source failure states. No new stored metrics or phase-count changes. See `docs/ADMIN_REMAINING_SCREENS.md`.
