@@ -82,8 +82,14 @@ async function setForUid(uid) {
     console.log(`= dry  ${uid} -> ${JSON.stringify(claims)}`)
     return
   }
-  await auth.setCustomUserClaims(uid, claims)
-  console.log(`+ set  ${uid} -> ${JSON.stringify(claims)}`)
+  try {
+    await auth.setCustomUserClaims(uid, claims)
+    console.log(`+ set  ${uid} -> ${JSON.stringify(claims)}`)
+  } catch (error) {
+    // A `users` document can outlive its Auth record (deleted account), and
+    // Auth refuses a uid it does not know. Skip it rather than abort the run.
+    console.log(`? skip ${uid} (Auth refused: ${error.code || error.message})`)
+  }
 }
 
 if (uidArg) {
