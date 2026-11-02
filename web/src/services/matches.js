@@ -1,4 +1,5 @@
-import { collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore'
+import { callDonorService } from './donorApi'
+import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 
 const NOT_CONFIGURED = 'Firestore is not available. Copy web/.env.example to web/.env.local.'
@@ -36,14 +37,14 @@ function shape(entry) {
 }
 
 /** The signed-in donor's matches, live (FR-006). */
-export function listenDonorMatches(uid, callback) {
+export function listenDonorMatches(uid, callback, onError = () => {}) {
   requireDb()
   return onSnapshot(
     query(collection(db, 'donorMatches'), where('donorId', '==', uid)),
     (snap) => callback(snap.docs.map(shape)),
     (error) => {
       console.error(error)
-      callback([])
+      onError(error)
     },
   )
 }
@@ -54,34 +55,9 @@ export async function getMatch(matchId) {
   return snap.exists() ? shape(snap) : null
 }
 
-/**
- * The donor's answer to a match (FR-006, FR-030). `location` is the donor's
- * current position, shared with the request's hospital and nobody else (D30);
- * omit it when geolocation is unavailable.
- *
- * @param {string} matchId
- * @param {'Accepted'|'Declined'} responseStatus
- * @param {{ latitude: number, longitude: number } | null} [location]
- */
-export async function respondToMatch(matchId, responseStatus, location = null) {
-  requireDb()
-  if (responseStatus !== 'Accepted' && responseStatus !== 'Declined') {
-    throw new Error('Invalid response status')
-  }
-  const shared =
-    location && Number.isFinite(location.latitude) && Number.isFinite(location.longitude)
-      ? {
-          donorLatitude: location.latitude,
-          donorLongitude: location.longitude,
-          locationSharedAt: serverTimestamp(),
-        }
-      : {}
-  await updateDoc(doc(db, 'donorMatches', matchId), {
-    responseStatus,
-    guidelinesAcknowledged: true,
-    acknowledgedAt: serverTimestamp(),
-    ...shared,
-  })
+/** Responses and consent commit together through the authenticated donor service. */
+export function respondToMatch(matchId, responseStatus, location = null, consent = {}) {
+  return callDonorService('respond', { matchId, responseStatus, location, ...consent })
 }
 
 /** Every match for one request, for the hospital-side view (F6). */

@@ -32,7 +32,7 @@ const SECTIONS = [
       'Account details: full name, email address, phone number, account type and account status.',
       'Optional profile picture: an image you choose to upload, hosted by Cloudinary, and its image link stored with your account.',
       'Donor profile: blood type, date of birth, city, and — only if you allow the browser prompt — your coordinates, stored as latitude/longitude and a coarse geohash.',
-      'Donation activity: matches, donations, reward points, consents you grant and the blood requests you post.',
+      'Donation activity: matches, donations, consents you grant and the blood requests you post.',
       'Requests to Dugo+: your data-subject requests and the administrator’s note recording what was done.',
       'Operational records: error reports written by the browser, and a server-side audit chain that holds hashed references rather than readable personal data.',
     ],

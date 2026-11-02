@@ -28,7 +28,7 @@ numbers rather than trusting this section.
 | --- | --- | --- |
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | in progress (F3: hospital posts, lists, and manages its requests; smoke pending) |
-| **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; F5 history/rewards/tracker built at `/donor/activity`; signed-in live smoke pending) |
+| **P3** | Donor browse, respond, history and health tracker | partial (F4 donor requests/respond/map built; D42 requests/alerts redesign and single-commitment service built; F5 history/tracker at `/donor/activity`; rewards removed by D43; coordinated rollout pending) |
 | **P4** | Hospital dashboard, inventory, screening | core workflows not started; NFR-23 request-queue usability half partial (D37), full dashboard still unbuilt |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; D40: versioned Worker account operations, durable audit outbox and owned provisioning recovery built; 181 rules checks, 64 unit/regression tests and four REST-emulator tests pass locally; coordinated deployment/live-provider smoke pending; functions not deployed, no signed-in smoke here) |
@@ -86,7 +86,7 @@ Where/evidence points at files, it does not repeat the decision.
 | F2 | Auth hardening: verification gate, password policy, error logging | P1 | NFR-12, NFR-13, NFR-27 |
 | F3 | Hospital posts and manages blood requests | P2 | FR-011, FR-016, FR-017, FR-037 (list half), FR-021 (form half) |
 | F4 | Donor browses and responds to compatible requests | P3 | FR-005, FR-006, FR-028, FR-029, FR-030, FR-022, FR-023, FR-038 (collect half) |
-| F5 | Donor history, rewards and health tracker | P3 | FR-008, FR-009, FR-010 |
+| F5 | Donor history and health tracker (rewards descoped D43) | P3 | FR-008, FR-009, FR-010 |
 | F6 | Hospital dashboard, inventory and map | P4 | FR-013, FR-014, FR-015, FR-018, FR-020, FR-034 |
 | F7 | Matching and notifications | P5 | FR-007, FR-021 (matcher half), FR-037 (queue half), FR-041 (reader half), NFR-01, NFR-02, NFR-05, NFR-07, NFR-09 |
 | F8 | Donor screening and donation confirmation | P4 | FR-024, FR-025, FR-026, FR-027, FR-031, FR-032, FR-033, FR-036 |
@@ -348,6 +348,8 @@ The app does not run unconfigured: with any `VITE_FIREBASE_*` missing, every
 route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
+
+- **Donor workflow overhaul (2026-11-02, D42/D43).** Owner requests one active acceptance, redesigned Requests/Alerts, more request detail, rewards removal, compass/expand icon controls, and aligned dropdown carets. Those design/product choices are resolved. Worker and security-rules production rollout remains separate from local implementation; local trusted API runs on 8788. Build/docs, 76 regression tests, 2 photo tests, 212 rules checks, 4 donor REST tests and 4 account REST tests pass; browser auth/profile and responsive/interaction checks pass. Verification is recorded in `docs/DONOR_EXPERIENCE.md`.
 
 - **F4/F5/map integration (2026-11-02).** Owner requests a separate branch from integration combining F4, F5 and `fix/f4_map`. F4 is already an ancestor; conflicts retain the current auth, account, navigation and redesign work while adding activity/history/rewards and map fixes. D41 records F5 points-only scope without replacing D26. Build/docs, 67 regression tests, 2 photo tests, 207 rules checks, 4 REST transaction tests and actual-app emulator smoke pass; production smoke remains pending. Results are recorded in `docs/F4_F5_INTEGRATION.md`; no deployment is requested.
 

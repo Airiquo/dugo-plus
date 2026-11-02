@@ -290,7 +290,7 @@ export default function Profile() {
             <h4 className="profile-section-h">Donor details</h4>
             <label>
               <span>Blood type</span>
-              <select
+              <span className="app-select"><select
                 value={form.bloodType}
                 aria-invalid={Boolean(errors.bloodType) || undefined}
                 aria-describedby={errors.bloodType ? 'profile-blood-error' : undefined}
@@ -302,7 +302,7 @@ export default function Profile() {
                     {type}
                   </option>
                 ))}
-              </select>
+              </select></span>
               <FieldError id="profile-blood-error">{errors.bloodType}</FieldError>
             </label>
             <label>

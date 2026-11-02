@@ -25,7 +25,7 @@ export const NAV = [
   {
     slug: 'donations-rewards',
     screen: 'admin-donations-rewards',
-    label: 'Donations & Rewards',
+    label: 'Donations',
     icon: 'gift',
   },
   { slug: 'reports', screen: 'admin-reports', label: 'Reports', icon: 'chart' },

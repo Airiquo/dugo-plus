@@ -8,7 +8,8 @@
  */
 
 import { verifyIdToken } from './firebase-auth.js'
-import { getDocument } from './firestore.js'
+import { createDonorResponder, createDonorAlertReader } from './donorResponses.js'
+import { getDocument, transactionStore } from './firestore.js'
 import { HttpError, corsHeaders, json } from './http.js'
 import { processRequest, runMatchingCycle } from './matcher.js'
 import { notifyNewMatches, retryNotifications } from './notify.js'
@@ -47,6 +48,21 @@ async function route(request, env) {
 
   if (request.method === 'GET' && url.pathname === '/health') {
     return json({ ok: true, service: 'dugo-matching', part: 1 }, 200, cors)
+  }
+
+  if (request.method === 'POST' && url.pathname === '/donor/respond') {
+    const user = await verifyIdToken(env, bearerToken(request))
+    let input
+    try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
+    const result = await createDonorResponder(transactionStore(env))(user.uid, input)
+    return json(result, 200, cors)
+  }
+
+  if (request.method === 'POST' && url.pathname === '/donor/alerts/read') {
+    const user = await verifyIdToken(env, bearerToken(request))
+    let input
+    try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
+    return json(await createDonorAlertReader(transactionStore(env))(user.uid, input?.ids), 200, cors)
   }
 
   // POST /match

@@ -43,7 +43,7 @@ export async function getHospital(hospitalId) {
  * The facilities behind a set of IDs.
  *
  * A missing or unreadable document maps to `null` rather than failing the
- * caller: the history row still shows its date, component and points.
+ * caller: the history row still shows its date and component.
  *
  * @param {string[]} ids
  * @returns {Promise<Map<string, { id: string, name: string, address: string } | null>>}

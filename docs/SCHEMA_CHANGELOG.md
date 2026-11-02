@@ -223,3 +223,11 @@ context while preserving the chain. See schema §2.15–2.18 and
 Added optional `users/{uid}.photoURL`: a Cloudinary HTTPS image delivery URL, bounded to 2048 characters. Missing/empty values use initials. Active owners of all three account types may edit their own picture; admin writes use the same URL validation. Anonymisation clears the field. Image storage and provider deletion are outside Firestore. No new collection or index.
 
 **Refs:** D39; F1, F9; FR-04, FR-012, FR-047.
+
+## 2026-11-02 — single donor commitment and alert read state (D42/D43)
+
+- Added server-owned `donorCommitments/{donorId}` for serialized acceptance.
+- Added optional server-written `notifications.readAt` for unread inbox state.
+- Donor match responses/acknowledgment/location now commit through the donor API;
+  rules deny direct donor response edits. Both consent records commit atomically.
+- Reward transactions are legacy-only; future award seeding is removed (D43).

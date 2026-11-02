@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 // Seeds the demo world the donor screens read (F5 now; F3, F4 and F6 later):
 // one hospital, three fulfilled requests with their matches, three donations
-// with their reward transactions, and the inventory rows and logs a confirmed
-// donation leaves behind (schema §2.3–§2.5, §2.9, §2.10; points per D12,
-// intervals per D13).
+// with their confirmation records, and the inventory rows and logs a confirmed
+// donation leaves behind (schema §2.3–§2.5, §2.9, §2.10; intervals per D13).
 //
 // These are the writes no client may make — matches are matcher-only, donations
-// are staff-only, rewardTransactions is server-only, and users.lastDonationAt is
-// frozen for its owner (D12, D14). The Admin SDK bypasses all four, which is why
+// are staff-only, and users.lastDonationAt is
+// frozen for its owner (D14). The Admin SDK bypasses all four, which is why
 // a fixture is the only way to exercise the screens before F8's transaction
 // exists. Delete the `demo-` documents once F8 writes real ones.
 //
@@ -157,14 +156,12 @@ const LATITUDE = 14.8443;
 const LONGITUDE = 120.8114;
 const HASH = geohash(LATITUDE, LONGITUDE, 7);
 
-// D12's points per component; whole blood and platelets are per donation,
-// plasma is per unit.
 const DAY_MS = 24 * 60 * 60 * 1000;
 const now = new Date();
 const DONATIONS = [
-  { key: '01', type: 'platelets', typeName: 'Platelets', daysAgo: 3, units: 1, points: 150 },
-  { key: '02', type: 'whole-blood', typeName: 'Whole Blood', daysAgo: 40, units: 1, points: 100 },
-  { key: '03', type: 'plasma', typeName: 'Plasma', daysAgo: 100, units: 2, points: 60 },
+  { key: '01', type: 'platelets', typeName: 'Platelets', daysAgo: 3, units: 1 },
+  { key: '02', type: 'whole-blood', typeName: 'Whole Blood', daysAgo: 40, units: 1 },
+  { key: '03', type: 'plasma', typeName: 'Plasma', daysAgo: 100, units: 2 },
 ];
 
 let created = 0;
@@ -265,17 +262,6 @@ for (const item of DONATIONS) {
   );
 
   await writeDoc(
-    db.doc(`rewardTransactions/${matchId}`),
-    {
-      donorId: donorUid,
-      donationId: matchId,
-      points: item.points,
-      awardedAt: Timestamp.fromDate(donatedAt),
-    },
-    `rewardTransactions/${matchId} (${item.points} pts)`,
-  );
-
-  await writeDoc(
     db.doc(`hospitals/${HOSPITAL_ID}/inventory/${bloodType}/logs/${matchId}`),
     {
       donationId: matchId,
@@ -304,11 +290,10 @@ const newest = new Date(now.getTime() - DONATIONS[0].daysAgo * DAY_MS);
 await donorRef.set({ lastDonationAt: Timestamp.fromDate(newest) }, { merge: true });
 console.log(`~ set    users/${donorUid}.lastDonationAt (${newest.toISOString()})`);
 
-const points = DONATIONS.reduce((sum, item) => sum + item.points, 0);
 console.log(
   `\n${created} created, ${overwritten} overwritten, ${kept} kept` +
     `${force ? ' (--force)' : ''} — project ${project}${emulator ? ' (emulator)' : ''}\n` +
-    `donor ${donorEmail ?? donorUid}: ${DONATIONS.length} donations, ${points} points, ` +
+    `donor ${donorEmail ?? donorUid}: ${DONATIONS.length} donations, ` +
     `${units} units of ${bloodType} at ${HOSPITAL_NAME}`,
 );
 process.exit(0);
