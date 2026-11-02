@@ -13,6 +13,7 @@ import {
   hashRef,
   retryAuditOutbox,
   verifyAuditChain,
+  appendAuditBlockSimple,
 } from './audit.js'
 import { transactionStore } from './firestore.js'
 import worker from './index.js'
@@ -70,6 +71,7 @@ globalThis.fetch = async (url, init = {}) => {
   if (target.hostname === 'identitytoolkit.googleapis.com') {
     const body = JSON.parse(init.body)
     if (body.idToken) {
+      if (body.idToken === 'test-donor-token') return Response.json({ users: [{ localId: 'rest-donor', emailVerified: true, customAttributes: '{"role":"donor"}' }] })
       if (body.idToken !== capabilityToken)
         return Response.json(
           { error: { message: 'INVALID_ID_TOKEN' } },
@@ -319,6 +321,33 @@ test('HTTP admin routes reject suspended profiles and forged account-event appen
     (await worker.fetch(request('/audit/verify', {}), env)).status,
     403,
   )
+})
+
+test('HTTP account history enforces authority and paginates only the selected account', async () => {
+  const request = (query, token = capabilityToken) => new Request(`https://worker.example.test/accounts/history?${query}`, { headers: { Authorization: `Bearer ${token}` } })
+  assert.equal((await worker.fetch(request('accountId=rest-donor'), env)).status, 403)
+  await store.transact(async tx => {
+    await tx.get('users', 'rest-admin')
+    tx.update('users/rest-admin', { status: 'Active' })
+    tx.create('users/history-donor', { role: 'donor', status: 'Active' })
+  })
+  assert.equal((await worker.fetch(request('accountId=history-donor', 'invalid-token'), env)).status, 401)
+  assert.equal((await worker.fetch(request('accountId=history-donor', 'test-donor-token'), env)).status, 403)
+  assert.equal((await worker.fetch(request('accountId=history-donor&before=-1'), env)).status, 400)
+  for (let i = 0; i < 27; i++) await appendAuditBlockSimple(env, { eventType: 'Account.Suspended', entityType: 'user', entityId: 'history-donor', actorId: 'rest-admin', actorRole: 'admin', context: { reason: `History fixture ${i}`, beforeStatus: 'Active', afterStatus: 'Suspended' } })
+  const response = await worker.fetch(request('accountId=history-donor'), env)
+  assert.equal(response.status, 200)
+  const first = await response.json()
+  assert.equal(first.events.length, 25)
+  assert.equal(first.events[0].actor.fullName, 'REST admin')
+  assert.equal(first.events[0].contextState, 'verified')
+  const second = await (await worker.fetch(request(`accountId=history-donor&before=${first.nextBefore}`), env)).json()
+  assert.equal(second.events.length, 2)
+  assert.equal(second.nextBefore, null)
+  assert.ok(second.events.every(event => event.sequence < first.nextBefore))
+  const erased = await (await worker.fetch(request('accountId=rest-donor'), env)).json()
+  assert.ok(erased.events.length > 0)
+  assert.ok(erased.events.every(event => event.context === null && event.contextState === 'redacted'))
 })
 
 test.after(() => {

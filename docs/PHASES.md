@@ -349,6 +349,8 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Admin batch 2 (2026-11-02, D42).** Owner resumes in a separate worktree on `feat/admin-accounts-ui`, using Conventional Commits and no codex prefix. This batch implements Accounts and its account-history overlay against the D40 v2 mutation service; the global Audit Trail and remaining admin screen compositions stay in later batches. The history index/Worker endpoint must be deployed by the authorized owner before frontend history can work. Local verification and rollout limits are in `docs/ADMIN_ACCOUNTS_WORKSPACE.md`; no live deployment or account mutation is included. Phase status counts are unchanged.
+
 - **Profile pictures (2026-11-01, D39).** Owner requests Cloudinary pictures for all three account types in a separate worktree and supplies cloud `dmecmkdww` / preset `dugo-plus-profiles`; the owner enables Unsigned after the first provider rejection, and a tiny generated test icon then uploads successfully. No provider configuration question remains. Removal/replacement/erasure clear only the profile URL; support must delete retained Cloudinary assets. No deployment is included. Verification and the retained test asset are recorded in `docs/PROFILE_PICTURES.md`. Phase counts are unchanged.
 
 Stated every session until answered, explicitly withdrawn, or the work they block

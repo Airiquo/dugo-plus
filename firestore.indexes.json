@@ -1,6 +1,15 @@
 {
   "indexes": [
     {
+      "collectionGroup": "auditBlocks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "hashedEntityRef", "order": "ASCENDING" },
+        { "fieldPath": "entityType", "order": "ASCENDING" },
+        { "fieldPath": "sequence", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [

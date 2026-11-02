@@ -5,6 +5,25 @@
 import { auth } from '../lib/firebase.js'
 
 const ENDPOINT = (import.meta.env.VITE_MATCHING_ENDPOINT ?? '').trim().replace(/\/$/, '')
+const ACCOUNT_ENDPOINT = (import.meta.env.VITE_ACCOUNT_SERVICE_URL ?? '').trim().replace(/\/$/, '')
+
+/** Read one page of account activity; an old Worker never falls back to unfiltered blocks. */
+export async function getAccountHistory(accountId, before = null) {
+  if (!ACCOUNT_ENDPOINT) throw new Error('The account history service is not configured.')
+  if (!auth?.currentUser) throw new Error('Sign in again to view account history.')
+  const url = new URL(`${ACCOUNT_ENDPOINT}/history`)
+  url.searchParams.set('accountId', accountId)
+  if (before !== null) url.searchParams.set('before', before)
+  const token = await auth.currentUser.getIdToken()
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) })
+  const payload = await response.json().catch(() => null)
+  if (!response.ok || payload?.historyVersion !== 1 || !Array.isArray(payload.events)) {
+    throw new Error(response.status === 404 || (response.ok && payload?.historyVersion !== 1)
+      ? 'Account history is unavailable. The updated Worker must be deployed before this view can load.'
+      : payload?.error || 'Account history could not be loaded. Please try again.')
+  }
+  return payload
+}
 
 /**
  * Fetch audit blocks via Worker (admin only).

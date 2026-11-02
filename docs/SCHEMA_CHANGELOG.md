@@ -223,3 +223,7 @@ context while preserving the chain. See schema §2.15–2.18 and
 Added optional `users/{uid}.photoURL`: a Cloudinary HTTPS image delivery URL, bounded to 2048 characters. Missing/empty values use initials. Active owners of all three account types may edit their own picture; admin writes use the same URL validation. Anonymisation clears the field. Image storage and provider deletion are outside Firestore. No new collection or index.
 
 **Refs:** D39; F1, F9; FR-04, FR-012, FR-047.
+
+## 2026-11-02 — Account-history query (D42)
+
+Adds an `auditBlocks` composite index on `hashedEntityRef` ASC, `entityType` ASC, `sequence` DESC for the active-admin account-history endpoint. Pages contain at most 25 user-entity events with an exclusive sequence continuation. Existing `auditContexts` and actor/subject `auditRedactions` control private details. No new collection or field. Index/Worker deployment pending; unit and REST-emulator checks pass.
