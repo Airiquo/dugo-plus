@@ -32,3 +32,4 @@ export { NewsCard as CareNewsCard, NewsSection as CareNewsSection, NewsArticle a
 export { RequestStatusDialog } from './RequestStatusDialog'
 export { ProfileAvatar } from './ProfileAvatar'
 export { ProfilePhotoEditor } from './ProfilePhotoEditor'
+export { AdminDialog } from './AdminDialog'
