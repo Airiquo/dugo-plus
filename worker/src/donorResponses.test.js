@@ -19,6 +19,8 @@ function fixture() {
       {
         role: 'donor',
         status: 'Active',
+        fullName: 'Alice Donor',
+        city: 'Malolos',
         bloodType: 'O+',
         dateOfBirth: new Date('1990-01-01'),
       },
@@ -94,6 +96,20 @@ function fixture() {
     read: createDonorAlertReader(store),
   }
 }
+
+test('acceptance requires a complete donor profile', async () => {
+  const { rows, respond } = fixture()
+  const profile = rows.get('users/alice')
+  profile.city = ''
+
+  await assert.rejects(respond('alice', input('one')), (error) => {
+    assert.equal(error.status, 409)
+    assert.match(error.message, /complete your donor profile/i)
+    assert.match(error.message, /city/i)
+    return true
+  })
+  assert.equal(rows.get('donorMatches/one').responseStatus, 'Pending')
+})
 test('two simultaneous acceptances leave exactly one commitment and two consents', async () => {
   const { rows, respond } = fixture()
   const results = await Promise.allSettled([

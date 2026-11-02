@@ -106,6 +106,9 @@ await ok('admin claim lists every profile (FR-040)', getDocs(collection(db(admin
 await ok('admin claim reads any profile', readDoc(admin(), 'users/alice'));
 await ok('admin claim reads its own profile', readDoc(admin(), 'users/admin1'));
 await ok('owner creates own profile', setDoc(doc(db(as('carol')), 'users/carol'), { role: 'donor', fullName: 'Carol C.', email: 'carol@dugo.ph', createdAt: new Date() }));
+await ok('owner sets blood type and birth date for the first time', updateDoc(doc(db(as('carol')), 'users/carol'), { bloodType: 'O+', dateOfBirth: new Date('1995-04-12') }));
+await no('owner cannot change blood type after saving it', updateDoc(doc(db(as('carol')), 'users/carol'), { bloodType: 'A+' }));
+await no('owner cannot change birth date after saving it', updateDoc(doc(db(as('carol')), 'users/carol'), { dateOfBirth: new Date('1996-04-12') }));
 await no('self-create cannot claim admin (D20/D29)', setDoc(doc(db(as('dan')), 'users/dan'), { role: 'admin', fullName: 'Dan D.', email: 'dan@dugo.ph', createdAt: new Date() }));
 await no('self-create cannot claim hospital (D20/D29)', setDoc(doc(db(as('hana')), 'users/hana'), { role: 'hospital', fullName: 'Hana H.', email: 'hana@dugo.ph', createdAt: new Date() }));
 await no('admin clients cannot bypass audited hospital provisioning (D40)', setDoc(doc(db(admin()), 'users/hosp1'), { role: 'hospital', fullName: 'St. Mary', email: 'staff@dugo.ph', createdAt: new Date() }));

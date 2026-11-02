@@ -213,7 +213,7 @@ export function DonorRequestDetails({
             {eligibility && (
               <p
                 className="donation-notice"
-                data-tone={eligibility.eligible ? 'good' : 'neutral'}
+                data-tone={eligibility.eligible ? 'good' : eligibility.status}
               >
                 <Icon name="shield" size={18} />
                 <span>

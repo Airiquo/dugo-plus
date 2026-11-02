@@ -113,4 +113,35 @@ Additional dedicated test donors:
 
 Credentials are supplied to the owner in chat, not stored in source. Fixture
 manifests remain in `/private/tmp/dugo-seed-donor/`; no source-only flag is needed
-to see these records. Pending responses are left available for manual testing.
+
+## Profile and acceptance safeguards — 2026-11-02
+
+Use my location is an explicit action. The authenticated Worker sends only
+latitude/longitude rounded to three decimal places to the configured
+`REVERSE_GEOCODER_URL` (Nominatim by default), and returns a city suggestion for
+the existing `users/{uid}.city` field. The form keeps coordinates locally until
+the donor saves; it does not add or save a street address. A manual edit made
+while lookup is running takes precedence. The UI links to OpenStreetMap
+attribution, and the Worker caches rounded points in memory. Nominatim must
+remain a low-volume, user-triggered provider; see its
+[usage policy](https://operations.osmfoundation.org/policies/nominatim/) and
+[reverse API](https://nominatim.org/release-docs/latest/api/Reverse/).
+
+Blood type and date of birth are reviewed in a native confirmation overlay on
+their first save, then disabled when a saved value exists. Firestore rules reject
+owner attempts to change or clear either value; admins can correct them. The
+request detail renders Deferred eligibility with the shared red status tone.
+
+Request acceptance checks for a saved name, blood type, date of birth and city.
+An incomplete donor sees the exact missing fields and a link to `/home`; phone
+and precise GPS remain optional. The Worker repeats the same check before it
+starts the acceptance transaction, so the UI gate is not the security boundary.
+
+Verification: `cd web && npx vite build` passes; `node tools/check-docs.mjs`
+passes; `npm run test:matching` passes 81 tests; `npm run test:rules` passes 215
+checks; and `npm run test:donor:emulator` passes 5 REST transaction tests,
+including incomplete-profile rejection. The preview responds at
+`http://127.0.0.1:5174/home`, with the local donor API on port 8788. A visual
+browser interaction pass was unavailable because browser control is disabled in
+the current Work settings. `npm run worker:check` is unavailable because Wrangler
+is not installed in this workspace.

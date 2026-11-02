@@ -161,6 +161,12 @@ Legend: **R** = required, **O** = optional/nullable.
 | privacyNoticeVersion | string | O | Version of the `/privacy` notice accepted, e.g. `2026-10-29` (D28); owner-frozen |
 | createdAt | Timestamp | R | |
 
+> Note: owners may initially fill `bloodType` and `dateOfBirth`, then cannot
+> change or clear either value through client writes once it is non-empty
+> (D48). Admin corrections remain available. Request acceptance additionally
+> requires `fullName`, `bloodType`, `dateOfBirth`, and `city` (D49); phone and
+> coordinates are optional.
+
 Role/hospital claims: also set Firebase Auth **custom claims** `{ role, hospitalId }` for security rules **[ADDED]**.
 
 > Note: `privacyConsentAt` / `privacyNoticeVersion` are optional because accounts

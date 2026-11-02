@@ -143,6 +143,9 @@ service cloud.firestore {
                          && request.resource.data.email is string
                          && (!('phoneNumber' in request.resource.data)
                              || request.resource.data.phoneNumber is string)
+                         && (!('dateOfBirth' in request.resource.data)
+                             || request.resource.data.dateOfBirth == null
+                             || request.resource.data.dateOfBirth is timestamp)
                          && (!('bloodType' in request.resource.data)
                              || isOptionalBloodType(request.resource.data.bloodType))
                          && (!('status' in request.resource.data)
@@ -170,10 +173,21 @@ service cloud.firestore {
                          && request.resource.data.email is string
                          && (!('phoneNumber' in request.resource.data)
                              || request.resource.data.phoneNumber is string)
+                         && (!('dateOfBirth' in request.resource.data)
+                             || request.resource.data.dateOfBirth == null
+                             || request.resource.data.dateOfBirth is timestamp)
                          && (
                               !('bloodType' in request.resource.data)
                               || isOptionalBloodType(request.resource.data.bloodType)
                             )
+                         // Donors choose these identity fields once. Empty
+                         // registration placeholders can still be completed.
+                         && (!('bloodType' in resource.data)
+                             || resource.data.bloodType == ''
+                             || request.resource.data.bloodType == resource.data.bloodType)
+                         && (!('dateOfBirth' in resource.data)
+                             || resource.data.dateOfBirth == null
+                             || request.resource.data.dateOfBirth == resource.data.dateOfBirth)
                          // Flat location fields; `address` is not collected.
                          && (!('city' in request.resource.data)
                              || request.resource.data.city is string)

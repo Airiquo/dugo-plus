@@ -70,13 +70,16 @@ const input = (id) => ({
   dataSharingConsent: true,
   screeningConsent: true,
 })
-async function seed(uid, ids) {
+async function seed(uid, ids, profile = {}) {
   await store.transact(async (tx) => {
     tx.create('users/' + uid, {
       role: 'donor',
       status: 'Active',
+      fullName: 'Demo Donor',
+      city: 'Malolos',
       bloodType: 'O+',
       dateOfBirth: new Date('1990-01-01'),
+      ...profile,
     })
     for (const id of ids) {
       tx.create('bloodRequests/' + id, {
@@ -93,6 +96,23 @@ async function seed(uid, ids) {
     }
   })
 }
+test('REST acceptance rejects a donor with an incomplete profile without changing the match', async () => {
+  await seed('incomplete-donor', ['incomplete-match'], { city: '' })
+  await assert.rejects(
+    respond('incomplete-donor', input('incomplete-match')),
+    (error) => {
+      assert.equal(error.status, 409)
+      assert.match(error.message, /complete your donor profile/i)
+      assert.match(error.message, /city/i)
+      return true
+    },
+  )
+  assert.equal(
+    (await store.get('donorMatches', 'incomplete-match')).data.responseStatus,
+    'Pending',
+  )
+  assert.equal(await store.get('donorCommitments', 'incomplete-donor'), null)
+})
 test('REST transactions serialize simultaneous acceptances and release after completion', async () => {
   await store.transact(async (tx) =>
     tx.create('donationTypes/whole-blood', { intervalDays: 56 }),

@@ -4,6 +4,7 @@ import {
   donationTypeForComponent,
 } from '../../web/src/utils/matching.js'
 import { HttpError } from './http.js'
+import { missingDonorProfileFields } from '../../web/src/utils/profileCompletion.js'
 
 const OPEN = new Set(['urgent', 'collecting', 'matched'])
 const CLOSED_SCREENING = new Set(['Deferred', 'Rejected'])
@@ -73,6 +74,12 @@ export function createDonorResponder(store, clock = () => new Date()) {
           'This request has closed. Choose another request.',
         )
       if (accepting) {
+        const missing = missingDonorProfileFields(profile.data)
+        if (missing.length)
+          throw new HttpError(
+            409,
+            `Complete your donor profile before accepting: add your ${missing.join(', ')}.`,
+          )
         const typeId = donationTypeForComponent(request.data.component)
         const type = typeId ? await tx.get('donationTypes', typeId) : null
         if (

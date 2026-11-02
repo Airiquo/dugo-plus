@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
@@ -10,6 +10,7 @@ import { respondToMatch } from '../../services/matches'
 import { listDonationTypes } from '../../services/donationTypes'
 import { DEFAULT_INTERVALS, eligibilityFor } from '../../utils/eligibility'
 import { donationTypeForComponent, urgencyRank } from '../../utils/matching'
+import { missingDonorProfileFields } from '../../utils/profileCompletion'
 import {
   componentName,
   enrichRequest,
@@ -35,7 +36,16 @@ export default function Requests() {
   const [types, setTypes] = useState(new Map()),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
-    [notice, setNotice] = useState('')
+    [notice, setNotice] = useState(''),
+    [profilePrompt, setProfilePrompt] = useState(false)
+  const profileDialog = useRef(null)
+  const missingProfileFields = missingDonorProfileFields(profile)
+  useEffect(() => {
+    const dialog = profileDialog.current
+    if (!dialog) return
+    if (profilePrompt && !dialog.open) dialog.showModal()
+    if (!profilePrompt && dialog.open) dialog.close()
+  }, [profilePrompt])
   useEffect(() => {
     let current = true
     listDonationTypes()
@@ -116,6 +126,10 @@ export default function Requests() {
   }
   const respond = async (response, consent = {}) => {
     if (!selected || busy || feed.status !== 'ready') return
+    if (response === 'Accepted' && missingProfileFields.length) {
+      setProfilePrompt(true)
+      return
+    }
     setBusy(true)
     setError('')
     try {
@@ -523,6 +537,30 @@ export default function Requests() {
           onClose={close}
           onRespond={respond}
         />
+        <dialog
+          ref={profileDialog}
+          className="donation-profile-dialog"
+          aria-labelledby="donation-profile-dialog-title"
+          onCancel={(event) => {
+            event.preventDefault()
+            setProfilePrompt(false)
+          }}
+        >
+          <div className="donation-profile-dialog-icon"><Icon name="user" size={22} /></div>
+          <p className="donation-eyebrow">One quick step first</p>
+          <h2 id="donation-profile-dialog-title">Finish your donor profile</h2>
+          <p>We need a few details to confirm a safe match before you accept this request.</p>
+          <ul>
+            {missingProfileFields.map((field) => <li key={field}>{field[0].toUpperCase() + field.slice(1)}</li>)}
+          </ul>
+          <p className="donation-profile-dialog-note">Phone number and GPS location are optional. Your city is enough.</p>
+          <div className="donation-profile-dialog-actions">
+            <button className="btn" type="button" onClick={() => setProfilePrompt(false)}>Maybe later</button>
+            <Link className="btn" data-primary to="/home" onClick={() => setProfilePrompt(false)}>
+              Complete profile <Icon name="arrow-right" size={16} />
+            </Link>
+          </div>
+        </dialog>
       </main>
     </div>
   )
