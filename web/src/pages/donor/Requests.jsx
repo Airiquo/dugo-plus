@@ -13,6 +13,7 @@ import { getHospital } from '../../services/hospitals'
 import { createConsent } from '../../services/consents'
 import { listGuidelines } from '../../services/guidelines'
 import { getSystemConfig, DEFAULT_RADIUS_TIERS } from '../../services/systemConfig'
+import { isMatchingConfigured } from '../../services/matching'
 import { listDonationTypes } from '../../services/donationTypes'
 import { readProfile } from '../../services/users'
 import { canDonateTo } from '../../utils/compatibility'
@@ -379,6 +380,12 @@ export default function Requests() {
           {geoState === 'unavailable' && (
             <p className="pub-msg" data-kind="info" role="status">
               Your location could not be read. Distances fall back to your saved profile.
+            </p>
+          )}
+          {!isMatchingConfigured() && matches.length === 0 && (
+            <p className="pub-msg" data-kind="info" role="status">
+              The matching service is not configured, so new hospital requests may not reach you yet.
+              A request appears here once the matching run pairs it with your profile.
             </p>
           )}
 
