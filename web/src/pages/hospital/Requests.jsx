@@ -51,18 +51,18 @@ function requestedDate(date) {
 export default function Requests() {
   const { profile } = useAuth()
   const hospitalId = profile?.hospitalId ?? ''
-  const currentTabRef = useRef(null)
+  const filterRef = useRef(null)
   const [hospital, setHospital] = useState(null)
   const [rows, setRows] = useState([])
   const [filter, setFilter] = useState('active')
   const [search, setSearch] = useState('')
   const [component, setComponent] = useState('all')
+  const [sort, setSort] = useState('priority')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
-  const [loadedAt, setLoadedAt] = useState(null)
   const [drafts, setDrafts] = useState({})
   const [busyId, setBusyId] = useState('')
   const [notice, setNotice] = useState(null)
@@ -85,7 +85,6 @@ export default function Requests() {
       .then((found) => {
         if (!current) return
         setRows(found)
-        setLoadedAt(new Date())
         setError('')
       })
       .catch((err) => {
@@ -115,7 +114,14 @@ export default function Requests() {
     }
   }, [hospitalId])
 
-  const ordered = useMemo(() => sortRequestsByUrgency(rows), [rows])
+  const ordered = useMemo(() => {
+    if (sort === 'time') {
+      return [...rows].sort(
+        (a, b) => (b.createdAt?.getTime?.() ?? 0) - (a.createdAt?.getTime?.() ?? 0),
+      )
+    }
+    return sortRequestsByUrgency(rows)
+  }, [rows, sort])
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase()
     return ordered.filter(
@@ -171,21 +177,6 @@ export default function Requests() {
     setSearch('')
     setComponent('all')
     setPage(1)
-  }
-  const tabKey = (event) => {
-    const buttons = [...event.currentTarget.querySelectorAll('[role="tab"]')]
-    const index = buttons.indexOf(document.activeElement)
-    let next
-    if (event.key === 'ArrowRight') next = (index + 1) % buttons.length
-    else if (event.key === 'ArrowLeft') next = (index - 1 + buttons.length) % buttons.length
-    else if (event.key === 'Home') next = 0
-    else if (event.key === 'End') next = buttons.length - 1
-    else return
-    event.preventDefault()
-    if (!busyId) {
-      buttons[next].focus()
-      selectFilter(FILTERS[next].value)
-    }
   }
 
   const changeStatus = async (row, status = drafts[row.id]) => {
@@ -340,15 +331,6 @@ export default function Requests() {
         title="Blood requests"
         actions={
           <>
-            <button
-              className="btn hreq-refresh"
-              type="button"
-              onClick={() => setReloadKey((key) => key + 1)}
-              disabled={loading || Boolean(busyId)}
-            >
-              <Icon name="refresh" size={16} />
-              {loading ? 'Refreshing…' : 'Refresh'}
-            </button>
             {hospitalId ? (
               <LinkBtn variant="primary" icon="plus" to="/hospital/requests/new">
                 New request
@@ -402,41 +384,47 @@ export default function Requests() {
             <h2 id="hreq-queue-title">
               Request queue<span>{viewReady ? visible.length : '—'}</span>
             </h2>
-            <p>Urgency first, then oldest. Open requests are awaiting donors.</p>
+            <p>
+              {sort === 'time'
+                ? 'Newest first. Open requests are awaiting donors.'
+                : 'Urgency first, then oldest. Open requests are awaiting donors.'}
+            </p>
           </div>
-          {loadedAt && !loading && !error && (
-            <span className="hreq-updated">
-              <i aria-hidden="true" />
-              Updated{' '}
-              {loadedAt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
+          <div className="hreq-heading-controls">
+            <label className="hreq-heading-select">
+              <span className="care-sr-only">Filter requests by status</span>
+              <select
+                ref={filterRef}
+                aria-label="Filter requests by status"
+                value={filter}
+                disabled={Boolean(busyId)}
+                onChange={(event) => selectFilter(event.target.value)}
+              >
+                {FILTERS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="hreq-heading-select">
+              <span className="care-sr-only">Sort requests</span>
+              <select
+                aria-label="Sort requests"
+                value={sort}
+                disabled={Boolean(busyId)}
+                onChange={(event) => {
+                  setSort(event.target.value)
+                  setPage(1)
+                }}
+              >
+                <option value="priority">Urgency first</option>
+                <option value="time">Newest first</option>
+              </select>
+            </label>
+          </div>
         </header>
-        <nav className="hreq-tabs" role="tablist" aria-label="Request status" onKeyDown={tabKey}>
-          {FILTERS.map((item) => (
-            <button
-              className="tab"
-              type="button"
-              role="tab"
-              key={item.value}
-              id={`hreq-tab-${item.value}`}
-              ref={filter === item.value ? currentTabRef : null}
-              aria-selected={filter === item.value}
-              aria-controls="hreq-view"
-              tabIndex={filter === item.value ? 0 : -1}
-              disabled={Boolean(busyId)}
-              onClick={() => selectFilter(item.value)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-        <div
-          id="hreq-view"
-          role="tabpanel"
-          aria-labelledby={`hreq-tab-${filter}`}
-          aria-busy={loading}
-        >
+        <div id="hreq-view" aria-busy={loading}>
           <div className="hreq-toolbar">
             <label className="hreq-search">
               <span className="care-sr-only">Search requests</span>
@@ -466,7 +454,7 @@ export default function Requests() {
               )}
             </label>
             <label className="hreq-component">
-              <span>Component</span>
+              <span className="care-sr-only">Filter by component</span>
               <select
                 aria-label="Filter by component"
                 value={component}
@@ -484,10 +472,6 @@ export default function Requests() {
                 ))}
               </select>
             </label>
-            <span className="hreq-sort">
-              <Icon name="list" size={15} />
-              Priority order
-            </span>
           </div>
           {!hospitalId ? (
             <div className="hreq-empty" role="status">
@@ -624,7 +608,7 @@ export default function Requests() {
         </div>
       </section>
       <RequestStatusDialog
-        fallbackFocusRef={currentTabRef}
+        fallbackFocusRef={filterRef}
         request={confirmation}
         busy={Boolean(busyId)}
         error={rowError?.id === confirmation?.row.id ? rowError?.text : null}
