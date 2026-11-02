@@ -28,7 +28,7 @@ numbers rather than trusting this section.
 | --- | --- | --- |
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | in progress (F3: hospital posts, lists, and manages its requests; smoke pending) |
-| **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; FR-010 derived on the profile; FR-024–027 component intervals in eligibility engine; F5 history/rewards/tracker open. F4 smoke pending) |
+| **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; FR-010 derived on the profile; FR-024–027 component intervals in the eligibility engine with the Accept gate on `/donor/requests`; F5 history/rewards/tracker open. F4 smoke pending) |
 | **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile, FR-014 blood units collected over period, FR-018 partnership plan (D28), FR-020 inventory reads + donation history, initial dashboard shell + FR-015 hospital map, FR-034 writes as client transactions (D27); the deferral clock and reward points wait for a server path — see §10) |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; claims not set on a live project, functions not deployed, no signed-in smoke here) |
@@ -380,6 +380,14 @@ is cancelled. An assumption is never recorded in place of an answer.
 - **The Blaze question has a free answer now (D33).** `workers/account-service/` runs the same privileged operations as `functions/index.js` on a free Node host (Vercel or Netlify), so hospital creation no longer needs Blaze or a script: set `VITE_ACCOUNT_SERVICE_URL` and the `/admin/accounts` form works. Open, owner action: a host account, the service-account key in its environment, and one run of the bootstrap page to publish the first admin claim — none done from this checkout, so the worker is written and building-clean but not deployed. Vercel's Hobby plan is non-commercial, so a commercial host has to be chosen before this becomes the production path. D34 adds a second free path for the common case: with no service configured, `/admin/accounts` writes the sign-in record (on a second app instance) and both documents straight from the browser — it needs the admin's `admin` claim and leaves the new account's `staff` claim unset.
 - **Contradiction to resolve: did the `users` backfill run?** D22 (REQUIREMENTS) says `scripts/backfill-users-shape.mjs` migrated the live collection on 2026-10-22 (12 documents, verified, re-run a no-op) and the old-shape fallbacks were removed; the bullet above says it has not run and that the app still reads either shape. D22 is the later record and `readProfile` no longer has fallbacks, but the older bullet is not corrected until the owner confirms which is true.
 - **F6 hospital inventory and subscription management built** (D27, D28): , , , , , and .
+- **FR-024–027 block the donor, not the matcher.** The deferral gate is
+  client-side: `/donor/requests` disables Accept (and re-checks in code) when the
+  donor's `lastDonationAt` puts them inside the component interval. The F7
+  matcher still sends the match — a deferred donor can open and decline it but
+  not accept. The clock depends on `lastDonationAt`, which is frozen for the
+  client (D14/FR-033), so the gate is inert on the live project until a server
+  path writes that field. Open, owner action: none of FR-024–027 has been smoked
+  against a live account.
 - **No staff read of `users`** — the rules grant an owner read plus an admin
   claim, and nothing else. Schema §6 allows a limited "staff of same hospital"
   read; hospital screens (F3/F6) will need to decide what it exposes before it

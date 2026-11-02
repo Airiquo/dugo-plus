@@ -16,7 +16,7 @@ import { getSystemConfig, DEFAULT_RADIUS_TIERS } from '../../services/systemConf
 import { listDonationTypes } from '../../services/donationTypes'
 import { readProfile } from '../../services/users'
 import { canDonateTo } from '../../utils/compatibility'
-import { eligibilityFor } from '../../utils/eligibility'
+import { deferralDaysForComponent, eligibilityFor } from '../../utils/eligibility'
 import { distanceKm } from '../../utils/geo'
 
 const CONSENT_DATA_SHARING = {
@@ -191,13 +191,13 @@ export default function Requests() {
           : null
         const type = typesById.get(match.donationTypeId) || typesById.get(request.component) || null
         const compatible = donorBlood ? canDonateTo(donorBlood, request.bloodType) : true
+        // The donationTypes row wins when it carries an interval; otherwise the
+        // component map supplies it (FR-024 to FR-027).
+        const intervalDays = type?.intervalDays || deferralDaysForComponent(request.component)
         const eligibility = eligibilityFor(
-          {
-            dateOfBirth: profile?.dateOfBirth,
-            lastDonationAt: profile?.lastDonationAt,
-            intervalDays: type?.intervalDays || null,
-          },
+          { dateOfBirth: profile?.dateOfBirth, lastDonationAt: profile?.lastDonationAt },
           new Date(),
+          { intervalDays },
         )
         return { match, request, hospital, distance, type, compatible, eligibility }
       })
@@ -284,6 +284,10 @@ export default function Requests() {
     if (!selected || selected.match.responseStatus !== 'Pending') return
     if (!ack) {
       setError('Acknowledge the guidelines before answering.')
+      return
+    }
+    if (status === 'Accepted' && !selected.eligibility.eligible) {
+      setError('You are not eligible for this donation yet.')
       return
     }
     if (status === 'Accepted' && (!consentDs || !consentScr)) {
@@ -628,6 +632,12 @@ export default function Requests() {
             <p className="pub-fine">
               Eligibility: {selected.eligibility.label} — {selected.eligibility.detail}
             </p>
+            {!selected.eligibility.eligible && (
+              <p className="pub-msg" data-kind="info" role="status" style={{ marginTop: 8 }}>
+                Accepting is blocked until you are eligible again (FR-024 to FR-027). You can still
+                decline.
+              </p>
+            )}
 
             <div style={{ marginTop: 16 }}>
               <strong>Eligibility guidelines</strong>
@@ -695,7 +705,12 @@ export default function Requests() {
 
             {selected.match.responseStatus === 'Pending' ? (
               <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-                <button className="pub-btn" type="button" onClick={() => answer('Accepted')} disabled={acting}>
+                <button
+                  className="pub-btn"
+                  type="button"
+                  onClick={() => answer('Accepted')}
+                  disabled={acting || !selected.eligibility.eligible}
+                >
                   {acting ? 'Sending…' : 'Accept'}
                 </button>
                 <button

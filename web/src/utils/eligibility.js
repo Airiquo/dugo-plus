@@ -32,6 +32,22 @@ export const WHOLE_BLOOD_INTERVAL_DAYS = COMPONENT_INTERVAL_DAYS['whole-blood']
 /** Fallback deferral when component is unspecified. Whole Blood interval is standard. */
 export const DONATION_INTERVAL_DAYS = WHOLE_BLOOD_INTERVAL_DAYS
 
+/** Request components that borrow another component's deferral: `rbc` is a whole-blood
+ * draw, `cryoprecipitate` is a plasma draw (mirrors `utils/matching.js`). */
+const COMPONENT_INTERVAL_ALIASES = { rbc: 'whole-blood', cryoprecipitate: 'plasma' }
+
+/**
+ * Deferral interval in days for a request component (FR-024 to FR-027). Aliases
+ * resolve first; an unknown component falls back to the whole-blood interval.
+ *
+ * @param {string} component - `whole-blood | rbc | platelets | plasma | cryoprecipitate`
+ * @returns {number}
+ */
+export function deferralDaysForComponent(component) {
+  const key = COMPONENT_INTERVAL_ALIASES[component] || component
+  return COMPONENT_INTERVAL_DAYS[key] ?? WHOLE_BLOOD_INTERVAL_DAYS
+}
+
 /** Donor age window. */
 export const MIN_AGE = 18
 export const MAX_AGE = 65

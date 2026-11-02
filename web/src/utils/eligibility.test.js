@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   WHOLE_BLOOD_INTERVAL_DAYS,
+  deferralDaysForComponent,
   eligibilityFor,
   nextEligibleDate,
 } from './eligibility.js'
@@ -36,6 +37,28 @@ test('per-component intervals change the deferral', () => {
     eligibilityFor({ dateOfBirth: adult, lastDonationAt: daysAgo(111), intervalDays: 112 }, now).status,
     'deferred',
   )
+})
+
+test('request components map to their deferral interval (FR-024 to FR-027)', () => {
+  assert.equal(deferralDaysForComponent('whole-blood'), 56)
+  assert.equal(deferralDaysForComponent('platelets'), 7)
+  assert.equal(deferralDaysForComponent('plasma'), 28)
+  assert.equal(deferralDaysForComponent('rbc'), 56) // rbc borrows whole blood
+  assert.equal(deferralDaysForComponent('cryoprecipitate'), 28) // borrows plasma
+  assert.equal(deferralDaysForComponent('unknown'), 56) // falls back to whole blood
+})
+
+test('the donor requests gate blocks Accept per component', () => {
+  // 30 days after a draw: whole blood (56d), rbc (56d) and double reds (112d)
+  // block, platelets (7d) and plasma (28d) do not. Mirrors the Accept gate.
+  const profile = { dateOfBirth: adult, lastDonationAt: daysAgo(30) }
+  const blocked = (component) =>
+    eligibilityFor(profile, now, { intervalDays: deferralDaysForComponent(component) }).eligible
+  assert.equal(blocked('whole-blood'), false)
+  assert.equal(blocked('rbc'), false)
+  assert.equal(blocked('double-red-cells'), false)
+  assert.equal(blocked('platelets'), true)
+  assert.equal(blocked('plasma'), true)
 })
 
 test('age limits and missing dates still apply', () => {

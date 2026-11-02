@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import {
   COMPONENT_INTERVAL_DAYS,
+  deferralDaysForComponent,
   nextEligibleDate,
   eligibilityFor,
   componentEligibilityList,
@@ -60,6 +61,14 @@ const drc112DaysAgo = new Date(now.getTime() - 112 * DAY_MS)
 const resDrc112 = eligibilityFor({ dateOfBirth: dob, lastDonationAt: drc112DaysAgo }, now, { component: 'double-red-cells' })
 assert.equal(resDrc112.status, 'eligible', '112 days since Double Red Cells must be eligible')
 assert.equal(resDrc112.eligible, true)
+
+// Test 4b: request components map to the right interval (rbc -> whole blood, cryo -> plasma)
+assert.equal(deferralDaysForComponent('whole-blood'), 56, 'whole-blood -> 56')
+assert.equal(deferralDaysForComponent('platelets'), 7, 'platelets -> 7')
+assert.equal(deferralDaysForComponent('plasma'), 28, 'plasma -> 28')
+assert.equal(deferralDaysForComponent('rbc'), 56, 'rbc -> whole blood 56')
+assert.equal(deferralDaysForComponent('cryoprecipitate'), 28, 'cryoprecipitate -> plasma 28')
+assert.equal(deferralDaysForComponent('unknown'), 56, 'unknown -> whole blood 56')
 
 // Test 5: componentEligibilityList returns all 4 types
 const list = componentEligibilityList({ dateOfBirth: dob, lastDonationAt: wb55DaysAgo }, now)
