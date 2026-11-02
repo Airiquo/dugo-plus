@@ -90,6 +90,14 @@ service cloud.firestore {
       return value in ['', 'O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'];
     }
 
+    // Pictures are optional HTTPS Cloudinary image delivery URLs.
+    function validProfilePhoto(data) {
+      return !('photoURL' in data) || (data.photoURL is string
+          && data.photoURL.size() <= 2048
+          && (data.photoURL == ''
+              || data.photoURL.matches('https://res[.]cloudinary[.]com/[a-zA-Z0-9_-]+/image/upload/[^\\s?#]+')));
+    }
+
     // Account profiles: `users/{uid}` (D16/D22). The owner and an admin claim
     // may read; the owner's read is deliberately status-blind so a suspended
     // session can show the notice, while every other path closes (D26).
@@ -99,20 +107,21 @@ service cloud.firestore {
 
       // Self-registration is donor-only (D20) and the rules enforce it: a
       // self-creating owner may only write `role: 'donor'`, so a client cannot
-      // claim `admin` here and then ride the admin paths. Only an admin claim
-      // (or the console/Admin SDK, which bypasses rules) may create a
-      // hospital/admin profile. A profile also starts with no donation history:
+      // claim `admin` here and then ride the admin paths. Only the privileged
+      // server, which bypasses rules, creates a hospital/admin profile. A profile also starts with no donation history:
       // only F8's server transaction writes lastDonationAt (D14), so a client
       // may not create it.
-      allow create: if (isAdmin() || (signedIn() && me() == uid))
-                    && (isAdmin() || request.resource.data.role == 'donor')
+      allow create: if signedIn() && me() == uid
+                    && validProfilePhoto(request.resource.data)
+                    && request.resource.data.role == 'donor'
+                    && !request.resource.data.keys().hasAny(['loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased', 'hospitalId', 'statusReason', 'statusUpdatedAt'])
                     && request.resource.data.role is string
                     && request.resource.data.fullName is string
                     && request.resource.data.email is string
                     && (!('phoneNumber' in request.resource.data)
                         || request.resource.data.phoneNumber is string)
                     && (!('status' in request.resource.data)
-                        || request.resource.data.status in ['Active', 'Suspended', 'Removed'])
+                        || request.resource.data.status == 'Active')
                     // The registration acceptance (FR-019): a server time and
                     // the notice version it was given for. Optional, because
                     // accounts provisioned outside registration (first Google
@@ -123,25 +132,24 @@ service cloud.firestore {
                         || request.resource.data.privacyNoticeVersion is string)
                     && !('lastDonationAt' in request.resource.data);
 
-      // Editable, but the role is frozen for the owner: allowing that would be
-      // the escalation path (README, "Granting admin"). An admin claim may
-      // update any profile — that is how suspensions land (FR-040), which is
-      // the one path that may change `status`. Donor profile fields (FR-04) are
-      // validated by type so a hand-written document cannot put a non-string
-      // where a screen expects one.
+      // Account access and provisioning fields are server-owned (D40).
+      // Admins may correct personal details; owners may edit their own profile.
+      // Both paths preserve the server-owned fields by presence and value.
       // lastDonationAt is frozen by presence AND value (D14): clearing it
       // would restart the deferral clock and defeat FR-031.
-      allow update: if (
-                         // An admin manages accounts from the console: suspension,
-                         // removal and the anonymising write a deletion request
-                         // performs all arrive here. Shape is still type-checked so
-                         // a broken administrator write cannot bend the document.
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'hospitalId', 'status', 'statusReason', 'statusUpdatedAt', 'loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased'])
+                    && ((
+                         // Administrator corrections retain the profile's validated shape.
                          isAdmin()
+                         && validProfilePhoto(request.resource.data)
                          && request.resource.data.role in ['donor', 'hospital', 'admin']
                          && request.resource.data.fullName is string
                          && request.resource.data.email is string
                          && (!('phoneNumber' in request.resource.data)
                              || request.resource.data.phoneNumber is string)
+                         && (!('dateOfBirth' in request.resource.data)
+                             || request.resource.data.dateOfBirth == null
+                             || request.resource.data.dateOfBirth is timestamp)
                          && (!('bloodType' in request.resource.data)
                              || isOptionalBloodType(request.resource.data.bloodType))
                          && (!('status' in request.resource.data)
@@ -159,6 +167,7 @@ service cloud.firestore {
                        )
                     || (
                          authenticated() && me() == uid
+                         && validProfilePhoto(request.resource.data)
                          // A suspended account cannot write its own profile
                          // (D26); reading it is still allowed so the blocked
                          // screen can name the reason.
@@ -168,10 +177,21 @@ service cloud.firestore {
                          && request.resource.data.email is string
                          && (!('phoneNumber' in request.resource.data)
                              || request.resource.data.phoneNumber is string)
+                         && (!('dateOfBirth' in request.resource.data)
+                             || request.resource.data.dateOfBirth == null
+                             || request.resource.data.dateOfBirth is timestamp)
                          && (
                               !('bloodType' in request.resource.data)
                               || isOptionalBloodType(request.resource.data.bloodType)
                             )
+                         // Donors choose these identity fields once. Empty
+                         // registration placeholders can still be completed.
+                         && (!('bloodType' in resource.data)
+                             || resource.data.bloodType == ''
+                             || request.resource.data.bloodType == resource.data.bloodType)
+                         && (!('dateOfBirth' in resource.data)
+                             || resource.data.dateOfBirth == null
+                             || request.resource.data.dateOfBirth == resource.data.dateOfBirth)
                          // Flat location fields; `address` is not collected.
                          && (!('city' in request.resource.data)
                              || request.resource.data.city is string)
@@ -186,7 +206,7 @@ service cloud.firestore {
                          // The name here is the key a client would try, not a
                          // field — keep it plain or the guard stops matching.
                          && !('eligibility' in request.resource.data)
-                         // Status is an admin decision, not a self-service field.
+                         // Account status is written by the privileged account service.
                          && (!('status' in request.resource.data)
                              || request.resource.data.status == resource.data.status)
                          && (!('statusReason' in request.resource.data)
@@ -217,7 +237,7 @@ service cloud.firestore {
                             )
                        )
                     || (
-                         // The donation confirmation (FR-033, D35): a staff
+                         // The donation confirmation (FR-033, D51): a staff
                          // claim may start a donor's deferral clock, never
                          // shorten or clear one — the diff is exactly
                          // lastDonationAt, on a donor document, and the value
@@ -232,10 +252,16 @@ service cloud.firestore {
                              || request.resource.data.lastDonationAt
                                   > resource.data.lastDonationAt)
                          && request.resource.data.lastDonationAt <= request.time
-                       );
+                       ));
 
       allow delete: if false;
     }
+
+    // Account operations and event details are served by the authorized Worker.
+    match /accountOperations/{id} { allow read, write: if false; }
+    match /auditOutbox/{id} { allow read, write: if false; }
+    match /auditContexts/{id} { allow read, write: if false; }
+    match /auditRedactions/{id} { allow read, write: if false; }
 
     // Verification codes (schema §2.2): minted and consumed server-side only.
     match /emailVerifications/{verificationId} {
@@ -391,40 +417,8 @@ service cloud.firestore {
       // Creation is matcher-only (schema §5.2).
       allow create: if false;
 
-      // The donor answers: response and acknowledgment fields only (schema §6).
-      // The donor's coordinates are written at accept, so the request's
-      // hospital staff can see where the donation is coming from (D30). They
-      // live on the match rather than on `users` so the existing read rule —
-      // donor, that hospital's staff, admin — is the whole boundary.
+      // Donor responses and consent are committed by the server transaction.
       allow update: if isAdmin()
-                    || (
-                         signedIn() && resource.data.donorId == me()
-                         && request.resource.data.donorId == resource.data.donorId
-                         && request.resource.data.diff(resource.data).affectedKeys()
-                              .hasOnly([
-                                'responseStatus',
-                                'guidelinesAcknowledged',
-                                'acknowledgedAt',
-                                'donorLatitude',
-                                'donorLongitude',
-                                'locationSharedAt',
-                              ])
-                         && request.resource.data.responseStatus is string
-                         && request.resource.data.guidelinesAcknowledged is bool
-                         && (
-                              request.resource.data.acknowledgedAt == null
-                              || request.resource.data.acknowledgedAt is timestamp
-                            )
-                         && (
-                              !('donorLatitude' in request.resource.data)
-                              || request.resource.data.donorLatitude == null
-                              || (
-                                   request.resource.data.donorLatitude is number
-                                   && request.resource.data.donorLongitude is number
-                                   && request.resource.data.locationSharedAt is timestamp
-                                 )
-                            )
-                       )
                     // Staff record the screening result: those fields only
                     // (schema §6). ScreeningStatus is a decided enum.
                     || (
@@ -443,6 +437,11 @@ service cloud.firestore {
                        );
 
       allow delete: if false;
+    }
+
+    match /donorCommitments/{donorId} {
+      allow read: if signedIn() && donorId == me();
+      allow write: if false;
     }
 
     match /donorConsents/{consentId} {
@@ -509,8 +508,8 @@ service cloud.firestore {
     }
 
     // One record per completed match (schema §2.9). Staff of the owning
-    // hospital confirm; points and lastDonationAt are written by the F8 server
-    // transaction (D12, D14).
+    // hospital confirm; lastDonationAt is written by the F8 server
+    // transaction (D14).
     match /donations/{matchId} {
       allow read: if isAdmin()
                   || (signedIn() && resource == null)

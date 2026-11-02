@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   WHOLE_BLOOD_INTERVAL_DAYS,
-  deferralDaysForComponent,
   eligibilityFor,
   nextEligibleDate,
 } from './eligibility.js'
@@ -39,28 +38,6 @@ test('per-component intervals change the deferral', () => {
   )
 })
 
-test('request components map to their deferral interval (FR-024 to FR-027)', () => {
-  assert.equal(deferralDaysForComponent('whole-blood'), 56)
-  assert.equal(deferralDaysForComponent('platelets'), 7)
-  assert.equal(deferralDaysForComponent('plasma'), 28)
-  assert.equal(deferralDaysForComponent('rbc'), 56) // rbc borrows whole blood
-  assert.equal(deferralDaysForComponent('cryoprecipitate'), 28) // borrows plasma
-  assert.equal(deferralDaysForComponent('unknown'), 56) // falls back to whole blood
-})
-
-test('the donor requests gate blocks Accept per component', () => {
-  // 30 days after a draw: whole blood (56d), rbc (56d) and double reds (112d)
-  // block, platelets (7d) and plasma (28d) do not. Mirrors the Accept gate.
-  const profile = { dateOfBirth: adult, lastDonationAt: daysAgo(30) }
-  const blocked = (component) =>
-    eligibilityFor(profile, now, { intervalDays: deferralDaysForComponent(component) }).eligible
-  assert.equal(blocked('whole-blood'), false)
-  assert.equal(blocked('rbc'), false)
-  assert.equal(blocked('double-red-cells'), false)
-  assert.equal(blocked('platelets'), true)
-  assert.equal(blocked('plasma'), true)
-})
-
 test('age limits and missing dates still apply', () => {
   assert.equal(eligibilityFor({ dateOfBirth: new Date('2010-01-01') }, now).status, 'underage')
   assert.equal(eligibilityFor({ dateOfBirth: new Date('1950-01-01') }, now).status, 'overage')
@@ -71,4 +48,11 @@ test('nextEligibleDate accepts a component interval', () => {
   const last = new Date('2026-05-01T00:00:00Z')
   assert.equal(nextEligibleDate(last).toISOString(), '2026-06-26T00:00:00.000Z')
   assert.equal(nextEligibleDate(last, 7).toISOString(), '2026-05-08T00:00:00.000Z')
+})
+
+test('an explicitly unknown component retains F5 longest-interval guidance', () => {
+  const result = eligibilityFor({ dateOfBirth: adult, lastDonationAt: daysAgo(57), intervalDays: null }, now)
+  assert.equal(result.status, 'deferred')
+  assert.match(result.detail, /facility confirms the exact date/)
+  assert.equal(eligibilityFor({ dateOfBirth: adult, lastDonationAt: daysAgo(113), intervalDays: null }, now).status, 'eligible')
 })

@@ -3,7 +3,7 @@ import { AppShell } from '../../layout/AppShell'
 import { useAuth } from '../../hooks/useAuth'
 import { readProfile, saveProfile, roleLabel } from '../../services/users'
 import { updateDisplayName } from '../../services/auth'
-import { Btn, Card, Field, Input, PageHeader } from '../../components'
+import { Btn, Card, Field, Input, PageHeader, ProfilePhotoEditor } from '../../components'
 
 /** The editable part of the page's state, from a profile read. */
 function formFrom(profile) {
@@ -157,6 +157,8 @@ export default function Profile() {
                 <Btn onClick={load}>Try again</Btn>
               </div>
             )}
+
+            <ProfilePhotoEditor disabled={loading || loadFailed || busy} />
 
             <Field label="Full name">
               <Input

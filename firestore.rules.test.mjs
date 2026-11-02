@@ -77,10 +77,12 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(f, 'users/henry'), { role: 'donor', fullName: 'Henry H.', email: 'henry@dugo.ph', status: 'Removed', statusReason: 'DSR erasure', createdAt: new Date() });
   await setDoc(doc(f, 'users/ivy'), { role: 'donor', fullName: 'Ivy I.', email: 'ivy@dugo.ph', privacyConsentAt: new Date('2026-10-29T09:00:00Z'), privacyNoticeVersion: '2026-10-29', createdAt: new Date() });
   await setDoc(doc(f, 'users/admin1'), { role: 'admin', fullName: 'Admin One', email: 'admin@dugo.ph', status: 'Active', createdAt: new Date() });
+  await setDoc(doc(f, 'users/hosp1'), { role: 'hospital', fullName: 'St. Mary', email: 'staff@dugo.ph', status: 'Active', createdAt: new Date() });
   await setDoc(doc(f, 'hospitals/h1'), { createdBy: 'admin1', name: 'St. Mary General', address: '1200 Bonifacio Ave', latitude: 14.609, longitude: 120.984, geohash: 'qc7bw', contactNumber: '09170000000', status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/subscriptions/s1'), { plan: 'pilot', startDate: new Date('2026-01-01'), endDate: new Date('2027-01-01'), status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/inventory/O+'), { bloodType: 'O+', unitsAvailable: 3, lastUpdated: new Date() });
   await setDoc(doc(f, 'bloodRequests/r1'), { hospitalId: 'h1', hospitalName: 'St. Mary General', recipientId: null, createdBy: 'alice', bloodType: 'O+', component: 'whole-blood', quantity: 2, urgencyLevel: 'urgent', status: 'collecting', createdAt: new Date(), latitude: 14.609, longitude: 120.984, geohash: 'qc7bw' });
+  await setDoc(doc(f, 'donorCommitments/alice'), { donorId: 'alice', matchId: 'r1_alice', requestId: 'r1', acceptedAt: new Date() });
   await setDoc(doc(f, 'donorMatches/r1_alice'), { requestId: 'r1', donorId: 'alice', donationTypeId: 'whole-blood', screenedByUserId: null, responseStatus: 'Pending', screeningStatus: null, guidelinesAcknowledged: false, acknowledgedAt: null, matchedAt: new Date() });
   await setDoc(doc(f, 'donorConsents/c1'), { donorId: 'alice', matchId: 'r1_alice', consentType: 'ProfileAccess', grantedAt: new Date(), revokedAt: null });
   await setDoc(doc(f, 'donorLocations/alice'), { donorId: 'alice', latitude: 14.84, longitude: 120.81, city: 'Malolos', geohash: 'wdt4', bloodType: 'O+', updatedAt: new Date() });
@@ -105,15 +107,30 @@ await ok('admin claim lists every profile (FR-040)', getDocs(collection(db(admin
 await ok('admin claim reads any profile', readDoc(admin(), 'users/alice'));
 await ok('admin claim reads its own profile', readDoc(admin(), 'users/admin1'));
 await ok('owner creates own profile', setDoc(doc(db(as('carol')), 'users/carol'), { role: 'donor', fullName: 'Carol C.', email: 'carol@dugo.ph', createdAt: new Date() }));
+await ok('owner sets blood type and birth date for the first time', updateDoc(doc(db(as('carol')), 'users/carol'), { bloodType: 'O+', dateOfBirth: new Date('1995-04-12') }));
+await no('owner cannot change blood type after saving it', updateDoc(doc(db(as('carol')), 'users/carol'), { bloodType: 'A+' }));
+await no('owner cannot change birth date after saving it', updateDoc(doc(db(as('carol')), 'users/carol'), { dateOfBirth: new Date('1996-04-12') }));
 await no('self-create cannot claim admin (D20/D29)', setDoc(doc(db(as('dan')), 'users/dan'), { role: 'admin', fullName: 'Dan D.', email: 'dan@dugo.ph', createdAt: new Date() }));
 await no('self-create cannot claim hospital (D20/D29)', setDoc(doc(db(as('hana')), 'users/hana'), { role: 'hospital', fullName: 'Hana H.', email: 'hana@dugo.ph', createdAt: new Date() }));
-await ok('admin claim creates a hospital profile (D26)', setDoc(doc(db(admin()), 'users/hosp1'), { role: 'hospital', fullName: 'St. Mary', email: 'staff@dugo.ph', createdAt: new Date() }));
+await no('admin clients cannot bypass audited hospital provisioning (D40)', setDoc(doc(db(admin()), 'users/hosp1'), { role: 'hospital', fullName: 'St. Mary', email: 'staff@dugo.ph', createdAt: new Date() }));
 await no('create cannot set lastDonationAt (D14)', setDoc(doc(db(as('eve')), 'users/eve'), { role: 'donor', fullName: 'Eve E.', email: 'eve@dugo.ph', createdAt: new Date(), lastDonationAt: new Date() }));
 await no('signed-out cannot create a profile', setDoc(doc(db(anon()), 'users/frank'), { role: 'donor', fullName: 'Frank F.', email: 'frank@dugo.ph', createdAt: new Date() }));
 await no('create cannot invent a status', setDoc(doc(db(as('gina')), 'users/gina'), { role: 'donor', fullName: 'Gina G.', email: 'gina@dugo.ph', status: 'Admin', createdAt: new Date() }));
 await ok('owner creates profile with recorded consent (FR-019)', setDoc(doc(db(as('jane')), 'users/jane'), { role: 'donor', fullName: 'Jane J.', email: 'jane@dugo.ph', privacyConsentAt: new Date(), privacyNoticeVersion: '2026-10-29', createdAt: new Date() }));
 await no('create cannot store consent as text', setDoc(doc(db(as('kate')), 'users/kate'), { role: 'donor', fullName: 'Kate K.', email: 'kate@dugo.ph', privacyConsentAt: '2026-10-29', privacyNoticeVersion: '2026-10-29', createdAt: new Date() }));
 await ok('owner edits profile fields', updateDoc(doc(db(as('alice')), 'users/alice'), { fullName: 'Alice D.', phoneNumber: '09170000001', city: 'Malolos', latitude: 14.85, longitude: 120.82, geohash: 'wdt5' }));
+const photoURL = 'https://res.cloudinary.com/example/image/upload/v1/profile.jpg';
+await ok('donor saves a profile picture', updateDoc(doc(db(as('alice')), 'users/alice'), { photoURL }));
+await ok('hospital saves its own profile picture', updateDoc(doc(db(as('hosp1')), 'users/hosp1'), { photoURL }));
+await ok('admin saves its own profile picture', updateDoc(doc(db(admin()), 'users/admin1'), { photoURL }));
+await ok('owner clears a profile picture', updateDoc(doc(db(as('alice')), 'users/alice'), { photoURL: '' }));
+await no('another donor cannot change a profile picture', updateDoc(doc(db(as('bob')), 'users/alice'), { photoURL }));
+await no('signed-out cannot change a profile picture', updateDoc(doc(db(anon()), 'users/alice'), { photoURL }));
+for (const invalid of [123, null, 'javascript:alert(1)', 'http://res.cloudinary.com/example/image/upload/photo.jpg', 'https://res.cloudinary.com.evil.test/example/image/upload/photo.jpg', 'https://res.cloudinary.com/example/video/upload/photo.jpg', 'https://res.cloudinary.com/example/image/upload/a b.jpg', photoURL + '?x=y', photoURL + 'a'.repeat(2048)]) {
+  await no('owner rejects invalid profile picture: ' + String(invalid).slice(0, 80), updateDoc(doc(db(as('alice')), 'users/alice'), { photoURL: invalid }));
+  await no('admin rejects invalid profile picture: ' + String(invalid).slice(0, 80), updateDoc(doc(db(admin()), 'users/admin1'), { photoURL: invalid }));
+}
+await no('create rejects an invalid profile picture', setDoc(doc(db(as('photo-invalid')), 'users/photo-invalid'), { role: 'donor', fullName: 'Photo', email: 'photo@example.test', photoURL: 'https://other.test/photo.jpg' }));
 await no('owner cannot change role', updateDoc(doc(db(as('alice')), 'users/alice'), { role: 'admin' }));
 await no('owner cannot suspend themselves (status is an admin decision)', updateDoc(doc(db(as('alice')), 'users/alice'), { status: 'Suspended' }));
 await no('owner cannot set hospitalId', updateDoc(doc(db(as('alice')), 'users/alice'), { hospitalId: 'h1' }));
@@ -123,10 +140,13 @@ await ok('owner edit leaves lastDonationAt untouched', updateDoc(doc(db(as('dave
 await ok('owner edit keeps recorded consent', updateDoc(doc(db(as('ivy')), 'users/ivy'), { fullName: 'Ivy I.', phoneNumber: '09170000002' }));
 await no('owner cannot rewrite recorded consent', updateDoc(doc(db(as('ivy')), 'users/ivy'), { privacyNoticeVersion: '2099-01-01' }));
 await no('owner cannot clear recorded consent', updateDoc(doc(db(as('ivy')), 'users/ivy'), { privacyConsentAt: null }));
+// The duplicate sign-up write: a second full document with a fresh consent
+// stamp is refused, so the client must create the profile at most once.
+await no('owner cannot re-create a profile over an existing one', setDoc(doc(db(as('ivy')), 'users/ivy'), { role: 'donor', fullName: 'Ivy I.', email: 'ivy@dugo.ph', phoneNumber: '', status: 'Active', privacyConsentAt: new Date(), privacyNoticeVersion: '2026-10-29', createdAt: new Date() }));
 await no('owner cannot delete profile', deleteDoc(doc(db(as('alice')), 'users/alice')));
 await ok('admin claim updates any profile', updateDoc(doc(db(admin()), 'users/alice'), { fullName: 'Alice D.' }));
 await ok('admin claim updates its own profile (same-doc read)', updateDoc(doc(db(admin()), 'users/admin1'), { fullName: 'Admin One' }));
-await ok('admin claim suspends a profile (FR-040)', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Suspended' }));
+await no('admin clients cannot bypass audited status changes (D40)', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Suspended' }));
 
 // ---- donation clock write (FR-033, D35) -----------------------------------
 // A staff claim may start a donor's deferral clock, never shorten or clear
@@ -146,13 +166,16 @@ await no('staff claim cannot set the clock on a hospital profile', updateDoc(doc
 // state) but loses every other authenticated path until an admin restores it.
 console.log('suspension (D26)');
 await ok('active account reads reference data', readDoc(as('erin'), 'donationTypes/whole-blood'));
-await ok('admin claim suspends the account', updateDoc(doc(db(admin()), 'users/erin'), { status: 'Suspended' }));
+await no('admin client cannot change status directly', updateDoc(doc(db(admin()), 'users/erin'), { status: 'Suspended' }));
+await env.withSecurityRulesDisabled(ctx => updateDoc(doc(db(ctx), 'users/erin'), { status: 'Suspended' }));
 await ok('suspended account still reads its own profile', readDoc(as('erin'), 'users/erin'));
 await no('suspended account cannot read reference data', readDoc(as('erin'), 'donationTypes/whole-blood'));
 await no('suspended account cannot read hospitals', readDoc(as('erin'), 'hospitals/h1'));
 await no('suspended account cannot edit its own profile', updateDoc(doc(db(as('erin')), 'users/erin'), { fullName: 'Erin E.' }));
+await no('suspended account cannot change its picture', updateDoc(doc(db(as('erin')), 'users/erin'), { photoURL }));
 await no('suspended account cannot open a data request', setDoc(doc(db(as('erin')), 'dataSubjectRequests/dsr4'), { userId: 'erin', processedBy: null, requestType: 'Access', status: 'Pending', createdAt: serverTimestamp(), resolvedAt: null }));
-await ok('admin claim restores the account', updateDoc(doc(db(admin()), 'users/erin'), { status: 'Active' }));
+await no('admin client cannot restore status directly', updateDoc(doc(db(admin()), 'users/erin'), { status: 'Active' }));
+await env.withSecurityRulesDisabled(ctx => updateDoc(doc(db(ctx), 'users/erin'), { status: 'Active' }));
 await ok('restored account reads reference data again', readDoc(as('erin'), 'donationTypes/whole-blood'));
 // A removed account is closed exactly like a suspended one (FR-040).
 await ok('removed account still reads its own profile', readDoc(as('henry'), 'users/henry'));
@@ -160,7 +183,20 @@ await no('removed account cannot read hospitals', readDoc(as('henry'), 'hospital
 await no('removed account cannot write its own profile', updateDoc(doc(db(as('henry')), 'users/henry'), { fullName: 'Henry H.' }));
 await ok('admin claim scrubs a removed profile (FR-039 erasure)', updateDoc(doc(db(admin()), 'users/henry'), { fullName: 'Removed account', email: '', phoneNumber: '', city: '', geohash: '', latitude: 0, longitude: 0, bloodType: '', dateOfBirth: null }));
 // Put alice back so the rest of the suite exercises an active session.
-await ok('admin claim reactivates a profile', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Active' }));
+await no('admin client cannot reactivate a profile directly', updateDoc(doc(db(admin()), 'users/henry'), { status: 'Active' }));
+
+// Server-owned recovery and audit metadata cannot be read or forged by clients.
+for (const collection of ['accountOperations', 'auditOutbox', 'auditContexts', 'auditRedactions']) {
+  await no(`admin cannot read ${collection}`, readDoc(admin(), `${collection}/private`));
+  await no(`admin cannot write ${collection}`, setDoc(doc(db(admin()), `${collection}/private`), { state: 'Completed' }));
+  await no(`donor cannot write ${collection}`, setDoc(doc(db(as('alice')), `${collection}/private`), { state: 'Completed' }));
+}
+for (const field of ['loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased']) {
+  await no(`owner cannot forge ${field}`, updateDoc(doc(db(as('alice')), 'users/alice'), { [field]: 'forged' }));
+  await no(`admin client cannot forge ${field}`, updateDoc(doc(db(admin()), 'users/alice'), { [field]: 'forged' }));
+}
+await no('owner cannot remove status by replacing the profile', setDoc(doc(db(as('alice')), 'users/alice'), { role: 'donor', fullName: 'Alice', email: 'alice@dugo.ph' }));
+await no('self-registration cannot forge login state', setDoc(doc(db(as('forged')), 'users/forged'), { role: 'donor', fullName: 'Forged', email: 'forged@dugo.ph', loginState: 'Available' }));
 
 // ---- errorLogs (D17) -----------------------------------------------------
 console.log('errorLogs');
@@ -251,7 +287,7 @@ await ok('staff of the request hospital reads the match', readDoc(staff1(), 'don
 await no('staff of another hospital cannot read the match', readDoc(staff2(), 'donorMatches/r1_alice'));
 await ok('admin claim reads a match', readDoc(admin(), 'donorMatches/r1_alice'));
 await no('matches are created server-side only', setDoc(doc(db(as('alice')), 'donorMatches/r1_bob'), { requestId: 'r1', donorId: 'bob', donationTypeId: 'whole-blood', responseStatus: 'Pending', screeningStatus: null, guidelinesAcknowledged: false, acknowledgedAt: null, matchedAt: new Date() }));
-await ok('donor responds and acknowledges', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { responseStatus: 'Accepted', guidelinesAcknowledged: true, acknowledgedAt: new Date() }));
+await no('donor cannot bypass the response service', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { responseStatus: 'Accepted', guidelinesAcknowledged: true, acknowledgedAt: new Date() }));
 await no('donor cannot write screening fields', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { screeningStatus: 'Cleared' }));
 await no('donor cannot re-point a match', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { donationTypeId: 'platelets' }));
 await ok('staff writes the screening result', updateDoc(doc(db(staff1()), 'donorMatches/r1_alice'), { screenedByUserId: 'staff1', screeningStatus: 'Cleared' }));
@@ -259,8 +295,15 @@ await no('screening status follows the decided enum', updateDoc(doc(db(staff1())
 await no('matches are never deleted', deleteDoc(doc(db(admin()), 'donorMatches/r1_alice')));
 // D27: coordinates ride the match so that hospital's staff can see them.
 await no('coordinates need a share timestamp', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { donorLatitude: 14.84, donorLongitude: 120.81 }));
-await ok('donor shares coordinates at accept', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { donorLatitude: 14.84, donorLongitude: 120.81, locationSharedAt: serverTimestamp() }));
+await no('donor cannot share coordinates outside the response transaction', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { donorLatitude: 14.84, donorLongitude: 120.81, locationSharedAt: serverTimestamp() }));
 await no('a donor cannot edit another donor’s match', updateDoc(doc(db(as('bob')), 'donorMatches/r1_alice'), { responseStatus: 'Declined' }));
+
+console.log('donorCommitments');
+await ok('donor reads their commitment', readDoc(as('alice'), 'donorCommitments/alice'));
+await no('another donor cannot read a commitment', readDoc(as('bob'), 'donorCommitments/alice'));
+await no('donor cannot replace the commitment lock', setDoc(doc(db(as('alice')), 'donorCommitments/alice'), { donorId: 'alice', matchId: 'other', requestId: 'other', acceptedAt: new Date() }));
+await no('donor cannot delete the commitment lock', deleteDoc(doc(db(as('alice')), 'donorCommitments/alice')));
+await no('donor cannot write notification read state directly', updateDoc(doc(db(as('alice')), 'notifications/n1'), { readAt: new Date() }));
 
 // ---- donorConsents -------------------------------------------------------
 console.log('donorConsents');

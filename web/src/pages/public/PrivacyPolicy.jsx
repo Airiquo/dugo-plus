@@ -30,8 +30,9 @@ const SECTIONS = [
     title: 'What we collect',
     items: [
       'Account details: full name, email address, phone number, account type and account status.',
+      'Optional profile picture: an image you choose to upload, hosted by Cloudinary, and its image link stored with your account.',
       'Donor profile: blood type, date of birth, city, and — only if you allow the browser prompt — your coordinates, stored as latitude/longitude and a coarse geohash.',
-      'Donation activity: matches, donations, reward points, consents you grant and the blood requests you post.',
+      'Donation activity: matches, donations, consents you grant and the blood requests you post.',
       'Requests to Dugo+: your data-subject requests and the administrator’s note recording what was done.',
       'Operational records: error reports written by the browser, and a server-side audit chain that holds hashed references rather than readable personal data.',
     ],
@@ -63,6 +64,8 @@ const SECTIONS = [
         Firestore rules, not by the screens: a suspended or removed account loses every protected
         read and write, and a changed role in the browser does not grant administrator access. Dugo+
         does not hold a service-account key in the web app.
+        {' '}Optional profile pictures are sent to Cloudinary and served through public image links.
+        Anyone with an image link can view that picture; avoid uploading sensitive documents or images.
       </>
     ),
   },
@@ -72,6 +75,7 @@ const SECTIONS = [
       'Your profile stays while your account is active.',
       'If you ask for erasure, the identifying fields (name, email, phone, city, coordinates, blood type, birth date) are scrubbed and the account is closed, and an administrator deletes the sign-in record that holds your email. Donation and audit records are kept in de-identified form so blood-safety and traceability records stay complete.',
       'A suspended or removed account keeps its profile for audit until a deletion request is processed.',
+      'Removing or replacing a profile picture clears its link from your account. The stored image can remain on Cloudinary; ask support to delete that copy. Account erasure clears the current picture link and also needs this provider cleanup.',
       'Error reports are kept for troubleshooting and hold no profile data beyond an optional account id.',
     ],
   },
@@ -155,7 +159,7 @@ export default function PrivacyPolicy() {
             <p className="pub-kicker">Dugo+ · privacy</p>
             <h3>Privacy &amp; consent notice</h3>
             <p className="pub-muted">
-              Last updated 29 October 2026 (version {PRIVACY_NOTICE_VERSION}). This notice covers
+              Last updated 1 November 2026 (version {PRIVACY_NOTICE_VERSION}). This notice covers
               the Dugo+ web app and its donor, hospital and administrator accounts.
             </p>
           </header>

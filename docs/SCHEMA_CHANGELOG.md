@@ -242,12 +242,12 @@ Feature: F6 (FR-034).
 §0's divergence row and §2.3.3/§2.9 note the change; the vocabulary of D26
 (`changeType`, `reason`, child log path) is unchanged.
 
-## 2026-11-02 — the staff confirmation starts the deferral clock (D35)
+## 2026-11-02 — the staff confirmation starts the deferral clock (D51)
 
 **Origin:** build (FR-033 needed a `lastDonationAt` writer; no server path
 exists, D27 — the owner chose the staff-claim path over a worker endpoint).
 
-**Refs:** D35 (relaxes D14's client freeze for staff, forward-only).
+**Refs:** D51 (relaxes D14's client freeze for staff, forward-only).
 Feature: F8 (FR-033).
 
 | Area | Before | After |
@@ -270,3 +270,33 @@ line for `lastDonationAt` is superseded, `rewardTransactions` is not.
 | `hospitals/{h}/subscriptions/{id}` writes | admin claim only | **staff-of-that-facility and admin claims**, shape-validated (`plan is string`, `status in ['Active', 'Expired', 'Cancelled']`, timestamps) |
 | `subscriptions.plan` | open (§9.5) | decided: `Community Plan \| Standard Partner \| Regional Network` |
 | `subscriptions.status` | suggested `Active \| Expired \| Cancelled` (§9.2 open) | decided: `Active \| Expired \| Cancelled` |
+
+## 2026-11-01 — Recoverable account operations and audit contexts (D40)
+
+Feature: F9/F10. Adds server-only `accountOperations`, `auditOutbox`,
+`auditContexts` and `auditRedactions`; due-work indexes on state/nextAttemptAt.
+Adds profile login/provisioning/erasure metadata and facility provisioning
+ownership. Adds optional `auditBlocks.contextHash` without changing old hashes.
+Profile access fields are now server-owned, including for browser admins.
+Erasure creates persistent hash-only tombstones; bounded jobs delete erasable
+context while preserving the chain. See schema §2.15–2.18 and
+`docs/ADMIN_ACCOUNT_OPERATIONS.md`. Written and emulator-tested, not deployed.
+
+## 2026-11-01 — optional account profile picture
+
+**Origin:** build → schema.
+
+Added optional `users/{uid}.photoURL`: a Cloudinary HTTPS image delivery URL, bounded to 2048 characters. Missing/empty values use initials. Active owners of all three account types may edit their own picture; admin writes use the same URL validation. Anonymisation clears the field. Image storage and provider deletion are outside Firestore. No new collection or index.
+
+**Refs:** D39; F1, F9; FR-04, FR-012, FR-047.
+
+## 2026-11-02 — single donor commitment and alert read state (D42/D43)
+
+- Added server-owned `donorCommitments/{donorId}` for serialized acceptance.
+- Added optional server-written `notifications.readAt` for unread inbox state.
+- Donor match responses/acknowledgment/location now commit through the donor API;
+  rules deny direct donor response edits. Both consent records commit atomically.
+- Reward transactions are legacy-only; future award seeding is removed (D43).
+## 2026-11-02 — Account-history query (D50)
+
+Adds an `auditBlocks` composite index on `hashedEntityRef` ASC, `entityType` ASC, `sequence` DESC for the active-admin account-history endpoint. Pages contain at most 25 user-entity events with an exclusive sequence continuation. Existing `auditContexts` and actor/subject `auditRedactions` control private details. No new collection or field. Index/Worker deployment pending; unit and REST-emulator checks pass.

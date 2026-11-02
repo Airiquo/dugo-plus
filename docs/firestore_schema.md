@@ -20,8 +20,8 @@ and do not "correct" the live code back to the text below:
 |---|---|---|---|
 | Reward points | an ERD-side total | one record per donation, summed on read | D12 |
 | Deferral intervals | one interval | per component, in `donationTypes.intervalDays` | D13 |
-| `users.lastDonationAt` | writable | frozen for the owner; staff/admin may advance it only, and the confirmation transaction writes it | D14, D35 |
-| `errorLogs` | an ERD-free collection §1 lists as [ADDED] | client-written, open-create | D8, D10, D17 |
+| `users.lastDonationAt` | writable | frozen for the owner; staff/admin may advance it only, and the confirmation transaction writes it | D14, D51 |
+| `errorLogs` | an ERD-free collection §1 lists as [ADDED] | client-written, open-create; `build` is `mode:12-character Git SHA` | D8, D10, D17, D36 |
 | `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
 | `users.address` | an ERD postal address | not collected; no field | D22 |
 | Inventory logs | child path, staff-writable, `Donation \| Usage \| Adjustment \| Expired` suggested | same child path, staff/admin-writable in one client transaction, `DONATION \| TRANSFUSION \| ADJUSTMENT \| EXPIRED` with `reason` | D26, D27 |
@@ -86,8 +86,13 @@ donations/{matchId}                                  ← doc ID = matchId (enfor
 rewardTransactions/{donationId}                      ← doc ID = donationId (enforces UK donation_id, 1:1)
 systemConfig/global                                  ← single doc in practice; the rules allow any configId
 dataSubjectRequests/{dsrId}
+donorCommitments/{donorId}                           [ADDED] server-owned active-acceptance lock (D42)
 donorLocations/{donorId}                             [ADDED] donor coordinate mirror for staff (D31)
 auditBlocks/{blockId}                                (server-only, append-only)
+accountOperations/{operationHash}                    [ADDED] server-only recovery (D40)
+auditOutbox/{operationHash}                          [ADDED] server-only delivery (D40)
+auditContexts/{recordHash}                           [ADDED] erasable event details (D40)
+auditRedactions/{hashedUserRef}                      [ADDED] persistent erasure tombstone (D40)
 errorLogs/{logId}                                    [ADDED] client-written, open-create (D8, D10, D17)
 ```
 
@@ -135,22 +140,34 @@ Legend: **R** = required, **O** = optional/nullable.
 | fullName | string | R | |
 | email | string | R | **UK**. Uniqueness enforced by Firebase Auth |
 | phoneNumber | string | R | |
+| photoURL | string | O | [ADDED] HTTPS Cloudinary image delivery URL, up to 2048 characters. Missing or `''` displays initials. Owner-editable for donor, hospital and admin accounts; cleared by account anonymisation. The image is hosted outside Firestore (D40). |
 | ~~hashedPassword~~ | – | – | **[DECISION]** Do NOT store. Firebase Auth manages credentials. See §9 |
 | geohash | string | O | Geohash of the user's location, for proximity queries |
 | latitude | number | O | |
 | longitude | number | O | |
 | city | string | O | City name; what makes a donor matchable without coordinates |
-| lastDonationAt | Timestamp | O | Used for eligibility interval checks. Owner-frozen (D14); the staff confirmation advances it, never backwards (D35) |
+| lastDonationAt | Timestamp | O | Used for eligibility interval checks. Owner-frozen (D14); the staff confirmation advances it, never backwards (D51) |
 | bloodType | string | O | `BloodType`. ERD `?` |
 | dateOfBirth | Timestamp | R | |
 | ~~eligibilityInfo~~ | – | – | **Removed from the model of record** (D25). The ERD's field was never implemented and eligibility is computed, not stored |
 | ~~isVerified~~ | – | – | **[DECISION]** Do NOT store. Firebase Auth owns email verification (`user.emailVerified`); a copy would need a writer to stay true. See D5 |
-| status | string | R | `Active \| Suspended \| Removed`. Admin-writable (FR-040) |
+| status | string | R | `Active \| Suspended \| Removed`. Server-owned account operation (D40) |
 | statusReason | string | O | Admin reason recorded when suspending (D26); cleared on reactivate |
 | statusUpdatedAt | Timestamp | O | Set when status changes (D26) |
+| loginState | string | O | D40: `Provisioning \| Available \| Deleting \| Deleted`; absent on legacy profiles |
+| loginDeletedAt | Timestamp | O | D40: permanent Auth deletion completed |
+| provisioningOperationId | string/null | O | D40: owning operation hash during creation; null when complete |
+| accountOperationId | string/null | O | D40: owning login-deletion operation; null when complete |
+| personalDataErased | boolean | O | D40: true prevents restoration after erasure |
 | privacyConsentAt | Timestamp | O | Server time the privacy notice was accepted at registration (D28); owner-frozen |
 | privacyNoticeVersion | string | O | Version of the `/privacy` notice accepted, e.g. `2026-10-29` (D28); owner-frozen |
 | createdAt | Timestamp | R | |
+
+> Note: owners may initially fill `bloodType` and `dateOfBirth`, then cannot
+> change or clear either value through client writes once it is non-empty
+> (D48). Admin corrections remain available. Request acceptance additionally
+> requires `fullName`, `bloodType`, `dateOfBirth`, and `city` (D49); phone and
+> coordinates are optional.
 
 Role/hospital claims: also set Firebase Auth **custom claims** `{ role, hospitalId }` for security rules **[ADDED]**.
 
@@ -183,6 +200,9 @@ Role/hospital claims: also set Firebase Auth **custom claims** `{ role, hospital
 | Field | Type | R/O | Notes |
 |---|---|---|---|
 | createdBy | string | R | FK → `users` (assumed, ERD has no edge. See §9) |
+| provisioningOperationId | string/null | O | D40: exclusive creation reservation; cleanup may delete only a matching owner |
+| createdAt | Timestamp | O | Server provisioning timestamp |
+| updatedAt | Timestamp | O | Server provisioning/update timestamp |
 | name | string | R | |
 | address | string | R | |
 | latitude | number | R | |
@@ -302,6 +322,7 @@ Relationship in ERD is **1 → 1..many**: every donation type should have at lea
 | channel | string | R | Values not in ERD. Suggested: `Push \| SMS \| Email` |
 | deliveryStatus | string | R | Suggested: `Pending \| Sent \| Failed` |
 | retryCount | number (int) | R | Default `0`. Compare against `systemConfig.notifRetryLimit` |
+| readAt | Timestamp | O | **[ADDED]** D42: server-written when the owner marks an alert as read; absent means unread. |
 | sentAt | Timestamp | O | Null until sent. **Write it as an explicit `null` at create**: the donor inbox (§4) orders by `sentAt`, and Firestore omits documents that lack the orderBy field. |
 
 ### 2.9 `donations/{matchId}`
@@ -320,9 +341,9 @@ Doc ID = the `donorMatches` doc ID. One donation per match (ERD 1:1).
 | donationType | string | O | **[ADDED, denormalized]** FK → `donationTypes/{id}`, copied from the match |
 | requestId | string | O | **[ADDED, denormalized]** FK → `bloodRequests`, copied from the match |
 
-### 2.10 `rewardTransactions/{donationId}`
+### 2.10 `rewardTransactions/{donationId}` — legacy only (D43)
 
-Doc ID = `donationId` so UK(donation_id) holds.
+Doc ID = `donationId` so UK(donation_id) holds. D43 removes future rewards; existing documents remain available to historical data export.
 
 | Field | Type | R/O | Notes |
 |---|---|---|---|
@@ -384,6 +405,7 @@ Hash-chained audit log. **Never update or delete.**
 | createdAt | Timestamp | R | |
 | sequence | number (int) | R | **[ADDED]** monotonically increasing, assigned in a transaction reading the last block. Firestore has no auto-increment |
 | correctsBlockId | string | O | **[ADDED]** Doc ID of the block this entry corrects (for append-only corrections per FR-043) |
+| contextHash | string | O | D40: HMAC of canonical reason/beforeStatus/afterStatus; included in record hash only when present; context remains erasable |
 
 > Note: a reserved document `auditBlocks/_meta` (`{ headSequence, headHash,
 > updatedAt }`) is written by the append transaction. It carries **no
@@ -408,6 +430,54 @@ coordinates, read by staff of the matching hospital and admins.
 | geohash | string | O | |
 | bloodType | string | O | so staff can filter without reading `users` |
 | updatedAt | Timestamp | R | |
+
+### 2.15 `accountOperations/{operationHash}` — [ADDED] (D40)
+
+Server-only. ID is HMAC of actor UID and caller retry key. Fields:
+`action` (`createHospital|deleteLogin|status|erase`), `actorId`, `targetUid`, optional
+`hospitalId`, keyed `fingerprint`, `state` (`Pending|Completed|Failed`),
+`createdAt`, `updatedAt`, optional `nextAttemptAt`, `completedAt`,
+`leaseToken`, `leaseUntil`, `recoveryState`, `failureMessage`, `reason`, and
+`result` (`{uid,hospitalId?}`). Pending external operations hold a five-minute
+lease; completion clears lease and reason. Passwords/tokens are never stored.
+Record IDs/technical references are private operational metadata outside the
+immutable chain. There is no client read/write path.
+
+### 2.16 `auditOutbox/{operationHash}` — [ADDED] (D40)
+
+Pending fields: `state: Pending`, `nextAttemptAt`, `createdAt`, `eventType`,
+`entityType: user`, raw `entityId`/`actorId`, `actorRole: admin`, and
+`context: {reason,beforeStatus,afterStatus}`. Created in the same transaction as
+the account mutation. Delivery atomically replaces the entire document with
+`{state: Delivered,recordHash,deliveredAt}`, removing raw references/reasons.
+Retaining the acknowledgement deduplicates retries. Server-only reads/writes.
+
+### 2.17 `auditContexts/{recordHash}` — [ADDED] (D40)
+
+Erasable sidecar: `reason` (≤2000 chars), `beforeStatus`, `afterStatus`,
+`hashedEntityRef`, `hashedActorRef`. Created atomically with the chain block.
+Its canonical reason/status data is HMAC-bound to `auditBlocks.contextHash`.
+There are no dedicated identity snapshots; a free-form reason may contain personal
+data and is erasable. Server-only access; a later authorized
+history endpoint must honor redaction tombstones before returning details. D50 implements `GET /accounts/history`: active-admin authorization, subject-scoped cursor pagination, context-digest verification and tombstone checks. Current administrator identities are resolved from a bounded 100-profile query; unresolved identities remain unavailable. No identity snapshots or new stored fields are added.
+
+### 2.18 `auditRedactions/{hashedUserRef}` — [ADDED] (D40)
+
+Persistent HMAC-only erasure tombstone: `state: Pending|Completed`,
+`nextAttemptAt`, `createdAt`. Exists as soon as erasure commits. Audit delivery
+suppresses context when subject or actor has a tombstone. Bounded maintenance
+queries and deletes old context by hashedEntityRef/hashedActorRef; the tombstone
+remains after completion. No immutable block is updated or deleted.
+
+### 2.19 `donorCommitments/{donorId}` — [ADDED] (D42)
+
+Server-owned singleton, read only by its donor. Fields: `donorId`, `matchId`,
+`requestId` (strings), and `acceptedAt` (Timestamp). `POST /donor/respond` reads
+this document and all prior Accepted matches inside the same transaction, then
+writes the singleton, accepted match and two consent records together. The stored
+pointer may outlive the donation: the next transaction checks donation existence,
+request closure and screening outcome before replacing it. Existing accepted
+matches without a lock are checked too; no migration silently cancels them.
 
 ## 3. Relationships (from ERD)
 
@@ -460,6 +530,10 @@ Cardinality read from the crow's-foot notation.
 | `donorConsents` | `donorId` ASC, `grantedAt` DESC | Consent history |
 | `dataSubjectRequests` | `status` ASC, `createdAt` ASC | Admin work queue |
 | `auditBlocks` | `sequence` DESC | Fetch the latest block |
+| `auditBlocks` | `hashedEntityRef` ASC, `entityType` ASC, `sequence` DESC | D50: account history with exclusive sequence cursor (25 rows/page) |
+| `accountOperations` | `state` ASC, `nextAttemptAt` ASC | D40 due recovery work |
+| `auditOutbox` | `state` ASC, `nextAttemptAt` ASC | D40 due event delivery |
+| `auditRedactions` | `state` ASC, `nextAttemptAt` ASC | D40 bounded erasure cleanup |
 | collection group `logs` | `createdAt` DESC | Cross-hospital inventory audit |
 
 TTL policy: `emailVerifications.expiresAt`.
@@ -468,14 +542,15 @@ TTL policy: `emailVerifications.expiresAt`.
 
 ## 5. Where the agent must use transactions / server logic
 
-1. **Registering a user**: create Firebase Auth user, then `users/{uid}`, then set custom claims.
-2. **Creating a match**: use the deterministic ID `{requestId}_{donorId}`. Fail if it exists.
-3. **Confirming a donation**: in ONE transaction: create `donations/{matchId}`, create `rewardTransactions/{donationId}`, increment `hospitals/{h}/inventory/{bt}.unitsAvailable`, write an inventory `logs` doc, set `users/{donorId}.lastDonationAt`. The build's client transaction (D27) covers the donation, stock, log and `lastDonationAt` (D35 staff-claim rules path); `rewardTransactions` stays server-only (D12).
-4. **Inventory changes**: always `FieldValue.increment()` or a transaction. Never read-then-write.
-5. **Audit blocks**: create in a transaction that reads the latest block (by `sequence`), sets `prevHash`, computes `recordHash`.
-6. **Notification retries**: Cloud Function / scheduler reads `systemConfig/global` for `notifRetryLimit` and `notifRetryInterval`.
-7. **Radius expansion**: scheduler walks `radiusTiers` in `tierOrder`, waiting `waitMinutes` between tiers, querying donors via geohash ranges.
-8. **Eligibility check**: `now - users.lastDonationAt >= donationTypes.intervalDays`.
+1. **Registering a user**: donor registration remains client-driven. Hospital provisioning reserves a UID/profile/facility in a server transaction, creates a disabled Auth user, publishes claims, enables the login, then atomically activates records and queues the audit event (D40).
+2. **Accepting a match (D42)**: use a transaction over `donorCommitments/{uid}`, prior accepted matches and request/donation state. Commit response, acknowledgment, two consent records and lock together.
+3. **Creating a match**: use the deterministic ID `{requestId}_{donorId}`. Fail if it exists.
+4. **Confirming a donation**: in ONE transaction: create `donations/{matchId}`, increment `hospitals/{h}/inventory/{bt}.unitsAvailable`, write an inventory `logs` doc, set `users/{donorId}.lastDonationAt` — the client transaction (D27) also does this, with the D51 staff-claim rules path; `rewardTransactions` stays server-only (D12).
+5. **Inventory changes**: always `FieldValue.increment()` or a transaction. Never read-then-write.
+6. **Audit blocks**: read the head and latest block, compute the hash, and atomically write block/head/optional erasable context/outbox acknowledgement. Status/erasure mutations and their pending outbox event commit together (D40).
+7. **Notification retries**: Cloud Function / scheduler reads `systemConfig/global` for `notifRetryLimit` and `notifRetryInterval`.
+8. **Radius expansion**: scheduler walks `radiusTiers` in `tierOrder`, waiting `waitMinutes` between tiers, querying donors via geohash ranges.
+9. **Eligibility check**: `now - users.lastDonationAt >= donationTypes.intervalDays`.
 
 ---
 
@@ -485,13 +560,14 @@ Use custom claims `request.auth.token.role` and `request.auth.token.hospitalId`.
 
 | Collection | Read | Write |
 |---|---|---|
-| `users/{uid}` | Owner; Admin; Staff of same hospital (limited) | Owner (non-privileged fields only: not `role`, `status`, `isVerified`); Admin |
+| `users/{uid}` | Owner; Admin; Staff of same hospital (limited) | Owner/admin personal fields; access/provisioning fields server-owned (D40) |
 | `emailVerifications` | none | server-only |
 | `hospitals` | Authenticated | Staff of that hospital (limited), Admin |
 | `hospitals/*/subscriptions` | Staff of that hospital, Admin | Admin / server |
 | `hospitals/*/inventory` + `logs` | Staff of that hospital, Admin | Staff of that hospital, Admin (via function preferred) |
 | `bloodRequests` | Authenticated | Create: Recipient / Staff. Update status: Staff of hospital, Admin |
-| `donorMatches` | Donor (own), Staff of request's hospital, Admin | Donor may update only `responseStatus`, `guidelinesAcknowledged`, `acknowledgedAt`; Staff update screening fields; creation server-only |
+| `donorMatches` | Donor (own), Staff of request's hospital, Admin | D42: responses/acknowledgment/location server-only; Staff update screening fields; creation server-only |
+| `donorCommitments` | Owner only | server-only (D42) |
 | `donorConsents` | Donor (own), Admin | Donor create / set `revokedAt` only. No delete |
 | `donationTypes` + `guidelines` | Authenticated | Admin |
 | `notifications` | Owner | server-only |
@@ -500,6 +576,7 @@ Use custom claims `request.auth.token.role` and `request.auth.token.hospitalId`.
 | `systemConfig` | Admin (Authenticated may read tiers if needed) | Admin |
 | `dataSubjectRequests` | Owner, Admin | Owner create; Admin update |
 | `auditBlocks` | Admin | server-only, no update/delete |
+| `accountOperations`, `auditOutbox`, `auditContexts`, `auditRedactions` | no client reads | server-only (D40) |
 
 Sensitive/health data (`bloodType`, `dateOfBirth`, screening results) should never be readable by other donors.
 
@@ -521,6 +598,7 @@ interface User {
   fullName: string;
   email: string;
   phoneNumber: string;
+  photoURL?: string;
   geohash?: string | null;
   latitude?: number | null;
   longitude?: number | null;

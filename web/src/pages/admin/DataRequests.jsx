@@ -292,7 +292,7 @@ export default function DataRequests() {
               <div style={{ marginBottom: 12 }}>
                 <h3>Access / export</h3>
                 <p className="muted">
-                  Builds a JSON copy of this account&apos;s profile, matches, donations, rewards, consents,
+                  Builds a JSON copy of this account&apos;s profile, matches, donations, historical records, consents,
                   requests and posted blood requests.
                 </p>
                 <Btn variant="primary" onClick={generateExport} disabled={Boolean(working)}>

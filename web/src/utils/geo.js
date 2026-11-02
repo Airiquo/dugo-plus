@@ -1,3 +1,15 @@
+/** A finite, in-range point, excluding missing values and the 0,0 placeholder. */
+export function asPoint(lat, lng) {
+  const usable = (value) =>
+    (typeof value === 'number' || typeof value === 'string') && String(value).trim() !== ''
+  if (!usable(lat) || !usable(lng)) return null
+  const point = { lat: Number(lat), lng: Number(lng) }
+  if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return null
+  if (Math.abs(point.lat) > 90 || Math.abs(point.lng) > 180) return null
+  if (point.lat === 0 && point.lng === 0) return null
+  return point
+}
+
 export function toRad(value) {
   return (value * Math.PI) / 180
 }

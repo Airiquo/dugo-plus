@@ -3,6 +3,11 @@
 A blood bank and donor management web app: request blood, match donors, track
 inventory, and record donations.
 
+The React app now carries the light Dugo+ care design, including the approved
+landing/news, responsive donor navigation and profile/map layouts, and shared
+staff chrome. See [the redesign blueprint and verification record](docs/CARE_REDESIGN.md)
+for scope, assets and the distinction between UI fixture checks and live tests.
+
 | Folder | What it is |
 | --- | --- |
 | `light/`, `dark/` | Clickable HTML mockups, one file per screen in both themes. The look-and-feel **style reference**. |
@@ -138,6 +143,12 @@ shows `pages/shared/NotConfigured.jsx` with the variables to fill in. Once
 configured, `/admin/*` requires a signed-in account with `role: "admin"`; see
 [Authentication](#authentication). The remaining work is one screen at a time;
 see [Building a screen](#building-a-screen).
+
+### Optional profile pictures
+
+Donor, hospital and admin accounts can upload, replace or remove a profile
+picture. Configure the public Cloudinary cloud name and unsigned upload preset
+in `web/.env.local`; see [setup, privacy and verification](docs/PROFILE_PICTURES.md).
 
 ## Authentication
 

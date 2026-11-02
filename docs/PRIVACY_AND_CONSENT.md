@@ -34,7 +34,7 @@ registration. It covers:
 | A suspended/removed account loses every protected path | `accountActive()` in `firestore.rules`; `Blocked.jsx` |
 | Erasure scrubs the identifying fields | `anonymiseUser()` in `web/src/services/users.js` |
 | The Auth sign-in record is deleted as part of erasure | `deleteAuthAccount` in `functions/index.js` (not deployed in this checkout), called from `/admin/accounts` |
-| Registration acceptance is recorded with the notice version | required checkbox in `web/src/pages/public/Register.jsx`; `writeProfile()` stores `privacyConsentAt` + `privacyNoticeVersion`; owner-frozen in `firestore.rules`; shown in `/admin/accounts` |
+| Registration acceptance is recorded with the notice version | required checkbox in `web/src/pages/public/Register.jsx`; `ensureProfile()` stores `privacyConsentAt` + `privacyNoticeVersion`; owner-frozen in `firestore.rules`; shown in `/admin/accounts` |
 | Requests are owner-create, admin-process | `firestore.rules` `match /dataSubjectRequests/{dsrId}` |
 | No service-account key in the web app | privileged work is `functions/` or `scripts/*.mjs` with a key outside the repo |
 
@@ -56,3 +56,9 @@ registration. It covers:
    recorded acceptance (PHASES §10).
 6. **Children.** The register screen has no age gate; the notice says 18+
    nowhere explicit yet. Owner decision needed.
+
+## Optional profile pictures (2026-11-01, D39)
+
+The notice version is `2026-11-01`. Pictures are optional and sent to Cloudinary through a public unsigned preset; the private `users` document stores `photoURL`, but its image delivery URL is public to anyone who has the link. The editor discloses this before upload. Registration stores the updated notice version; historical acceptance records remain unchanged.
+
+`anonymiseUser()` clears `photoURL`. Removing/replacing a photo also clears or replaces the account link, but does not delete the Cloudinary asset. Support must remove current/replaced assets from the Cloudinary Media Library and invalidate their delivery copies when processing erasure. There is no automated Cloudinary deletion job or signed backend in this feature; see `PROFILE_PICTURES.md`.

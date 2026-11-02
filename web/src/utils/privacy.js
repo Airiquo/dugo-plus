@@ -5,4 +5,4 @@
  * accepts the notice, so the text a person agreed to can be identified later.
  * Bump it whenever the notice's substance changes.
  */
-export const PRIVACY_NOTICE_VERSION = '2026-10-29'
+export const PRIVACY_NOTICE_VERSION = '2026-11-01'

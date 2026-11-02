@@ -79,7 +79,7 @@ export default function VerifyEmail() {
   }
 
   return (
-    <AuthLayout kicker="Verify email" heading="One account, three roles">
+    <AuthLayout kicker="Verify email" heading="One step closer to care." blurb="Confirm your email to keep your account secure and your connections within reach.">
       <form className="pub-card pub-form" noValidate onSubmit={(event) => event.preventDefault()}>
         <h3>Confirm your email</h3>
         <p className="pub-muted">

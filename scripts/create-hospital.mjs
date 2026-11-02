@@ -12,7 +12,8 @@
 //       --email partner@example.ph --password 'temp-password' \
 //       --name 'Dr. Reyes' --facility 'St. Mary General' \
 //       --address '1200 Bonifacio Ave' --contact '0917 000 0000' \
-//       [--city 'Malolos'] [--lat 14.84] [--lng 120.81] [--id st-mary-general]
+//       --lat 14.84 --lng 120.81 \
+//       [--city 'Malolos'] [--id st-mary-general]
 //
 // The temporary password is printed once; send it over a verified channel and
 // ask the hospital to change it from /forgot-password.
@@ -112,8 +113,11 @@ if (!fullName) refuse('--name is required (the contact person).')
 if (!facilityName) refuse('--facility is required.')
 if (!address) refuse('--address is required.')
 if (!contactNumber) refuse('--contact is required.')
-if (hasLat !== hasLng) refuse('give both --lat and --lng, or neither.')
+if (!hasLat || !hasLng) refuse('--lat and --lng are required.')
 if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) refuse('--lat and --lng must be numbers.')
+if (latitude === 0 && longitude === 0) {
+  refuse('the (0,0) placeholder is not a location; give the facility coordinates.')
+}
 if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
   refuse('the coordinates are out of range.')
 }

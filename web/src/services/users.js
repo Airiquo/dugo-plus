@@ -1,7 +1,20 @@
-import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  runTransaction,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { geohash, isCoordinate } from '../utils/geohash'
 import { recordAuditEvent } from './audit'
+import { callAccountService } from './accounts'
+import { isProfilePhotoUrl } from '../utils/profilePhoto'
 
 /**
  * `users/{uid}` profiles — the account type the guards read back.
@@ -9,15 +22,14 @@ import { recordAuditEvent } from './audit'
  * The data model is `docs/firestore_schema.md` §2.1, and the stored shape now
  * matches it: `fullName`, `phoneNumber`, flat `latitude`/`longitude`, and the
  * lowercase role set. `address` is not collected, and `isVerified` is not
- * stored — Firebase Auth owns email verification (D5). `status` and `hospitalId`
- * are written but not yet read (D22). `firestore.rules` freezes `role` and
+ * stored — Firebase Auth owns email verification (D5). `status` gates protected access and `hospitalId` links facility accounts. `firestore.rules` freezes `role` and
  * `lastDonationAt`.
  */
 
 /** Every account type that exists. */
 export const ROLES = ['donor', 'hospital', 'admin']
 
-/** Every account status. Written by an admin screen; nothing reads it yet (D22). */
+/** Account access states enforced by rules and server account operations. */
 export const STATUSES = ['Active', 'Suspended', 'Removed']
 
 /** The eight blood types, in the order a picker should read them. */
@@ -103,7 +115,7 @@ function normaliseLocation(location) {
  *   role: string, fullName: string, email: string, phoneNumber: string,
  *   bloodType: string, dateOfBirth: Date|null,
  *   latitude: number, longitude: number, geohash: string, city: string,
- *   hospitalId: string, status: string,
+ *   hospitalId: string, status: string, photoURL: string,
  *   privacyConsentAt: Date|null, privacyNoticeVersion: string,
  *   lastDonationAt: Date|null, updatedAt: Date|null,
  * }} Profile
@@ -123,8 +135,15 @@ function normaliseLocation(location) {
  */
 
 /**
- * Create the profile for a new account. Written after `createUserWithEmailAndPassword`
- * so `request.auth.uid` already matches, which is what the rules check.
+ * Create the profile for a new account if it does not exist yet. Written after
+ * `createUserWithEmailAndPassword` so `request.auth.uid` already matches, which
+ * is what the rules check.
+ *
+ * Two callers can reach this for the same account — the sign-up screen and the
+ * session listener that provisions a missing profile (D20). The check and the
+ * write share one transaction so only the first creates the document; a second
+ * write would land as an update, and the rules refuse to rewrite the recorded
+ * consent (`privacyConsentAt`), which the client must never attempt.
  *
  * `consentVersion` is the privacy-notice version the person accepted at
  * registration. When it is given, the acceptance is stored on the profile
@@ -135,9 +154,12 @@ function normaliseLocation(location) {
  * @param {string} uid - the freshly created account's uid
  * @param {{ role: string, fullName?: string, email?: string }} profile
  * @param {string} [consentVersion] - e.g. `PRIVACY_NOTICE_VERSION`
+ * @returns {Promise<{ created: boolean, profile: object }>} the stored profile,
+ *          which is the caller's own data when it created the document
  */
-export async function writeProfile(uid, profile, consentVersion) {
+export async function ensureProfile(uid, profile, consentVersion) {
   requireDb()
+  const ref = doc(db, 'users', uid)
   const data = {
     role: profile.role,
     fullName: profile.fullName ?? '',
@@ -150,7 +172,12 @@ export async function writeProfile(uid, profile, consentVersion) {
     data.privacyConsentAt = serverTimestamp()
     data.privacyNoticeVersion = consentVersion
   }
-  await setDoc(doc(db, 'users', uid), data)
+  return runTransaction(db, async (transaction) => {
+    const found = await transaction.get(ref)
+    if (found.exists()) return { created: false, profile: found.data() }
+    transaction.set(ref, data)
+    return { created: true, profile: data }
+  })
 }
 
 /**
@@ -199,6 +226,13 @@ export async function saveProfile(uid, changes) {
   }
 
   await setDoc(doc(db, 'users', uid), data, { merge: true })
+}
+
+/** Save or clear the picture on an existing account without changing its other details. */
+export async function saveProfilePhoto(uid, photoURL) {
+  requireDb()
+  if (!uid || !isProfilePhotoUrl(photoURL)) throw new Error('Choose a valid profile picture.')
+  await updateDoc(doc(db, 'users', uid), { photoURL, updatedAt: serverTimestamp() })
 }
 
 /**
@@ -257,6 +291,7 @@ export async function readProfile(uid) {
     // so the guards do not open a route for it.
     role: ROLES.includes(data.role) ? data.role : null,
     fullName: text(data.fullName),
+    photoURL: isProfilePhotoUrl(data.photoURL) ? data.photoURL : '',
     email: text(data.email),
     phoneNumber: text(data.phoneNumber),
     bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : '',
@@ -269,6 +304,9 @@ export async function readProfile(uid) {
     hospitalId: text(data.hospitalId),
     status: STATUSES.includes(data.status) ? data.status : 'Active',
     statusReason: text(data.statusReason),
+    loginState: text(data.loginState),
+    loginDeletedAt: asDate(data.loginDeletedAt),
+    personalDataErased: data.personalDataErased === true,
     statusUpdatedAt: asDate(data.statusUpdatedAt),
     privacyConsentAt: asDate(data.privacyConsentAt),
     privacyNoticeVersion: text(data.privacyNoticeVersion),
@@ -304,6 +342,9 @@ export async function listUsers() {
       hospitalId: text(data.hospitalId),
       status: STATUSES.includes(data.status) ? data.status : 'Active',
       statusReason: text(data.statusReason),
+      loginState: text(data.loginState),
+      loginDeletedAt: asDate(data.loginDeletedAt),
+      personalDataErased: data.personalDataErased === true,
       statusUpdatedAt: asDate(data.statusUpdatedAt),
       privacyConsentAt: asDate(data.privacyConsentAt),
       privacyNoticeVersion: text(data.privacyNoticeVersion),
@@ -327,15 +368,7 @@ export async function updateUserStatus(uid, changes) {
   if (changes.status !== 'Active' && !reason) {
     throw new Error('Add a reason for closing or suspending this account.')
   }
-  await updateDoc(doc(db, 'users', uid), {
-    status: changes.status,
-    statusReason: changes.status === 'Active' ? '' : reason,
-    statusUpdatedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  })
-  // F10b: an administrative account event (FR-042).
-  const event = { Active: 'Account.Reactivated', Suspended: 'Account.Suspended', Removed: 'Account.Removed' }[changes.status]
-  await recordAuditEvent({ eventType: event, entityType: 'user', entityId: uid })
+  return callAccountService('updateAccountStatus', { uid, status: changes.status, reason })
 }
 
 /**
@@ -347,7 +380,7 @@ export async function updateUserStatus(uid, changes) {
  * @param {string} reason
  */
 export async function removeUser(uid, reason) {
-  await updateUserStatus(uid, { status: 'Removed', statusReason: reason })
+  return updateUserStatus(uid, { status: 'Removed', statusReason: reason })
 }
 
 /**
@@ -364,22 +397,6 @@ export async function anonymiseUser(uid, reason) {
   if (!uid) throw new Error('Choose an account first.')
   const note = typeof reason === 'string' ? reason.trim() : ''
   if (!note) throw new Error('Record why the personal data was erased.')
-  await updateDoc(doc(db, 'users', uid), {
-    fullName: 'Removed account',
-    email: '',
-    phoneNumber: '',
-    city: '',
-    geohash: '',
-    latitude: 0,
-    longitude: 0,
-    bloodType: '',
-    dateOfBirth: null,
-    status: 'Removed',
-    statusReason: note,
-    statusUpdatedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  })
-  // F10b: an erasure is a data-access event (FR-042).
-  await recordAuditEvent({ eventType: 'DataAccess.Erasure', entityType: 'user', entityId: uid })
+  return callAccountService('eraseAccountData', { uid, reason: note })
 }
 

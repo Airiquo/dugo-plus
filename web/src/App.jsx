@@ -22,6 +22,7 @@ import AdminAccounts from './pages/admin/Accounts'
 import AdminSettings from './pages/admin/Settings'
 import AdminDataRequests from './pages/admin/DataRequests'
 import Profile from './pages/donor/Profile'
+import Activity from './pages/donor/Activity'
 import DonorPrivacy from './pages/donor/Privacy'
 import Requests from './pages/donor/Requests'
 import Alerts from './pages/donor/Alerts'
@@ -31,6 +32,7 @@ import HospitalDashboard from './pages/hospital/Dashboard'
 import Inventory from './pages/hospital/Inventory'
 import HospitalMap from './pages/hospital/Map'
 import HospitalProfile from './pages/hospital/Profile'
+import HospitalAccount from './pages/hospital/Account'
 import HospitalPlan from './pages/hospital/Plan'
 import InventoryLog from './pages/hospital/InventoryLog'
 import Gallery from './pages/shared/Gallery'
@@ -89,6 +91,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/news/:slug" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           {/* The consent and data-handling notice (FR-019); registration links
@@ -139,6 +142,18 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route
+            path="/donor/activity"
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['donor']}>
+                    <Activity />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          />
           <Route path="/donor/profile" element={<Navigate to="/home" replace />} />
           {/* Donor blood requests (FR-005/006/022/023/028/029/030/038). */}
           <Route
@@ -168,20 +183,6 @@ export default function App() {
           {/* Hospital / blood-bank surface (FR-011, FR-016, FR-017): post and
               track the facility's requests. Same gates as admin; the pages
               render `HospitalShell`, not the admin `AppShell`. */}
-          <Route
-            element={
-              <RequireAuth>
-                <RequireVerified>
-                  <RequireRole roles={['hospital']}>
-                    <Outlet />
-                  </RequireRole>
-                </RequireVerified>
-              </RequireAuth>
-            }
-          >
-            <Route path="/hospital/requests" element={<HospitalRequests />} />
-            <Route path="/hospital/requests/new" element={<NewRequest />} />
-          </Route>
           <Route
             element={
               <RequireAuth>
@@ -242,6 +243,7 @@ export default function App() {
             <Route path="/hospital/map" element={<HospitalMap />} />
             <Route path="/hospital/plan" element={<HospitalPlan />} />
             <Route path="/hospital/profile" element={<HospitalProfile />} />
+            <Route path="/hospital/account" element={<HospitalAccount />} />
           </Route>
           <Route path="/gallery" element={<Gallery />} />
           <Route path="*" element={<NotFound />} />

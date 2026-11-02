@@ -32,6 +32,8 @@ Then, in the Firebase console:
 
 ## Deploying
 
+**Active temporary direction (D37, 2026-11-01): deploy from clean integration after its protected PR/checks, per the owner.** The main/prod promotion path is temporarily superseded; do not advance those branches for this release. Pass `--project dugo-plus` explicitly if this worktree has no local Firebase alias.
+
 ```bash
 ./tools/deploy.sh
 ```
@@ -54,23 +56,55 @@ change from shipping the frontend, and folding them together would push a rules
 edit live on every UI deploy. Check the console's *Firestore → Rules* tab before
 running this, so you know what is being replaced.
 
-## Account service (free, no Blaze)
+## Cache policy and source revision
 
-Creating a hospital account needs the Admin SDK, and Cloud Functions can host it
-only on the Blaze plan. `workers/account-service/` does the same work on a free
-Node host (Vercel or Netlify), so `/admin/accounts` can create hospital accounts
-without a paid plan and without a script.
+`firebase.json` revalidates HTML and unversioned files with `no-cache`. Its later
+`/assets/**` rule uses `public, max-age=31536000, immutable` for fingerprinted Vite
+assets. Keep the specific rule after the catch-all. Header matching happens
+before SPA rewrites, so `/register` also receives `no-cache`.
 
-1. Deploy the worker — `workers/account-service/README.md` has the steps (the
-   service-account key in the host's environment, root directory
-   `workers/account-service`).
-2. Grant the first admin its claim from the worker's `bootstrap` page.
-3. Set `VITE_ACCOUNT_SERVICE_URL` in `web/.env.local` to the deployed
-   `/api/account` URL.
-4. Rebuild and deploy hosting (`./tools/deploy.sh`).
+Builds require a Git checkout. `web/vite.config.js` embeds the current 12-character
+HEAD revision into `<meta name="dugo-build">` and `import.meta.env.VITE_BUILD_SHA`.
+New client error records store `build: production:<revision>` (or the development
+mode), identifying the source revision without changing the Firestore shape.
+Commit changes before the release build; a build made before the commit carries
+the earlier revision.
 
-With the variable unset, the app falls back to the `functions/` callables, so a
-Blaze project is unaffected. See D33 in `docs/REQUIREMENTS.md`.
+After building/deploying from clean `prod`, run:
+
+```bash
+node tools/verify-hosting-build.mjs https://dugo-plus.web.app
+```
+
+This asserts the HTML stamp matches HEAD, the bundle includes the same log stamp,
+`/` and `/register` have `no-cache`, the entry JS is immutable, and the deployed
+HTML/JS SHA-256 hashes match local `web/dist` byte for byte. Without a URL it
+checks the local build only. It performs no account or database mutation.
+A successful deployment check does not establish that a real signup, verification
+email, or `users/{uid}` write succeeded; report those checks separately.
+
+References: [Firebase Hosting headers](https://firebase.google.com/docs/hosting/full-config#headers),
+[Vite define](https://vite.dev/config/shared-options.html#define).
+
+## Account service (Cloudflare Worker, D38/D39)
+
+The version-2 account service runs at `POST /accounts` in the matching Worker
+(`worker/wrangler.toml`). Set `VITE_ACCOUNT_SERVICE_URL` to that Worker URL plus
+`/accounts`. The browser requires the v2 capability response before mutation;
+there is no browser/callable fallback. The Node `workers/account-service/` and
+`functions/` implementations are historical references, not v2 alternatives.
+
+Account operations require the existing Firebase service-account/API-key secrets
+and a stable `AUDIT_HASH_SECRET`. Publish the first administrator's claim with
+`npm run set:claims` using the documented trusted operator credentials. Runtime
+requests require both that claim and an Active admin profile.
+
+For D39 rollout: deploy Firestore indexes and wait until ready; deploy/verify
+the Worker; build/deploy Hosting from the owner-authorized release branch;
+then deploy the tightened Firestore rules. Old browser bundles lose direct
+account writes once rules are tightened and must refresh. See
+`docs/ADMIN_ACCOUNT_OPERATIONS.md` for recovery states, verification and the
+full compatibility contract. Never rotate the HMAC secret without migration.
 
 ## Verifying a deploy
 

@@ -1,621 +1,979 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AppShell } from '../../layout/AppShell'
-import { useAuth } from '../../hooks/useAuth'
-import { listUsers, removeUser, updateUserStatus } from '../../services/users'
-import { accountServiceError, createHospitalAccount, deleteAuthAccount } from '../../services/accounts'
-import { Btn, Card, Field, Input, Modal, PageHeader, Select } from '../../components'
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { AppShell } from "../../layout/AppShell";
+import { useAuth } from "../../hooks/useAuth";
+import { listUsers, removeUser, updateUserStatus } from "../../services/users";
+import {
+  accountServiceError,
+  createHospitalAccount,
+  deleteAuthAccount,
+} from "../../services/accounts";
+import { getAccountHistory } from "../../services/audit";
+import {
+  AdminDialog,
+  Btn,
+  Field,
+  Icon,
+  Input,
+  PageHeader,
+  Select,
+} from "../../components";
+import { accountActionReasons } from "../../utils/accountActions";
 
-/**
- * Admin account management (FR-040).
- *
- * Lists and inspects donor and hospital accounts, creates hospital accounts
- * through the `createHospitalAccount` callable, and suspends, restores or
- * removes an account. Every destructive action confirms first and records a
- * reason. Enforcement is server-side: `firestore.rules` (`accountActive()`)
- * closes every protected path for a Suspended or Removed profile, and
- * `pages/public/Blocked.jsx` explains it to the signed-in account.
- */
-
-const EMPTY_HOSPITAL = {
-  facilityName: '',
-  address: '',
-  contactNumber: '',
-  city: '',
-  latitude: '',
-  longitude: '',
-  email: '',
-  password: '',
-  fullName: '',
-  hospitalId: '',
-}
-
-const STATUS_TONE = { Active: 'active', Suspended: 'inactive', Removed: 'emergency' }
-
-function statusTone(status) {
-  return STATUS_TONE[status] || 'inactive'
-}
-
-function dateLabel(value) {
-  if (!value) return '—'
-  const date = typeof value.toDate === 'function' ? value.toDate() : value
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
-}
-
-function roleFilterLabel(role) {
-  if (role === 'donor') return 'Donor'
-  if (role === 'hospital') return 'Hospital'
-  if (role === 'admin') return 'Admin'
-  return '—'
-}
-
-/** What the confirmation modal is about to do. */
-const CONFIRM_COPY = {
+/** Account directory, hospital provisioning and per-account history (FR-040/035). */
+const EMPTY = {
+  facilityName: "",
+  address: "",
+  contactNumber: "",
+  city: "",
+  latitude: "",
+  longitude: "",
+  email: "",
+  password: "",
+  fullName: "",
+  hospitalId: "",
+};
+const ACTIONS = {
   suspend: {
-    title: 'Suspend this account?',
-    body: 'Every protected screen and every Firestore read or write closes for this account until it is restored. The profile stays in place.',
-    confirm: 'Suspend account',
+    label: "Suspend",
+    title: "Suspend account access?",
+    description:
+      "Protected access will be blocked until an administrator restores this account.",
   },
   remove: {
-    title: 'Remove this account?',
-    body: 'The account is closed and cannot sign back in to Dugo+. Its profile stays on file for audit; use a deletion request if the personal data must be erased.',
-    confirm: 'Remove account',
+    label: "Remove access",
+    title: "Remove account access?",
+    description:
+      "This closes access while retaining the profile and activity history. It does not erase personal data or delete the sign-in.",
   },
-  reactivate: {
-    title: 'Restore this account?',
-    body: 'The account regains access immediately on its next load. Its previous reason for suspension is cleared.',
-    confirm: 'Restore account',
+  restore: {
+    label: "Restore",
+    title: "Restore account access?",
+    description:
+      "This account will regain protected access. The server will first check that its sign-in still exists.",
   },
+  delete: {
+    label: "Delete sign-in",
+    title: "Permanently delete this sign-in?",
+    description:
+      "The sign-in will be permanently deleted and cannot be restored. The closed profile and activity history remain. Personal-data erasure is handled through Data Requests.",
+  },
+};
+const EVENTS = {
+  "Account.HospitalCreated": "Hospital account created",
+  "Account.Suspended": "Access suspended",
+  "Account.Removed": "Access removed",
+  "Account.Reactivated": "Access restored",
+  "Account.LoginDeleted": "Sign-in permanently deleted",
+  "DataAccess.Erasure": "Personal data erased",
+};
+const label = (account) =>
+  account.fullName || account.email || "Unnamed account";
+const role = (value) =>
+  ({
+    donor: "Donor / recipient",
+    hospital: "Hospital staff",
+    admin: "Administrator",
+  })[value] || "Unknown role";
+const tone = (status) =>
+  ({ Active: "active", Suspended: "inactive", Removed: "emergency" })[status] ||
+  "inactive";
+function date(value) {
+  if (!value) return "Not recorded";
+  const parsed = value.toDate ? value.toDate() : new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? "Not recorded"
+    : new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(parsed);
 }
+const auditNote = (result) =>
+  result.auditRecorded === false
+    ? " Its activity record is saved and awaiting audit delivery."
+    : "";
 
 export default function Accounts() {
-  const { user } = useAuth()
-  const [users, setUsers] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [note, setNote] = useState('')
-  const [query, setQuery] = useState('')
-  const [roleFilter, setRoleFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
-  const [busyId, setBusyId] = useState('')
-  const [modal, setModal] = useState(null)
-  const [reason, setReason] = useState('')
-  const [showCreate, setShowCreate] = useState(false)
-  const [draft, setDraft] = useState(EMPTY_HOSPITAL)
-  const [formErrors, setFormErrors] = useState({})
-  const [creating, setCreating] = useState(false)
-  const [createNote, setCreateNote] = useState('')
-  const [createError, setCreateError] = useState('')
+  const { user } = useAuth();
+  const [accounts, setAccounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [dialog, setDialog] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [dialogError, setDialogError] = useState("");
+  const [reason, setReason] = useState("");
+  const [draft, setDraft] = useState(EMPTY);
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [history, setHistory] = useState({
+    events: [],
+    nextBefore: null,
+    loading: false,
+    error: "",
+  });
+  const generation = useRef(0);
+  const form = useRef(null);
+  const noticeRef = useRef(null);
 
-  const load = () => {
-    setLoading(true)
-    setError('')
-    listUsers()
-      .then((list) =>
-        setUsers(
-          list.sort((a, b) => {
-            const roleA = a.role ?? ''
-            const roleB = b.role ?? ''
-            if (roleA !== roleB) return roleA.localeCompare(roleB)
-            return (a.fullName || a.email || '').localeCompare(b.fullName || b.email || '')
-          }),
-        ),
-      )
-      .catch(() => setError('Could not load accounts. Only an administrator can list them.'))
-      .finally(() => setLoading(false))
+  useEffect(() => {
+    if (!busy && notice) noticeRef.current?.focus();
+  }, [busy, notice]);
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const rows = await listUsers();
+      setAccounts(rows.sort((a, b) => label(a).localeCompare(label(b))));
+    } catch {
+      setError(
+        "Accounts could not be refreshed. Check your connection and administrator access, then try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
+  useEffect(() => {
+    load();
+  }, []);
+  useEffect(() => {
+    setPage(1);
+  }, [query, roleFilter, statusFilter]);
+  const filtered = useMemo(
+    () =>
+      accounts.filter((account) => {
+        const term = query.trim().toLowerCase();
+        return (
+          (roleFilter === "all" || account.role === roleFilter) &&
+          (statusFilter === "all" ||
+            (account.status || "Active") === statusFilter) &&
+          (!term ||
+            [
+              account.fullName,
+              account.email,
+              account.id,
+              account.hospitalId,
+            ].some((value) => value?.toLowerCase().includes(term)))
+        );
+      }),
+    [accounts, query, roleFilter, statusFilter],
+  );
+  const pages = Math.max(1, Math.ceil(filtered.length / 10));
+  const current = Math.min(page, pages);
+  const visible = filtered.slice((current - 1) * 10, current * 10);
+  const counts = accounts.reduce((out, account) => {
+    const status = account.status || "Active";
+    out[status] = (out[status] || 0) + 1;
+    return out;
+  }, {});
+  const selected = dialog?.account;
+  const action = ACTIONS[dialog?.kind];
 
-  useEffect(load, [])
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return users.filter((u) => {
-      if (roleFilter !== 'all' && u.role !== roleFilter) return false
-      if (statusFilter !== 'all' && (u.status || 'Active') !== statusFilter) return false
-      if (!q) return true
-      return (
-        (u.fullName || '').toLowerCase().includes(q) ||
-        (u.email || '').toLowerCase().includes(q) ||
-        (u.id || '').toLowerCase().includes(q)
-      )
-    })
-  }, [users, query, roleFilter, statusFilter])
-
-  const counts = useMemo(() => {
-    return users.reduce(
-      (acc, u) => {
-        const status = u.status || 'Active'
-        acc[status] = (acc[status] || 0) + 1
-        return acc
-      },
-      { Active: 0, Suspended: 0, Removed: 0 },
+  function open(kind, account) {
+    setDialogError("");
+    setErrors({});
+    setReason("");
+    setDialog({ kind, account });
+  }
+  function close() {
+    if (busy) return;
+    generation.current += 1;
+    if (dialog?.kind === "create")
+      setDraft((previous) => ({ ...previous, password: "" }));
+    setDialog(null);
+    setDialogError("");
+    setReason("");
+    setShowPassword(false);
+  }
+  async function loadHistory(accountId, before = null, append = false) {
+    const request = ++generation.current;
+    setHistory((previous) => ({
+      events: append ? previous.events : [],
+      nextBefore: append ? previous.nextBefore : null,
+      loading: true,
+      error: "",
+    }));
+    try {
+      const result = await getAccountHistory(accountId, before);
+      if (request !== generation.current) return;
+      setHistory((previous) => ({
+        ...result,
+        events: append ? [...previous.events, ...result.events] : result.events,
+        loading: false,
+        error: "",
+      }));
+    } catch (failure) {
+      if (request === generation.current)
+        setHistory((previous) => ({
+          ...previous,
+          loading: false,
+          error: failure.message || "Account history could not be loaded.",
+        }));
+    }
+  }
+  function view(account) {
+    open("history", account);
+    loadHistory(account.id);
+  }
+  async function submitAction(event) {
+    event.preventDefault();
+    if (busy || !selected) return;
+    const unavailable = accountActionReasons(selected, user?.uid)[dialog.kind];
+    if (unavailable) {
+      setDialogError(unavailable);
+      return;
+    }
+    if (dialog.kind !== "restore" && !reason.trim()) {
+      setDialogError("Add a reason for this change.");
+      form.current?.querySelector("textarea")?.focus();
+      return;
+    }
+    setBusy(true);
+    setDialogError("");
+    setNotice("");
+    try {
+      let result;
+      if (dialog.kind === "delete")
+        result = await deleteAuthAccount(selected.id, reason.trim());
+      else if (dialog.kind === "remove")
+        result = await removeUser(selected.id, reason.trim());
+      else
+        result = await updateUserStatus(selected.id, {
+          status: dialog.kind === "restore" ? "Active" : "Suspended",
+          statusReason: reason.trim(),
+        });
+      const completed =
+        dialog.kind === "delete"
+          ? "Sign-in permanently deleted"
+          : dialog.kind === "restore"
+            ? "Access restored"
+            : dialog.kind === "remove"
+              ? "Access removed"
+              : "Access suspended";
+      setNotice(`${completed} for ${label(selected)}.${auditNote(result)}`);
+      setDialog(null);
+      setReason("");
+      await load();
+    } catch (failure) {
+      setDialogError(accountServiceError(failure));
+    } finally {
+      setBusy(false);
+    }
+  }
+  function change(key, value) {
+    setDraft((previous) => ({ ...previous, [key]: value }));
+    setErrors((previous) => ({
+      ...previous,
+      [key]: "",
+      ...(key === "latitude" || key === "longitude"
+        ? { latitude: "", longitude: "" }
+        : {}),
+    }));
+    setDialogError("");
+  }
+  async function submitHospital(event) {
+    event.preventDefault();
+    if (busy) return;
+    const found = {};
+    for (const [key, message] of Object.entries({
+      facilityName: "Enter the facility name.",
+      address: "Enter the facility address.",
+      contactNumber: "Enter a contact number.",
+      fullName: "Enter the contact person’s name.",
+    }))
+      if (!draft[key].trim()) found[key] = message;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim()))
+      found.email = "Enter a valid sign-in email.";
+    if (draft.password.length < 8 || draft.password.length > 128)
+      found.password = "Use 8–128 characters.";
+    const latitude =
+      draft.latitude.trim() === "" ? null : Number(draft.latitude);
+    const longitude =
+      draft.longitude.trim() === "" ? null : Number(draft.longitude);
+    if ((latitude === null) !== (longitude === null))
+      found.latitude = found.longitude =
+        "Enter both coordinates or leave both empty.";
+    else if (
+      latitude !== null &&
+      (!Number.isFinite(latitude) || Math.abs(latitude) > 90)
     )
-  }, [users])
-
-  const openConfirm = (kind, account) => {
-    setReason('')
-    setNote('')
-    setError('')
-    setModal({ kind, account })
-  }
-
-  const closeModal = () => {
-    if (busyId) return
-    setModal(null)
-    setReason('')
-  }
-
-  const runAction = async () => {
-    if (!modal?.account) return
-    const target = modal.account
-    const trimmed = reason.trim()
-
-    if ((modal.kind === 'suspend' || modal.kind === 'remove') && !trimmed) {
-      setError('Add a reason before closing an account.')
-      return
+      found.latitude = "Latitude must be between −90 and 90.";
+    else if (
+      longitude !== null &&
+      (!Number.isFinite(longitude) || Math.abs(longitude) > 180)
+    )
+      found.longitude = "Longitude must be between −180 and 180.";
+    if (
+      draft.hospitalId.trim() &&
+      !/^[a-z0-9][a-z0-9-]{2,59}$/.test(draft.hospitalId.trim())
+    )
+      found.hospitalId = "Use 3–60 lowercase letters, numbers or dashes.";
+    setErrors(found);
+    if (Object.keys(found).length) {
+      setDialogError("Check the highlighted fields.");
+      requestAnimationFrame(() => {
+        const invalid = form.current?.querySelector('[aria-invalid="true"]');
+        const disclosure = invalid?.closest("details");
+        if (disclosure) disclosure.open = true;
+        invalid?.focus();
+      });
+      return;
     }
-
-    setBusyId(target.id)
-    setError('')
-    setNote('')
-    try {
-      if (modal.kind === 'suspend') {
-        await updateUserStatus(target.id, { status: 'Suspended', statusReason: trimmed })
-        setNote(`Suspended ${target.fullName || target.email || 'the account'}.`)
-      } else if (modal.kind === 'remove') {
-        await removeUser(target.id, trimmed)
-        setNote(`Removed ${target.fullName || target.email || 'the account'}.`)
-      } else if (modal.kind === 'reactivate') {
-        await updateUserStatus(target.id, { status: 'Active' })
-        setNote(`Restored ${target.fullName || target.email || 'the account'}.`)
-      }
-      setModal(null)
-      setReason('')
-      await load()
-    } catch (err) {
-      setError(err?.message || 'Could not update this account.')
-    } finally {
-      setBusyId('')
-    }
-  }
-
-  const runDeleteAuth = async (target) => {
-    setBusyId(target.id)
-    setError('')
-    setNote('')
-    try {
-      await deleteAuthAccount(target.id)
-      setNote('The sign-in record was deleted; the profile stays closed.')
-      await load()
-    } catch (err) {
-      setError(accountServiceError(err))
-    } finally {
-      setBusyId('')
-    }
-  }
-
-  const setDraftField = (key) => (event) => {
-    setDraft((prev) => ({ ...prev, [key]: event.target.value }))
-    if (formErrors[key]) setFormErrors((prev) => ({ ...prev, [key]: '' }))
-    setCreateError('')
-    setCreateNote('')
-  }
-
-  const submitCreate = async (event) => {
-    event.preventDefault()
-    const found = {}
-    if (!draft.facilityName.trim()) found.facilityName = 'Name the facility.'
-    if (!draft.address.trim()) found.address = 'Add the facility address.'
-    if (!draft.contactNumber.trim()) found.contactNumber = 'Add a contact number.'
-    if (!draft.fullName.trim()) found.fullName = 'Name the person who will sign in.'
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim())) {
-      found.email = 'Enter a valid email address.'
-    }
-    if (draft.password.length < 8) found.password = 'Use at least 8 characters.'
-    const lat = draft.latitude === '' ? null : Number(draft.latitude)
-    const lng = draft.longitude === '' ? null : Number(draft.longitude)
-    if ((lat === null) !== (lng === null)) {
-      found.coordinates = 'Give both coordinates, or neither.'
-    } else if (lat !== null && (!Number.isFinite(lat) || !Number.isFinite(lng))) {
-      found.coordinates = 'Coordinates must be numbers.'
-    }
-    setFormErrors(found)
-    if (Object.keys(found).length) return
-
-    setCreating(true)
-    setCreateError('')
-    setCreateNote('')
+    setBusy(true);
+    setDialogError("");
+    setNotice("");
     try {
       const result = await createHospitalAccount({
-        email: draft.email.trim(),
-        password: draft.password,
-        fullName: draft.fullName.trim(),
-        facilityName: draft.facilityName.trim(),
-        address: draft.address.trim(),
-        contactNumber: draft.contactNumber.trim(),
-        city: draft.city.trim(),
-        latitude: lat,
-        longitude: lng,
-        hospitalId: draft.hospitalId.trim() || undefined,
-      })
-      setDraft(EMPTY_HOSPITAL)
-      setShowCreate(false)
-      setCreateNote(
-        `Hospital account created. Facility id ${result.hospitalId}; give the hospital its email and temporary password.`,
-      )
-      await load()
-    } catch (err) {
-      setCreateError(accountServiceError(err))
+        ...Object.fromEntries(
+          Object.entries(draft).map(([key, value]) => [
+            key,
+            key === "password" ? value : value.trim(),
+          ]),
+        ),
+        latitude,
+        longitude,
+      });
+      setNotice(
+        `Hospital account created for ${draft.facilityName.trim()}. Facility ID: ${result.hospitalId}.${auditNote(result)}`,
+      );
+      setDraft(EMPTY);
+      setShowPassword(false);
+      setDialog(null);
+      await load();
+    } catch (failure) {
+      setDialogError(accountServiceError(failure));
     } finally {
-      setCreating(false)
+      setBusy(false);
     }
   }
-
-  const editing = modal?.account
-  const copy = modal ? CONFIRM_COPY[modal.kind] : null
+  function field(key, title, options = {}) {
+    return (
+      <Field
+        key={key}
+        label={`${title}${options.required ? " *" : ""}`}
+        className={options.wide ? "aa-span" : ""}
+      >
+        <Input
+          id={`hospital-${key}`}
+          value={draft[key]}
+          onChange={(event) => change(key, event.target.value)}
+          type={options.type || "text"}
+          autoComplete={key === "password" ? "new-password" : "off"}
+          required={options.required}
+          maxLength={options.maxLength || 240}
+          step={options.type === "number" ? "any" : undefined}
+          aria-invalid={Boolean(errors[key])}
+          aria-describedby={errors[key] ? `hospital-${key}-error` : undefined}
+          disabled={busy}
+        />
+        {errors[key] && (
+          <small id={`hospital-${key}-error`} data-state="error">
+            {errors[key]}
+          </small>
+        )}
+      </Field>
+    );
+  }
 
   return (
     <AppShell>
-      <PageHeader title="Accounts" />
-      <div id="page-body">
-        <Card>
-          <header>
-            <h2>Accounts</h2>
-            <p className="muted">
-              Donor and hospital accounts. Suspending or removing one closes it on the server, not just in
-              this table. New hospital accounts are created through the account service (or
-              <code>scripts/create-hospital.mjs</code> when it is not deployed).
+      <section
+        className="admin-accounts-workspace"
+        aria-label="Account management"
+      >
+        <PageHeader
+          tag="People & permissions"
+          title="Accounts"
+          actions={
+            <Btn
+              variant="primary"
+              icon="plus"
+              onClick={() => open("create")}
+              disabled={busy}
+            >
+              New hospital account
+            </Btn>
+          }
+        />
+        <p className="aa-intro">
+          Manage the people and facilities behind every connection.
+        </p>
+        <div
+          className="aa-overview"
+          aria-label="Filter accounts by access status"
+        >
+          {[
+            ["Active", "Connected and ready", "check"],
+            ["Suspended", "Access temporarily paused", "user"],
+            ["Removed", "Access closed", "file"],
+          ].map(([status, text, icon]) => (
+            <button
+              key={status}
+              type="button"
+              aria-pressed={statusFilter === status}
+              onClick={() =>
+                setStatusFilter(statusFilter === status ? "all" : status)
+              }
+            >
+              <span className="aa-metric-icon">
+                <Icon name={icon} />
+              </span>
+              <span>
+                {status}
+                <strong>
+                  {loading && !accounts.length ? "—" : counts[status] || 0}
+                </strong>
+                <small>{text}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="aa-feedback" aria-live="polite">
+          {notice && (
+            <p ref={noticeRef} tabIndex={-1} className="aa-notice" role="status">
+              <Icon name="check" />
+              {notice}
             </p>
-          </header>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'end' }}>
-            <Field label="Search">
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Name, email, or ID"
-              />
-            </Field>
-            <Field label="Role">
-              <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-                <option value="all">All</option>
-                <option value="donor">Donor</option>
-                <option value="hospital">Hospital</option>
-                <option value="admin">Admin</option>
-              </Select>
-            </Field>
-            <Field label="Status">
-              <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                <option value="all">All</option>
-                <option value="Active">Active</option>
-                <option value="Suspended">Suspended</option>
-                <option value="Removed">Removed</option>
-              </Select>
-            </Field>
+          )}
+        </div>
+        {error && (
+          <p className="aa-notice" role="alert">
+            {error}
             <Btn onClick={load} disabled={loading}>
-              Refresh
+              Retry
+            </Btn>
+          </p>
+        )}
+        <div className="card aa-directory">
+          <div className="aa-directory-heading">
+            <div>
+              <h2>
+                Account directory <span>{filtered.length}</span>
+              </h2>
+              <p>All roles · {accounts.length} loaded accounts</p>
+            </div>
+            <Btn icon="refresh" onClick={load} disabled={loading}>
+              {loading ? "Refreshing…" : "Refresh"}
             </Btn>
           </div>
-
-          <p className="muted" role="status">
-            {counts.Active} active · {counts.Suspended} suspended · {counts.Removed} removed
-          </p>
-
-          {error && (
-            <p data-state="error" role="alert">
-              {error}
-            </p>
-          )}
-          {note && (
-            <p className="muted" role="status">
-              {note}
-            </p>
-          )}
-          {loading && <p className="muted">Loading accounts…</p>}
-          {!loading && filtered.length === 0 && (
-            <p className="muted">No accounts match this search.</p>
-          )}
-
-          {!loading && filtered.length > 0 && (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table">
+          <div className="aa-filters">
+            <Field label="Search accounts">
+              <Input
+                type="search"
+                placeholder="Name, email, account or facility ID"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </Field>
+            <Field label="Account type">
+              <Select
+                value={roleFilter}
+                onChange={(event) => setRoleFilter(event.target.value)}
+                options={[
+                  { value: "all", label: "All types" },
+                  { value: "hospital", label: "Hospital staff" },
+                  { value: "donor", label: "Donor / recipient" },
+                  { value: "admin", label: "Administrator" },
+                ]}
+              />
+            </Field>
+            <Field label="Access status">
+              <Select
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
+                options={["all", "Active", "Suspended", "Removed"].map(
+                  (value) => ({
+                    value,
+                    label: value === "all" ? "All statuses" : value,
+                  }),
+                )}
+              />
+            </Field>
+          </div>
+          <div aria-busy={loading}>
+            {loading && !accounts.length ? (
+              <div className="aa-empty" role="status">
+                Loading the account directory…
+              </div>
+            ) : !visible.length ? (
+              <div className="aa-empty">
+                <Icon name="search" size={32} />
+                <h3>
+                  {accounts.length
+                    ? "No matching accounts"
+                    : "No accounts available"}
+                </h3>
+                <p>
+                  {accounts.length
+                    ? "Try a different name, role or access status."
+                    : "Refresh the directory or create a hospital account."}
+                </p>
+                {accounts.length > 0 && (
+                  <Btn
+                    onClick={() => {
+                      setQuery("");
+                      setRoleFilter("all");
+                      setStatusFilter("all");
+                    }}
+                  >
+                    Clear filters
+                  </Btn>
+                )}
+              </div>
+            ) : (
+              <table className="table aa-table">
+                <caption className="aa-sr-only">
+                  Accounts and available access actions
+                </caption>
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th scope="col">Account</th>
+                    <th scope="col">Type / facility</th>
+                    <th scope="col">Access</th>
+                    <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((u) => {
-                    const status = u.status || 'Active'
-                    const isSelf = user?.uid === u.id
-                    const busy = busyId === u.id
+                  {visible.map((account) => {
+                    const unavailable = accountActionReasons(
+                      account,
+                      user?.uid,
+                      busy,
+                    );
+                    const status = account.status || "Active";
+                    const explanation = accountActionReasons(
+                      account,
+                      user?.uid,
+                    ).suspend;
                     return (
-                      <tr key={u.id}>
-                        <td>
-                          <div>{u.fullName || '—'}</div>
-                          <div className="muted" style={{ fontSize: 12 }}>
-                            {u.id}
+                      <tr key={account.id}>
+                        <td data-label="Account">
+                          <div className="aa-person">
+                            <span className="aa-avatar" aria-hidden="true">
+                              {label(account).slice(0, 1).toUpperCase()}
+                            </span>
+                            <div>
+                              <strong>{label(account)}</strong>
+                              <span>
+                                {account.email || "Email unavailable"}
+                              </span>
+                              <small>
+                                {account.id === user?.uid
+                                  ? "Your account"
+                                  : `ID · ${account.id}`}
+                              </small>
+                            </div>
                           </div>
                         </td>
-                        <td>{u.email || '—'}</td>
-                        <td>{roleFilterLabel(u.role)}</td>
-                        <td>
-                          <span className="badge" data-status={statusTone(status)}>
+                        <td data-label="Type / facility">
+                          <strong>{role(account.role)}</strong>
+                          <small>{account.hospitalId || "—"}</small>
+                        </td>
+                        <td data-label="Access">
+                          <span className="badge" data-status={tone(status)}>
                             {status}
                           </span>
+                          <small>
+                            {account.personalDataErased
+                              ? "Personal data erased"
+                              : account.loginState === "Deleted" ||
+                                  account.loginDeletedAt
+                                ? "Sign-in permanently deleted"
+                                : ["Deleting", "Provisioning"].includes(
+                                      account.loginState,
+                                    )
+                                  ? `Sign-in ${account.loginState.toLowerCase()}`
+                                  : `Updated ${date(account.statusUpdatedAt)}`}
+                          </small>
                         </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <Btn onClick={() => setModal({ kind: 'details', account: u })}>View</Btn>
-                            {status === 'Active' && !isSelf && u.role !== 'admin' && (
-                              <>
-                                <Btn
-                                  onClick={() => openConfirm('suspend', u)}
-                                  disabled={busy}
-                                  variant="alert"
-                                >
-                                  Suspend
-                                </Btn>
-                                <Btn onClick={() => openConfirm('remove', u)} disabled={busy}>
-                                  Remove
-                                </Btn>
-                              </>
-                            )}
-                            {status !== 'Active' && !isSelf && u.role !== 'admin' && (
-                              <Btn onClick={() => openConfirm('reactivate', u)} disabled={busy}>
-                                Restore
+                        <td data-label="Actions">
+                          <div className="aa-row-actions">
+                            <Btn
+                              onClick={() => view(account)}
+                              aria-label={`View history for ${label(account)}`}
+                            >
+                              View history
+                            </Btn>
+                            {Object.entries(ACTIONS).map(([key, value]) => (
+                              <Btn
+                                key={key}
+                                variant={key === "delete" ? "alert" : "default"}
+                                disabled={Boolean(unavailable[key])}
+                                aria-describedby={`access-help-${account.id}`}
+                                title={unavailable[key] || value.description}
+                                onClick={() => open(key, account)}
+                              >
+                                {value.label}
                               </Btn>
-                            )}
+                            ))}
                           </div>
+                          <details
+                            className="aa-action-help"
+                            id={`access-help-${account.id}`}
+                          >
+                            <summary>Action availability</summary>
+                            <ul>
+                              {Object.entries(ACTIONS)
+                                .filter(([key]) => unavailable[key])
+                                .map(([key, value]) => (
+                                  <li key={key}>
+                                    <strong>{value.label}:</strong>{" "}
+                                    {unavailable[key]}
+                                  </li>
+                                ))}
+                            </ul>
+                          </details>
+                          {account.id === user?.uid ||
+                          account.role === "admin" ||
+                          account.personalDataErased ? (
+                            <small>{explanation}</small>
+                          ) : null}
                         </td>
                       </tr>
-                    )
+                    );
                   })}
                 </tbody>
               </table>
-            </div>
-          )}
-        </Card>
-
-        <Card style={{ marginTop: 16 }}>
-          <header>
-            <h2>Create a hospital account</h2>
-            <p className="muted">
-              Creates the sign-in account, its profile and the facility record in one step. With the
-              account service configured it also sets the hospital claim; without one the claim is
-              published later with <code>set-claims</code>.
-            </p>
-          </header>
-
-          {createNote && (
-            <p className="muted" role="status">
-              {createNote}
-            </p>
-          )}
-          {createError && (
-            <p data-state="error" role="alert">
-              {createError}
-            </p>
-          )}
-
-          {!showCreate ? (
-            <Btn variant="primary" onClick={() => setShowCreate(true)}>
-              New hospital account
-            </Btn>
-          ) : (
-            <form noValidate onSubmit={submitCreate}>
-              <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-                <Field label="Facility name">
-                  <Input value={draft.facilityName} onChange={setDraftField('facilityName')} />
-                  {formErrors.facilityName && <span data-state="error">{formErrors.facilityName}</span>}
-                </Field>
-                <Field label="Address">
-                  <Input value={draft.address} onChange={setDraftField('address')} />
-                  {formErrors.address && <span data-state="error">{formErrors.address}</span>}
-                </Field>
-                <Field label="Contact number">
-                  <Input type="tel" value={draft.contactNumber} onChange={setDraftField('contactNumber')} />
-                  {formErrors.contactNumber && <span data-state="error">{formErrors.contactNumber}</span>}
-                </Field>
-                <Field label="City">
-                  <Input value={draft.city} onChange={setDraftField('city')} />
-                </Field>
-                <Field label="Latitude (optional)">
-                  <Input type="number" step="any" value={draft.latitude} onChange={setDraftField('latitude')} />
-                </Field>
-                <Field label="Longitude (optional)">
-                  <Input type="number" step="any" value={draft.longitude} onChange={setDraftField('longitude')} />
-                </Field>
-                {formErrors.coordinates && (
-                  <p data-state="error" role="alert">
-                    {formErrors.coordinates}
-                  </p>
-                )}
-                <Field label="Sign-in email">
-                  <Input type="email" autoComplete="off" value={draft.email} onChange={setDraftField('email')} />
-                  {formErrors.email && <span data-state="error">{formErrors.email}</span>}
-                </Field>
-                <Field label="Temporary password">
-                  <Input
-                    type="text"
-                    autoComplete="new-password"
-                    value={draft.password}
-                    onChange={setDraftField('password')}
-                  />
-                  {formErrors.password && <span data-state="error">{formErrors.password}</span>}
-                </Field>
-                <Field label="Contact person">
-                  <Input value={draft.fullName} onChange={setDraftField('fullName')} />
-                  {formErrors.fullName && <span data-state="error">{formErrors.fullName}</span>}
-                </Field>
-                <Field label="Facility id (optional)">
-                  <Input
-                    value={draft.hospitalId}
-                    onChange={setDraftField('hospitalId')}
-                    placeholder="auto from the name"
-                  />
-                </Field>
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                <Btn variant="primary" type="submit" disabled={creating}>
-                  {creating ? 'Creating…' : 'Create account'}
-                </Btn>
-                <Btn
-                  onClick={() => {
-                    setShowCreate(false)
-                    setDraft(EMPTY_HOSPITAL)
-                    setFormErrors({})
-                    setCreateError('')
-                  }}
-                  disabled={creating}
-                >
-                  Cancel
-                </Btn>
-              </div>
-            </form>
-          )}
-        </Card>
-      </div>
-
-      <Modal
-        name="account-details"
-        open={modal?.kind === 'details'}
-        onClose={() => setModal(null)}
-        title={editing?.fullName || editing?.email || 'Account'}
-      >
-        {editing && (
-          <div>
-            <dl className="admin-profile-facts">
-              <div>
-                <dt>Account id</dt>
-                <dd>{editing.id}</dd>
-              </div>
-              <div>
-                <dt>Role</dt>
-                <dd>{roleFilterLabel(editing.role)}</dd>
-              </div>
-              <div>
-                <dt>Status</dt>
-                <dd>
-                  <span className="badge" data-status={statusTone(editing.status)}>
-                    {editing.status || 'Active'}
-                  </span>
-                </dd>
-              </div>
-              <div>
-                <dt>Email</dt>
-                <dd>{editing.email || '—'}</dd>
-              </div>
-              <div>
-                <dt>Privacy consent</dt>
-                <dd>
-                  {editing.privacyConsentAt
-                    ? `${dateLabel(editing.privacyConsentAt)} · v${editing.privacyNoticeVersion}`
-                    : 'Not recorded'}
-                </dd>
-              </div>
-              <div>
-                <dt>Phone</dt>
-                <dd>{editing.phoneNumber || '—'}</dd>
-              </div>
-              <div>
-                <dt>City</dt>
-                <dd>{editing.city || '—'}</dd>
-              </div>
-              <div>
-                <dt>Blood type</dt>
-                <dd>{editing.bloodType || '—'}</dd>
-              </div>
-              <div>
-                <dt>Hospital</dt>
-                <dd>{editing.hospitalId || '—'}</dd>
-              </div>
-              <div>
-                <dt>Last updated</dt>
-                <dd>{dateLabel(editing.updatedAt)}</dd>
-              </div>
-            </dl>
-
-            {editing.status !== 'Active' && editing.statusReason && (
-              <p className="muted">
-                Reason on file: {editing.statusReason} ({dateLabel(editing.statusUpdatedAt)})
-              </p>
-            )}
-
-            {editing.status === 'Removed' && (
-              <div style={{ marginTop: 12 }}>
-                <p className="muted">
-                  The profile is closed. Deleting the sign-in record removes the ability to sign in; the
-                  profile stays for audit.
-                </p>
-                <Btn
-                  variant="alert"
-                  onClick={() => runDeleteAuth(editing)}
-                  disabled={busyId === editing.id}
-                >
-                  {busyId === editing.id ? 'Deleting…' : 'Delete sign-in record'}
-                </Btn>
-              </div>
             )}
           </div>
-        )}
-      </Modal>
+          <footer className="aa-pagination">
+            <span>
+              {filtered.length
+                ? `${(current - 1) * 10 + 1}–${Math.min(current * 10, filtered.length)} of ${filtered.length} accounts`
+                : "0 accounts"}
+            </span>
+            <div>
+              <Btn
+                disabled={current === 1}
+                onClick={() => setPage(current - 1)}
+                aria-label="Previous account page"
+              >
+                Previous
+              </Btn>
+              <span>
+                Page {current} of {pages}
+              </span>
+              <Btn
+                disabled={current === pages}
+                onClick={() => setPage(current + 1)}
+                aria-label="Next account page"
+              >
+                Next
+              </Btn>
+            </div>
+          </footer>
+        </div>
 
-      <Modal
-        name="account-confirm"
-        open={Boolean(copy)}
-        onClose={closeModal}
-        title={copy?.title ?? ''}
-      >
-        {copy && editing && (
-          <div>
-            <p className="muted">{copy.body}</p>
-            <p className="muted">
-              Account: <strong>{editing.fullName || editing.email || editing.id}</strong>
-            </p>
-
-            {(modal.kind === 'suspend' || modal.kind === 'remove') && (
-              <Field label="Reason (shown to the account)">
-                <Input
-                  value={reason}
-                  onChange={(e) => {
-                    setReason(e.target.value)
-                    setError('')
-                  }}
-                  placeholder="e.g. Duplicate account confirmed by the facility"
-                  autoFocus
-                />
-              </Field>
-            )}
-
-            {error && (
-              <p data-state="error" role="alert">
-                {error}
+        <AdminDialog
+          name="hospital-create"
+          open={dialog?.kind === "create"}
+          title="Create a hospital account"
+          busy={busy}
+          onClose={close}
+        >
+          <p className="aa-dialog-intro">
+            Create a hospital staff sign-in linked to its facility. Setup and
+            account activity are recorded together.
+          </p>
+          <form ref={form} noValidate onSubmit={submitHospital}>
+            <fieldset disabled={busy}>
+              <legend>
+                <span>01</span> Facility details
+              </legend>
+              <div className="aa-form-grid">
+                {field("facilityName", "Facility name", {
+                  required: true,
+                  maxLength: 160,
+                })}
+                {field("hospitalId", "Facility ID (optional)", {
+                  maxLength: 60,
+                })}
+                {field("address", "Facility address", {
+                  required: true,
+                  wide: true,
+                })}
+                {field("city", "City (optional)", { maxLength: 120 })}
+                {field("contactNumber", "Contact number", {
+                  type: "tel",
+                  required: true,
+                  maxLength: 40,
+                })}
+              </div>
+              <details className="aa-location-fields">
+                <summary>Add map coordinates (optional)</summary>
+                <div className="aa-form-grid">
+                  {field("latitude", "Latitude", { type: "number" })}
+                  {field("longitude", "Longitude", { type: "number" })}
+                </div>
+                <p>
+                  Enter both coordinates or leave both empty. The facility ID is
+                  generated if omitted.
+                </p>
+              </details>
+            </fieldset>
+            <fieldset disabled={busy}>
+              <legend>
+                <span>02</span> Person & sign-in
+              </legend>
+              <div className="aa-form-grid">
+                {field("fullName", "Contact person", {
+                  required: true,
+                  maxLength: 120,
+                })}
+                {field("email", "Sign-in email", {
+                  type: "email",
+                  required: true,
+                  maxLength: 254,
+                })}
+                {field("password", "Temporary password", {
+                  type: showPassword ? "text" : "password",
+                  required: true,
+                  maxLength: 128,
+                })}
+                <div className="aa-password-help">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={showPassword}
+                      onChange={(event) =>
+                        setShowPassword(event.target.checked)
+                      }
+                      disabled={busy}
+                    />{" "}
+                    Show password
+                  </label>
+                  <small>
+                    8–128 characters. Share the credentials through your
+                    approved channel.
+                  </small>
+                </div>
+              </div>
+            </fieldset>
+            {dialogError && (
+              <p className="aa-inline-error" role="alert">
+                {dialogError}
               </p>
             )}
-
-            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-              <Btn
-                variant={modal.kind === 'reactivate' ? 'primary' : 'alert'}
-                onClick={runAction}
-                disabled={Boolean(busyId)}
-              >
-                {busyId ? 'Working…' : copy.confirm}
-              </Btn>
-              <Btn onClick={closeModal} disabled={Boolean(busyId)}>
+            <footer className="aa-dialog-actions">
+              <span>
+                {busy
+                  ? "Setting up the hospital. Please keep this window open."
+                  : "Required fields are marked *. Passwords are cleared when this dialog is closed."}
+              </span>
+              <Btn onClick={close} disabled={busy}>
                 Cancel
               </Btn>
-            </div>
-          </div>
-        )}
-      </Modal>
+              <Btn type="submit" variant="primary" disabled={busy}>
+                {busy ? "Creating account…" : "Create hospital account"}
+              </Btn>
+            </footer>
+          </form>
+        </AdminDialog>
+
+        <AdminDialog
+          name="account-change"
+          open={Boolean(action)}
+          title={action?.title || "Account access"}
+          busy={busy}
+          onClose={close}
+          className="aa-confirm-dialog"
+        >
+          {action && selected && (
+            <form ref={form} noValidate onSubmit={submitAction}>
+              <div className="aa-confirm-account">
+                <Icon name="user" />
+                <div>
+                  <strong>{label(selected)}</strong>
+                  <span>{selected.email || selected.id}</span>
+                </div>
+                <span
+                  className="badge"
+                  data-status={tone(selected.status || "Active")}
+                >
+                  {selected.status || "Active"}
+                </span>
+              </div>
+              <p className="aa-dialog-intro">{action.description}</p>
+              <Field
+                label={
+                  dialog.kind === "restore"
+                    ? "Administrator note (optional)"
+                    : "Reason for this change"
+                }
+              >
+                <textarea
+                  id="account-change-reason"
+                  rows={3}
+                  value={reason}
+                  onChange={(event) => {
+                    setReason(event.target.value);
+                    setDialogError("");
+                  }}
+                  maxLength={2000}
+                  required={dialog.kind !== "restore"}
+                  disabled={busy}
+                  aria-invalid={Boolean(dialogError && !reason.trim())}
+                  aria-describedby={
+                    dialogError ? "account-change-error" : undefined
+                  }
+                />
+              </Field>
+              {dialogError && (
+                <p
+                  id="account-change-error"
+                  className="aa-inline-error"
+                  role="alert"
+                >
+                  {dialogError}
+                </p>
+              )}
+              <footer className="aa-dialog-actions">
+                <Btn disabled={busy} onClick={close}>
+                  Cancel
+                </Btn>
+                <Btn
+                  type="submit"
+                  variant={dialog.kind === "restore" ? "primary" : "alert"}
+                  disabled={busy}
+                >
+                  {busy ? "Updating account…" : action.label}
+                </Btn>
+              </footer>
+            </form>
+          )}
+        </AdminDialog>
+
+        <AdminDialog
+          name="account-history"
+          open={dialog?.kind === "history"}
+          title={selected ? label(selected) : "Account history"}
+          onClose={close}
+        >
+          {selected && (
+            <>
+              <dl className="aa-account-facts">
+                {[
+                  ["Account type", role(selected.role)],
+                  ["Email", selected.email || "Unavailable"],
+                  ["Access", selected.status || "Active"],
+                  ["Facility", selected.hospitalId || "Not linked"],
+                  ["Account ID", selected.id],
+                  ["Last access change", date(selected.statusUpdatedAt)],
+                ].map(([key, value]) => (
+                  <div key={key}>
+                    <dt>{key}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="aa-history-heading">
+                <div>
+                  <h3>Account activity</h3>
+                  <p>
+                    Events affecting this account. Names reflect current
+                    profiles.
+                  </p>
+                </div>
+                <Btn
+                  icon="refresh"
+                  disabled={history.loading}
+                  onClick={() => loadHistory(selected.id)}
+                >
+                  Refresh
+                </Btn>
+              </div>
+              {history.error && (
+                <p className="aa-inline-error" role="alert">
+                  {history.error}
+                  <Btn
+                    disabled={history.loading}
+                    onClick={() =>
+                      loadHistory(
+                        selected.id,
+                        history.nextBefore,
+                        history.events.length > 0,
+                      )
+                    }
+                  >
+                    Retry
+                  </Btn>
+                </p>
+              )}
+              {!history.events.length && !history.loading && !history.error && (
+                <p className="aa-empty">
+                  No recorded activity for this account.
+                </p>
+              )}
+              <ol className="aa-history-list">
+                {history.events.map((item) => (
+                  <li key={item.id}>
+                    <span className="aa-history-dot" aria-hidden="true" />
+                    <div>
+                      <div className="aa-event-heading">
+                        <strong>
+                          {EVENTS[item.eventType] || item.eventType}
+                        </strong>
+                        <time>{date(item.createdAt)}</time>
+                      </div>
+                      <p>
+                        By{" "}
+                        {item.actor?.fullName ||
+                          item.actor?.email ||
+                          "Administrator identity unavailable"}
+                      </p>
+                      <blockquote>
+                        {item.context?.reason ||
+                          (item.contextState === "redacted"
+                            ? "Personal context has been erased."
+                            : item.contextState === "mismatch"
+                              ? "Context integrity could not be verified."
+                              : "Reason not recorded or unavailable.")}
+                      </blockquote>
+                      {item.context && (
+                        <p className="aa-state-change">
+                          {item.context.beforeStatus || "New account"}{" "}
+                          <span aria-label="changed to">→</span>{" "}
+                          {item.context.afterStatus || "Not recorded"}
+                        </p>
+                      )}
+                      <small>
+                        Record #{item.sequence} ·{" "}
+                        {item.contextState === "verified"
+                          ? "Context digest verified"
+                          : item.contextState === "mismatch"
+                            ? "Context digest mismatch"
+                            : "Context unavailable"}{" "}
+                        ·{" "}
+                        <Link to="/admin/audit-trail">
+                          Verify the full chain
+                        </Link>
+                      </small>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              {history.loading && (
+                <p role="status">Loading account activity…</p>
+              )}
+              {history.nextBefore && (
+                <Btn
+                  disabled={history.loading}
+                  onClick={() =>
+                    loadHistory(selected.id, history.nextBefore, true)
+                  }
+                >
+                  Load earlier activity
+                </Btn>
+              )}
+            </>
+          )}
+        </AdminDialog>
+      </section>
     </AppShell>
-  )
+  );
 }

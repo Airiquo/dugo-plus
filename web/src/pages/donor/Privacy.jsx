@@ -10,7 +10,7 @@ import {
   requestStatusLabel,
   requestTypeLabel,
 } from '../../services/dataRequests'
-import { Badge, FieldError } from '../../components'
+import { Badge, FieldError, CarePageHeader } from '../../components'
 import { DonorNav } from '../../layout/DonorNav'
 
 /**
@@ -107,13 +107,13 @@ export default function Privacy() {
 
   return (
     <div
-      className="pub"
+      className="pub donor-surface"
       data-theme={theme}
       style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}
     >
       <DonorNav />
 
-      <main id="top" className="profile-main">
+      <main id="top" className="profile-main donor-main"><CarePageHeader kicker="Built on trust" title={<>Your data.<br /><em>Your say.</em></>} description="See, correct, export or request the removal of your information. You stay in control of your connection." />
         <div className="privacy-stack">
           <form className="pub-card pub-form profile-card privacy-card" noValidate onSubmit={submit}>
             <p className="pub-kicker">Your data</p>
@@ -126,7 +126,7 @@ export default function Privacy() {
             <div className="profile-section">
               <label>
                 <span>What are you asking for?</span>
-                <select
+                <span className="app-select"><select
                   value={type}
                   disabled={busy}
                   onChange={(event) => {
@@ -140,7 +140,7 @@ export default function Privacy() {
                       {requestTypeLabel(value)}
                     </option>
                   ))}
-                </select>
+                </select></span>
               </label>
               <p className="pub-fine">{TYPE_HINTS[type]}</p>
             </div>

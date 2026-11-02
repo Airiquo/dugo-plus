@@ -1,13 +1,14 @@
+import { Link } from 'react-router-dom'
 import { AppShell } from '../../layout/AppShell'
-/**
- * Dashboard — `/admin/dashboard`.
- *
- * Content removed by the owner's direction: the admin chrome is the sidebar
- * only, and the dashboard body is to be (re)built from the design system as a
- * later task. The route stays so navigation and the shell keep working. The
- * reference mockups (`light/admin-dashboard.html`, `dark/`) remain the look
- * reference.
- */
+import { CarePageHeader, Icon } from '../../components'
+
+const destinations = [
+  { to: 'accounts', icon: 'user', title: 'People & facilities', text: 'Manage hospital and donor account access to the platform.' },
+  { to: 'data-requests', icon: 'file', title: 'Privacy, put into practice', text: 'Review the access, correction and erasure requests that need your attention.' },
+  { to: 'audit-trail', icon: 'check', title: 'An accountable connection', text: 'Inspect the audit trail and verify the integrity of recorded events.' },
+  { to: 'settings', icon: 'settings', title: 'A system that connects', text: 'Configure matching radius tiers and notification retries.' },
+]
+/** Admin entry points to the existing account, privacy, audit and settings tools. */
 export default function Dashboard() {
-  return <AppShell />
+  return <AppShell><CarePageHeader kicker="Dugo+ administration" title={<>Care, coordinated.<br /><em>Trust, maintained.</em></>} description="The people, permissions and safeguards behind every connection." /><div className="care-admin-launchpad">{destinations.map(item => <Link key={item.to} to={`/admin/${item.to}`} className="card care-launch-card"><span className="care-launch-icon"><Icon name={item.icon} size={26} /></span><h2>{item.title}</h2><p>{item.text}</p><span className="care-launch-link">Open workspace<Icon name="arrow-right" /></span></Link>)}</div></AppShell>
 }
