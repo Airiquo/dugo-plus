@@ -8159,6 +8159,7 @@ dialog.navigation-sheet[id$=-modal]{inset:auto 0 0;transform:none;width:min(540p
   .aa-row-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
   .aa-row-actions .btn{justify-content:center;padding:10px 8px}
   .role-shell .settings-tier{grid-template-columns:1fr 1fr 44px}
+  .role-shell .settings-tier-label{grid-column:1/-1;margin-bottom:4px}
   .settings-tier>.btn{width:44px}
   .hospital-facility-card>header{flex-wrap:wrap}
   .hospital-location-facts{gap:20px 12px}

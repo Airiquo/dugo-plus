@@ -9,7 +9,7 @@ D61 refines existing built screens. It does not implement the unbuilt hospital d
 - The navigation sheet supports Escape, native focus containment, trigger-focus restoration, body scroll locking and close-on-navigation/desktop resize. Its IDs derive from `name`.
 - Admin Profile collapses its identity rail before the contact form becomes cramped (1279px). Both staff profiles reuse ProfileAvatar and ProfilePhotoEditor; photo editing is a disclosure rather than a dominant upload area.
 - Audit Trail and Data Requests opt into Table's labeled, single-DOM phone cards. Cells retain row/cell roles; mobile sorting controls replace hidden header controls. Existing Accounts actions form a two-column touch grid. No duplicated action instances are introduced.
-- Mobile form text is 16px, primary controls are at least 44px, dialogs use dynamic viewport bounds, and bottom padding accounts for the docks and safe areas. Short landscape viewports use horizontal compact dock items. Shared base styles remain unchanged; deliberate app overrides use existing theme tokens.
+- Mobile form text is 16px, primary controls are at least 44px, dialogs use dynamic viewport bounds, and bottom padding accounts for the docks and safe areas. Short landscape viewports use horizontal compact dock items. Settings tier labels span their own row through 760px so both inputs keep usable widths. Shared base styles remain unchanged; deliberate app overrides use existing theme tokens.
 - Route navigation returns donor/staff pages to the top. Existing route slugs, configuration/auth/role/verification gates, data services, validation, sorting scopes and mutations remain unchanged.
 
 ## Verification
