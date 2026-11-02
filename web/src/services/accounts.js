@@ -62,6 +62,24 @@ export function createHospitalAccount(input) {
   return callAccountService('createHospitalAccount', input)
 }
 
+/** Fresh admin-only details; the revision prevents overwriting a concurrent edit. */
+export async function getAccountProfile(uid) {
+  if (!SERVICE_URL) throw serviceError('functions/unavailable', NOT_DEPLOYED)
+  if (!auth?.currentUser) throw serviceError('functions/unauthenticated', 'Sign in again.')
+  const token = await auth.currentUser.getIdToken()
+  const response = await fetch(`${SERVICE_URL.replace(/\/$/, '')}/profile?uid=${encodeURIComponent(uid)}`, {
+    headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20000),
+  })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok || !data.revision)
+    throw serviceError(codeForStatus(response.status), data.error || 'Account details could not be loaded. The account service may need an update.')
+  return data
+}
+
+export function updateAccountProfile(input) {
+  return callAccountService('updateAccountProfile', input)
+}
+
 export function deleteAuthAccount(uid, reason) {
   return callAccountService('deleteAuthAccount', { uid, reason })
 }

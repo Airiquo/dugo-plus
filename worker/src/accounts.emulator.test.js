@@ -350,6 +350,56 @@ test('HTTP account history enforces authority and paginates only the selected ac
   assert.ok(erased.events.every(event => event.context === null && event.contextState === 'redacted'))
 })
 
+test('HTTP profile editing validates authority, saves facility/donor locations and records auditable corrections', async () => {
+  await store.transact(async (tx) => {
+    tx.create('users/edit-donor', { role: 'donor', status: 'Active', fullName: 'Original donor', email: 'edit@example.test' })
+    tx.create('users/edit-staff', { role: 'hospital', status: 'Active', fullName: 'Facility contact', email: 'staff@example.test', hospitalId: 'edit-facility' })
+    tx.create('hospitals/edit-facility', { name: 'Clinic', address: 'Address', contactNumber: '123', city: 'Malolos', latitude: 14.86, longitude: 120.82 })
+  })
+  const read = (uid, token = capabilityToken) => worker.fetch(new Request(
+    `https://worker.example.test/accounts/profile?uid=${uid}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  ), env)
+  const save = (body, token = capabilityToken) => worker.fetch(new Request('https://worker.example.test/accounts', {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...body, action: 'updateAccountProfile' }),
+  }), env)
+  assert.equal((await read('edit-donor', 'invalid-token')).status, 401)
+  assert.equal((await read('edit-donor', 'test-donor-token')).status, 403)
+  const donor = await (await read('edit-donor')).json()
+  const input = { uid: 'edit-donor', revision: donor.revision, operationId: key(), facility: null,
+    profile: { ...donor.profile, fullName: 'Corrected donor', bloodType: 'B-', dateOfBirth: '1990-02-03',
+      city: 'Malolos', latitude: 14.864827, longitude: 120.818275 }, reason: 'Owner requested a profile correction.' }
+  assert.equal((await save(input, 'test-donor-token')).status, 403)
+  const saved = await save(input)
+  assert.equal(saved.status, 200)
+  assert.equal((await saved.json()).auditRecorded, true)
+  assert.equal((await store.get('users', 'edit-donor')).data.bloodType, 'B-')
+  assert.equal((await store.get('donorLocations', 'edit-donor')).data.latitude, 14.864827)
+  assert.equal((await store.get('donorLocations', 'edit-donor')).data.donorId, 'edit-donor')
+  assert.equal((await save(input)).status, 200)
+  assert.equal((await save({ ...input, operationId: key(), profile: { ...input.profile, fullName: 'Stale name' } })).status, 412)
+
+  const staff = await (await read('edit-staff')).json()
+  const edit = { uid: staff.uid, revision: staff.revision, operationId: key(),
+    profile: { ...staff.profile, fullName: 'Updated contact' },
+    facility: { ...staff.facility, name: 'Updated facility', latitude: 14.87, longitude: 120.83 },
+    reason: 'Correct facility pin.' }
+  const hospitalSaved = await save(edit)
+  assert.equal(hospitalSaved.status, 200)
+  assert.equal((await store.get('hospitals', 'edit-facility')).data.latitude, 14.87)
+  assert.equal((await store.get('users', 'edit-staff')).data.latitude, 14.87)
+  const history = await worker.fetch(new Request('https://worker.example.test/accounts/history?accountId=edit-staff', {
+    headers: { Authorization: `Bearer ${capabilityToken}` },
+  }), env)
+  const event = (await history.json()).events[0]
+  assert.equal(event.eventType, 'Account.ProfileUpdated')
+  assert.equal(event.contextState, 'verified')
+  assert.match(event.context.reason, /Facility: Latitude/)
+  assert.equal(event.actor.fullName, 'REST admin')
+  assert.equal((await verifyAuditChain(env)).valid, true)
+})
+
 test.after(() => {
   globalThis.fetch = realFetch
 })

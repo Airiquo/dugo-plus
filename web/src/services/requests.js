@@ -106,6 +106,7 @@ export async function fetchHospital(hospitalId) {
     id: snap.id,
     name: text(data.name),
     address: text(data.address),
+    city: text(data.city),
     latitude: Number(data.latitude) || 0,
     longitude: Number(data.longitude) || 0,
     geohash: text(data.geohash),

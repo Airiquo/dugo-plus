@@ -243,3 +243,19 @@ later eligible donors. Intermediate-tier rescans preserve `nextTierAt`;
 `lastRunAt` also orders rotation through scheduled batches. No collection,
 field, rule or index is added. Five isolated matching REST-emulator checks pass;
 production Worker deployment remains pending.
+
+## 2026-11-02 — Hospital location locks and audited profile edits (D52)
+
+Documents the existing optional `hospitals.city` written by hospital provisioning
+and adds `editProfile` to `accountOperations.action`. The admin editor updates
+allowed donor/staff fields, the linked facility, and a donor's location mirror
+in one transaction with its `Account.ProfileUpdated` audit-outbox event. Existing
+erasable audit reason context includes changed field names and the required
+reason; no identifying before/after values are added to the immutable chain.
+No new collection, field or index is needed for the operation.
+
+Hospital owners cannot change city/coordinates/geohash on their profile; staff
+cannot change facility address/city/coordinates/geohash. Existing request
+location snapshots are preserved. Worker, Hosting and rules deployment remain
+pending; local REST, security-rules and browser verification is recorded in
+`docs/ACCOUNT_PROFILE_EDITING.md`.

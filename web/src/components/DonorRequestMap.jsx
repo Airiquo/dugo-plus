@@ -92,6 +92,7 @@ export function DonorRequestMap({
 }) {
   const [expanded, setExpanded] = useState(false),
     root = useRef(null)
+  const map = useRef(null)
   useEffect(() => {
     if (!expanded) return
     const previous = document.body.style.overflow
@@ -160,6 +161,7 @@ export function DonorRequestMap({
       </div>
       <div className="donation-map-canvas">
         <MapContainer
+          ref={map}
           center={position ? [position.lat, position.lng] : [14.8443, 120.8114]}
           zoom={12}
           scrollWheelZoom={false}
@@ -206,8 +208,16 @@ export function DonorRequestMap({
               key={item.key}
               position={[item.facility.lat, item.facility.lng]}
               icon={hospitalIcon}
+              title={item.hospital?.name || item.request.hospitalName}
+              eventHandlers={{ click: () => {
+                map.current?.flyTo(
+                  [item.facility.lat, item.facility.lng],
+                  Math.max(map.current.getZoom(), 16),
+                  { duration: 0.6, animate: !window.matchMedia('(prefers-reduced-motion: reduce)').matches },
+                )
+              } }}
             >
-              <Popup>
+              <Popup autoPan={false}>
                 <strong>
                   {item.hospital?.name || item.request.hospitalName}
                 </strong>

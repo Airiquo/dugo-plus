@@ -197,6 +197,9 @@ service cloud.firestore {
                              || request.resource.data.latitude is number)
                          && (!('longitude' in request.resource.data)
                              || request.resource.data.longitude is number)
+                         && (resource.data.role != 'hospital'
+                             || !request.resource.data.diff(resource.data).affectedKeys()
+                                  .hasAny(['city', 'latitude', 'longitude', 'geohash']))
                          // Eligibility is derived on read, never written: a
                          // donor declaring themselves eligible would defeat FR-031.
                          // The name here is the key a client would try, not a
@@ -256,13 +259,13 @@ service cloud.firestore {
       // admin (D15).
       allow create: if isAdmin();
 
-      // Staff of this hospital may edit contact details only; `status` is an
-      // admin action (FR-040 suspensions).
+      // Facility locations are managed by administrators. Staff may update
+      // the facility name and contact number.
       allow update: if isAdmin()
                     || (
                          isStaffOf(hospitalId)
                          && request.resource.data.diff(resource.data).affectedKeys()
-                              .hasOnly(['name', 'address', 'contactNumber', 'latitude', 'longitude', 'geohash'])
+                              .hasOnly(['name', 'contactNumber'])
                          && request.resource.data.name is string
                          && request.resource.data.address is string
                          && request.resource.data.contactNumber is string
