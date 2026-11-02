@@ -253,9 +253,11 @@ export default function Requests() {
                     {active.request.bloodType}
                   </p>
                   <p className="donation-subtle">
-                    Contact the hospital to arrange your visit. You can accept
-                    another request after this donation is completed, closed,
-                    or you withdraw.
+                    {active.match.screeningStatus === 'Cleared'
+                      ? 'You’re cleared. Go to the hospital to complete your donation.'
+                      : 'Final eligibility verification happens at the hospital before you donate — physical screening, blood tests and your medical history. Contact them to arrange the visit.'}{' '}
+                    You can accept another request after this donation is
+                    completed, closed, or you withdraw.
                   </p>
                   {commitments.length > 1 && (
                     <p className="donation-error">
@@ -464,6 +466,10 @@ export default function Requests() {
                                 'Donation completed'
                               ) : item.request.status === 'cancelled' ? (
                                 'Request closed'
+                              ) : item.match.screeningStatus === 'Cleared' ? (
+                                'Cleared to donate'
+                              ) : item.match.screeningStatus ? (
+                                `Screening ${item.match.screeningStatus.toLowerCase()}`
                               ) : (
                                 item.match.responseStatus
                               )
