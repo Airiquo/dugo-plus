@@ -8253,6 +8253,90 @@ dialog.aa-confirm-dialog[id$=-modal] { width: min(540px,calc(100vw - 32px)); }
   margin: 4px 0 0;
 }
 
+.hospital-inventory-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hospital-inventory-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.hospital-inventory-head .btn {
+  flex: none;
+}
+
+/* Row controls share one height; status chips wrap instead of stretching rows. */
+.hospital-inventory-table .btn {
+  min-height: 34px;
+}
+
+.hospital-inventory-table .badge[data-status] {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  white-space: normal;
+  line-height: 1.35;
+}
+
+/* Small filter/sort selects above a table. */
+.hospital-table-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hospital-table-tools select {
+  min-height: 36px;
+  border: 1px solid var(--d-line);
+  border-radius: 10px;
+  padding: 6px 28px 6px 10px;
+  background-color: var(--d-panel);
+  color: var(--d-ink);
+  font: 400 12px var(--d-font-sans);
+}
+
+.hospital-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 14px;
+  color: var(--d-muted);
+  font-size: 12px;
+}
+
+.hospital-pager p {
+  margin: 0 auto 0 0;
+}
+
+.hospital-pager button {
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--d-line);
+  border-radius: 10px;
+  background: var(--d-panel);
+  color: var(--d-ink);
+  cursor: pointer;
+  font: 400 13px var(--d-font-sans);
+}
+
+.hospital-pager button:hover:not(:disabled) {
+  border-color: var(--d-ink);
+}
+
+.hospital-pager button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .hospital-inventory-units {
   color: var(--d-ink);
   font-family: var(--d-font-display);

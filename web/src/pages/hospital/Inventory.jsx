@@ -30,6 +30,7 @@ import {
   PageHeader,
   Select,
   Table,
+  TablePager,
   Tabs,
   Textarea,
 } from '../../components'
@@ -48,6 +49,9 @@ const ADJUST_OPTIONS = ADJUSTMENT_TYPES.map((value) => ({
 }))
 
 const HISTORY_PAGE = 50
+
+/** Rows per page in the donation log table. */
+const LOG_PAGE_SIZE = 10
 
 /** A readable timestamp, or an em dash when the row has never moved. */
 function formatDate(value) {
@@ -159,6 +163,11 @@ export default function Inventory() {
   const [stockLogs, setStockLogs] = useState([])
   const [stockLogsLoading, setStockLogsLoading] = useState(false)
   const [stockLogsError, setStockLogsError] = useState('')
+
+  // Donation log table controls: blood-type filter, date sort, pagination.
+  const [logType, setLogType] = useState('')
+  const [logSort, setLogSort] = useState('new')
+  const [logPage, setLogPage] = useState(1)
 
   const openScreening = (row) => {
     setScreeningRow(row)
@@ -353,6 +362,19 @@ export default function Inventory() {
     () => matches.filter((row) => !donationIds.has(row.id)),
     [matches, donationIds],
   )
+  const logRows = useMemo(() => {
+    const filtered = logType ? pending.filter((row) => row.bloodType === logType) : pending
+    const dir = logSort === 'new' ? -1 : 1
+    return [...filtered].sort(
+      (a, b) => ((a.matchedAt?.getTime?.() ?? 0) - (b.matchedAt?.getTime?.() ?? 0)) * dir,
+    )
+  }, [pending, logType, logSort])
+  const logPageCount = Math.max(1, Math.ceil(logRows.length / LOG_PAGE_SIZE))
+  const logCurrentPage = Math.min(logPage, logPageCount)
+  const logPaged = logRows.slice(
+    (logCurrentPage - 1) * LOG_PAGE_SIZE,
+    logCurrentPage * LOG_PAGE_SIZE,
+  )
   const ready = useMemo(() => pending.filter(isConfirmable), [pending])
   const selectedReady = selected.filter((id) => ready.some((row) => row.id === id))
   const allSelected = ready.length > 0 && selectedReady.length === ready.length
@@ -495,19 +517,14 @@ export default function Inventory() {
         tag={isAdmin ? 'Dugo+ admin' : 'Dugo+ hospital'}
         title="Blood inventory"
         actions={
-          <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
-            <Link to={isAdmin ? '/admin/inventory-log' : '/hospital/inventory-log'}>
-              <Btn icon="list">Inventory Log</Btn>
-            </Link>
-            <Btn
-              variant="primary"
-              icon="droplet"
-              onClick={() => open('transfusion')}
-              disabled={busy || !hospitalId}
-            >
-              Record transfusion
-            </Btn>
-          </div>
+          <Btn
+            variant="primary"
+            icon="droplet"
+            onClick={() => open('transfusion')}
+            disabled={busy || !hospitalId}
+          >
+            Record transfusion
+          </Btn>
         }
       />
       <div id="page-body">
@@ -575,11 +592,7 @@ export default function Inventory() {
                 label="Inventory views"
                 tabs={[
                   { value: 'stock', label: 'Stock' },
-                  {
-                    value: 'log',
-                    label: 'Donation log',
-                    count: pending.length || undefined,
-                  },
+                  { value: 'log', label: 'Donation log' },
                 ]}
                 value={tab}
                 onChange={setTab}
@@ -625,6 +638,7 @@ export default function Inventory() {
                       </p>
                     </header>
                     <Table
+                      className="hospital-table"
                       columns={[
                         {
                           key: 'bloodType',
@@ -671,6 +685,7 @@ export default function Inventory() {
                       ]}
                       rows={rows}
                       rowKey={(row) => row.bloodType}
+                      scroll={false}
                       rowProps={(row) => ({
                         'data-empty': row.unitsAvailable === 0 ? 'true' : undefined,
                       })}
@@ -682,12 +697,25 @@ export default function Inventory() {
               {tab === 'log' && (
                 <>
                   <Card className="hospital-inventory-table hospital-inventory-log">
-                    <header>
-                      <h2>Awaiting confirmation</h2>
-                      <p className="muted">
-                        Matches at this facility without a donation record. Select the cleared
-                        ones, set the units collected, and confirm.
-                      </p>
+                    <header className="hospital-inventory-head">
+                      <div>
+                        <h2>Awaiting confirmation</h2>
+                        <p className="muted">
+                          Matches at this facility without a donation record. Select the cleared
+                          ones, set the units collected, and confirm.
+                        </p>
+                      </div>
+                      {pending.length > 0 && (
+                        <Btn
+                          variant="primary"
+                          onClick={confirmSelected}
+                          disabled={!selectedReady.length || confirming}
+                        >
+                          {confirming
+                            ? 'Confirming…'
+                            : `Confirm selected${selectedReady.length ? ` (${selectedReady.length})` : ''}`}
+                        </Btn>
+                      )}
                     </header>
 
                     {matchesLoading && <p className="hospital-state">Loading donation log…</p>}
@@ -720,131 +748,167 @@ export default function Inventory() {
 
                     {!matchesLoading && !historyFailed && !matchesFailed && pending.length > 0 && (
                       <>
-                        <div className="hospital-inventory-bulk">
-                          <span className="muted">
-                            {selectedReady.length
-                              ? `${selectedReady.length} selected`
-                              : `${ready.length} ready to confirm`}
-                          </span>
-                          <Btn
-                            variant="primary"
-                            onClick={confirmSelected}
-                            disabled={!selectedReady.length || confirming}
-                          >
-                            {confirming
-                              ? 'Confirming…'
-                              : `Confirm selected${selectedReady.length ? ` (${selectedReady.length})` : ''}`}
-                          </Btn>
-                        </div>
-
                         {logError && (
                           <p className="hospital-state" data-kind="error" role="alert">
                             {logError}
                           </p>
                         )}
 
-                        <Table
-                          columns={[
-                            {
-                              key: 'select',
-                              header: (
-                                <input
-                                  type="checkbox"
-                                  className="hospital-inventory-check"
-                                  aria-label="Select every ready donation"
-                                  checked={allSelected}
-                                  disabled={!ready.length || confirming}
-                                  onChange={toggleAll}
-                                />
-                              ),
-                              cellProps: { className: 'hospital-inventory-check-cell' },
-                              render: (row) => (
-                                <input
-                                  type="checkbox"
-                                  className="hospital-inventory-check"
-                                  aria-label={`Select donation by ${row.donorId || row.id}`}
-                                  checked={selected.includes(row.id)}
-                                  disabled={!isConfirmable(row) || confirming}
-                                  onChange={() => toggle(row.id)}
-                                />
-                              ),
-                            },
-                            {
-                              key: 'matchedAt',
-                              header: 'Matched',
-                              render: (row) => formatDate(row.matchedAt),
-                            },
-                            {
-                              key: 'donorId',
-                              header: 'Donor',
-                              render: (row) =>
-                                row.donorId ? (
-                                  <code title={row.donorId}>{shortId(row.donorId)}</code>
-                                ) : (
-                                  '—'
-                                ),
-                            },
-                            {
-                              key: 'bloodType',
-                              header: 'Blood type',
-                              render: (row) =>
-                                row.bloodType ? (
-                                  <Badge data-blood-type={row.bloodType}>{row.bloodType}</Badge>
-                                ) : (
-                                  '—'
-                                ),
-                            },
-                            {
-                              key: 'units',
-                              header: 'Units',
-                              render: (row) =>
-                                isConfirmable(row) ? (
-                                  <Input
-                                    className="hospital-inventory-unit-input"
-                                    type="number"
-                                    inputMode="numeric"
-                                    min="1"
-                                    step="1"
-                                    value={unitsFor(row.id)}
-                                    onChange={(event) => updateUnits(row.id, event.target.value)}
-                                    disabled={confirming}
-                                    aria-label={`Units collected from ${row.donorId || row.id}`}
-                                  />
-                                ) : (
-                                  '—'
-                                ),
-                            },
-                            {
-                              key: 'requestId',
-                              header: 'Request',
-                              render: (row) =>
-                                row.requestId ? <code>{row.requestId}</code> : '—',
-                            },
-                            {
-                              key: 'status',
-                              header: 'Status',
-                              render: (row) => {
-                                const status = pendingStatus(row)
-                                return <Badge data-status={status.tone}>{status.label}</Badge>
-                              },
-                            },
-                            {
-                              key: 'actions',
-                              header: 'Actions',
-                              render: (row) => (
-                                <Btn
-                                  variant="subtle"
-                                  onClick={() => openScreening(row)}
-                                  disabled={confirming || saving}
-                                >
-                                  {row.screeningStatus ? 'Re-screen' : 'Screen'}
-                                </Btn>
-                              ),
-                            },
-                          ]}
-                          rows={pending}
-                          rowKey={(row) => row.id}
-                        />
+                        <div className="hospital-table-tools">
+                          <label className="hospital-table-tool">
+                            <span className="care-sr-only">
+                              Filter pending donations by blood type
+                            </span>
+                            <select
+                              aria-label="Filter pending donations by blood type"
+                              value={logType}
+                              onChange={(event) => {
+                                setLogType(event.target.value)
+                                setLogPage(1)
+                              }}
+                            >
+                              <option value="">All blood types</option>
+                              {BLOOD_TYPES.map((bt) => (
+                                <option key={bt} value={bt}>
+                                  {bt}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="hospital-table-tool">
+                            <span className="care-sr-only">Sort pending donations by date</span>
+                            <select
+                              aria-label="Sort pending donations by date"
+                              value={logSort}
+                              onChange={(event) => {
+                                setLogSort(event.target.value)
+                                setLogPage(1)
+                              }}
+                            >
+                              <option value="new">Newest first</option>
+                              <option value="old">Oldest first</option>
+                            </select>
+                          </label>
+                        </div>
+
+                        {logRows.length === 0 ? (
+                          <p className="hospital-note">No pending donations match this filter.</p>
+                        ) : (
+                          <>
+                            <Table
+                              className="hospital-table"
+                              columns={[
+                                {
+                                  key: 'select',
+                                  header: (
+                                    <input
+                                      type="checkbox"
+                                      className="hospital-inventory-check"
+                                      aria-label="Select every ready donation"
+                                      checked={allSelected}
+                                      disabled={!ready.length || confirming}
+                                      onChange={toggleAll}
+                                    />
+                                  ),
+                                  cellProps: { className: 'hospital-inventory-check-cell' },
+                                  render: (row) => (
+                                    <input
+                                      type="checkbox"
+                                      className="hospital-inventory-check"
+                                      aria-label={`Select donation by ${row.donorId || row.id}`}
+                                      checked={selected.includes(row.id)}
+                                      disabled={!isConfirmable(row) || confirming}
+                                      onChange={() => toggle(row.id)}
+                                    />
+                                  ),
+                                },
+                                {
+                                  key: 'matchedAt',
+                                  header: 'Matched',
+                                  render: (row) => formatDate(row.matchedAt),
+                                },
+                                {
+                                  key: 'donorId',
+                                  header: 'Donor',
+                                  render: (row) =>
+                                    row.donorId ? (
+                                      <code title={row.donorId}>{shortId(row.donorId)}</code>
+                                    ) : (
+                                      '—'
+                                    ),
+                                },
+                                {
+                                  key: 'bloodType',
+                                  header: 'Blood type',
+                                  render: (row) =>
+                                    row.bloodType ? (
+                                      <Badge data-blood-type={row.bloodType}>{row.bloodType}</Badge>
+                                    ) : (
+                                      '—'
+                                    ),
+                                },
+                                {
+                                  key: 'units',
+                                  header: 'Units',
+                                  render: (row) =>
+                                    isConfirmable(row) ? (
+                                      <Input
+                                        className="hospital-inventory-unit-input"
+                                        type="number"
+                                        inputMode="numeric"
+                                        min="1"
+                                        step="1"
+                                        value={unitsFor(row.id)}
+                                        onChange={(event) => updateUnits(row.id, event.target.value)}
+                                        disabled={confirming}
+                                        aria-label={`Units collected from ${row.donorId || row.id}`}
+                                      />
+                                    ) : (
+                                      '—'
+                                    ),
+                                },
+                                {
+                                  key: 'requestId',
+                                  header: 'Request',
+                                  render: (row) =>
+                                    row.requestId ? <code>{row.requestId}</code> : '—',
+                                },
+                                {
+                                  key: 'status',
+                                  header: 'Status',
+                                  render: (row) => {
+                                    const status = pendingStatus(row)
+                                    return <Badge data-status={status.tone}>{status.label}</Badge>
+                                  },
+                                },
+                                {
+                                  key: 'actions',
+                                  header: 'Actions',
+                                  render: (row) => (
+                                    <Btn
+                                      variant="subtle"
+                                      onClick={() => openScreening(row)}
+                                      disabled={confirming || saving}
+                                    >
+                                      {row.screeningStatus ? 'Re-screen' : 'Screen'}
+                                    </Btn>
+                                  ),
+                                },
+                              ]}
+                              rows={logPaged}
+                              rowKey={(row) => row.id}
+                              scroll={false}
+                            />
+                            <TablePager
+                              page={logCurrentPage}
+                              pageCount={logPageCount}
+                              onPage={setLogPage}
+                              rangeStart={(logCurrentPage - 1) * LOG_PAGE_SIZE + 1}
+                              rangeEnd={Math.min(logCurrentPage * LOG_PAGE_SIZE, logRows.length)}
+                              total={logRows.length}
+                            />
+                          </>
+                        )}
                       </>
                     )}
                   </Card>
