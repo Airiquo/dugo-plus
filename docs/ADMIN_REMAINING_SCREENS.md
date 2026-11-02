@@ -15,3 +15,9 @@ Validation: frontend build/docs checks pass. Isolated fictional-data checks cove
 Motion is limited to a small decorative care symbol with reduced-motion support. Verify live role-gated reads before production release; this batch does not alter the service layer or deploy Hosting.
 
 Dashboard validation: build/docs checks pass; fictional fixtures verify exact counts (18 open / 15 Active / six hospital-staff profiles), oldest-first priority order, empty zeros versus failed-source dashes, independent-source retry, dark mode and 390/768/1024/1440px without page overflow. The public care logo asset is served by the existing Vite assets configuration.
+
+## Settings — D59
+
+`feat/admin-settings-workspace` groups the radius tiers and notification retry policy, with a draft-only search ladder/reach diagram and sticky Save/Discard controls. Existing tier/retry bounds and service writes remain unchanged. Blank retry-limit input is rejected explicitly; zero still disables retries. Add/remove respects 1–8 tiers and the 100km maximum, while validation rejects non-increasing radii. Defaults are staged, never saved automatically. Load failure locks editing and withholds the preview; save failure preserves the draft. Saved metadata remains readable in a disclosure. No server/rules/schema changes or new provider guarantees.
+
+Settings validation: production build/docs checks and fictional fixtures cover non-increasing tiers, blank versus zero retry limits, saved readback, save-error draft preservation/retry, failed-load locking, defaults staging/discard, 1/8-tier limits and the 100km add limit. Both themes and 390/768/1024/1440px have no page overflow. The save toolbar was verified while editing lower fields on mobile; route-scoped root clipping permits sticky controls and mobile navigation scrolls away to avoid covering them. No production configuration was changed.
