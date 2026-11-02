@@ -990,6 +990,9 @@ input[type=checkbox],input[type=radio] {
   text-transform: none;
 }
 
+.pub .donor-nav nav a .donor-nav-icon { position: relative; display: inline-flex; flex: none; }
+.pub .donor-nav nav a .donor-nav-badge { position: absolute; top: -7px; right: -10px; display: grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; border: 2px solid var(--d-panel); border-radius: 999px; background: var(--d-red); color: var(--d-panel); font: 600 9px/1 var(--d-font-sans); letter-spacing: 0; }
+
 .pub .pub-theme,.theme-toggle {
   width: 38px;
   height: 38px;
@@ -2438,7 +2441,7 @@ input[type=checkbox],input[type=radio] {
     line-height: 1.2;
     min-height: 54px;
   }
-  .pub .donor-nav>nav>a>svg {
+  .pub .donor-nav>nav>a>.donor-nav-icon>svg {
     width: 20px;
     height: 20px;
   }
@@ -7557,8 +7560,6 @@ input[type="checkbox"],input[type="radio"] {
 .pub .donation-consent>input { appearance: auto; width: 18px; height: 18px; min-height: 0; margin: 2px 0 0; padding: 0; flex: none; accent-color: var(--d-red); }
 .donation-consent strong { display: block; font-size: 12px; font-weight: 500; }
 .donation-consent small { display: block; font-size: 11px; color: var(--d-muted); line-height: 1.8; margin-top: 4px; }
-.donation-inbox-illustration { position: relative; display: grid; place-items: center; width: 140px; height: 140px; border: 1px dashed var(--d-dashed); border-radius: 50%; color: var(--d-red); background: var(--care-pink); margin-right: 40px; flex: none; }
-.donation-inbox-illustration>span { position: absolute; top: 0; right: 0; display: grid; place-items: center; min-width: 32px; height: 32px; padding: 0 7px; border-radius: 50%; background: var(--d-red); color: var(--d-panel); font-size: 12px; }
 .donation-inbox-layout { display: grid; grid-template-columns: minmax(0,1fr) 290px; gap: 36px; align-items: start; }
 .donation-inbox-panel { min-width: 0; }
 .donation-alert-list { display: grid; }
@@ -7609,8 +7610,6 @@ input[type="checkbox"],input[type="radio"] {
   .donation-commitment-copy { flex-basis: calc(100% - 64px); }
   .donation-commitment-actions { flex-direction: row; width: 100%; justify-content: space-between; }
   .donation-inbox-aside { display: none; }
-  .donation-inbox-illustration { width: 96px; height: 96px; margin: 0; }
-  .donation-inbox-illustration>svg { width: 40px; }
 }
 @media (max-width:600px) {
   .donation-hub { width: calc(100% - 32px); padding: 22px 0 125px; }
@@ -7632,7 +7631,6 @@ input[type="checkbox"],input[type="radio"] {
   .donation-commitment-actions { gap: 10px; }
   .donation-commitment-actions .btn { padding: 10px; }
   .donation-commitment-actions .donation-text-link { font-size: 10px; }
-  .donation-inbox-illustration { display: none; }
   .donation-inbox-panel>.donation-list-heading { align-items: flex-start; }
   .donation-inbox-panel>.donation-list-heading .donation-text-link { font-size: 10px; margin-top: 4px; }
   .donation-alert { padding: 19px 14px; gap: 12px; }

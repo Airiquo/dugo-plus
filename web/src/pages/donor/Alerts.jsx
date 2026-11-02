@@ -81,10 +81,6 @@ export default function Alerts() {
               Open a request when you’re ready to take the next step.
             </p>
           </div>
-          <div className="donation-inbox-illustration" aria-hidden="true">
-            <Icon name="bell" size={58} />
-            <span>{unread.length}</span>
-          </div>
         </header>
         <div className="donation-inbox-layout">
           <section

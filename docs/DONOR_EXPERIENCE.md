@@ -73,6 +73,14 @@ screens use a wrapper centered on the actual select, independent of label/errors
 The local app remains on port 5173 and its authenticated donor API on 8788.
 Worker, rules and Hosting production deployments have not been performed.
 
+## Alert count placement — 2026-11-02
+
+The Alerts hero no longer repeats a bell icon and unread-count badge. The shared
+donor navigation shows a live unread count on its Alerts icon on donor screens;
+the count caps visually at `99+` and has an accessible label. Inbox filters,
+per-alert context and read state remain available. The count follows
+`notifications.readAt`; no data model or provider-delivery behavior changed.
+
 ## Activity and lifeline visual refresh — 2026-11-02
 
 Activity now shares the donor hub hierarchy: factual visit/unit/latest-visit
