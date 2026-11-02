@@ -242,6 +242,23 @@ Feature: F6 (FR-034).
 §0's divergence row and §2.3.3/§2.9 note the change; the vocabulary of D26
 (`changeType`, `reason`, child log path) is unchanged.
 
+## 2026-11-02 — the staff confirmation starts the deferral clock (D35)
+
+**Origin:** build (FR-033 needed a `lastDonationAt` writer; no server path
+exists, D27 — the owner chose the staff-claim path over a worker endpoint).
+
+**Refs:** D35 (relaxes D14's client freeze for staff, forward-only).
+Feature: F8 (FR-033).
+
+| Area | Before | After |
+|---|---|---|
+| `users/{donorId}.lastDonationAt` | frozen for every client (D14); no writer since D27's descope | staff/admin claims may update a donor profile when the diff is exactly `lastDonationAt`, forward-only and not in the future; `confirmDonation` writes it with `serverTimestamp` |
+| Owner freeze (presence + value) and create freeze | in force | unchanged |
+| `rewardTransactions/{id}` | server-only | unchanged (FR-036 open) |
+
+§0's divergence row and §2.1/§5 note the change; the D27 entry's "descoped"
+line for `lastDonationAt` is superseded, `rewardTransactions` is not.
+
 ## 2026-11-01 — hospital partnership subscriptions self-serve (D28)
 
 **Origin:** build (FR-018 hospital subscription plan management).

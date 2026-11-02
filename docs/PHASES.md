@@ -29,7 +29,7 @@ numbers rather than trusting this section.
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | in progress (F3: hospital posts, lists, and manages its requests; smoke pending) |
 | **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; FR-010 derived on the profile; FR-024–027 component intervals in the eligibility engine with the Accept gate on `/donor/requests`; F5 history/rewards/tracker open. F4 smoke pending) |
-| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile, FR-014 blood units collected over period, FR-018 partnership plan (D28), FR-020 inventory reads + donation history, initial dashboard shell + FR-015 hospital map, FR-034 writes as client transactions (D27); the deferral clock and reward points wait for a server path — see §10) |
+| **P4** | Hospital dashboard, inventory, screening | partial (FR-013 facility profile, FR-014 blood units collected over period, FR-018 partnership plan (D28), FR-020 inventory reads + donation history, initial dashboard shell + FR-015 hospital map, FR-034 writes as client transactions (D27), FR-033 clock write (D35); reward points wait for a server path — see §10) |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; claims not set on a live project, functions not deployed, no signed-in smoke here) |
 | **P7** | Hash-chain audit trail | in progress (F10a; F10b data-access hooks in; donation/inventory events wait on F8/F6) |
@@ -384,10 +384,11 @@ is cancelled. An assumption is never recorded in place of an answer.
   client-side: `/donor/requests` disables Accept (and re-checks in code) when the
   donor's `lastDonationAt` puts them inside the component interval. The F7
   matcher still sends the match — a deferred donor can open and decline it but
-  not accept. The clock depends on `lastDonationAt`, which is frozen for the
-  client (D14/FR-033), so the gate is inert on the live project until a server
-  path writes that field. Open, owner action: none of FR-024–027 has been smoked
-  against a live account.
+  not accept. The clock is now written: `confirmDonation` advances
+  `users.lastDonationAt` (D35), so a staff confirmation starts the deferral.
+  Open, owner action: FR-024–027 have not been smoked against a live account —
+  confirm a donation as staff, then check the donor's Accept gate and profile
+  countdown flip to deferred.
 - **No staff read of `users`** — the rules grant an owner read plus an admin
   claim, and nothing else. Schema §6 allows a limited "staff of same hospital"
   read; hospital screens (F3/F6) will need to decide what it exposes before it
@@ -472,12 +473,13 @@ is cancelled. An assumption is never recorded in place of an answer.
 - **No browser render check.** Screens are verified by build and compiled output
   only. The one end-to-end pass was the email-verification flow on 2026-10-20.
 - **No app test suite**: recorded as a gap, not scheduled. The exception is the
-  Firestore rules — `firestore.rules.test.mjs` runs 112 asserts in the
+  Firestore rules — `firestore.rules.test.mjs` runs 172 asserts in the
   emulator, locally (`npm run test:rules`) and in CI (D19). The React app has
   no tests; the smoke list below is its check.
-- **The deferral clock and reward points have no writer.** F6's
+- **The deferral clock has a writer; reward points do not.** F6's
   `confirmDonation` runs as a client transaction (D27 — the owner chose to stay
   on Spark instead of the Blaze-plan functions build) and writes the donation
-  record, the stock and its log only. `users.lastDonationAt` (D14, FR-033) and
-  `rewardTransactions` (D12, FR-036) stay server-only, so those two rows stay
-  open until a server path exists outside the React app.
+  record, the stock, its log and — since D35 — `users.lastDonationAt`, which the
+  rules let a staff claim move forward only. `rewardTransactions` (D12, FR-036)
+  stays server-only, so that row stays open until a server path exists outside
+  the React app.

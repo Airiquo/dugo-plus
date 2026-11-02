@@ -20,7 +20,7 @@ and do not "correct" the live code back to the text below:
 |---|---|---|---|
 | Reward points | an ERD-side total | one record per donation, summed on read | D12 |
 | Deferral intervals | one interval | per component, in `donationTypes.intervalDays` | D13 |
-| `users.lastDonationAt` | writable | frozen for the owner; only F8's server transaction writes it | D14 |
+| `users.lastDonationAt` | writable | frozen for the owner; staff/admin may advance it only, and the confirmation transaction writes it | D14, D35 |
 | `errorLogs` | an ERD-free collection §1 lists as [ADDED] | client-written, open-create | D8, D10, D17 |
 | `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
 | `users.address` | an ERD postal address | not collected; no field | D22 |
@@ -140,7 +140,7 @@ Legend: **R** = required, **O** = optional/nullable.
 | latitude | number | O | |
 | longitude | number | O | |
 | city | string | O | City name; what makes a donor matchable without coordinates |
-| lastDonationAt | Timestamp | O | Used for eligibility interval checks. Owner-frozen (D14) |
+| lastDonationAt | Timestamp | O | Used for eligibility interval checks. Owner-frozen (D14); the staff confirmation advances it, never backwards (D35) |
 | bloodType | string | O | `BloodType`. ERD `?` |
 | dateOfBirth | Timestamp | R | |
 | ~~eligibilityInfo~~ | – | – | **Removed from the model of record** (D25). The ERD's field was never implemented and eligibility is computed, not stored |
@@ -470,7 +470,7 @@ TTL policy: `emailVerifications.expiresAt`.
 
 1. **Registering a user**: create Firebase Auth user, then `users/{uid}`, then set custom claims.
 2. **Creating a match**: use the deterministic ID `{requestId}_{donorId}`. Fail if it exists.
-3. **Confirming a donation**: in ONE transaction: create `donations/{matchId}`, create `rewardTransactions/{donationId}`, increment `hospitals/{h}/inventory/{bt}.unitsAvailable`, write an inventory `logs` doc, set `users/{donorId}.lastDonationAt`.
+3. **Confirming a donation**: in ONE transaction: create `donations/{matchId}`, create `rewardTransactions/{donationId}`, increment `hospitals/{h}/inventory/{bt}.unitsAvailable`, write an inventory `logs` doc, set `users/{donorId}.lastDonationAt`. The build's client transaction (D27) covers the donation, stock, log and `lastDonationAt` (D35 staff-claim rules path); `rewardTransactions` stays server-only (D12).
 4. **Inventory changes**: always `FieldValue.increment()` or a transaction. Never read-then-write.
 5. **Audit blocks**: create in a transaction that reads the latest block (by `sequence`), sets `prevHash`, computes `recordHash`.
 6. **Notification retries**: Cloud Function / scheduler reads `systemConfig/global` for `notifRetryLimit` and `notifRetryInterval`.

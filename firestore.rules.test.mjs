@@ -1,8 +1,9 @@
 // Firestore security-rules suite, run against the emulator:
 //   npm run test:rules
 // Covers the 15 collections in docs/firestore_schema.md §6 plus errorLogs:
-// owner/claim boundaries, the users lastDonationAt freeze (D14), the
-// server-only write paths (D15), and the open-create error log (D17).
+// owner/claim boundaries, the users lastDonationAt freeze (D14) and the
+// staff clock write (D35), the server-only write paths (D15), and the
+// open-create error log (D17).
 import { readFileSync } from 'node:fs';
 import {
   assertFails,
@@ -126,6 +127,19 @@ await no('owner cannot delete profile', deleteDoc(doc(db(as('alice')), 'users/al
 await ok('admin claim updates any profile', updateDoc(doc(db(admin()), 'users/alice'), { fullName: 'Alice D.' }));
 await ok('admin claim updates its own profile (same-doc read)', updateDoc(doc(db(admin()), 'users/admin1'), { fullName: 'Admin One' }));
 await ok('admin claim suspends a profile (FR-040)', updateDoc(doc(db(admin()), 'users/alice'), { status: 'Suspended' }));
+
+// ---- donation clock write (FR-033, D35) -----------------------------------
+// A staff claim may start a donor's deferral clock, never shorten or clear
+// one. Fixed dates keep the cases independent of when the suite runs; the
+// "future" case is 2099 so it stays future on any machine.
+console.log('donation clock (FR-033/D35)');
+await ok('staff claim starts a donor clock (FR-033)', updateDoc(doc(db(staff1()), 'users/bob'), { lastDonationAt: new Date('2026-11-01') }));
+await ok('staff claim advances a donor clock', updateDoc(doc(db(staff1()), 'users/dave'), { lastDonationAt: new Date('2026-11-01') }));
+await no('staff claim cannot shorten a donor clock', updateDoc(doc(db(staff1()), 'users/dave'), { lastDonationAt: new Date('2026-10-15') }));
+await no('staff claim cannot clear a donor clock', updateDoc(doc(db(staff1()), 'users/dave'), { lastDonationAt: null }));
+await no('staff claim cannot write a future clock', updateDoc(doc(db(staff1()), 'users/dave'), { lastDonationAt: new Date('2099-01-01') }));
+await no('staff claim cannot touch other profile fields', updateDoc(doc(db(staff1()), 'users/bob'), { fullName: 'Bob B.' }));
+await no('staff claim cannot set the clock on a hospital profile', updateDoc(doc(db(staff1()), 'users/admin1'), { lastDonationAt: new Date('2026-11-01') }));
 
 // ---- suspension gate (D26) ----------------------------------------------
 // A suspended account keeps its own profile read (the blocked screen names the

@@ -215,6 +215,23 @@ service cloud.firestore {
                               || request.resource.data.lastDonationAt
                                    == resource.data.lastDonationAt
                             )
+                       )
+                    || (
+                         // The donation confirmation (FR-033, D35): a staff
+                         // claim may start a donor's deferral clock, never
+                         // shorten or clear one — the diff is exactly
+                         // lastDonationAt, on a donor document, and the value
+                         // only moves forward and not into the future.
+                         isStaff()
+                         && resource.data.role == 'donor'
+                         && request.resource.data.diff(resource.data).affectedKeys()
+                              .hasOnly(['lastDonationAt'])
+                         && request.resource.data.lastDonationAt is timestamp
+                         && (!('lastDonationAt' in resource.data)
+                             || resource.data.lastDonationAt == null
+                             || request.resource.data.lastDonationAt
+                                  > resource.data.lastDonationAt)
+                         && request.resource.data.lastDonationAt <= request.time
                        );
 
       allow delete: if false;

@@ -8,8 +8,9 @@ import { BLOOD_TYPES } from './users'
  * stock row, its append-only log and, for a confirmed match, the donation
  * record are written together with every read before any write. The
  * security rules allow these paths to staff of the facility and admins
- * (D27); `users.lastDonationAt` and `rewardTransactions` stay out of it —
- * they are server-only by D14/D12 and wait for a server path.
+ * (D27); the confirmation also advances `users.lastDonationAt` (FR-033,
+ * D35 — forward-only by rules), while `rewardTransactions` stays
+ * server-only by D12 and waits for a server path.
  */
 
 const NOT_CONFIGURED = 'Firestore is not available. Copy web/.env.example to web/.env.local.'
@@ -145,6 +146,11 @@ export async function confirmDonation({ matchId, units } = {}) {
 
     const donorId = text(match.donorId)
     if (!donorId) throw new Error('This match has no donor.')
+
+    // FR-033 (D35): the confirmation starts the donor's deferral clock
+    // (FR-024–027). Written without a read — staff have no read on `users`;
+    // the rules only let this field move forward.
+    tx.set(doc(db, 'users', donorId), { lastDonationAt: now }, { merge: true })
 
     const inventoryRef = doc(db, 'hospitals', facility, 'inventory', type)
     const unitsAvailable = currentUnits(await tx.get(inventoryRef)) + unitCount
