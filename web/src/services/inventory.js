@@ -147,6 +147,8 @@ export async function confirmDonation({ matchId, units } = {}) {
     const donorId = text(match.donorId)
     if (!donorId) throw new Error('This match has no donor.')
 
+    const now = serverTimestamp()
+
     // FR-033 (D51): the confirmation starts the donor's deferral clock
     // (FR-024–027). Written without a read — staff have no read on `users`;
     // the rules only let this field move forward.
@@ -154,8 +156,6 @@ export async function confirmDonation({ matchId, units } = {}) {
 
     const inventoryRef = doc(db, 'hospitals', facility, 'inventory', type)
     const unitsAvailable = currentUnits(await tx.get(inventoryRef)) + unitCount
-
-    const now = serverTimestamp()
     tx.set(donationRef, {
       matchId: id,
       hospitalId: facility,
