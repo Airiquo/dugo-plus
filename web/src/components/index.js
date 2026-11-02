@@ -32,4 +32,7 @@ export { NewsCard as CareNewsCard, NewsSection as CareNewsSection, NewsArticle a
 export { RequestStatusDialog } from './RequestStatusDialog'
 export { ProfileAvatar } from './ProfileAvatar'
 export { ProfilePhotoEditor } from './ProfilePhotoEditor'
+export { DonorRequestMap } from './DonorRequestMap'
+export { DonorRequestDetails } from './DonorRequestDetails'
+export { BloodlineMark } from './BloodlineMark'
 export { AdminDialog } from './AdminDialog'

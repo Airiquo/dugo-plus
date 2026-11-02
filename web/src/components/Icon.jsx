@@ -1,4 +1,11 @@
 const PATHS = {
+  compass: <><circle cx="12" cy="12" r="9" /><path d="m16 8-2.5 5.5L8 16l2.5-5.5L16 8z" /></>,
+  expand: <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5" />,
+  collapse: <path d="M3 8h5V3M16 3v5h5M21 16h-5v5M8 21v-5H3" />,
+  pin: <><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0z" /><circle cx="12" cy="10" r="2.5" /></>,
+  phone: <path d="m7 3 3 5-3 2c2 4 3 5 7 7l2-3 5 3c-1 4-3 5-6 3C8 17 4 13 3 7c-1-3 1-4 4-4z" />,
+  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  shield: <><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z" /><path d="m8 12 3 3 5-6" /></>,
   grid: (
     <>
       <rect x="4" y="4" width="7" height="7" />

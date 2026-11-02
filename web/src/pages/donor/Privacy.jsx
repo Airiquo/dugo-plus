@@ -126,7 +126,7 @@ export default function Privacy() {
             <div className="profile-section">
               <label>
                 <span>What are you asking for?</span>
-                <select
+                <span className="app-select"><select
                   value={type}
                   disabled={busy}
                   onChange={(event) => {
@@ -140,7 +140,7 @@ export default function Privacy() {
                       {requestTypeLabel(value)}
                     </option>
                   ))}
-                </select>
+                </select></span>
               </label>
               <p className="pub-fine">{TYPE_HINTS[type]}</p>
             </div>

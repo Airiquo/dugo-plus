@@ -84,6 +84,7 @@ donations/{matchId}                                  ← doc ID = matchId (enfor
 rewardTransactions/{donationId}                      ← doc ID = donationId (enforces UK donation_id, 1:1)
 systemConfig/global                                  ← single doc in practice; the rules allow any configId
 dataSubjectRequests/{dsrId}
+donorCommitments/{donorId}                           [ADDED] server-owned active-acceptance lock (D42)
 donorLocations/{donorId}                             [ADDED] donor coordinate mirror for staff (D31)
 auditBlocks/{blockId}                                (server-only, append-only)
 accountOperations/{operationHash}                    [ADDED] server-only recovery (D40)
@@ -159,6 +160,12 @@ Legend: **R** = required, **O** = optional/nullable.
 | privacyConsentAt | Timestamp | O | Server time the privacy notice was accepted at registration (D28); owner-frozen |
 | privacyNoticeVersion | string | O | Version of the `/privacy` notice accepted, e.g. `2026-10-29` (D28); owner-frozen |
 | createdAt | Timestamp | R | |
+
+> Note: owners may initially fill `bloodType` and `dateOfBirth`, then cannot
+> change or clear either value through client writes once it is non-empty
+> (D48). Admin corrections remain available. Request acceptance additionally
+> requires `fullName`, `bloodType`, `dateOfBirth`, and `city` (D49); phone and
+> coordinates are optional.
 
 Role/hospital claims: also set Firebase Auth **custom claims** `{ role, hospitalId }` for security rules **[ADDED]**.
 
@@ -309,6 +316,7 @@ Relationship in ERD is **1 → 1..many**: every donation type should have at lea
 | channel | string | R | Values not in ERD. Suggested: `Push \| SMS \| Email` |
 | deliveryStatus | string | R | Suggested: `Pending \| Sent \| Failed` |
 | retryCount | number (int) | R | Default `0`. Compare against `systemConfig.notifRetryLimit` |
+| readAt | Timestamp | O | **[ADDED]** D42: server-written when the owner marks an alert as read; absent means unread. |
 | sentAt | Timestamp | O | Null until sent. **Write it as an explicit `null` at create**: the donor inbox (§4) orders by `sentAt`, and Firestore omits documents that lack the orderBy field. |
 
 ### 2.9 `donations/{matchId}`
@@ -324,9 +332,9 @@ Doc ID = the `donorMatches` doc ID. One donation per match (ERD 1:1).
 | confirmedAt | Timestamp | R | |
 | donorId, hospitalId, bloodType | string | R | **[ADDED, denormalized]** from the match/request. ERD has no donorId on Donations, only via match |
 
-### 2.10 `rewardTransactions/{donationId}`
+### 2.10 `rewardTransactions/{donationId}` — legacy only (D43)
 
-Doc ID = `donationId` so UK(donation_id) holds.
+Doc ID = `donationId` so UK(donation_id) holds. D43 removes future rewards; existing documents remain available to historical data export.
 
 | Field | Type | R/O | Notes |
 |---|---|---|---|
@@ -442,7 +450,7 @@ Erasable sidecar: `reason` (≤2000 chars), `beforeStatus`, `afterStatus`,
 Its canonical reason/status data is HMAC-bound to `auditBlocks.contextHash`.
 There are no dedicated identity snapshots; a free-form reason may contain personal
 data and is erasable. Server-only access; a later authorized
-history endpoint must honor redaction tombstones before returning details. D42 implements `GET /accounts/history`: active-admin authorization, subject-scoped cursor pagination, context-digest verification and tombstone checks. Current administrator identities are resolved from a bounded 100-profile query; unresolved identities remain unavailable. No identity snapshots or new stored fields are added.
+history endpoint must honor redaction tombstones before returning details. D50 implements `GET /accounts/history`: active-admin authorization, subject-scoped cursor pagination, context-digest verification and tombstone checks. Current administrator identities are resolved from a bounded 100-profile query; unresolved identities remain unavailable. No identity snapshots or new stored fields are added.
 
 ### 2.18 `auditRedactions/{hashedUserRef}` — [ADDED] (D40)
 
@@ -451,6 +459,16 @@ Persistent HMAC-only erasure tombstone: `state: Pending|Completed`,
 suppresses context when subject or actor has a tombstone. Bounded maintenance
 queries and deletes old context by hashedEntityRef/hashedActorRef; the tombstone
 remains after completion. No immutable block is updated or deleted.
+
+### 2.19 `donorCommitments/{donorId}` — [ADDED] (D42)
+
+Server-owned singleton, read only by its donor. Fields: `donorId`, `matchId`,
+`requestId` (strings), and `acceptedAt` (Timestamp). `POST /donor/respond` reads
+this document and all prior Accepted matches inside the same transaction, then
+writes the singleton, accepted match and two consent records together. The stored
+pointer may outlive the donation: the next transaction checks donation existence,
+request closure and screening outcome before replacing it. Existing accepted
+matches without a lock are checked too; no migration silently cancels them.
 
 ## 3. Relationships (from ERD)
 
@@ -503,7 +521,7 @@ Cardinality read from the crow's-foot notation.
 | `donorConsents` | `donorId` ASC, `grantedAt` DESC | Consent history |
 | `dataSubjectRequests` | `status` ASC, `createdAt` ASC | Admin work queue |
 | `auditBlocks` | `sequence` DESC | Fetch the latest block |
-| `auditBlocks` | `hashedEntityRef` ASC, `entityType` ASC, `sequence` DESC | D42: account history with exclusive sequence cursor (25 rows/page) |
+| `auditBlocks` | `hashedEntityRef` ASC, `entityType` ASC, `sequence` DESC | D50: account history with exclusive sequence cursor (25 rows/page) |
 | `accountOperations` | `state` ASC, `nextAttemptAt` ASC | D40 due recovery work |
 | `auditOutbox` | `state` ASC, `nextAttemptAt` ASC | D40 due event delivery |
 | `auditRedactions` | `state` ASC, `nextAttemptAt` ASC | D40 bounded erasure cleanup |
@@ -516,13 +534,14 @@ TTL policy: `emailVerifications.expiresAt`.
 ## 5. Where the agent must use transactions / server logic
 
 1. **Registering a user**: donor registration remains client-driven. Hospital provisioning reserves a UID/profile/facility in a server transaction, creates a disabled Auth user, publishes claims, enables the login, then atomically activates records and queues the audit event (D40).
-2. **Creating a match**: use the deterministic ID `{requestId}_{donorId}`. Fail if it exists.
-3. **Confirming a donation**: in ONE transaction: create `donations/{matchId}`, create `rewardTransactions/{donationId}`, increment `hospitals/{h}/inventory/{bt}.unitsAvailable`, write an inventory `logs` doc, set `users/{donorId}.lastDonationAt`.
-4. **Inventory changes**: always `FieldValue.increment()` or a transaction. Never read-then-write.
-5. **Audit blocks**: read the head and latest block, compute the hash, and atomically write block/head/optional erasable context/outbox acknowledgement. Status/erasure mutations and their pending outbox event commit together (D40).
-6. **Notification retries**: Cloud Function / scheduler reads `systemConfig/global` for `notifRetryLimit` and `notifRetryInterval`.
-7. **Radius expansion**: scheduler walks `radiusTiers` in `tierOrder`, waiting `waitMinutes` between tiers, querying donors via geohash ranges.
-8. **Eligibility check**: `now - users.lastDonationAt >= donationTypes.intervalDays`.
+2. **Accepting a match (D42)**: use a transaction over `donorCommitments/{uid}`, prior accepted matches and request/donation state. Commit response, acknowledgment, two consent records and lock together.
+3. **Creating a match**: use the deterministic ID `{requestId}_{donorId}`. Fail if it exists.
+4. **Confirming a donation**: in ONE transaction: create `donations/{matchId}`, increment `hospitals/{h}/inventory/{bt}.unitsAvailable`, write an inventory `logs` doc, set `users/{donorId}.lastDonationAt`.
+5. **Inventory changes**: always `FieldValue.increment()` or a transaction. Never read-then-write.
+6. **Audit blocks**: read the head and latest block, compute the hash, and atomically write block/head/optional erasable context/outbox acknowledgement. Status/erasure mutations and their pending outbox event commit together (D40).
+7. **Notification retries**: Cloud Function / scheduler reads `systemConfig/global` for `notifRetryLimit` and `notifRetryInterval`.
+8. **Radius expansion**: scheduler walks `radiusTiers` in `tierOrder`, waiting `waitMinutes` between tiers, querying donors via geohash ranges.
+9. **Eligibility check**: `now - users.lastDonationAt >= donationTypes.intervalDays`.
 
 ---
 
@@ -538,7 +557,8 @@ Use custom claims `request.auth.token.role` and `request.auth.token.hospitalId`.
 | `hospitals/*/subscriptions` | Staff of that hospital, Admin | Admin / server |
 | `hospitals/*/inventory` + `logs` | Staff of that hospital, Admin | Staff of that hospital, Admin (via function preferred) |
 | `bloodRequests` | Authenticated | Create: Recipient / Staff. Update status: Staff of hospital, Admin |
-| `donorMatches` | Donor (own), Staff of request's hospital, Admin | Donor may update only `responseStatus`, `guidelinesAcknowledged`, `acknowledgedAt`; Staff update screening fields; creation server-only |
+| `donorMatches` | Donor (own), Staff of request's hospital, Admin | D42: responses/acknowledgment/location server-only; Staff update screening fields; creation server-only |
+| `donorCommitments` | Owner only | server-only (D42) |
 | `donorConsents` | Donor (own), Admin | Donor create / set `revokedAt` only. No delete |
 | `donationTypes` + `guidelines` | Authenticated | Admin |
 | `notifications` | Owner | server-only |

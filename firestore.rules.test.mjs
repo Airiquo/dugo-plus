@@ -81,6 +81,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(f, 'hospitals/h1/subscriptions/s1'), { plan: 'pilot', startDate: new Date('2026-01-01'), endDate: new Date('2027-01-01'), status: 'Active' });
   await setDoc(doc(f, 'hospitals/h1/inventory/O+'), { bloodType: 'O+', unitsAvailable: 3, lastUpdated: new Date() });
   await setDoc(doc(f, 'bloodRequests/r1'), { hospitalId: 'h1', hospitalName: 'St. Mary General', recipientId: null, createdBy: 'alice', bloodType: 'O+', component: 'whole-blood', quantity: 2, urgencyLevel: 'urgent', status: 'collecting', createdAt: new Date(), latitude: 14.609, longitude: 120.984, geohash: 'qc7bw' });
+  await setDoc(doc(f, 'donorCommitments/alice'), { donorId: 'alice', matchId: 'r1_alice', requestId: 'r1', acceptedAt: new Date() });
   await setDoc(doc(f, 'donorMatches/r1_alice'), { requestId: 'r1', donorId: 'alice', donationTypeId: 'whole-blood', screenedByUserId: null, responseStatus: 'Pending', screeningStatus: null, guidelinesAcknowledged: false, acknowledgedAt: null, matchedAt: new Date() });
   await setDoc(doc(f, 'donorConsents/c1'), { donorId: 'alice', matchId: 'r1_alice', consentType: 'ProfileAccess', grantedAt: new Date(), revokedAt: null });
   await setDoc(doc(f, 'donorLocations/alice'), { donorId: 'alice', latitude: 14.84, longitude: 120.81, city: 'Malolos', geohash: 'wdt4', bloodType: 'O+', updatedAt: new Date() });
@@ -105,6 +106,9 @@ await ok('admin claim lists every profile (FR-040)', getDocs(collection(db(admin
 await ok('admin claim reads any profile', readDoc(admin(), 'users/alice'));
 await ok('admin claim reads its own profile', readDoc(admin(), 'users/admin1'));
 await ok('owner creates own profile', setDoc(doc(db(as('carol')), 'users/carol'), { role: 'donor', fullName: 'Carol C.', email: 'carol@dugo.ph', createdAt: new Date() }));
+await ok('owner sets blood type and birth date for the first time', updateDoc(doc(db(as('carol')), 'users/carol'), { bloodType: 'O+', dateOfBirth: new Date('1995-04-12') }));
+await no('owner cannot change blood type after saving it', updateDoc(doc(db(as('carol')), 'users/carol'), { bloodType: 'A+' }));
+await no('owner cannot change birth date after saving it', updateDoc(doc(db(as('carol')), 'users/carol'), { dateOfBirth: new Date('1996-04-12') }));
 await no('self-create cannot claim admin (D20/D29)', setDoc(doc(db(as('dan')), 'users/dan'), { role: 'admin', fullName: 'Dan D.', email: 'dan@dugo.ph', createdAt: new Date() }));
 await no('self-create cannot claim hospital (D20/D29)', setDoc(doc(db(as('hana')), 'users/hana'), { role: 'hospital', fullName: 'Hana H.', email: 'hana@dugo.ph', createdAt: new Date() }));
 await no('admin clients cannot bypass audited hospital provisioning (D40)', setDoc(doc(db(admin()), 'users/hosp1'), { role: 'hospital', fullName: 'St. Mary', email: 'staff@dugo.ph', createdAt: new Date() }));
@@ -261,7 +265,7 @@ await ok('staff of the request hospital reads the match', readDoc(staff1(), 'don
 await no('staff of another hospital cannot read the match', readDoc(staff2(), 'donorMatches/r1_alice'));
 await ok('admin claim reads a match', readDoc(admin(), 'donorMatches/r1_alice'));
 await no('matches are created server-side only', setDoc(doc(db(as('alice')), 'donorMatches/r1_bob'), { requestId: 'r1', donorId: 'bob', donationTypeId: 'whole-blood', responseStatus: 'Pending', screeningStatus: null, guidelinesAcknowledged: false, acknowledgedAt: null, matchedAt: new Date() }));
-await ok('donor responds and acknowledges', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { responseStatus: 'Accepted', guidelinesAcknowledged: true, acknowledgedAt: new Date() }));
+await no('donor cannot bypass the response service', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { responseStatus: 'Accepted', guidelinesAcknowledged: true, acknowledgedAt: new Date() }));
 await no('donor cannot write screening fields', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { screeningStatus: 'Cleared' }));
 await no('donor cannot re-point a match', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { donationTypeId: 'platelets' }));
 await ok('staff writes the screening result', updateDoc(doc(db(staff1()), 'donorMatches/r1_alice'), { screenedByUserId: 'staff1', screeningStatus: 'Cleared' }));
@@ -269,8 +273,15 @@ await no('screening status follows the decided enum', updateDoc(doc(db(staff1())
 await no('matches are never deleted', deleteDoc(doc(db(admin()), 'donorMatches/r1_alice')));
 // D27: coordinates ride the match so that hospital's staff can see them.
 await no('coordinates need a share timestamp', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { donorLatitude: 14.84, donorLongitude: 120.81 }));
-await ok('donor shares coordinates at accept', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { donorLatitude: 14.84, donorLongitude: 120.81, locationSharedAt: serverTimestamp() }));
+await no('donor cannot share coordinates outside the response transaction', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { donorLatitude: 14.84, donorLongitude: 120.81, locationSharedAt: serverTimestamp() }));
 await no('a donor cannot edit another donor’s match', updateDoc(doc(db(as('bob')), 'donorMatches/r1_alice'), { responseStatus: 'Declined' }));
+
+console.log('donorCommitments');
+await ok('donor reads their commitment', readDoc(as('alice'), 'donorCommitments/alice'));
+await no('another donor cannot read a commitment', readDoc(as('bob'), 'donorCommitments/alice'));
+await no('donor cannot replace the commitment lock', setDoc(doc(db(as('alice')), 'donorCommitments/alice'), { donorId: 'alice', matchId: 'other', requestId: 'other', acceptedAt: new Date() }));
+await no('donor cannot delete the commitment lock', deleteDoc(doc(db(as('alice')), 'donorCommitments/alice')));
+await no('donor cannot write notification read state directly', updateDoc(doc(db(as('alice')), 'notifications/n1'), { readAt: new Date() }));
 
 // ---- donorConsents -------------------------------------------------------
 console.log('donorConsents');

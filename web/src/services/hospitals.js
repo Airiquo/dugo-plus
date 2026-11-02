@@ -12,6 +12,7 @@ function text(value) {
 }
 
 function num(value) {
+  if (value == null || String(value).trim() === '') return null
   const n = Number(value)
   return Number.isFinite(n) ? n : null
 }
@@ -36,4 +37,34 @@ export async function getHospital(hospitalId) {
     geohash: text(data.geohash),
     status: text(data.status),
   }
+}
+
+/**
+ * The facilities behind a set of IDs.
+ *
+ * A missing or unreadable document maps to `null` rather than failing the
+ * caller: the history row still shows its date and component.
+ *
+ * @param {string[]} ids
+ * @returns {Promise<Map<string, { id: string, name: string, address: string } | null>>}
+ */
+export async function readHospitals(ids) {
+  requireDb()
+  const unique = [...new Set(ids.filter((id) => typeof id === 'string' && id))]
+  const rows = await Promise.all(
+    unique.map(async (id) => {
+      try {
+        const snap = await getDoc(doc(db, 'hospitals', id))
+        if (!snap.exists()) return [id, null]
+        const data = snap.data() ?? {}
+        return [
+          id,
+          { id, name: text(data.name), address: text(data.address) },
+        ]
+      } catch {
+        return [id, null]
+      }
+    }),
+  )
+  return new Map(rows)
 }

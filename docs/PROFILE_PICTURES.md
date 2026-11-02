@@ -11,6 +11,8 @@ Owner-requested extension, D39; F1/F9; FR-04, FR-012, FR-047.
   Picture saves are independent of other profile fields and do not reset unsaved details.
 - Replace or remove the current picture. Navigation refreshes immediately after
   the profile write succeeds. Missing, cleared and broken images show initials.
+- On the donor profile card, the saved picture is the primary identity marker;
+  the donor name and blood type appear below it.
 - Failed uploads preserve the existing picture. If upload succeeds but the
   profile write fails, retry reuses that upload while the editor remains open.
 - Missing Cloudinary configuration disables choosing/uploading, while ordinary

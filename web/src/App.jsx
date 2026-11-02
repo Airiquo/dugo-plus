@@ -22,6 +22,7 @@ import AdminAccounts from './pages/admin/Accounts'
 import AdminSettings from './pages/admin/Settings'
 import AdminDataRequests from './pages/admin/DataRequests'
 import Profile from './pages/donor/Profile'
+import Activity from './pages/donor/Activity'
 import DonorPrivacy from './pages/donor/Privacy'
 import Requests from './pages/donor/Requests'
 import Alerts from './pages/donor/Alerts'
@@ -124,6 +125,18 @@ export default function App() {
                 <RequireVerified>
                   <RequireRole roles={['donor']}>
                     <Profile />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/donor/activity"
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['donor']}>
+                    <Activity />
                   </RequireRole>
                 </RequireVerified>
               </RequireAuth>

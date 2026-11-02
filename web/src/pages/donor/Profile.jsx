@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 import { readProfile, saveProfile, BLOOD_TYPES, roleLabel } from '../../services/users'
 import { saveDonorLocation } from '../../services/donorLocations'
+import { cityFromCoordinates } from '../../services/reverseGeocoding'
+import { latestDonorDonation } from '../../services/donations'
 import { eligibilityFor, toDate } from '../../utils/eligibility'
 import { validateProfile } from '../../utils/validate'
 import { FieldError, Icon, CarePageHeader, CareDonorCard, ProfilePhotoEditor } from '../../components'
@@ -45,14 +47,12 @@ function formFrom(profile) {
  * reuses the same `pub-nav` + `.pub` scope the sign-in screens and `Welcome`
  * use, which is what makes both themes carry unchanged.
  *
- * Location is captured from the browser's geolocation prompt on request, with
- * the city as a manual field. Declining the prompt, or a browser that blocks it
- * on an insecure origin, is a normal state: the city alone is saved and the
- * screen says the coordinates are missing rather than failing the save.
+ * Location is captured from the browser's geolocation prompt on request. An
+ * authenticated Worker suggests a city from the point; donors can edit it.
  */
 export default function Profile() {
   const { theme } = useTheme()
-  const { user, loading, role, roleLoading, signOut } = useAuth()
+  const { user, profile, loading, role, roleLoading, signOut } = useAuth()
 
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [loadFailed, setLoadFailed] = useState(false)
@@ -63,10 +63,11 @@ export default function Profile() {
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [locating, setLocating] = useState(false)
+  const [identityDraft, setIdentityDraft] = useState(null)
+  const identityDialog = useRef(null)
 
-  // Load the profile once the session is known. `readProfile` is the only
-  // reader; the session's own `profile` in the context is identity-only and
-  // would go stale after a save here.
+  // Load the latest profile when the session is known. The session context is
+  // not refreshed by profile edits made on this screen.
   useEffect(() => {
     if (!user?.uid) return
     let current = true
@@ -91,12 +92,41 @@ export default function Profile() {
     }
   }, [user?.uid])
 
+  const [lastDonation, setLastDonation] = useState(null)
+  useEffect(() => {
+    setLastDonation(null)
+    if (!user?.uid || !saved.lastDonationAt) return
+    let current = true
+    latestDonorDonation(user.uid)
+      .then((found) => {
+        if (current) setLastDonation(found)
+      })
+      .catch(() => {
+        if (current) setLastDonation(null)
+      })
+    return () => {
+      current = false
+    }
+  }, [user?.uid, saved.lastDonationAt])
+
   const eligibility = useMemo(
-    () => eligibilityFor({ dateOfBirth: form.dateOfBirth, lastDonationAt: saved.lastDonationAt }),
-    [form.dateOfBirth, saved.lastDonationAt],
+    () =>
+      eligibilityFor({
+        dateOfBirth: form.dateOfBirth,
+        lastDonationAt: saved.lastDonationAt,
+        intervalDays: lastDonation?.intervalDays || null,
+      }),
+    [form.dateOfBirth, saved.lastDonationAt, lastDonation],
   )
 
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved])
+
+  useEffect(() => {
+    const dialog = identityDialog.current
+    if (!dialog) return
+    if (identityDraft && !dialog.open) dialog.showModal()
+    if (!identityDraft && dialog.open) dialog.close()
+  }, [identityDraft])
 
   if (loading || roleLoading) {
     return (
@@ -131,18 +161,31 @@ export default function Profile() {
       setNote('This browser cannot read your location. Enter your city instead.')
       return
     }
+    const cityAtLookupStart = form.city
     setLocating(true)
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setForm((prev) => ({
-          ...prev,
-          coordinates: {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          },
-        }))
-        setLocating(false)
-        setNote('Coordinates captured. Save to keep them.')
+      async (position) => {
+        const coordinates = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        }
+        setForm((prev) => ({ ...prev, coordinates }))
+        setNote('Location captured. Finding your city…')
+        try {
+          const city = await cityFromCoordinates(coordinates)
+          if (!city) throw new Error('No city was found for this location.')
+          setForm((prev) => ({
+            ...prev,
+            ...(prev.city === cityAtLookupStart ? { city } : {}),
+          }))
+          setNote('City suggested. Check it, then save your profile.')
+        } catch {
+          setNote(
+            'Coordinates captured, but your city could not be found. Enter it manually.',
+          )
+        } finally {
+          setLocating(false)
+        }
       },
       (error) => {
         setLocating(false)
@@ -158,6 +201,49 @@ export default function Profile() {
     )
   }
 
+  const persistProfile = async (draft) => {
+    setBusy(true)
+    setMessage('')
+    setNote('')
+    try {
+      await saveProfile(user.uid, {
+        fullName: draft.fullName,
+        bloodType: draft.bloodType,
+        dateOfBirth: draft.dateOfBirth ? new Date(draft.dateOfBirth) : null,
+        phoneNumber: draft.phoneNumber,
+        // Sent only when the donor changed location details, so a save that
+        // touches nothing else never rewrites the stored coordinates.
+        ...(locChanged(draft, saved)
+          ? {
+              location: {
+                coordinates: draft.coordinates,
+                city: draft.city,
+              },
+            }
+          : {}),
+      })
+      // Keep a thin mirror for the hospital's nearby-donor view (D31); the
+      // donor's own `users` document stays owner+admin (NFR-11).
+      try {
+        await saveDonorLocation(user.uid, {
+          latitude: draft.coordinates?.lat,
+          longitude: draft.coordinates?.lng,
+          city: draft.city,
+          bloodType: draft.bloodType,
+        })
+      } catch {
+        // best effort — profile save already succeeded
+      }
+      setForm(draft)
+      setSaved(draft)
+      setNote('Profile saved.')
+    } catch {
+      setMessage('Your profile could not be saved. Check your connection and try again.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const submit = async (event) => {
     event.preventDefault()
     if (!profileLoaded || loadFailed) return
@@ -167,45 +253,34 @@ export default function Profile() {
       setMessage('')
       return
     }
-    setBusy(true)
     setMessage('')
     setNote('')
-    try {
-      await saveProfile(user.uid, {
-        fullName: form.fullName,
-        bloodType: form.bloodType,
-        dateOfBirth: form.dateOfBirth ? new Date(form.dateOfBirth) : null,
-        phoneNumber: form.phoneNumber,
-        // Sent only when the donor changed location details, so a save that
-        // touches nothing else never rewrites the stored coordinates.
-        ...(locChanged(form, saved)
-          ? {
-              location: {
-                coordinates: form.coordinates,
-                city: form.city,
-              },
-            }
-          : {}),
-      })
-      // Keep a thin mirror for the hospital's nearby-donor view (D31); the
-      // donor's own `users` document stays owner+admin (NFR-11).
-      try {
-        await saveDonorLocation(user.uid, {
-          latitude: form.coordinates?.lat,
-          longitude: form.coordinates?.lng,
-          city: form.city,
-          bloodType: form.bloodType,
-        })
-      } catch {
-        // best effort — profile save already succeeded
-      }
-      setSaved(form)
-      setNote('Profile saved.')
-    } catch {
-      setMessage('Your profile could not be saved. Check your connection and try again.')
-    } finally {
-      setBusy(false)
+    const choosingIdentity =
+      (!saved.bloodType && Boolean(form.bloodType)) ||
+      (!saved.dateOfBirth && Boolean(form.dateOfBirth))
+    if (choosingIdentity) {
+      setIdentityDraft({ ...form })
+      return
     }
+    await persistProfile(form)
+  }
+
+  const confirmIdentity = async () => {
+    if (!identityDraft) return
+    const draft = identityDraft
+    setIdentityDraft(null)
+    await persistProfile(draft)
+  }
+
+  const lockedIdentity = {
+    bloodType: Boolean(saved.bloodType),
+    dateOfBirth: Boolean(saved.dateOfBirth),
+  }
+  const dateOfBirthLabel = (value) => {
+    const date = toDate(value)
+    return date
+      ? new Intl.DateTimeFormat(undefined, { dateStyle: 'long' }).format(date)
+      : 'Not set'
   }
 
   return (
@@ -267,8 +342,9 @@ export default function Profile() {
             <h4 className="profile-section-h">Donor details</h4>
             <label>
               <span>Blood type</span>
-              <select
+              <span className="app-select"><select
                 value={form.bloodType}
+                disabled={!profileLoaded || busy || lockedIdentity.bloodType}
                 aria-invalid={Boolean(errors.bloodType) || undefined}
                 aria-describedby={errors.bloodType ? 'profile-blood-error' : undefined}
                 onChange={set('bloodType')}
@@ -279,8 +355,9 @@ export default function Profile() {
                     {type}
                   </option>
                 ))}
-              </select>
+              </select></span>
               <FieldError id="profile-blood-error">{errors.bloodType}</FieldError>
+              {lockedIdentity.bloodType && <span className="profile-locked-hint">Locked after saving</span>}
             </label>
             <label>
               <span>Date of birth</span>
@@ -288,12 +365,15 @@ export default function Profile() {
                 type="date"
                 max={dateInputValue(new Date())}
                 value={form.dateOfBirth}
+                disabled={!profileLoaded || busy || lockedIdentity.dateOfBirth}
                 aria-invalid={Boolean(errors.dateOfBirth) || undefined}
                 aria-describedby={errors.dateOfBirth ? 'profile-dob-error' : undefined}
                 onChange={set('dateOfBirth')}
               />
               <FieldError id="profile-dob-error">{errors.dateOfBirth}</FieldError>
+              {lockedIdentity.dateOfBirth && <span className="profile-locked-hint">Locked after saving</span>}
             </label>
+            <p className="pub-fine">Blood type and date of birth can each be chosen once. You’ll review them before they’re saved.</p>
           </div>
 
           {/* Contact ------------------------------------------------- */}
@@ -318,7 +398,12 @@ export default function Profile() {
           <div className="profile-section">
             <h4 className="profile-section-h">Location</h4>
             <p className="pub-fine">
-              Used to match you to requests nearby. Coordinates are optional.
+              Used to match you to nearby requests. When you tap Use my location,
+              an approximate point is sent to OpenStreetMap to suggest your city.
+              Check the suggestion before saving.
+            </p>
+            <p className="profile-location-attribution">
+              City suggestions: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a>
             </p>
             <label>
               <span>City</span>
@@ -390,9 +475,33 @@ export default function Profile() {
             </button>
           </div>
         </form>
-        <CareDonorCard bloodType={form.bloodType} city={form.city} eligibility={eligibility} loaded={profileLoaded && !loadFailed} error={loadFailed} />
+        <CareDonorCard bloodType={form.bloodType} city={form.city} eligibility={eligibility} loaded={profileLoaded && !loadFailed} error={loadFailed} photoURL={profile?.photoURL} name={form.fullName || user.displayName || user.email} />
         </div>
       </main>
+      <dialog
+        ref={identityDialog}
+        className="profile-confirm-dialog"
+        aria-labelledby="profile-confirm-title"
+        onCancel={(event) => {
+          event.preventDefault()
+          setIdentityDraft(null)
+        }}
+      >
+        <div className="profile-confirm-mark"><Icon name="shield" size={22} /></div>
+        <p className="pub-kicker">One-time details</p>
+        <h2 id="profile-confirm-title">Are these details correct?</h2>
+        <p>After saving, you won’t be able to change your blood type or date of birth. Please check them carefully.</p>
+        <dl className="profile-confirm-values">
+          <div><dt>Name</dt><dd>{identityDraft?.fullName || 'Not set'}</dd></div>
+          <div><dt>Blood type</dt><dd>{identityDraft?.bloodType || 'Not set'}</dd></div>
+          <div><dt>Date of birth</dt><dd>{dateOfBirthLabel(identityDraft?.dateOfBirth)}</dd></div>
+          <div><dt>City</dt><dd>{identityDraft?.city || 'Not set'}</dd></div>
+        </dl>
+        <div className="profile-confirm-actions">
+          <button className="btn" type="button" onClick={() => setIdentityDraft(null)}>Go back</button>
+          <button className="btn" data-primary type="button" disabled={busy} onClick={confirmIdentity}>{busy ? 'Saving…' : 'Confirm and save'}</button>
+        </div>
+      </dialog>
     </div>
   )
 }

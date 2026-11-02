@@ -21,7 +21,7 @@ export const perspectives = {
   donors: {
     title: 'Matched by proximity and eligibility.',
     text: 'Donors track health eligibility and donation history. Recipients submit a request and get matched to compatible donors within a 5–25 km radius.',
-    checks: ['Eligibility checked before you are alerted', 'Choose a radius from 5 to 25 km', 'In-app and email alerts, one tap to accept', 'Points for every confirmed donation'],
+    checks: ['Eligibility checked before you are alerted', 'Choose a radius from 5 to 25 km', 'In-app and email alerts, one tap to accept', 'A clear history of your confirmed donations'],
   },
   hospitals: {
     title: 'Coordinate every request with confidence.',
@@ -33,7 +33,7 @@ export const perspectives = {
 export const steps = [
   { title: 'Request submitted', text: 'A hospital or relative posts what is needed: blood type, units, and how urgent it is.', icon: 'request' },
   { title: 'Donors matched', text: 'Dugo+ filters by blood type, eligibility, and radius, then alerts compatible nearby donors.', icon: 'radar' },
-  { title: 'Donation confirmed', text: 'Staff log the donation, stock updates, and the donor earns points.', icon: 'check' },
+  { title: 'Donation confirmed', text: 'Staff confirm your donation, update the stock, and record it in your history.', icon: 'check' },
 ]
 
 export const values = [
@@ -75,5 +75,5 @@ export const reviews = [
   { name: 'Ana L.', initials: 'AL', role: 'Patient’s family', rating: 4, quote: 'A clear request status would take some of the uncertainty out of looking for a blood donor.' },
   { name: 'Carlo M.', initials: 'CM', role: 'Donor', rating: 5, quote: 'I like being able to see a compatible request nearby and decide when to share my contact details.' },
   { name: 'Bea S.', initials: 'BS', role: 'Hospital staff', rating: 4, quote: 'The screening and donation records feel connected. It is easier to see where a request stands.' },
-  { name: 'Jon C.', initials: 'JC', role: 'Donor', rating: 5, quote: 'Seeing my confirmed donation history and points gives every visit a little more meaning.' },
+  { name: 'Jon C.', initials: 'JC', role: 'Donor', rating: 5, quote: 'Seeing my confirmed donation history reminds me of the people each visit can help.' },
 ]

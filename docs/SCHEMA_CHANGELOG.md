@@ -224,6 +224,13 @@ Added optional `users/{uid}.photoURL`: a Cloudinary HTTPS image delivery URL, bo
 
 **Refs:** D39; F1, F9; FR-04, FR-012, FR-047.
 
-## 2026-11-02 — Account-history query (D42)
+## 2026-11-02 — single donor commitment and alert read state (D42/D43)
+
+- Added server-owned `donorCommitments/{donorId}` for serialized acceptance.
+- Added optional server-written `notifications.readAt` for unread inbox state.
+- Donor match responses/acknowledgment/location now commit through the donor API;
+  rules deny direct donor response edits. Both consent records commit atomically.
+- Reward transactions are legacy-only; future award seeding is removed (D43).
+## 2026-11-02 — Account-history query (D50)
 
 Adds an `auditBlocks` composite index on `hashedEntityRef` ASC, `entityType` ASC, `sequence` DESC for the active-admin account-history endpoint. Pages contain at most 25 user-entity events with an exclusive sequence continuation. Existing `auditContexts` and actor/subject `auditRedactions` control private details. No new collection or field. Index/Worker deployment pending; unit and REST-emulator checks pass.

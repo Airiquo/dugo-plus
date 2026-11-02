@@ -6,8 +6,10 @@
   "scripts": {
     "test:rules": "firebase emulators:exec --only firestore --project demo-dugo \"node firestore.rules.test.mjs\"",
     "test:profile-photos": "node --test web/src/utils/profilePhoto.test.js",
-    "test:matching": "node --test web/src/utils/geohash.test.js web/src/utils/matching.test.js web/src/utils/eligibility.test.js worker/src/firestore.test.js worker/src/matcher.test.js worker/src/audit.test.js worker/src/accounts.test.js worker/src/accountOperations.test.js web/src/utils/accountOperationRequest.test.js web/src/utils/accountActions.test.js worker/src/accountHistory.test.js",
+    "test:matching": "node --test web/src/utils/geo.test.js web/src/utils/geohash.test.js web/src/utils/matching.test.js web/src/utils/eligibility.test.js worker/src/firestore.test.js worker/src/matcher.test.js worker/src/audit.test.js worker/src/donorResponses.test.js worker/src/accounts.test.js worker/src/accountOperations.test.js worker/src/reverseGeocoding.test.js worker/src/accountHistory.test.js web/src/utils/accountOperationRequest.test.js web/src/utils/accountActions.test.js",
+    "dev:donor-api": "node --watch tools/donor-api-dev.mjs",
     "check:docs": "node tools/check-docs.mjs",
+    "seed:demo": "node scripts/seed-demo-world.mjs",
     "seed": "node scripts/seed-reference-data.mjs",
     "create:hospital": "node scripts/create-hospital.mjs",
     "set:claims": "node scripts/set-claims.mjs",
@@ -15,6 +17,7 @@
     "worker:dev": "wrangler dev -c worker/wrangler.toml --local",
     "worker:check": "wrangler deploy -c worker/wrangler.toml --dry-run --outdir .wrangler/tmp",
     "worker:deploy": "wrangler deploy -c worker/wrangler.toml",
+    "test:donor:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/donorResponses.emulator.test.js\"",
     "test:accounts:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/accounts.emulator.test.js\""
   },
   "devDependencies": {

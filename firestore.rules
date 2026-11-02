@@ -143,6 +143,9 @@ service cloud.firestore {
                          && request.resource.data.email is string
                          && (!('phoneNumber' in request.resource.data)
                              || request.resource.data.phoneNumber is string)
+                         && (!('dateOfBirth' in request.resource.data)
+                             || request.resource.data.dateOfBirth == null
+                             || request.resource.data.dateOfBirth is timestamp)
                          && (!('bloodType' in request.resource.data)
                              || isOptionalBloodType(request.resource.data.bloodType))
                          && (!('status' in request.resource.data)
@@ -170,10 +173,21 @@ service cloud.firestore {
                          && request.resource.data.email is string
                          && (!('phoneNumber' in request.resource.data)
                              || request.resource.data.phoneNumber is string)
+                         && (!('dateOfBirth' in request.resource.data)
+                             || request.resource.data.dateOfBirth == null
+                             || request.resource.data.dateOfBirth is timestamp)
                          && (
                               !('bloodType' in request.resource.data)
                               || isOptionalBloodType(request.resource.data.bloodType)
                             )
+                         // Donors choose these identity fields once. Empty
+                         // registration placeholders can still be completed.
+                         && (!('bloodType' in resource.data)
+                             || resource.data.bloodType == ''
+                             || request.resource.data.bloodType == resource.data.bloodType)
+                         && (!('dateOfBirth' in resource.data)
+                             || resource.data.dateOfBirth == null
+                             || request.resource.data.dateOfBirth == resource.data.dateOfBirth)
                          // Flat location fields; `address` is not collected.
                          && (!('city' in request.resource.data)
                              || request.resource.data.city is string)
@@ -371,40 +385,8 @@ service cloud.firestore {
       // Creation is matcher-only (schema §5.2).
       allow create: if false;
 
-      // The donor answers: response and acknowledgment fields only (schema §6).
-      // The donor's coordinates are written at accept, so the request's
-      // hospital staff can see where the donation is coming from (D30). They
-      // live on the match rather than on `users` so the existing read rule —
-      // donor, that hospital's staff, admin — is the whole boundary.
+      // Donor responses and consent are committed by the server transaction.
       allow update: if isAdmin()
-                    || (
-                         signedIn() && resource.data.donorId == me()
-                         && request.resource.data.donorId == resource.data.donorId
-                         && request.resource.data.diff(resource.data).affectedKeys()
-                              .hasOnly([
-                                'responseStatus',
-                                'guidelinesAcknowledged',
-                                'acknowledgedAt',
-                                'donorLatitude',
-                                'donorLongitude',
-                                'locationSharedAt',
-                              ])
-                         && request.resource.data.responseStatus is string
-                         && request.resource.data.guidelinesAcknowledged is bool
-                         && (
-                              request.resource.data.acknowledgedAt == null
-                              || request.resource.data.acknowledgedAt is timestamp
-                            )
-                         && (
-                              !('donorLatitude' in request.resource.data)
-                              || request.resource.data.donorLatitude == null
-                              || (
-                                   request.resource.data.donorLatitude is number
-                                   && request.resource.data.donorLongitude is number
-                                   && request.resource.data.locationSharedAt is timestamp
-                                 )
-                            )
-                       )
                     // Staff record the screening result: those fields only
                     // (schema §6). ScreeningStatus is a decided enum.
                     || (
@@ -423,6 +405,11 @@ service cloud.firestore {
                        );
 
       allow delete: if false;
+    }
+
+    match /donorCommitments/{donorId} {
+      allow read: if signedIn() && donorId == me();
+      allow write: if false;
     }
 
     match /donorConsents/{consentId} {
@@ -489,8 +476,8 @@ service cloud.firestore {
     }
 
     // One record per completed match (schema §2.9). Staff of the owning
-    // hospital confirm; points and lastDonationAt are written by the F8 server
-    // transaction (D12, D14).
+    // hospital confirm; lastDonationAt is written by the F8 server
+    // transaction (D14).
     match /donations/{matchId} {
       allow read: if isAdmin()
                   || (signedIn() && resource.data.donorId == me())

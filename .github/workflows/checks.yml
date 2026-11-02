@@ -75,3 +75,6 @@ jobs:
 
       - name: Account Worker REST transaction suite
         run: npm run test:accounts:emulator
+
+      - name: Donor response transaction suite
+        run: npm run test:donor:emulator
