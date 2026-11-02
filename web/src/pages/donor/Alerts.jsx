@@ -4,7 +4,9 @@ import { useAuth } from '../../hooks/useAuth'
 import { useTheme } from '../../hooks/useTheme'
 import { useDonorRequests } from '../../hooks/useDonorRequests'
 import { DonorNav } from '../../layout/DonorNav'
-import { Icon } from '../../components'
+import { useTableSort } from '../../hooks/useTableSort'
+import { sortRows, sortDate } from '../../utils/sortRows'
+import { SortControls, Icon } from '../../components'
 import { listenDonorAlerts, markAlertsRead } from '../../services/alerts'
 import {
   componentName,
@@ -25,6 +27,7 @@ function alertTime(value) {
 }
 /** Actionable donor inbox with request context, unread state, and request deep links. */
 export default function Alerts() {
+  const { sort, setSort } = useTableSort()
   const { user } = useAuth(),
     { theme } = useTheme(),
     navigate = useNavigate()
@@ -44,7 +47,8 @@ export default function Alerts() {
     )
   }, [user?.uid, attempt])
   const unread = state.items.filter((item) => !item.readAt),
-    visible = filter === 'unread' ? unread : state.items
+    filteredAlerts = filter === 'unread' ? unread : state.items
+  const visible = sortRows(filteredAlerts, { date: row => sortDate(row.createdAt || row.sentAt), hospital: row => { const item = feed.items.find(item => item.request.id === row.requestId); return item?.hospital?.name || item?.request.hospitalName }, read: row => row.readAt ? 'Read' : 'Unread' }[sort.key], sort.direction)
   const active = feed.items.find(isActiveCommitment)
   const readAll = async () => {
     setBusy(true)
@@ -87,6 +91,7 @@ export default function Alerts() {
             className="donation-inbox-panel"
             aria-label="Donation updates"
           >
+            <SortControls name="donor-alerts" sort={sort} onChange={setSort} defaultLabel="Newest updates first" fields={[{key:"date",label:"Received date"},{key:"hospital",label:"Hospital"},{key:"read",label:"Read status"}]} />
             <div className="donation-list-heading">
               <div>
                 <p className="donation-eyebrow">Your inbox</p>

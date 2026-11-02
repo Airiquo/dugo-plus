@@ -6,6 +6,9 @@ import { useDonorRequests } from '../../hooks/useDonorRequests'
 import { useDonorLocation } from '../../hooks/useDonorLocation'
 import { DonorNav } from '../../layout/DonorNav'
 import { Icon, DonorRequestMap, DonorRequestDetails, BloodlineMark } from '../../components'
+import { useTableSort } from '../../hooks/useTableSort'
+import { sortRows, sortDate } from '../../utils/sortRows'
+import { SortControls } from '../../components/SortControls'
 import { respondToMatch } from '../../services/matches'
 import { listDonationTypes } from '../../services/donationTypes'
 import { DEFAULT_INTERVALS, eligibilityFor } from '../../utils/eligibility'
@@ -22,6 +25,7 @@ import {
 
 /** Donor request discovery, one active commitment, and informed responses. */
 export default function Requests() {
+  const { sort, setSort } = useTableSort()
   const { user, profile } = useAuth(),
     { theme } = useTheme()
   const feed = useDonorRequests(user?.uid),
@@ -79,7 +83,7 @@ export default function Requests() {
     (item) => !isAvailableRequest(item) && !isActiveCommitment(item),
   )
   const source = tab === 'available' ? available : past
-  const visible = source.filter(
+  const filteredRequests = source.filter(
     (item) =>
       (component === 'all' || item.request.component === component) &&
       (!Number.isFinite(item.distance) ||
@@ -89,6 +93,7 @@ export default function Requests() {
         .toLowerCase()
         .includes(search.toLowerCase()),
   )
+  const visible = sortRows(filteredRequests, { hospital: item => item.hospital?.name || item.request.hospitalName, distance: item => item.distance, requested: item => sortDate(item.request.createdAt), units: item => Number(item.request.quantity), component: item => componentName(item.request.component) }[sort.key], sort.direction)
   const selected = items.find((item) => item.match.id === selectedId)
   useEffect(() => {
     const id = params.get('request')
@@ -335,6 +340,7 @@ export default function Requests() {
                     Past responses<span>{past.length}</span>
                   </button>
                 </div>
+                <SortControls name="donor-requests" sort={sort} onChange={setSort} defaultLabel="Urgency, then distance" fields={[{key:"hospital",label:"Hospital"},{key:"distance",label:"Distance"},{key:"requested",label:"Requested date"},{key:"units",label:"Units"},{key:"component",label:"Donation type"}]} />
                 <div className="donation-filters">
                   <label className="donation-search">
                     <Icon name="search" size={18} />

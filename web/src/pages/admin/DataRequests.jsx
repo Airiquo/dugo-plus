@@ -10,7 +10,9 @@ import {
   requestTypeLabel,
   updateDataRequest,
 } from '../../services/dataRequests'
-import { Btn, Card, Field, Input, Modal, PageHeader, Select, Textarea } from '../../components'
+import { useTableSort } from '../../hooks/useTableSort'
+import { sortRows, sortDate } from '../../utils/sortRows'
+import { SortableHeader, Btn, Card, Field, Input, Modal, PageHeader, Select, Textarea } from '../../components'
 
 /**
  * Admin data-subject request queue (FR-039/NFR-19).
@@ -36,6 +38,7 @@ function dateLabel(value) {
 const STATUS_OPTIONS = ['Pending', 'InProgress', 'Completed', 'Rejected']
 
 export default function DataRequests() {
+  const { sort, toggleSort } = useTableSort()
   const { user } = useAuth()
   const [requests, setRequests] = useState([])
   const [accounts, setAccounts] = useState([])
@@ -68,6 +71,8 @@ export default function DataRequests() {
     accounts.forEach((a) => map.set(a.id, a))
     return map
   }, [accounts])
+
+  const orderedRequests = sortRows(requests, { createdAt: row => sortDate(row.createdAt), subject: row => byId.get(row.userId)?.fullName || byId.get(row.userId)?.email || row.userId, type: row => requestTypeLabel(row.requestType), status: row => requestStatusLabel(row.status) }[sort.key], sort.direction)
 
   const active = requests.find((r) => r.id === activeId) || null
   const subject = active ? byId.get(active.userId) : null
@@ -214,15 +219,15 @@ export default function DataRequests() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Submitted</th>
-                    <th>Subject</th>
-                    <th>Type</th>
-                    <th>Status</th>
+                    <SortableHeader sortKey="createdAt" sort={sort} onSort={toggleSort}>Submitted</SortableHeader>
+                    <SortableHeader sortKey="subject" sort={sort} onSort={toggleSort}>Subject</SortableHeader>
+                    <SortableHeader sortKey="type" sort={sort} onSort={toggleSort}>Type</SortableHeader>
+                    <SortableHeader sortKey="status" sort={sort} onSort={toggleSort}>Status</SortableHeader>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {requests.map((req) => {
+                  {orderedRequests.map((req) => {
                     const person = byId.get(req.userId)
                     return (
                       <tr key={req.id}>

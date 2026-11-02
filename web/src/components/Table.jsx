@@ -1,4 +1,7 @@
 import { cx } from '../utils/cx'
+import { SortableHeader } from './SortableHeader'
+import { SortControls } from './SortControls'
+import { useId } from 'react'
 /**
  * Data table (`.table`), optionally wrapped in `.table-scroll`.
  *
@@ -10,17 +13,20 @@ import { cx } from '../utils/cx'
  * @param {(row: object, i: number) => string} [rowKey] - stable key for each row.
  * @param {boolean} [scroll] - wrap the table in `.table-scroll` (default true).
  * @param {(row: object, i: number) => object} [rowProps] - attributes for each `<tr>`.
+ * `sort` / `onSort` render controlled headers; parents sort the full filtered data before pagination.
+ * Set `columns[].sortable = false` for action columns.
  */
-export function Table({ columns, rows, rowKey, scroll = true, className, rowProps, ...rest }) {
+export function Table({ columns, rows, rowKey, scroll = true, className, rowProps, sort, onSort, ...rest }) {
+  const sortName = useId()
   const attrs = (props, row, i) => (typeof props === 'function' ? props(row, i) : props)
   const table = (
     <table className={cx('table', className)} {...rest}>
       <thead>
         <tr>
           {columns.map((col) => (
-            <th key={col.key} scope="col">
-              {col.header}
-            </th>
+            onSort && col.sortable !== false
+              ? <SortableHeader key={col.key} sortKey={col.key} sort={sort} onSort={onSort}>{col.header}</SortableHeader>
+              : <th key={col.key} scope="col">{col.header}</th>
           ))}
         </tr>
       </thead>
@@ -37,5 +43,10 @@ export function Table({ columns, rows, rowKey, scroll = true, className, rowProp
       </tbody>
     </table>
   )
-  return scroll ? <div className="table-scroll">{table}</div> : table
+  return <>
+    {onSort && <SortControls className="table-sort-mobile" name={`table-${sortName}`} sort={sort}
+      fields={columns.filter(column => column.sortable !== false).map(column => ({ key: column.key, label: column.header }))}
+      defaultLabel="Default order" onChange={next => onSort(next.key)} />}
+    {scroll ? <div className="table-scroll">{table}</div> : table}
+  </>
 }

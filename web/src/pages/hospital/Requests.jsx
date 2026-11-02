@@ -12,6 +12,8 @@ import {
   updateRequestStatus,
 } from '../../services/requests'
 import { isMatchingConfigured } from '../../services/matching'
+import { useTableSort } from '../../hooks/useTableSort'
+import { sortRows, sortDate } from '../../utils/sortRows'
 import { sortRequestsByUrgency } from '../../utils/matching'
 
 const STATUS_LABELS = {
@@ -33,6 +35,7 @@ const MANAGE_STATUSES = ['collecting', 'matched', 'fulfilled', 'cancelled']
 const NEEDS_CONFIRM = new Set(['fulfilled', 'cancelled'])
 const priorityLabel = (value) =>
   ({ urgent: 'Urgent', stat: 'Stat', routine: 'Routine' })[value] || value || 'Not set'
+const REQUEST_SORT = { request: row => `${row.bloodType || ''} ${componentLabel(row.component)}`, quantity: row => Number(row.quantity), priority: row => priorityLabel(row.urgencyLevel), status: row => STATUS_LABELS[row.status] || row.status, createdAt: row => sortDate(row.createdAt) }
 const shortId = (row) => row.id.slice(-6).toUpperCase()
 
 function requestedDate(date) {
@@ -49,6 +52,7 @@ function requestedDate(date) {
 }
 
 export default function Requests() {
+  const { sort, toggleSort, setSort } = useTableSort()
   const { profile } = useAuth()
   const hospitalId = profile?.hospitalId ?? ''
   const currentTabRef = useRef(null)
@@ -116,7 +120,7 @@ export default function Requests() {
   }, [hospitalId])
 
   const ordered = useMemo(() => sortRequestsByUrgency(rows), [rows])
-  const visible = useMemo(() => {
+  const filteredRows = useMemo(() => {
     const query = search.trim().toLowerCase()
     return ordered.filter(
       (row) =>
@@ -134,6 +138,7 @@ export default function Requests() {
             .includes(query)),
     )
   }, [ordered, search, component])
+  const visible = useMemo(() => sortRows(filteredRows, REQUEST_SORT[sort.key], sort.direction), [filteredRows, sort])
   const totalPages = Math.max(1, Math.ceil(visible.length / pageSize))
   const currentPage = Math.min(page, totalPages)
   const start = (currentPage - 1) * pageSize
@@ -286,6 +291,7 @@ export default function Requests() {
     {
       key: 'manage',
       header: 'Action',
+      sortable: false,
       cellProps: { 'data-label': 'Action' },
       render: (row) =>
         ACTIVE_STATUSES.includes(row.status) ? (
@@ -486,7 +492,8 @@ export default function Requests() {
             </label>
             <span className="hreq-sort">
               <Icon name="list" size={15} />
-              Priority order
+              {sort.key ? `${columns.find(column => column.key === sort.key)?.header}: ${sort.direction === 'asc' ? 'ascending' : 'descending'}` : 'Priority order'}
+              {sort.key && <button type="button" className="donation-text-link" onClick={() => { setSort({ key: null, direction: 'asc' }); setPage(1) }}>Reset order</button>}
             </span>
           </div>
           {!hospitalId ? (
@@ -564,6 +571,8 @@ export default function Requests() {
                 className="hreq-table"
                 aria-label="Facility blood requests"
                 columns={columns}
+                sort={sort}
+                onSort={key => { toggleSort(key); setPage(1) }}
                 rows={paged}
                 rowKey={(row) => row.id}
                 scroll={false}

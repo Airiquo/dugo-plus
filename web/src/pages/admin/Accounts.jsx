@@ -11,6 +11,8 @@ import {
 import { getAccountHistory } from "../../services/audit";
 import {
   AdminDialog,
+  SortableHeader,
+  SortControls,
   AccountProfileEditor,
   HospitalLocationMap,
   Btn,
@@ -21,6 +23,8 @@ import {
   Select,
 } from "../../components";
 import { accountActionReasons, accountProfileEditReason } from "../../utils/accountActions";
+import { useTableSort } from "../../hooks/useTableSort";
+import { sortRows } from "../../utils/sortRows";
 import { asPoint } from "../../utils/geo";
 
 /** Account directory, hospital provisioning and per-account history (FR-040/035). */
@@ -97,7 +101,10 @@ const auditNote = (result) =>
     ? " Its activity record is saved and awaiting audit delivery."
     : "";
 
+const ACCOUNT_SORT = { account: row => row.fullName || row.email || "", type: row => `${role(row.role)} ${row.hospitalId || ""}`, status: row => row.status || "Active" };
+
 export default function Accounts() {
+  const { sort, toggleSort, setSort } = useTableSort();
   const { user } = useAuth();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -167,9 +174,10 @@ export default function Accounts() {
       }),
     [accounts, query, roleFilter, statusFilter],
   );
-  const pages = Math.max(1, Math.ceil(filtered.length / 10));
+  const sorted = useMemo(() => sortRows(filtered, ACCOUNT_SORT[sort.key], sort.direction), [filtered, sort]);
+  const pages = Math.max(1, Math.ceil(sorted.length / 10));
   const current = Math.min(page, pages);
-  const visible = filtered.slice((current - 1) * 10, current * 10);
+  const visible = sorted.slice((current - 1) * 10, current * 10);
   const counts = accounts.reduce((out, account) => {
     const status = account.status || "Active";
     out[status] = (out[status] || 0) + 1;
@@ -499,7 +507,8 @@ export default function Accounts() {
               />
             </Field>
           </div>
-          <div aria-busy={loading}>
+        <SortControls className="table-sort-mobile" name="accounts" sort={sort} onChange={next => { setSort(next); setPage(1); }} defaultLabel="Account name (A–Z)" fields={[{key:'account',label:'Account'},{key:'type',label:'Type / facility'},{key:'status',label:'Access'}]} />
+        <div aria-busy={loading}>
             {loading && !accounts.length ? (
               <div className="aa-empty" role="status">
                 Loading the account directory…
@@ -536,9 +545,9 @@ export default function Accounts() {
                 </caption>
                 <thead>
                   <tr>
-                    <th scope="col">Account</th>
-                    <th scope="col">Type / facility</th>
-                    <th scope="col">Access</th>
+                    <SortableHeader sortKey="account" sort={sort} onSort={key => { toggleSort(key); setPage(1); }}>Account</SortableHeader>
+                    <SortableHeader sortKey="type" sort={sort} onSort={key => { toggleSort(key); setPage(1); }}>Type / facility</SortableHeader>
+                    <SortableHeader sortKey="status" sort={sort} onSort={key => { toggleSort(key); setPage(1); }}>Access</SortableHeader>
                     <th scope="col">Actions</th>
                   </tr>
                 </thead>

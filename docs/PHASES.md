@@ -349,6 +349,8 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Record sorting across roles (2026-11-02, D55).** Owner requests ascending/descending table columns and extends sorting to hospital and donor screens. Shared headers and equivalent donor card controls preserve existing defaults; full loaded filtered table data sorts before pagination. See `docs/ROLE_RECORD_SORTING.md` for scope and fixture verification. No phase count changes.
+
 - **Erasure recovery fixed (2026-11-02, D54).** Owner authorizes the audit recommendations on feature/fix branches with meaningful commits. Accounts now permits permanent sign-in cleanup after profile erasure, using the existing Removed-only server action. Restore/edit protection remains. No schema or permission expansion; local regression/emulator evidence accompanies this fix.
 
 - **Hospital location/profile editing and donor-map focus (2026-11-02, D52/D53).** Owner requests a read-only hospital-profile location, pinning at hospital creation, audited admin corrections and tap-to-zoom hospital pins on the donor map. The Accounts editor validates a fresh revision, keeps facility/profile/location-mirror writes and the audit outbox atomic, and logs changed field names/reasons. Hospital location locks are enforced in rules. Local tests and browser/auth smoke are recorded in `docs/ACCOUNT_PROFILE_EDITING.md`; Worker, Hosting and tightened-rules deployment remain pending. Phase counts are unchanged. No product question is outstanding for this scope.

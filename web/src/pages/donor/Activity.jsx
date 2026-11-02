@@ -5,7 +5,9 @@ import { useAuth } from '../../hooks/useAuth'
 import { listDonorDonations } from '../../services/donations'
 import { readHospitals } from '../../services/hospitals'
 import { eligibilityFor, toDate } from '../../utils/eligibility'
-import { BloodlineMark, Icon } from '../../components'
+import { useTableSort } from '../../hooks/useTableSort'
+import { sortRows, sortDate } from '../../utils/sortRows'
+import { SortControls, BloodlineMark, Icon } from '../../components'
 import { DonorNav } from '../../layout/DonorNav'
 
 const dateLabel = (value) => {
@@ -21,6 +23,7 @@ const dateLabel = (value) => {
 
 /** Donation history, expandable visit details, and the donor's next step. */
 export default function Activity() {
+  const { sort, setSort } = useTableSort()
   const { theme } = useTheme(),
     { user, profile } = useAuth()
   const [attempt, setAttempt] = useState(0),
@@ -63,17 +66,18 @@ export default function Activity() {
       }),
     [profile?.dateOfBirth, profile?.lastDonationAt, latest],
   )
-  const visible = state.donations.filter(
+  const filteredVisits = state.donations.filter(
     (donation) =>
       (type === 'all' || donation.donationTypeId === type) &&
       `${donation.donationTypeName} ${state.hospitals.get(donation.hospitalId)?.name || ''}`
         .toLowerCase()
         .includes(search.trim().toLowerCase()),
   )
+  const visible = sortRows(filteredVisits, { date: row => sortDate(row.donationDate), hospital: row => state.hospitals.get(row.hospitalId)?.name, component: row => row.donationTypeName, units: row => Number(row.units) }[sort.key], sort.direction)
   const years = new Map()
   for (const donation of visible) {
     const year =
-      toDate(donation.donationDate)?.getFullYear() || 'Earlier visits'
+      sort.key && sort.key !== 'date' ? 'All donations' : toDate(donation.donationDate)?.getFullYear() || 'Earlier visits'
     if (!years.has(year)) years.set(year, [])
     years.get(year).push(donation)
   }
@@ -236,6 +240,7 @@ export default function Activity() {
                     </label>
                   </div>
                 )}
+                <SortControls name="donor-history" sort={sort} onChange={setSort} defaultLabel="Newest visits first" fields={[{key:"date",label:"Donation date"},{key:"hospital",label:"Hospital"},{key:"component",label:"Donation type"},{key:"units",label:"Units"}]} />
                 {visible.length > 0 ? (
                   <div className="story-timeline">
                     {[...years].map(([year, donations]) => (
