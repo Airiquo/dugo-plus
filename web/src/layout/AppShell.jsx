@@ -1,132 +1,95 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Icon } from '../components/Icon'
-import { ProfileAvatar } from '../components/ProfileAvatar'
-import { useTheme } from '../hooks/useTheme'
-import { useAuth, userName } from '../hooks/useAuth'
-import { roleLabel } from '../services/users'
+import { RoleShell } from "./RoleShell";
 export const NAV = [
-  { slug: 'dashboard', screen: 'admin-dashboard', label: 'Dashboard', icon: 'grid' },
   {
-    slug: 'blood-requests',
-    screen: 'admin-blood-requests',
-    label: 'Blood Requests',
-    icon: 'list',
-    badge: { id: 'nav-urgent-count', status: 'urgent', text: '3' },
+    slug: "dashboard",
+    screen: "admin-dashboard",
+    label: "Dashboard",
+    icon: "grid",
   },
   {
-    slug: 'donor-matching',
-    screen: 'admin-donor-matching',
-    label: 'Donor Matching',
-    icon: 'target',
+    slug: "blood-requests",
+    screen: "admin-blood-requests",
+    label: "Blood Requests",
+    icon: "list",
+    badge: { id: "nav-urgent-count", status: "urgent", text: "3" },
   },
-  { slug: 'donor-registry', screen: 'admin-donor-registry', label: 'Donor Registry', icon: 'user' },
-  { slug: 'accounts', screen: 'admin-accounts', label: 'Accounts', icon: 'user' },
-  { slug: 'inventory', screen: 'admin-inventory', label: 'Inventory', icon: 'box' },
   {
-    slug: 'donations-rewards',
-    screen: 'admin-donations-rewards',
-    label: 'Donations',
-    icon: 'gift',
+    slug: "donor-matching",
+    screen: "admin-donor-matching",
+    label: "Donor Matching",
+    icon: "target",
   },
-  { slug: 'reports', screen: 'admin-reports', label: 'Reports', icon: 'chart' },
-  { slug: 'audit-trail', screen: 'admin-audit-trail', label: 'Audit Trail', icon: 'file' },
-  { slug: 'data-requests', screen: 'admin-data-requests', label: 'Data Requests', icon: 'download' },
-  { slug: 'settings', screen: 'admin-settings', label: 'Settings', icon: 'settings' },
   {
-    slug: 'profile',
-    screen: 'admin-profile',
-    label: 'Profile',
-    icon: 'user',
+    slug: "donor-registry",
+    screen: "admin-donor-registry",
+    label: "Donor Registry",
+    icon: "user",
   },
-]
-function Sidebar() {
-  const { pathname } = useLocation()
-  const { user, profile, role, signOut } = useAuth()
-  const { theme, toggle } = useTheme()
-  const navigate = useNavigate()
-  // `RequireAuth` guarantees a signed-in user; there is no demo identity to fall
-  // back to any more.
-  const name = userName(user)
-  const next = theme === 'light' ? 'dark' : 'light'
+  {
+    slug: "accounts",
+    screen: "admin-accounts",
+    label: "Accounts",
+    icon: "user",
+  },
+  {
+    slug: "inventory",
+    screen: "admin-inventory",
+    label: "Inventory",
+    icon: "box",
+  },
+  {
+    slug: "donations-rewards",
+    screen: "admin-donations-rewards",
+    label: "Donations",
+    icon: "gift",
+  },
+  { slug: "reports", screen: "admin-reports", label: "Reports", icon: "chart" },
+  {
+    slug: "audit-trail",
+    screen: "admin-audit-trail",
+    label: "Audit Trail",
+    icon: "file",
+  },
+  {
+    slug: "data-requests",
+    screen: "admin-data-requests",
+    label: "Data Requests",
+    icon: "download",
+  },
+  {
+    slug: "settings",
+    screen: "admin-settings",
+    label: "Settings",
+    icon: "settings",
+  },
+  {
+    slug: "profile",
+    screen: "admin-profile",
+    label: "Profile",
+    icon: "user",
+  },
+];
+/** Admin sidebar and compact mobile workspace navigation. */
+export function AppShell({ children, ...rest }) {
+  const items = NAV.filter((item) =>
+    [
+      "dashboard",
+      "accounts",
+      "audit-trail",
+      "data-requests",
+      "settings",
+      "profile",
+    ].includes(item.slug),
+  ).map((item) => ({
+    to: `/admin/${item.slug}`,
+    label: item.label,
+    icon: item.icon,
+    id: `nav-${item.slug}`,
+    exact: true,
+  }));
   return (
-    <aside id="sidebar">
-      <div id="sidebar-logo">
-        <Link to="/" id="sidebar-logo-name" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <span className="app-mark" aria-hidden="true" />
-          dugo<span className="plus">+</span>
-        </Link>
-        <span id="sidebar-logo-facility" className="pill">
-          Account management
-        </span>
-      </div>
-      <div id="sidebar-section-label">{roleLabel(role)}</div>
-      <nav id="sidebar-nav" aria-label="Main">
-        {NAV.filter(item => ['dashboard', 'accounts', 'audit-trail', 'data-requests', 'settings', 'profile'].includes(item.slug)).map((item) => {
-          const to = `/admin/${item.slug}`
-          const active = pathname === to
-          return (
-            <Link
-              key={item.slug}
-              id={`nav-${item.slug}`}
-              className="btn"
-              to={to}
-              data-active={active ? 'true' : 'false'}
-              aria-current={active ? 'page' : undefined}
-            >
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
-              {item.badge && (
-                <span id={item.badge.id} className="badge" data-status={item.badge.status}>
-                  {item.badge.text}
-                </span>
-              )}
-            </Link>
-          )
-        })}
-      </nav>
-      <div id="sidebar-signed-in">
-        <Link className="sidebar-profile-link" to="/admin/profile" aria-label={`Your profile, ${name}`}><ProfileAvatar src={profile?.photoURL} name={name} /><span>Signed in as {name}</span></Link>
-        <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-          <button
-            className="theme-toggle"
-            type="button"
-            onClick={toggle}
-            aria-label={`Switch to ${next} mode`}
-            title={`Switch to ${next} mode`}
-          >
-            <Icon name={theme === 'light' ? 'moon' : 'sun'} size={17} />
-          </button>
-          <button
-            id="sidebar-sign-out"
-            type="button"
-            onClick={async () => {
-              await signOut()
-              navigate('/')
-            }}
-          >
-            Sign out
-          </button>
-        </div>
-      </div>
-    </aside>
-  )
-}
-/**
- * Admin app chrome: the left sidebar only.
- *
- * The mockup's top toolbar (search, emergency, notifications, account chip) is
- * deliberately not carried here — the owner's direction is sidebar-only admin
- * chrome; the account drawer went with it, and sign-out lives in the sidebar.
- * The theme toggle moved down to the sign-out block so both themes stay
- * reachable from the shell.
- */
-export function AppShell({ children }) {
-  return (
-    <div id="app-shell">
-      <Sidebar />
-      <main id="page-content">{children}</main>
-      <div id="overlay-root" />
-      <div id="toast-root" />
-    </div>
-  )
+    <RoleShell area="admin" items={items} {...rest}>
+      {children}
+    </RoleShell>
+  );
 }

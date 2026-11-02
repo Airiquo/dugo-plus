@@ -572,3 +572,5 @@ is cancelled. An assumption is never recorded in place of an answer.
   Functions. Donation-confirmation and inventory events still wait on F8/F6.
   The transactional Worker append fix from the earlier sweep is still
   **not deployed**.
+
+- **Cross-role mobile workspaces (2026-11-03, D61):** shared navigation rendering now serves donor and staff shells. Compact staff headers, safe-area bottom docks, an admin navigation sheet, compact profile identities and labeled phone records address narrow screens. `docs/MOBILE_WORKSPACES.md` records browser coverage and remaining physical-device/live-account checks. No requirement status/count changed and no new product question was raised.

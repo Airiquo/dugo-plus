@@ -8042,3 +8042,187 @@ dialog.aa-confirm-dialog[id$=-modal] { width: min(540px,calc(100vw - 32px)); }
 
 /* Intentional profile composition: identity rail beside editable contact details and access facts. */
 .admin-profile-layout{display:grid;grid-template-columns:minmax(260px,.85fr) minmax(0,1.4fr);gap:24px;align-items:start}.admin-profile-main{min-width:0}.profile-identity-band{display:flex;justify-content:center;align-items:center;gap:9px;background:var(--care-pink);color:var(--d-red-ink);padding:15px 20px;border-bottom:1px solid var(--d-line);font-size:11px}.profile-identity-band svg{width:16px;height:16px}.admin-workspace .admin-profile-photo.profile-photo-editor{display:flex;flex-direction:column;align-items:center;gap:20px;padding:28px 24px 16px;margin:0;border:0;border-radius:0;background:transparent}.admin-profile-photo .profile-photo-preview{width:104px;height:104px;font-size:30px}.admin-profile-photo .profile-photo-content{text-align:center;min-width:0;width:100%}.admin-profile-photo .profile-photo-content h3{font-size:13px;font-weight:500;margin:0 0 10px}.admin-profile-photo .profile-photo-content h3 .muted{font-size:9px}.admin-profile-photo .profile-photo-content p{font-size:10px;line-height:1.8;color:var(--d-muted);overflow-wrap:anywhere}.admin-profile-photo .profile-photo-actions{justify-content:center;gap:8px}.admin-profile-photo .profile-photo-actions .btn{font-size:11px}.admin-profile-photo .profile-photo-status:empty{display:none}.profile-identity-details{text-align:center;padding:0 24px 28px}.profile-identity-details h2{font:400 25px/1.25 var(--d-font-sans);letter-spacing:-.035em;margin:8px 0 10px;overflow-wrap:anywhere}.profile-identity-details>p:not(.admin-care-eyebrow){font-size:12px;color:var(--d-muted);overflow-wrap:anywhere;margin:0 0 18px}.profile-identity-details .pill{font-size:10px}.profile-activity-link{border-top:1px solid var(--d-line);padding:20px 24px}.profile-activity-link a{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--d-red);font-size:12px}.profile-activity-link svg{width:16px}.profile-activity-link svg:last-child{margin-left:auto}.profile-contact-fields{border:0;border-radius:0;padding:0;margin:0}.profile-savebar{border-top:1px solid var(--d-line);background:var(--d-field)}.profile-field-error{color:var(--d-red-ink)}.admin-profile-main .aw-notice{margin:18px 0 0}.admin-profile-main .aw-panel-heading>svg{width:20px;color:var(--d-muted)}.profile-access .aw-facts{margin:0 0 24px}.profile-verification{display:inline-flex;gap:8px;align-items:center;font-size:12px}.profile-verification svg{width:16px;color:var(--d-blue)}.profile-account-record{border-top:1px solid var(--d-line);padding-top:18px;margin-top:20px;font-size:11px}.profile-account-record summary{cursor:pointer;color:var(--d-muted)}.profile-account-record dl{font-size:11px;overflow-wrap:anywhere;line-height:1.8}.profile-account-record dt{margin-top:14px;color:var(--d-muted);font-size:10px}.profile-account-record dd{margin:5px 0 0}.profile-access .aw-footnote{margin-bottom:0}.profile-savebar>div{flex-wrap:nowrap}.profile-savebar .btn{white-space:nowrap}@media(max-width:1100px){.admin-profile-layout{grid-template-columns:minmax(240px,.85fr) minmax(0,1.2fr)}.profile-savebar{flex-direction:column;align-items:stretch}.profile-savebar>div{justify-content:flex-end}}@media(max-width:900px){.admin-profile-layout{grid-template-columns:1fr}.admin-profile-identity{order:2}.admin-profile-main{order:1}.admin-profile-photo .profile-photo-content{max-width:420px}}@media(max-width:600px){.profile-savebar>div{display:grid;grid-template-columns:1fr 1fr}.profile-savebar .btn{justify-content:center}}
+
+/* Intentional shared mobile staff chrome, reusing the donor icon/link navigation pattern. */
+.role-shell#app-shell{grid-template-columns:224px minmax(0,1fr);padding:0}
+.role-shell #page-content{padding:32px clamp(24px,3vw,40px) 64px;outline:0}
+.role-shell #sidebar{padding:24px 12px}
+.role-shell #sidebar-logo-name{color:var(--d-ink);text-decoration:none}
+.role-shell #sidebar-nav .btn{gap:10px;padding:12px;font-size:13px}
+.role-shell #sidebar-nav .donor-nav-icon{display:inline-flex;flex:none}
+.role-session-actions{display:flex;align-items:center;gap:10px;margin-top:12px}
+.role-session-actions .theme-toggle{display:grid;place-items:center;flex:none;width:44px;height:44px}
+.role-session-error{padding:14px 16px;border:1px solid var(--d-red);border-radius:10px;font-size:13px;line-height:1.7;color:var(--d-red-ink);background:var(--d-panel)}
+.staff-mobile-header,.staff-bottom-nav{display:none}
+.workspace-nav a:focus-visible,.staff-bottom-nav button:focus-visible,.staff-mobile-header :focus-visible,.navigation-sheet :focus-visible{outline:2px solid var(--d-blue);outline-offset:3px}
+dialog.navigation-sheet[id$=-modal]{inset:auto 0 0;transform:none;width:min(540px,100%);max-width:100%;max-height:calc(90dvh - env(safe-area-inset-top));margin:0 auto;padding:0 0 max(12px,env(safe-area-inset-bottom));border:1px solid var(--d-line);border-radius:22px 22px 0 0;background:var(--d-panel);color:var(--d-ink);box-shadow:var(--care-shadow);overflow:auto}
+.navigation-sheet:not([open]){display:none}
+.navigation-sheet::backdrop{background:color-mix(in srgb,var(--d-ink) 35%,transparent);backdrop-filter:blur(3px)}
+.navigation-sheet>header{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px;border-bottom:1px solid var(--d-line)}
+.navigation-sheet>header h2{font:500 21px/1.3 var(--d-font-sans);margin:0;letter-spacing:-.03em}
+.navigation-sheet>header .btn{width:44px;height:44px;flex:none;justify-content:center;padding:10px}
+.navigation-sheet>.workspace-nav{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:16px}
+.navigation-sheet>.workspace-nav>a{display:flex;align-items:center;gap:12px;min-width:0;min-height:64px;padding:14px;border:1px solid var(--d-line);border-radius:12px;text-decoration:none;color:var(--d-ink);font-size:13px}
+.navigation-sheet>.workspace-nav>a[data-active=true]{background:var(--care-pink);color:var(--d-red);border-color:var(--d-red)}
+.navigation-sheet .donor-nav-icon{display:inline-flex;flex:none}
+@media(max-width:1024px){
+  .role-shell#app-shell{display:block}
+  .role-shell #sidebar{display:none}
+  .role-shell #page-content{padding:24px clamp(16px,3vw,28px) calc(110px + env(safe-area-inset-bottom));max-width:none}
+  .staff-mobile-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left));border-bottom:1px solid var(--d-line);background:var(--d-panel);min-height:72px}
+  .staff-mobile-brand{display:flex;align-items:center;gap:8px;min-width:0;text-decoration:none;color:var(--d-ink)}
+  .staff-mobile-brand>.app-mark{display:block;flex:none;width:28px;height:34px}
+  .staff-mobile-brand>span:last-child{min-width:0;font:600 24px/1 var(--d-font-sans);letter-spacing:-.065em}
+  .staff-mobile-brand b{font-weight:600;color:var(--d-red)}
+  .staff-mobile-brand small{display:block;margin-top:6px;font:400 10px/1.3 var(--d-font-sans);letter-spacing:0;color:var(--d-muted);white-space:nowrap}
+  .staff-mobile-actions{display:flex;align-items:center;gap:4px;flex:none}
+  .staff-mobile-actions>.btn,.staff-mobile-actions>.theme-toggle,.staff-mobile-avatar{display:grid;place-items:center;flex:none;width:44px;height:44px;min-width:44px;min-height:44px;margin:0;padding:10px;border:1px solid var(--d-line);border-radius:50%;background:var(--d-panel);color:var(--d-ink);text-decoration:none}
+  .staff-mobile-avatar{padding:0;border:0}.staff-mobile-avatar .profile-avatar{width:36px;height:36px;font-size:12px}
+  .staff-bottom-nav{position:fixed;inset:auto max(12px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));z-index:80;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:7px;border:1px solid var(--d-line);border-radius:18px;box-shadow:var(--care-shadow);background:var(--d-panel)}
+  .role-shell[data-area=hospital] .staff-bottom-nav{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .staff-bottom-nav>a,.staff-bottom-nav>button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:0;min-height:56px;padding:8px 4px;border:0;border-radius:12px;font:500 11px/1.2 var(--d-font-sans);text-align:center;color:var(--d-muted);background:transparent;text-decoration:none;cursor:pointer}
+  .staff-bottom-nav>a[data-active=true],.staff-bottom-nav>button[data-active=true]{background:var(--care-pink);color:var(--d-red)}
+  .staff-bottom-nav .donor-nav-icon{display:flex;align-items:center;justify-content:center}
+  .role-shell #page-header{gap:16px;padding-bottom:18px;align-items:flex-start}
+  .role-shell #page-title{font-size:clamp(28px,4vw,36px);line-height:1.15;margin-top:9px}
+  .role-shell #page-divider{margin-bottom:20px}
+  .role-shell #page-tag{font-size:10px}
+}
+@media(max-width:380px){.navigation-sheet>.workspace-nav{grid-template-columns:1fr}.staff-mobile-brand>span:last-child{font-size:22px}.staff-mobile-brand>.app-mark{width:24px}.staff-mobile-header{padding-inline:12px}}
+
+/* Intentional compact identity layout; the shared photo editor opens only when requested. */
+.profile-page-note{font:400 14px/1.8 var(--d-font-sans);color:var(--d-muted);margin:-4px 0 24px;max-width:60ch}
+.profile-identity-summary{display:flex;flex-direction:column;align-items:center;gap:18px;padding:24px}
+.profile-identity-summary>.profile-avatar{width:96px;height:96px;flex:none;font-size:30px}
+.profile-identity-summary .profile-identity-details{padding:0;min-width:0}
+.profile-photo-settings{border-top:1px solid var(--d-line)}
+.profile-photo-settings>summary{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;cursor:pointer;font-size:13px;list-style:none}
+.profile-photo-settings>summary::-webkit-details-marker{display:none}
+.profile-photo-settings>summary>span:last-child{display:flex;align-items:center;gap:8px;color:var(--d-red);font-size:12px}
+.profile-photo-settings[open]>summary svg{transform:rotate(90deg)}
+.admin-workspace .profile-photo-settings .admin-profile-photo.profile-photo-editor{padding:8px 24px 24px}
+@media(max-width:1279px){
+  .admin-profile-layout{grid-template-columns:minmax(0,1fr);gap:0}
+  .admin-profile-identity{order:0}
+  .admin-profile-main{order:1}
+  .profile-identity-summary{flex-direction:row;justify-content:flex-start;align-items:center;gap:20px;text-align:left}
+  .profile-identity-summary .profile-identity-details{text-align:left}
+  .profile-identity-summary .profile-identity-details h2{font-size:23px;margin:4px 0 6px}
+  .profile-identity-summary .profile-identity-details>p:not(.admin-care-eyebrow){margin-bottom:10px}
+  .profile-identity-summary>.profile-avatar{width:72px;height:72px;font-size:24px}
+  .profile-photo-settings .profile-photo-editor{align-items:flex-start;flex-direction:row}
+  .profile-photo-settings .profile-photo-content{text-align:left;max-width:none}
+  .profile-photo-settings .profile-photo-actions{justify-content:flex-start}
+}
+@media(max-width:600px){
+  .profile-identity-summary{padding:18px;gap:14px}
+  .profile-identity-summary>.profile-avatar{width:60px;height:60px;font-size:21px}
+  .profile-identity-summary .profile-identity-details h2{font-size:20px}
+  .profile-identity-summary .profile-identity-details>p:not(.admin-care-eyebrow){font-size:12px}
+  .profile-identity-band{justify-content:flex-start;padding:12px 18px}
+  .profile-photo-settings>summary{padding:16px 18px;min-height:52px}
+  .profile-identity-summary .admin-care-eyebrow{font-size:9px;margin-bottom:5px}
+  .profile-photo-settings .profile-photo-content{text-align:center}
+  .profile-photo-settings .profile-photo-actions{justify-content:center}
+  .profile-page-note{font-size:13px;margin:0 0 20px}
+}
+.table-mobile-label{display:none}
+@media(max-width:760px){
+  .role-shell table.table.table--mobile-cards{display:block;width:100%;min-width:0;border:0;padding:0;background:transparent}
+  .table--mobile-cards>thead{display:none}
+  .table--mobile-cards>tbody{display:block;width:100%}
+  .table--mobile-cards>tbody>tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;padding:20px 18px;border-bottom:1px solid var(--d-line)}
+  .role-shell :is(.admin-workspace,.admin-audit-workspace) :is(.aw-panel,.audit-records) .table-scroll>table.table.table--mobile-cards>tbody>tr>td{display:block;min-width:0;border:0;padding:0;font-size:13px;overflow-wrap:anywhere}
+  .table--mobile-cards td[data-mobile-wide=true]{grid-column:1/-1}
+  .table--mobile-cards .table-mobile-label{display:block;color:var(--d-muted);font:500 11px/1.4 var(--d-font-sans);margin-bottom:7px}
+  .table--mobile-cards .table-mobile-label:empty{display:none}
+  .table--mobile-cards td[data-mobile-wide=true]:last-child>.btn{width:100%;justify-content:center;min-height:44px}
+  .table--mobile-cards time{white-space:normal;font-size:12px;line-height:1.7}
+  .table--mobile-cards .aw-person .privacy-request-snippet{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;max-width:none;overflow:hidden}
+  .table--mobile-cards .aw-person strong,.table--mobile-cards .audit-person strong,.table--mobile-cards .audit-event strong{font-size:14px}
+  .table--mobile-cards .aw-person small,.table--mobile-cards .audit-person small,.table--mobile-cards .audit-event small{font-size:12px}
+  .table--mobile-cards .audit-event{align-items:flex-start}
+}
+
+/* Intentional mobile density and 44px controls across the existing donor and staff workflows. */
+.hospital-account-heading{display:flex;align-items:center;gap:16px;margin-bottom:22px}
+.hospital-account-heading>.profile-avatar{width:64px;height:64px;flex:none;font-size:22px}
+.hospital-account-heading h2{font-size:24px!important;margin-bottom:0!important}
+.hospital-profile-card .profile-photo-settings{border:1px solid var(--d-line);border-radius:12px;margin-bottom:24px;overflow:hidden}
+.hospital-profile-card .profile-photo-settings>summary{padding:16px}
+.hospital-profile-card .profile-photo-editor{padding:8px 16px 20px}
+@media(min-width:1025px) and (max-width:1279px){.hospital-profile-grid{grid-template-columns:1fr}}
+@media(max-width:760px){
+  :is(.role-shell,.pub,dialog.admin-care-dialog,dialog.hreq-confirm) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea){font-size:16px;min-height:44px}
+  :is(.role-shell,.pub,dialog.admin-care-dialog) :is(.btn,.tab,.care-signout){min-height:44px}
+  .role-shell :is(.aa-row-actions .btn,.hreq-apply,.record-sort-controls .btn){min-height:44px;font-size:12px}
+  .aa-row-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .aa-row-actions .btn{justify-content:center;padding:10px 8px}
+  .role-shell .settings-tier{grid-template-columns:1fr 1fr 44px}
+  .role-shell .settings-tier-label{grid-column:1/-1;margin-bottom:4px}
+  .settings-tier>.btn{width:44px}
+  .hospital-facility-card>header{flex-wrap:wrap}
+  .hospital-location-facts{gap:20px 12px}
+  .hospital-form-actions{flex-wrap:wrap}
+  .hospital-form-actions>.btn{flex:1;justify-content:center}
+  .hreq-tabs{scroll-padding-inline:20px}
+  .hreq-table thead{display:none}
+  .hreq-action{gap:8px}
+  .role-shell .hreq-action select{min-height:44px;font-size:16px}
+  .role-shell .record-sort-controls select,.pub .record-sort-controls select{font-size:16px;min-height:44px}
+  .role-shell .audit-filter-actions>.btn{flex:1;justify-content:center}
+  .role-shell .aw-metric>small{font-size:11px}
+  .role-shell .aw-metric-top{font-size:12px}
+  .role-shell .aa-overview small{font-size:11px}
+  .role-shell .aa-overview button{min-width:0}
+  .role-shell .profile-identity-link{min-height:48px}
+  dialog.admin-care-dialog[id$=-modal]{max-height:calc(100dvh - 24px);width:calc(100vw - 24px)}
+  .admin-care-dialog-head{gap:12px}
+  .admin-care-dialog-head>.btn{min-width:44px;min-height:44px;flex:none}
+  .admin-care-dialog :is(input:not([type=checkbox]):not([type=radio]),select,textarea){font-size:16px}
+}
+@media(max-width:540px){
+  .role-shell .aw-metrics,.role-shell .aa-overview{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .role-shell .aw-metrics>.aw-metric:first-child,.role-shell .aa-overview>button:first-child{grid-column:1/-1}
+  .role-shell .aw-metric-top{flex-direction:row;align-items:center}
+  .role-shell .aw-metric>strong{margin:8px 0}
+  .audit-filters,.aa-filters{grid-template-columns:minmax(0,1fr)}
+  .audit-field:nth-child(n){grid-column:auto}
+  .role-shell .hreq-metric>div>span{font-size:11px}
+  .role-shell .hreq-pagination>div{width:100%;justify-content:space-between}
+  .hospital-profile-card{padding:20px}
+  .hospital-account-heading{gap:12px}
+  .hospital-account-heading>.profile-avatar{width:54px;height:54px;font-size:19px}
+  .hospital-account-heading h2{font-size:21px!important}
+}
+@media(max-width:360px){
+  .role-shell #page-content{padding-inline:12px}
+  .staff-mobile-brand small{font-size:9px}
+  .staff-mobile-actions{gap:0}
+  .role-shell .hreq-overview{grid-template-columns:1fr 1fr}
+  .hreq-overview>.hreq-metric:first-child{grid-column:1/-1}
+}
+@media(max-height:500px) and (max-width:1024px){
+  .staff-bottom-nav{padding:4px;bottom:4px}
+  .staff-bottom-nav>a,.staff-bottom-nav>button{flex-direction:row;min-height:44px;gap:8px}
+  .navigation-sheet[id$=-modal]{max-height:calc(100dvh - 16px)}
+}
+
+@media(max-width:1024px){
+  .pub .donor-nav{display:flex;justify-content:space-between;gap:12px;padding:12px 16px}
+  .pub .donor-nav>nav{display:flex;position:fixed;inset:auto max(12px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));margin:0;padding:7px;gap:4px;border:1px solid var(--d-line);border-radius:18px;box-shadow:var(--care-shadow);background:var(--d-panel);z-index:80;justify-content:space-around}
+  .pub .donor-nav>nav>a{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;padding:9px 4px;border-radius:12px;font-size:11px;line-height:1.2;min-height:56px}
+  .pub .donor-nav>nav>a>.donor-nav-icon>svg{width:20px;height:20px}
+  .pub .donor-nav .pub-nav-end{margin-left:auto;display:flex;gap:4px;flex:none}
+  .pub .donor-nav :is(.care-avatar,.pub-theme,.care-signout){width:44px;height:44px;min-width:44px;min-height:44px}
+  .pub .donor-nav .care-signout{display:grid;place-items:center;padding:10px;border:1px solid var(--d-line);border-radius:50%;background:var(--d-panel)}
+  .pub .donor-nav .care-signout>span{display:none}
+  .pub .donor-main,.pub .donor-workspace{padding-bottom:calc(120px + env(safe-area-inset-bottom))}
+}
+@media(min-width:1025px){.care-signout>svg{display:none}}
+@media(max-height:500px) and (max-width:1024px){.pub .donor-nav>nav{bottom:4px;padding:4px}.pub .donor-nav>nav>a{flex-direction:row;min-height:44px}}
+
+@media(min-width:761px) and (max-width:1024px){
+  :is(.role-shell,.pub,dialog.admin-care-dialog) :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea){font-size:16px;min-height:44px}
+  :is(.role-shell,.pub,dialog.admin-care-dialog) .btn{min-height:44px}
+}

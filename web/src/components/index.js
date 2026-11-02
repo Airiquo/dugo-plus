@@ -40,3 +40,6 @@ export { HospitalLocationMap } from './HospitalLocationMap'
 export { AccountProfileEditor } from './AccountProfileEditor'
 export { SortableHeader } from './SortableHeader'
 export { SortControls } from './SortControls'
+
+export { WorkspaceNav } from './WorkspaceNav'
+export { NavigationSheet } from './NavigationSheet'
