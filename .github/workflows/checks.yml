@@ -78,3 +78,6 @@ jobs:
 
       - name: Donor response transaction suite
         run: npm run test:donor:emulator
+
+      - name: Late-donor matching suite
+        run: npm run test:matching:emulator

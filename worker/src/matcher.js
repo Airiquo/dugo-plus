@@ -1,9 +1,8 @@
 /**
  * F7 matching core.
  *
- * Part 1 is dry-run: it writes `donorMatches` and `bloodRequests.matching` but
- * sends no notifications. The function is shared by the HTTP trigger (F3) and
- * the one-minute cron fallback.
+ * Creates donor matches and notifications for open requests. Shared by the
+ * HTTP trigger and the one-minute scheduled search for newly eligible donors.
  */
 
 import {
@@ -16,7 +15,7 @@ import {
 } from '../../web/src/utils/matching.js'
 import { eligibilityFor } from '../../web/src/utils/eligibility.js'
 import { geohashDecode, isCoordinate } from '../../web/src/utils/geohash.js'
-import { getDocument, runQuery, updateDocumentIfUnchanged, writeNewDocuments } from './firestore.js'
+import { documentName, getDocument, runQuery, updateDocumentIfUnchanged, writeNewDocuments } from './firestore.js'
 import { HttpError } from './http.js'
 
 const ACTIVE_STATUSES = ['urgent', 'collecting']
@@ -255,11 +254,9 @@ function parseDate(value) {
 }
 
 /**
- * Match one request at its next radius tier (Part 3 supports expansion).
- *
- * If currentTier == 0, process tier 1 immediately. If currentTier >= 1 and
- * nextTierAt has passed, process the next tier. The request update is
- * conditional on `updateTime` to avoid races.
+ * Search an open request at its current radius, expanding when its timer is
+ * due. Completed ladders keep searching at the maximum radius. Updates are
+ * conditional on `updateTime`.
  */
 export async function processRequest(env, request, { now = new Date(), source = 'api' } = {}) {
   const data = request.data ?? {}
@@ -268,30 +265,14 @@ export async function processRequest(env, request, { now = new Date(), source = 
   if (!ACTIVE_STATUSES.includes(data.status)) {
     return { requestId: request.id, skipped: 'not-active', status: data.status }
   }
-  if (data.matching?.exhausted === true) {
-    return { requestId: request.id, skipped: 'exhausted' }
-  }
-
   const tiers = await loadTiers(env)
-  let tierIndex = 0
-  if (currentTier === 0) {
-    tierIndex = 0
-  } else {
-    const nextTierAt = parseDate(data.matching?.nextTierAt)
-    if (nextTierAt && now < nextTierAt && source !== 'cron-force') {
-      return { requestId: request.id, skipped: 'tier-not-due', currentTier, nextTierAt }
-    }
-    tierIndex = currentTier
-    if (tierIndex >= tiers.length) {
-      const matching = {
-        exhausted: true,
-        lastRunAt: now,
-        lastRunMs: 0,
-      }
-      await updateDocumentIfUnchanged(env, `bloodRequests/${request.id}`, { matching }, request.updateTime).catch(() => {})
-      return { requestId: request.id, skipped: 'exhausted', exhausted: true }
-    }
-  }
+  const nextTierAt = parseDate(data.matching?.nextTierAt)
+  const expand = currentTier > 0 && currentTier < tiers.length &&
+    data.matching?.exhausted !== true &&
+    (!nextTierAt || now >= nextTierAt || source === 'cron-force')
+  const tierIndex = data.matching?.exhausted === true
+    ? tiers.length - 1
+    : Math.min(Math.max(currentTier - 1, 0) + (expand ? 1 : 0), tiers.length - 1)
 
   const tier = { ...tiers[tierIndex], number: tierIndex + 1 }
   const donationTypeId = donationTypeForComponent(data.component)
@@ -337,7 +318,9 @@ export async function processRequest(env, request, { now = new Date(), source = 
   const isLastTier = tierIndex + 1 >= tiers.length
   const matching = {
     currentTier: tier.number,
-    nextTierAt: isLastTier ? null : new Date(now.getTime() + tier.waitMinutes * 60_000),
+    nextTierAt: isLastTier ? null : currentTier === 0 || expand
+      ? new Date(now.getTime() + tier.waitMinutes * 60_000)
+      : nextTierAt,
     lastRunAt: now,
     lastRunMs: totalMs,
     matchedDonorCount: Number(data.matching?.matchedDonorCount ?? 0) + written.created,
@@ -374,7 +357,6 @@ export async function processRequest(env, request, { now = new Date(), source = 
   return {
     requestId: request.id,
     source,
-    dryRun: true,
     tier: tier.number,
     radiusKm: tier.radiusKm,
     considered: donors.length,
@@ -397,26 +379,31 @@ export async function matchRequest(env, requestId, options = {}) {
 }
 
 /**
- * Cron fallback: process a small batch of active requests that have never been
- * matched. The immediate F3 call remains the fast path.
+ * Rescan open requests, including completed radius ladders. Page through the
+ * queue and process the least recently searched batch in urgency order.
  */
 export async function runMatchingCycle(env, { now = new Date() } = {}) {
-  const rows = await runQuery(env, {
-    from: [{ collectionId: 'bloodRequests' }],
-    where: inFilter('status', ACTIVE_STATUSES),
-    limit: CRON_REQUEST_LIMIT,
-  })
-
-  const candidates = rows
-    .filter((row) => {
-      const m = row.data?.matching ?? {}
-      if (m.exhausted === true) return false
-      if (!m.currentTier) return true
-      const next = parseDate(m.nextTierAt)
-      if (!next) return false
-      return now >= next
+  const rows = []
+  let cursor = null
+  while (true) {
+    const page = await runQuery(env, {
+      from: [{ collectionId: 'bloodRequests' }],
+      where: inFilter('status', ACTIVE_STATUSES),
+      orderBy: [{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }],
+      ...(cursor ? { startAt: { values: [{ referenceValue: cursor }], before: false } } : {}),
+      limit: CRON_REQUEST_LIMIT,
     })
-    .map((row) => ({ ...row.data, id: row.id, raw: row }))
+    rows.push(...page)
+    if (page.length < CRON_REQUEST_LIMIT) break
+    cursor = documentName(env, `bloodRequests/${page.at(-1).id}`)
+  }
+
+  const candidates = sortRequestsByUrgency(rows.map((row) => ({ ...row.data, id: row.id, raw: row })))
+    .sort((a, b) =>
+      (parseDate(a.matching?.lastRunAt)?.getTime() ?? 0) -
+      (parseDate(b.matching?.lastRunAt)?.getTime() ?? 0),
+    )
+    .slice(0, CRON_REQUEST_LIMIT)
 
   let matched = 0
   let failed = 0

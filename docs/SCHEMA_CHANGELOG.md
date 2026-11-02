@@ -234,3 +234,12 @@ Added optional `users/{uid}.photoURL`: a Cloudinary HTTPS image delivery URL, bo
 ## 2026-11-02 — Account-history query (D50)
 
 Adds an `auditBlocks` composite index on `hashedEntityRef` ASC, `entityType` ASC, `sequence` DESC for the active-admin account-history endpoint. Pages contain at most 25 user-entity events with an exclusive sequence continuation. Existing `auditContexts` and actor/subject `auditRedactions` control private details. No new collection or field. Index/Worker deployment pending; unit and REST-emulator checks pass.
+
+## 2026-11-02 — Continuous discovery on open requests (D51)
+
+Clarifies `bloodRequests.matching.exhausted`: the radius ladder is complete,
+but `urgent`/`collecting` requests continue searching the maximum radius for
+later eligible donors. Intermediate-tier rescans preserve `nextTierAt`;
+`lastRunAt` also orders rotation through scheduled batches. No collection,
+field, rule or index is added. Five isolated matching REST-emulator checks pass;
+production Worker deployment remains pending.

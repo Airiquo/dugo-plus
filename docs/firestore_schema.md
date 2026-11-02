@@ -265,7 +265,13 @@ Write the log and the inventory update in **one transaction/batch**.
 > Note: `matching` is the matcher's state on the request (which radius tier it
 > is on, when the next tier opens, and whether it exhausted the ladder). It is
 > absent until the first match run; the matcher treats a missing block as
-> `currentTier: 0`.
+> `currentTier: 0`. D51: `exhausted: true` means the radius ladder has reached
+> its maximum, not that matching has stopped. Open (`urgent`/`collecting`)
+> requests continue searching at the current/max radius on scheduled runs for
+> donors who register or become eligible later. A rescan updates `lastRunAt`
+> but preserves `nextTierAt` until an expansion is due. The scheduled queue
+> rotates batches of 20 by oldest `lastRunAt`, then processes the batch in
+> urgency order. No additional fields or indexes are needed.
 
 ### 2.5 `donorMatches/{requestId}_{donorId}`
 
