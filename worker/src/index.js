@@ -13,6 +13,7 @@ import { getDocument, transactionStore } from './firestore.js'
 import { HttpError, corsHeaders, json } from './http.js'
 import { processRequest, runMatchingCycle } from './matcher.js'
 import { notifyNewMatches, retryNotifications } from './notify.js'
+import { reverseGeocodeCity } from './reverseGeocoding.js'
 import {
   getAllAuditBlocks,
   verifyAuditChain,
@@ -63,6 +64,16 @@ async function route(request, env) {
     let input
     try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
     return json(await createDonorAlertReader(transactionStore(env))(user.uid, input?.ids), 200, cors)
+  }
+
+  if (request.method === 'POST' && url.pathname === '/donor/geocode/reverse') {
+    await verifyIdToken(env, bearerToken(request))
+    let input
+    try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
+    const result = await reverseGeocodeCity(input, {
+      endpoint: env.REVERSE_GEOCODER_URL || undefined,
+    })
+    return json(result, 200, cors)
   }
 
   // POST /match

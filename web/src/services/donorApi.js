@@ -1,7 +1,7 @@
 import { auth } from '../lib/firebase'
 
 /** Authenticated donor actions; the endpoint is the Worker's /donor/respond URL. */
-export async function callDonorService(action, payload) {
+export async function callDonorService(action, payload, fallbackMessage) {
   const configured = (import.meta.env.VITE_DONOR_RESPONSE_ENDPOINT || '').trim()
   const worker = (import.meta.env.VITE_MATCHING_ENDPOINT || '')
     .trim()
@@ -32,7 +32,9 @@ export async function callDonorService(action, payload) {
   const result = await response.json().catch(() => null)
   if (!response.ok)
     throw new Error(
-      result?.error || 'Could not save your changes. Please try again.',
+      result?.error ||
+        fallbackMessage ||
+        'Could not save your changes. Please try again.',
     )
   return result
 }

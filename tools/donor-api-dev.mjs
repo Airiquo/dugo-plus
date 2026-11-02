@@ -10,6 +10,7 @@ import {
   createDonorResponder,
   createDonorAlertReader,
 } from '../worker/src/donorResponses.js'
+import { reverseGeocodeCity } from '../worker/src/reverseGeocoding.js'
 import { toFirestoreFields, decodeDocument } from '../worker/src/firestore.js'
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const values = loadEnv('development', resolve(repo, 'web'), 'VITE_')
@@ -145,7 +146,11 @@ http
     }
     if (
       request.method !== 'POST' ||
-      !['/donor/respond', '/donor/alerts/read'].includes(request.url)
+      ![
+        '/donor/respond',
+        '/donor/alerts/read',
+        '/donor/geocode/reverse',
+      ].includes(request.url)
     ) {
       response.writeHead(404, headers)
       response.end(JSON.stringify({ error: 'Not found' }))
@@ -179,7 +184,12 @@ http
       const result =
         request.url === '/donor/respond'
           ? await respond(user.uid, body)
-          : await read(user.uid, body.ids)
+          : request.url === '/donor/alerts/read'
+            ? await read(user.uid, body.ids)
+            : await reverseGeocodeCity(body, {
+                endpoint:
+                  process.env.DUGO_REVERSE_GEOCODER_URL || undefined,
+              })
       response.writeHead(200, headers)
       response.end(JSON.stringify(result))
     } catch (error) {
