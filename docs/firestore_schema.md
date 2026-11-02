@@ -536,6 +536,7 @@ Cardinality read from the crow's-foot notation.
 | `dataSubjectRequests` | `status` ASC, `createdAt` ASC | Admin work queue |
 | `auditBlocks` | `sequence` DESC | Fetch the latest block |
 | `auditBlocks` | `hashedEntityRef` ASC, `entityType` ASC, `sequence` DESC | D50: account history with exclusive sequence cursor (25 rows/page) |
+| `auditBlocks` | Every subset of account (`hashedEntityRef` ASC + `entityType` ASC), actor (`hashedActorRef` ASC), event (`eventType` ASC), followed by `createdAt` DESC, `sequence` DESC | D56: eight additive indexes for global activity filters and exclusive timestamp/sequence cursors; 25 records/page |
 | `accountOperations` | `state` ASC, `nextAttemptAt` ASC | D40 due recovery work |
 | `auditOutbox` | `state` ASC, `nextAttemptAt` ASC | D40 due event delivery |
 | `auditRedactions` | `state` ASC, `nextAttemptAt` ASC | D40 bounded erasure cleanup |
@@ -784,3 +785,10 @@ interface AuditBlock {
 8. **Radius_Tiler** is spelled "Tiler" in the ERD; treated as "Tiers".
 9. **Embedding vs. collection** for radius tiers and guidelines: chosen for read efficiency. If admins need to edit tiers individually with history, make them subcollections instead.
 10. **Privacy**: this stores health-related personal data and has a Data Subject Request table, so a data-protection law (e.g. GDPR / Philippine Data Privacy Act) likely applies. Erasure requests must be reconciled with append-only audit blocks (hence the hashed refs).
+
+
+### D56 audit activity read contract
+
+`GET /audit/activity` requires verified Active admin authority. Optional `account`, `actor`, `event`, `from`, `to` filters apply before the fixed 26-row query (25 results plus continuation detection). The exclusive cursor contains the last event's time and sequence. IDs are resolved from at most 500 `users` document names, cached for 60 seconds per project/HMAC key; explicit account/actor filter IDs also resolve. Current profile fields are fetched fresh and allowlisted. Unresolved/missing/erased identities stay unavailable. This adds no stored field, collection, or rules permission.
+
+Context, current profiles and erasure tombstones use `:batchGet` chunks of 100 (at most 200 unique paths per helper call; at most 125 per activity page). Context is returned only if its allowlisted reason/status digest matches `contextHash` and neither subject nor actor has an erasure tombstone. Names/emails are never cached by this endpoint or copied to immutable blocks. The same batch helper bounds existing account-history context reads. A first-page emulator check with 25 distinct affected users uses five external requests including authorization; full-chain verification remains a separate explicit operation.

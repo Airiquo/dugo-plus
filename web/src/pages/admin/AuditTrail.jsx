@@ -1,240 +1,628 @@
-import { AppShell } from '../../layout/AppShell'
-import { useEffect, useRef, useState } from 'react'
-import { Table } from '../../components/Table'
-import { Drawer } from '../../components/Overlay'
-import { getAuditBlocks, verifyAuditChain } from '../../services/audit'
-import { useTableSort } from '../../hooks/useTableSort'
-import { sortRows, sortDate } from '../../utils/sortRows'
-import { cx } from '../../utils/cx'
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { AppShell } from "../../layout/AppShell";
+import { AdminDialog, Btn, Icon, PageHeader, Table } from "../../components";
+import { getAuditActivity, verifyAuditChain } from "../../services/audit";
+import { listUsers } from "../../services/users";
+import { useTableSort } from "../../hooks/useTableSort";
+import { sortRows, sortDate } from "../../utils/sortRows";
 
-/**
- * Audit Trail — `/admin/audit-trail`.
- *
- * Hash-chained audit log viewer for admins. Verifies chain integrity
- * and displays tamper-evident audit blocks.
- */
+const EVENTS = {
+  "Account.HospitalCreated": "Hospital account created",
+  "Account.Suspended": "Access suspended",
+  "Account.Removed": "Access removed",
+  "Account.Reactivated": "Access restored",
+  "Account.LoginDeleted": "Sign-in deleted",
+  "Account.ProfileUpdated": "Profile details updated",
+  "DataAccess.Erasure": "Personal data erased",
+};
+const STATES = {
+  verified: "Reason verified",
+  redacted: "Private details erased",
+  mismatch: "Details could not be verified",
+  "not-recorded": "No reason recorded",
+  unavailable: "Details unavailable",
+};
+const KEYS = ["account", "actor", "event", "from", "to"];
+const EMPTY = Object.fromEntries(KEYS.map((key) => [key, ""]));
+const name = (person) =>
+  person?.fullName || person?.email || "Identity unavailable";
+const title = (event) => EVENTS[event] || event || "Activity";
+function date(value) {
+  const parsed = new Date(value);
+  return value && Number.isFinite(parsed.getTime())
+    ? new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(parsed)
+    : "Time unavailable";
+}
+function readFilters(params) {
+  return Object.fromEntries(KEYS.map((key) => [key, params.get(key) || ""]));
+}
+function dateInput(value) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) return "";
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+}
+function inputDraft(filters) {
+  return {
+    ...filters,
+    from: dateInput(filters.from),
+    to: dateInput(filters.to),
+  };
+}
+function boundary(value, end) {
+  if (!value) return "";
+  const parsed = new Date(`${value}T${end ? "23:59:59.999" : "00:00:00.000"}`);
+  if (
+    !Number.isFinite(parsed.getTime()) ||
+    dateInput(parsed.toISOString()) !== value
+  )
+    throw new Error("Choose valid calendar dates.");
+  return parsed.toISOString();
+}
+function Person({ person, fallback = "Identity unavailable" }) {
+  return (
+    <span className="audit-person">
+      <strong>{person ? name(person) : fallback}</strong>
+      {person?.email && person.fullName && <small>{person.email}</small>}
+    </span>
+  );
+}
+
+/** Filtered global activity and protected event details at `/admin/audit-trail`. */
 export default function AuditTrail() {
-  const { sort, toggleSort } = useTableSort()
-  const [blocks, setBlocks] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [verifying, setVerifying] = useState(false)
-  const [verifyResult, setVerifyResult] = useState(null)
-  const [selectedBlock, setSelectedBlock] = useState(null)
-  const [updatedAt, setUpdatedAt] = useState(null)
-  const inFlight = useRef(false)
+  const [params, setParams] = useSearchParams();
+  const filterKey = KEYS.map((key) => params.get(key) || "").join("|");
+  const filters = useMemo(() => readFilters(params), [filterKey]);
+  const [draft, setDraft] = useState(() => inputDraft(filters));
+  const [accounts, setAccounts] = useState([]);
+  const [directoryError, setDirectoryError] = useState("");
+  const [page, setPage] = useState({ events: [], nextCursor: null });
+  const [cursors, setCursors] = useState([null]);
+  const [cursor, setCursor] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [filterError, setFilterError] = useState("");
+  const [reload, setReload] = useState(0);
+  const [updatedAt, setUpdatedAt] = useState(null);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verification, setVerification] = useState(null);
+  const [verifyError, setVerifyError] = useState("");
+  const { sort, toggleSort } = useTableSort();
 
   useEffect(() => {
-    loadBlocks()
-  }, [])
-
-  // Poll while the page is open so appended blocks appear without a manual refresh.
+    let active = true;
+    listUsers()
+      .then((rows) => {
+        if (active) setAccounts(rows);
+      })
+      .catch(() => {
+        if (active)
+          setDirectoryError(
+            "Account names could not be loaded. You can still filter with an account ID.",
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   useEffect(() => {
-    const id = setInterval(() => {
-      loadBlocks({ silent: true })
-    }, 5000)
-    return () => clearInterval(id)
-  }, [])
+    setDraft(inputDraft(filters));
+    setFilterError("");
+    setCursors([null]);
+    setCursor(null);
+  }, [filterKey]);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    setSelected(null);
+    getAuditActivity(filters, cursor)
+      .then((result) => {
+        if (active) {
+          setPage(result);
+          setUpdatedAt(new Date());
+        }
+      })
+      .catch((err) => {
+        if (active) setError(err.message || "Activity could not be loaded.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [filterKey, cursor, reload]);
 
-  async function loadBlocks({ silent = false } = {}) {
-    if (inFlight.current) return
-    inFlight.current = true
-    if (!silent) setLoading(true)
+  function apply(event) {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    setDraft(values);
     try {
-      const data = await getAuditBlocks()
-      setBlocks(data)
-      setUpdatedAt(new Date())
-      setError('')
+      const next = {
+        ...values,
+        from: boundary(values.from, false),
+        to: boundary(values.to, true),
+      };
+      if (next.from && next.to && next.from > next.to)
+        throw new Error("The start date must be before the end date.");
+      setFilterError("");
+      setCursors([null]);
+      setCursor(null);
+      setQuery("");
+      setParams(
+        Object.fromEntries(Object.entries(next).filter(([, value]) => value)),
+      );
     } catch (err) {
-      setError(err.message || 'Failed to load audit blocks')
-    } finally {
-      inFlight.current = false
-      if (!silent) setLoading(false)
+      setFilterError(err.message);
     }
   }
-
-  async function handleVerify() {
-    setVerifying(true)
-    setVerifyResult(null)
-    setError('')
+  function clear() {
+    setDraft(EMPTY);
+    setFilterError("");
+    setParams({});
+    setCursors([null]);
+    setCursor(null);
+    setQuery("");
+  }
+  async function verify() {
+    setVerifying(true);
+    setVerifyError("");
+    setVerification(null);
     try {
-      const result = await verifyAuditChain()
-      setVerifyResult(result)
+      setVerification(await verifyAuditChain());
     } catch (err) {
-      setError(err.message || 'Verification failed')
+      setVerifyError(err.message || "Verification failed. Try again.");
     } finally {
-      setVerifying(false)
+      setVerifying(false);
     }
   }
-
+  const visible = page.events.filter((row) =>
+    [
+      title(row.eventType),
+      name(row.actor),
+      row.actor?.email,
+      name(row.affectedAccount),
+      row.affectedAccount?.email,
+      row.context?.reason,
+      row.sequence,
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  const sorted = sortRows(
+    visible,
+    sort.key
+      ? (row) =>
+          ({
+            event: title(row.eventType),
+            account: row.affectedAccount ? name(row.affectedAccount) : null,
+            actor: row.actor ? name(row.actor) : null,
+            createdAt: sortDate(row.createdAt),
+          })[sort.key]
+      : null,
+    sort.direction,
+  );
+  const eventOptions = [
+    ...new Set(
+      [
+        ...Object.keys(EVENTS),
+        ...page.events.map((row) => row.eventType),
+        draft.event,
+      ].filter(Boolean),
+    ),
+  ];
+  function identityField(key, label, rows) {
+    return (
+      <label className="audit-field">
+        {label}
+        {directoryError ? (
+          <input
+            name={key}
+            value={draft[key]}
+            onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+            placeholder="Account ID"
+          />
+        ) : (
+          <select
+            name={key}
+            value={draft[key]}
+            onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+          >
+            <option value="">
+              All {key === "actor" ? "administrators" : "accounts"}
+            </option>
+            {draft[key] && !rows.some((row) => row.id === draft[key]) && (
+              <option value={draft[key]}>{draft[key]}</option>
+            )}
+            {rows.map((row) => (
+              <option key={row.id} value={row.id}>
+                {name(row)}
+                {row.email && row.fullName ? ` · ${row.email}` : ""}
+              </option>
+            ))}
+          </select>
+        )}
+      </label>
+    );
+  }
   const columns = [
     {
-      key: 'sequence',
-      header: 'Sequence',
-      render: (row) => <span style={{ fontFamily: 'monospace' }}>{row.sequence}</span>,
-    },
-    {
-      key: 'createdAt',
-      header: 'Timestamp',
-      render: (row) => {
-        const date = row.createdAt?.toDate ? row.createdAt.toDate() : new Date(row.createdAt)
-        return date.toLocaleString()
-      },
-    },
-    {
-      key: 'eventType',
-      header: 'Event Type',
-      render: (row) => <span className="pill">{row.eventType}</span>,
-    },
-    {
-      key: 'entityType',
-      header: 'Entity',
-      render: (row) => row.entityType || '-',
-    },
-    {
-      key: 'actorRole',
-      header: 'Actor Role',
-      render: (row) => row.actorRole || '-',
-    },
-    {
-      key: 'correctsBlockId',
-      header: 'Correction',
-      render: (row) => row.correctsBlockId ? <span className="pill" data-status="warning">Links to #{row.correctsBlockId.slice(0, 8)}</span> : '-',
-    },
-    {
-      key: 'actions',
-      sortable: false,
-      header: '',
+      key: "event",
+      header: "Activity",
       render: (row) => (
-        <button className="btn" type="button" onClick={() => setSelectedBlock(row)}>
-          View
-        </button>
+        <div className="audit-event">
+          <span className="audit-event-mark" aria-hidden="true">
+            <Icon name="list" />
+          </span>
+          <div>
+            <strong>{title(row.eventType)}</strong>
+            <small>
+              Record #{row.sequence} ·{" "}
+              {STATES[row.contextState] || "Details unavailable"}
+            </small>
+          </div>
+        </div>
       ),
     },
-  ]
-
+    {
+      key: "account",
+      header: "Affected account",
+      render: (row) => (
+        <Person
+          person={row.affectedAccount}
+          fallback={
+            row.entityType === "user"
+              ? "Identity unavailable"
+              : row.entityType
+                ? `${row.entityType} record`
+                : "System event"
+          }
+        />
+      ),
+    },
+    {
+      key: "actor",
+      header: "Performed by",
+      render: (row) => <Person person={row.actor} />,
+    },
+    {
+      key: "createdAt",
+      header: "Occurred",
+      render: (row) => (
+        <time dateTime={row.createdAt}>{date(row.createdAt)}</time>
+      ),
+    },
+    {
+      key: "details",
+      header: "Details",
+      sortable: false,
+      render: (row) => (
+        <Btn
+          onClick={() => setSelected(row)}
+          aria-label={`View ${title(row.eventType)}, record ${row.sequence}`}
+        >
+          View <span aria-hidden="true">↗</span>
+        </Btn>
+      ),
+    },
+  ];
   return (
     <AppShell>
-      <div id="page-header">
-        <div>
-          <div id="page-tag" className="k">Dugo+ admin</div>
-          <h1 id="page-title">Audit Trail</h1>
-        </div>
-        <div id="page-actions" className="row" style={{ gap: 8 }}>
-          {updatedAt && <span className="k">Updated {updatedAt.toLocaleTimeString()}</span>}
-          <button className="btn" type="button" onClick={() => loadBlocks()} disabled={loading}>
-            Refresh
-          </button>
-          <button className="btn" type="button" onClick={handleVerify} disabled={verifying}>
-            {verifying ? 'Verifying...' : 'Verify Chain'}
-          </button>
-        </div>
-      </div>
-      <div id="page-divider" className="dv"></div>
-      <div id="page-body">
-        {verifyResult && (
-          <div className="card" style={{ marginBottom: 16, padding: 16 }}>
-            <div style={{ fontWeight: 600, marginBottom: 8 }}>
-              Chain Verification {verifyResult.valid ? '✓ Valid' : '✗ Invalid'}
-            </div>
-            <div style={{ color: 'var(--d-muted)' }}>
-              Blocks verified: {verifyResult.count}
-              {verifyResult.brokenAt && ` | Broken at sequence: ${verifyResult.brokenAt}`}
-              {verifyResult.reason && ` | ${verifyResult.reason}`}
-              {verifyResult.message && ` | ${verifyResult.message}`}
+      <div className="admin-audit-workspace">
+        <PageHeader
+          title="Audit Trail"
+          actions={
+            <>
+              <Btn
+                disabled={loading}
+                onClick={() => setReload(reload + 1)}
+                icon="refresh"
+              >
+                Refresh
+              </Btn>
+              <Btn disabled={verifying} onClick={verify} icon="shield">
+                {verifying ? "Verifying…" : "Verify chain"}
+              </Btn>
+            </>
+          }
+        />
+        <section className="audit-intro" aria-labelledby="audit-intro-title">
+          <div>
+            <p className="admin-care-eyebrow">Accountability, made clear</p>
+            <h2 id="audit-intro-title">Every action has a story.</h2>
+            <p>Understand what changed, who made the change, and why.</p>
+          </div>
+          <div className="audit-integrity">
+            <Icon name="shield" />
+            <div>
+              <strong>Tamper-evident records</strong>
+              <span>Check the full chain on demand.</span>
             </div>
           </div>
-        )}
-        
-        {error && (
-          <div className="card" style={{ marginBottom: 16, padding: 16, color: 'var(--d-red)' }}>
-            {error}
-          </div>
-        )}
-        
-        {loading ? (
-          <div className="card" style={{ padding: 32, textAlign: 'center' }}>Loading...</div>
-        ) : blocks.length === 0 ? (
-          <div className="card" style={{ padding: 32, textAlign: 'center', color: 'var(--d-muted)' }}>
-            No audit activity has been recorded yet.
-          </div>
-        ) : (
-          <Table columns={columns} sort={sort} onSort={toggleSort} rows={sortRows(blocks, sort.key ? row => sort.key === 'createdAt' ? sortDate(row.createdAt) : row[sort.key] : null, sort.direction)} rowKey={(row) => row.id} />
-        )}
-      </div>
-
-      <Drawer
-        kind="drawer"
-        name="audit-detail"
-        open={!!selectedBlock}
-        onClose={() => setSelectedBlock(null)}
-        title="Audit Block Details"
-      >
-        {selectedBlock && (
-          <div style={{ padding: 16, display: 'grid', gap: 12 }}>
-            <div>
-              <div className="k">Sequence</div>
-              <div style={{ fontFamily: 'monospace' }}>{selectedBlock.sequence}</div>
-            </div>
-            <div>
-              <div className="k">Record Hash</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>
-                {selectedBlock.recordHash}
-              </div>
-            </div>
-            <div>
-              <div className="k">Previous Hash</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>
-                {selectedBlock.prevHash}
-              </div>
-            </div>
-            <div>
-              <div className="k">Event Type</div>
-              <div>{selectedBlock.eventType}</div>
-            </div>
-            {selectedBlock.entityType && (
-              <div>
-                <div className="k">Entity Type</div>
-                <div>{selectedBlock.entityType}</div>
-              </div>
+        </section>
+        {(verification || verifyError) && (
+          <div className="audit-notice" role="status">
+            <strong>
+              {verifyError
+                ? "Verification unavailable"
+                : verification.valid
+                  ? "Chain verification passed"
+                  : "Chain needs attention"}
+            </strong>
+            <p>
+              {verifyError ||
+                `${verification.count} records checked. ${verification.reason || verification.message || ""}${verification.brokenAt ? ` Issue at record ${verification.brokenAt}.` : ""}`}
+            </p>
+            {verifyError && (
+              <Btn onClick={verify} disabled={verifying}>
+                Retry verification
+              </Btn>
             )}
+          </div>
+        )}
+        <section className="card audit-records" aria-label="Activity records">
+          <div className="audit-panel-heading">
             <div>
-              <div className="k">Hashed Entity Ref</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>
-                {selectedBlock.hashedEntityRef || '(empty)'}
-              </div>
+              <h2>Activity history</h2>
+              <p>Filter across the entire history, then inspect the details.</p>
             </div>
-            <div>
-              <div className="k">Hashed Actor Ref</div>
-              <div style={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>
-                {selectedBlock.hashedActorRef || '(empty)'}
-              </div>
-            </div>
-            {selectedBlock.actorRole && (
-              <div>
-                <div className="k">Actor Role</div>
-                <div>{selectedBlock.actorRole}</div>
-              </div>
+            <span className="pill">Admin access</span>
+          </div>
+          <form className="audit-filters" onSubmit={apply}>
+            {identityField("account", "Affected account", accounts)}
+            {identityField(
+              "actor",
+              "Administrator",
+              accounts.filter((row) => row.role === "admin"),
             )}
-            {selectedBlock.correctsBlockId && (
-              <div>
-                <div className="k">Corrects Block</div>
-                <div style={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>
-                  {selectedBlock.correctsBlockId}
+            <label className="audit-field">
+              Event
+              <select
+                name="event"
+                value={draft.event}
+                onChange={(e) => setDraft({ ...draft, event: e.target.value })}
+              >
+                <option value="">All events</option>
+                {eventOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {title(value)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="audit-field">
+              From
+              <input
+                type="date"
+                name="from"
+                value={draft.from}
+                onInput={(e) =>
+                  setDraft((current) => ({ ...current, from: e.target.value }))
+                }
+                onChange={(e) =>
+                  setDraft((current) => ({ ...current, from: e.target.value }))
+                }
+              />
+            </label>
+            <label className="audit-field">
+              Through
+              <input
+                type="date"
+                name="to"
+                value={draft.to}
+                onInput={(e) =>
+                  setDraft((current) => ({ ...current, to: e.target.value }))
+                }
+                onChange={(e) =>
+                  setDraft((current) => ({ ...current, to: e.target.value }))
+                }
+              />
+            </label>
+            <div className="audit-filter-actions">
+              <Btn type="submit" variant="primary">
+                Apply filters
+              </Btn>
+              <Btn onClick={clear}>Clear</Btn>
+            </div>
+            {(filterError || directoryError) && (
+              <p
+                className="audit-filter-message"
+                role={filterError ? "alert" : "status"}
+              >
+                {filterError || directoryError}
+              </p>
+            )}
+          </form>
+          <div className="audit-results-toolbar">
+            <label className="audit-search">
+              <Icon name="search" />
+              <input
+                aria-label="Search this page"
+                type="search"
+                placeholder="Search this page…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </label>
+            <p>
+              Search and column sorting apply to this page of up to 25 records.
+            </p>
+          </div>
+          {loading ? (
+            <div className="audit-state" role="status">
+              Loading activity…
+            </div>
+          ) : error ? (
+            <div className="audit-state" role="alert">
+              <h3>Activity could not be loaded</h3>
+              <p>{error}</p>
+              <Btn onClick={() => setReload(reload + 1)}>Try again</Btn>
+            </div>
+          ) : sorted.length ? (
+            <Table
+              className="audit-table"
+              columns={columns}
+              rows={sorted}
+              rowKey={(row) => row.id}
+              sort={sort}
+              onSort={toggleSort}
+            />
+          ) : (
+            <div className="audit-state">
+              <Icon name="search" />
+              <h3>{query ? "No matches on this page" : "No activity found"}</h3>
+              <p>
+                {query
+                  ? "Try another name, event, or reason."
+                  : "Adjust the filters, or return here after an account action."}
+              </p>
+              <Btn onClick={query ? () => setQuery("") : clear}>
+                {query ? "Clear search" : "Clear filters"}
+              </Btn>
+            </div>
+          )}
+          <footer className="audit-pagination">
+            <div>
+              <strong>Page {cursors.length}</strong>
+              <span>
+                {!loading &&
+                  !error &&
+                  `${page.events.length} records on this page`}
+                {updatedAt &&
+                  ` · Refreshed ${updatedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
+              </span>
+            </div>
+            <div>
+              <Btn
+                disabled={loading || cursors.length < 2}
+                onClick={() => {
+                  const next = cursors.slice(0, -1);
+                  setCursors(next);
+                  setCursor(next.at(-1));
+                  setQuery("");
+                }}
+              >
+                ← Newer
+              </Btn>
+              <Btn
+                disabled={loading || !!error || !page.nextCursor}
+                onClick={() => {
+                  setCursors([...cursors, page.nextCursor]);
+                  setCursor(page.nextCursor);
+                  setQuery("");
+                }}
+              >
+                Earlier →
+              </Btn>
+            </div>
+          </footer>
+        </section>
+        <p className="audit-privacy-note">
+          Names reflect current profiles. Erased identities and private details
+          stay unavailable; older records may not include a reason.
+        </p>
+        <AdminDialog
+          name="audit-event"
+          open={!!selected}
+          onClose={() => setSelected(null)}
+          title={selected ? title(selected.eventType) : "Activity details"}
+        >
+          {selected && (
+            <>
+              <div className="audit-detail-kicker">
+                <span className="pill">Record #{selected.sequence}</span>
+                <time>{date(selected.createdAt)}</time>
+              </div>
+              <dl className="audit-detail-people">
+                <div>
+                  <dt>Affected account</dt>
+                  <dd>
+                    <Person
+                      person={selected.affectedAccount}
+                      fallback={
+                        selected.entityType === "user"
+                          ? "Identity unavailable"
+                          : `${selected.entityType || "System"} event`
+                      }
+                    />
+                  </dd>
                 </div>
-              </div>
-            )}
-            <div>
-              <div className="k">Created At</div>
-              <div>
-                {selectedBlock.createdAt?.toDate
-                  ? selectedBlock.createdAt.toDate().toLocaleString()
-                  : new Date(selectedBlock.createdAt).toLocaleString()}
-              </div>
-            </div>
-          </div>
-        )}
-      </Drawer>
+                <div>
+                  <dt>Performed by</dt>
+                  <dd>
+                    <Person person={selected.actor} />
+                  </dd>
+                </div>
+              </dl>
+              <section className="audit-reason">
+                <p className="admin-care-eyebrow">Reason & outcome</p>
+                <h3>
+                  {STATES[selected.contextState] || "Details unavailable"}
+                </h3>
+                {selected.context ? (
+                  <>
+                    <blockquote>
+                      {selected.context.reason ||
+                        "No additional reason supplied."}
+                    </blockquote>
+                    {(selected.context.beforeStatus ||
+                      selected.context.afterStatus) && (
+                      <div className="audit-status-change">
+                        <span>
+                          {selected.context.beforeStatus || "Not recorded"}
+                        </span>
+                        <span aria-hidden="true">→</span>
+                        <strong>
+                          {selected.context.afterStatus || "Not recorded"}
+                        </strong>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p>
+                    {selected.contextState === "redacted"
+                      ? "Private details were removed through the erasure process."
+                      : selected.contextState === "mismatch"
+                        ? "The stored details do not match their digest and have been withheld."
+                        : "This record has no verified reason available. No details have been inferred."}
+                  </p>
+                )}
+                <small>
+                  Reason verification checks this record’s private context. Use
+                  Verify chain to check the full chain.
+                </small>
+              </section>
+              <details className="audit-technical">
+                <summary>Technical record</summary>
+                <dl>
+                  {[
+                    ["Event type", selected.eventType],
+                    ["Record ID", selected.id],
+                    ["Record hash", selected.recordHash],
+                    ["Previous hash", selected.prevHash],
+                    ["Hashed account reference", selected.hashedEntityRef],
+                    ["Hashed actor reference", selected.hashedActorRef],
+                    ["Correction reference", selected.correctsBlockId],
+                  ].map(([label, value]) => (
+                    <div key={label}>
+                      <dt>{label}</dt>
+                      <dd>{value || "Not recorded"}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </details>
+            </>
+          )}
+        </AdminDialog>
+      </div>
     </AppShell>
-  )
+  );
 }

@@ -7,6 +7,23 @@ import { auth } from '../lib/firebase.js'
 const ENDPOINT = (import.meta.env.VITE_MATCHING_ENDPOINT ?? '').trim().replace(/\/$/, '')
 const ACCOUNT_ENDPOINT = (import.meta.env.VITE_ACCOUNT_SERVICE_URL ?? '').trim().replace(/\/$/, '')
 
+/** Read one server-filtered page. An old Worker fails explicitly. */
+export async function getAuditActivity(filters = {}, cursor = null) {
+  if (!ENDPOINT) throw new Error('The audit service is not configured.')
+  if (!auth?.currentUser) throw new Error('Sign in again to view audit activity.')
+  const url = new URL(`${ENDPOINT}/audit/activity`)
+  for (const [key, value] of Object.entries({ ...filters, cursor }))
+    if (value) url.searchParams.set(key, value)
+  const token = await auth.currentUser.getIdToken()
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(15000) })
+  const payload = await response.json().catch(() => null)
+  if (!response.ok || payload?.activityVersion !== 1 || !Array.isArray(payload.events))
+    throw new Error(response.status === 404 || (response.ok && payload?.activityVersion !== 1)
+      ? 'Audit activity needs the updated Worker. Deploy the Worker before updating Hosting.'
+      : payload?.error || 'Audit activity could not be loaded. Please try again.')
+  return payload
+}
+
 /** Read one page of account activity; an old Worker never falls back to unfiltered blocks. */
 export async function getAccountHistory(accountId, before = null) {
   if (!ACCOUNT_ENDPOINT) throw new Error('The account history service is not configured.')

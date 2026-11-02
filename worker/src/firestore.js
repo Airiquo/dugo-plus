@@ -267,6 +267,25 @@ export async function getDocument(env, collection, id) {
   return decodeDocument(document)
 }
 
+/** Read up to 200 unique paths in batches; missing documents map to null. */
+export async function getDocuments(env, paths) {
+  const unique = [...new Set(paths)]
+  if (unique.length > 200) throw new FirestoreError(400, 'Too many document paths')
+  const result = new Map(unique.map(path => [path, null]))
+  for (let offset = 0; offset < unique.length; offset += 100) {
+    const batch = unique.slice(offset, offset + 100)
+    const names = new Map(batch.map(path => [documentName(env, path), path]))
+    const rows = await firestoreFetch(env, ':batchGet', {
+      method: 'POST', body: JSON.stringify({ documents: [...names.keys()] }),
+    })
+    for (const row of rows || []) {
+      if (row.found && names.has(row.found.name))
+        result.set(names.get(row.found.name), decodeDocument(row.found))
+    }
+  }
+  return result
+}
+
 /** Delete one document by path (e.g. `users/abc`). A missing document is fine. */
 export async function deleteDocument(env, path) {
   const token = await accessToken(env)

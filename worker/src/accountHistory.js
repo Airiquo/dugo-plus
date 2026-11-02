@@ -1,4 +1,4 @@
-import { getDocument, runQuery } from "./firestore.js";
+import { getDocument, getDocuments, runQuery } from "./firestore.js";
 import { hashRef } from "./audit.js";
 import { HttpError } from "./http.js";
 
@@ -82,18 +82,24 @@ export async function getAccountHistory(
       admins.map(async (row) => [await hashRef(env, row.id), row.data]),
     ),
   );
-  const redactions = new Map();
-  async function redacted(ref) {
-    if (!ref) return false;
-    if (!redactions.has(ref))
-      redactions.set(ref, read("auditRedactions", ref).then(Boolean));
-    return redactions.get(ref);
+  const paths = new Set();
+  for (const row of rows.slice(0, PAGE_SIZE)) {
+    if (row.data.contextHash) paths.add(`auditContexts/${row.id}`);
+    for (const ref of [row.data.hashedEntityRef, row.data.hashedActorRef])
+      if (ref) paths.add(`auditRedactions/${ref}`);
   }
+  const readMany = adapter.getDocuments || (adapter.getDocument
+    ? async paths => new Map(await Promise.all(paths.map(async path => {
+      const [collection, id] = path.split('/');
+      return [path, await read(collection, id)];
+    }))) : paths => getDocuments(env, paths));
+  const privateDocs = await readMany([...paths]);
+  const redacted = ref => !!privateDocs.get(`auditRedactions/${ref}`);
   const events = await Promise.all(
     rows.slice(0, PAGE_SIZE).map(async (row) => {
       const block = row.data;
       const detail = block.contextHash
-        ? await read("auditContexts", row.id)
+        ? privateDocs.get(`auditContexts/${row.id}`)
         : null;
       const hidden =
         (await redacted(block.hashedEntityRef)) ||
