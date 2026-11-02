@@ -4,7 +4,7 @@ import { getHospitalDonations, readHospital } from '../../services/hospitals'
 import { BLOOD_TYPES } from '../../services/users'
 import { toDate } from '../../utils/eligibility'
 import { HospitalShell } from '../../layout/HospitalShell'
-import { Badge, Card, PageHeader, Table, Tabs } from '../../components'
+import { Badge, Card, PageHeader, Table } from '../../components'
 
 /** Pre-set period filters for blood collection tracking (FR-014). */
 const PERIOD_TABS = [
@@ -144,12 +144,20 @@ export default function Dashboard() {
                       period (FR-014).
                     </p>
                   </div>
-                  <Tabs
-                    label="Collection period"
-                    tabs={PERIOD_TABS}
-                    value={period}
-                    onChange={setPeriod}
-                  />
+                  <label className="hospital-period-select">
+                    <span className="care-sr-only">Collection period</span>
+                    <select
+                      aria-label="Collection period"
+                      value={period}
+                      onChange={(event) => setPeriod(event.target.value)}
+                    >
+                      {PERIOD_TABS.map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </header>
 
                 {donationsLoading && (
