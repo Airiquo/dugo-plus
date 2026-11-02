@@ -6,7 +6,7 @@
   "scripts": {
     "test:rules": "firebase emulators:exec --only firestore --project demo-dugo \"node firestore.rules.test.mjs\"",
     "test:profile-photos": "node --test web/src/utils/profilePhoto.test.js",
-    "test:matching": "node --test web/src/utils/geo.test.js web/src/utils/geohash.test.js web/src/utils/matching.test.js web/src/utils/eligibility.test.js worker/src/firestore.test.js worker/src/matcher.test.js worker/src/audit.test.js worker/src/donorResponses.test.js worker/src/accounts.test.js worker/src/accountOperations.test.js worker/src/reverseGeocoding.test.js web/src/utils/accountOperationRequest.test.js",
+    "test:matching": "node --test web/src/utils/geo.test.js web/src/utils/geohash.test.js web/src/utils/matching.test.js web/src/utils/eligibility.test.js worker/src/firestore.test.js worker/src/matcher.test.js worker/src/audit.test.js worker/src/donorResponses.test.js worker/src/accounts.test.js worker/src/accountOperations.test.js worker/src/reverseGeocoding.test.js worker/src/accountHistory.test.js web/src/utils/accountOperationRequest.test.js web/src/utils/accountActions.test.js",
     "dev:donor-api": "node --watch tools/donor-api-dev.mjs",
     "check:docs": "node tools/check-docs.mjs",
     "seed:demo": "node scripts/seed-demo-world.mjs",

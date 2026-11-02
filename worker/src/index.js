@@ -11,6 +11,7 @@ import { verifyIdToken } from './firebase-auth.js'
 import { createDonorResponder, createDonorAlertReader } from './donorResponses.js'
 import { getDocument, transactionStore } from './firestore.js'
 import { HttpError, corsHeaders, json } from './http.js'
+import { getAccountHistory } from './accountHistory.js'
 import { processRequest, runMatchingCycle } from './matcher.js'
 import { notifyNewMatches, retryNotifications } from './notify.js'
 import { reverseGeocodeCity } from './reverseGeocoding.js'
@@ -145,6 +146,16 @@ async function route(request, env) {
       }
     }
 
+    return json({ ok: true, ...result }, 200, cors)
+  }
+
+  // GET /accounts/history - active admin only
+  if (request.method === 'GET' && url.pathname === '/accounts/history') {
+    const user = await verifyIdToken(env, bearerToken(request))
+    const profile = await getDocument(env, 'users', user.uid)
+    if (user.claims?.role !== 'admin' || !profile || (profile.data.status || 'Active') !== 'Active')
+      throw new HttpError(403, 'Only an active administrator can view account history.')
+    const result = await getAccountHistory(env, url.searchParams.get('accountId'), url.searchParams.get('before'))
     return json({ ok: true, ...result }, 200, cors)
   }
 

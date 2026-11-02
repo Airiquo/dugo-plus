@@ -450,7 +450,7 @@ Erasable sidecar: `reason` (≤2000 chars), `beforeStatus`, `afterStatus`,
 Its canonical reason/status data is HMAC-bound to `auditBlocks.contextHash`.
 There are no dedicated identity snapshots; a free-form reason may contain personal
 data and is erasable. Server-only access; a later authorized
-history endpoint must honor redaction tombstones before returning details.
+history endpoint must honor redaction tombstones before returning details. D50 implements `GET /accounts/history`: active-admin authorization, subject-scoped cursor pagination, context-digest verification and tombstone checks. Current administrator identities are resolved from a bounded 100-profile query; unresolved identities remain unavailable. No identity snapshots or new stored fields are added.
 
 ### 2.18 `auditRedactions/{hashedUserRef}` — [ADDED] (D40)
 
@@ -521,6 +521,7 @@ Cardinality read from the crow's-foot notation.
 | `donorConsents` | `donorId` ASC, `grantedAt` DESC | Consent history |
 | `dataSubjectRequests` | `status` ASC, `createdAt` ASC | Admin work queue |
 | `auditBlocks` | `sequence` DESC | Fetch the latest block |
+| `auditBlocks` | `hashedEntityRef` ASC, `entityType` ASC, `sequence` DESC | D50: account history with exclusive sequence cursor (25 rows/page) |
 | `accountOperations` | `state` ASC, `nextAttemptAt` ASC | D40 due recovery work |
 | `auditOutbox` | `state` ASC, `nextAttemptAt` ASC | D40 due event delivery |
 | `auditRedactions` | `state` ASC, `nextAttemptAt` ASC | D40 bounded erasure cleanup |
