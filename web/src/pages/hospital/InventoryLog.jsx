@@ -19,10 +19,14 @@ import {
   PageHeader,
   Select,
   Table,
+  TablePager,
   Tabs,
 } from '../../components'
 
 const HISTORY_PAGE = 50
+
+/** Rows per page in the log tables. */
+const PAGE_SIZE = 10
 
 const TYPE_FILTER_OPTIONS = [
   { value: '', label: 'All blood types' },
@@ -74,6 +78,14 @@ export default function InventoryLog() {
   const [movements, setMovements] = useState([])
   const [movementsLoading, setMovementsLoading] = useState(false)
   const [movementsFailed, setMovementsFailed] = useState(false)
+
+  // Table controls: per-tab blood-type filter (movements filter server-side),
+  // date sort and client-side pagination.
+  const [donFilterType, setDonFilterType] = useState('')
+  const [donSort, setDonSort] = useState('new')
+  const [donPage, setDonPage] = useState(1)
+  const [movSort, setMovSort] = useState('new')
+  const [movPage, setMovPage] = useState(1)
 
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -188,6 +200,33 @@ export default function InventoryLog() {
     }
   }
 
+  const sortDate = (rows, key, dir) =>
+    [...rows].sort(
+      (a, b) => ((a[key]?.getTime?.() ?? 0) - (b[key]?.getTime?.() ?? 0)) * (dir === 'new' ? -1 : 1),
+    )
+  const donationRows = useMemo(
+    () =>
+      sortDate(
+        donFilterType ? donations.filter((row) => row.bloodType === donFilterType) : donations,
+        'donationDate',
+        donSort,
+      ),
+    [donations, donFilterType, donSort],
+  )
+  const donationPageCount = Math.max(1, Math.ceil(donationRows.length / PAGE_SIZE))
+  const donationCurrentPage = Math.min(donPage, donationPageCount)
+  const donationPaged = donationRows.slice(
+    (donationCurrentPage - 1) * PAGE_SIZE,
+    donationCurrentPage * PAGE_SIZE,
+  )
+  const movementRows = useMemo(() => sortDate(movements, 'createdAt', movSort), [movements, movSort])
+  const movementPageCount = Math.max(1, Math.ceil(movementRows.length / PAGE_SIZE))
+  const movementCurrentPage = Math.min(movPage, movementPageCount)
+  const movementPaged = movementRows.slice(
+    (movementCurrentPage - 1) * PAGE_SIZE,
+    movementCurrentPage * PAGE_SIZE,
+  )
+
   const totals = useMemo(() => {
     const totalUnits = donations.reduce((sum, row) => sum + (Number(row.units) || 0), 0)
     const latest = donations.reduce((last, row) => {
@@ -201,17 +240,7 @@ export default function InventoryLog() {
 
   return (
     <Shell facility={hospital?.name}>
-      <PageHeader
-        tag={isAdmin ? 'Dugo+ admin' : 'Dugo+ hospital'}
-        title="Inventory Log"
-        actions={
-          <Link to={isAdmin ? '/admin/inventory' : '/hospital/inventory'}>
-            <Btn variant="subtle" icon="box">
-              View current stock
-            </Btn>
-          </Link>
-        }
-      />
+      <PageHeader tag={isAdmin ? 'Dugo+ admin' : 'Dugo+ hospital'} title="Inventory Log" />
       <div id="page-body">
         <div className="hospital-inventory">
           {isAdmin && (
@@ -285,7 +314,7 @@ export default function InventoryLog() {
                     <header>
                       <h2>Confirmed donations</h2>
                       <p className="muted">
-                        Every confirmed donation record at this facility (schema §2.9), newest first.
+                        Every confirmed donation record at this facility (schema §2.9).
                       </p>
                     </header>
 
@@ -300,19 +329,61 @@ export default function InventoryLog() {
                       </div>
                     )}
 
-                    {!donationsLoading && !donationsFailed && donations.length === 0 && (
+                    {!donationsLoading && !donationsFailed && donationRows.length === 0 && (
                       <p className="hospital-note">
-                        No donations confirmed here yet. Screen and confirm matches on the{' '}
-                        <Link to={isAdmin ? '/admin/inventory' : '/hospital/inventory'}>
-                          Inventory screen
-                        </Link>{' '}
-                        to record them here.
+                        {donations.length === 0 ? (
+                          <>
+                            No donations confirmed here yet. Screen and confirm matches on the{' '}
+                            <Link to={isAdmin ? '/admin/inventory' : '/hospital/inventory'}>
+                              Inventory screen
+                            </Link>{' '}
+                            to record them here.
+                          </>
+                        ) : (
+                          'No donations match this filter.'
+                        )}
                       </p>
                     )}
 
-                    {!donationsLoading && !donationsFailed && donations.length > 0 && (
+                    {!donationsLoading && !donationsFailed && donationRows.length > 0 && (
                       <>
+                        <div className="hospital-table-tools">
+                          <label className="hospital-table-tool">
+                            <span className="care-sr-only">Filter donations by blood type</span>
+                            <select
+                              aria-label="Filter donations by blood type"
+                              value={donFilterType}
+                              onChange={(event) => {
+                                setDonFilterType(event.target.value)
+                                setDonPage(1)
+                              }}
+                            >
+                              <option value="">All blood types</option>
+                              {BLOOD_TYPES.map((bt) => (
+                                <option key={bt} value={bt}>
+                                  {bt}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="hospital-table-tool">
+                            <span className="care-sr-only">Sort donations by date</span>
+                            <select
+                              aria-label="Sort donations by date"
+                              value={donSort}
+                              onChange={(event) => {
+                                setDonSort(event.target.value)
+                                setDonPage(1)
+                              }}
+                            >
+                              <option value="new">Newest first</option>
+                              <option value="old">Oldest first</option>
+                            </select>
+                          </label>
+                        </div>
+
                         <Table
+                          className="hospital-table"
                           columns={[
                             {
                               key: 'donationDate',
@@ -363,8 +434,18 @@ export default function InventoryLog() {
                                 ),
                             },
                           ]}
-                          rows={donations}
+                          rows={donationPaged}
                           rowKey={(row) => row.id}
+                          scroll={false}
+                        />
+
+                        <TablePager
+                          page={donationCurrentPage}
+                          pageCount={donationPageCount}
+                          onPage={setDonPage}
+                          rangeStart={(donationCurrentPage - 1) * PAGE_SIZE + 1}
+                          rangeEnd={Math.min(donationCurrentPage * PAGE_SIZE, donationRows.length)}
+                          total={donationRows.length}
                         />
 
                         <div className="hospital-form-actions">
@@ -389,14 +470,6 @@ export default function InventoryLog() {
                     <p className="muted">
                       Every change to inventory: donations, transfusions, adjustments, and expired stock (schema §2.3.3).
                     </p>
-                    <div style={{ maxWidth: '240px', marginTop: 'var(--space-sm)' }}>
-                      <Select
-                        options={TYPE_FILTER_OPTIONS}
-                        value={selectedType}
-                        onChange={(e) => setSelectedType(e.target.value)}
-                        aria-label="Filter by blood type"
-                      />
-                    </div>
                   </header>
 
                   {movementsLoading && <p className="hospital-state">Loading movements…</p>}
@@ -417,8 +490,39 @@ export default function InventoryLog() {
                   )}
 
                   {!movementsLoading && !movementsFailed && movements.length > 0 && (
-                    <Table
-                      columns={[
+                    <>
+                      <div className="hospital-table-tools">
+                        <label className="hospital-table-tool">
+                          <span className="care-sr-only">Filter movements by blood type</span>
+                          <Select
+                            options={TYPE_FILTER_OPTIONS}
+                            value={selectedType}
+                            onChange={(e) => {
+                              setSelectedType(e.target.value)
+                              setMovPage(1)
+                            }}
+                            aria-label="Filter movements by blood type"
+                          />
+                        </label>
+                        <label className="hospital-table-tool">
+                          <span className="care-sr-only">Sort movements by date</span>
+                          <select
+                            aria-label="Sort movements by date"
+                            value={movSort}
+                            onChange={(event) => {
+                              setMovSort(event.target.value)
+                              setMovPage(1)
+                            }}
+                          >
+                            <option value="new">Newest first</option>
+                            <option value="old">Oldest first</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <Table
+                        className="hospital-table"
+                        columns={[
                         {
                           key: 'createdAt',
                           header: 'Date',
@@ -480,9 +584,20 @@ export default function InventoryLog() {
                             ),
                         },
                       ]}
-                      rows={movements}
+                      rows={movementPaged}
                       rowKey={(row) => `${row.bloodType}_${row.id}`}
+                      scroll={false}
                     />
+
+                      <TablePager
+                        page={movementCurrentPage}
+                        pageCount={movementPageCount}
+                        onPage={setMovPage}
+                        rangeStart={(movementCurrentPage - 1) * PAGE_SIZE + 1}
+                        rangeEnd={Math.min(movementCurrentPage * PAGE_SIZE, movementRows.length)}
+                        total={movementRows.length}
+                      />
+                    </>
                   )}
                 </Card>
               )}
