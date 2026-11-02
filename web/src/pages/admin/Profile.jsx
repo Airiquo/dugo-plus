@@ -1,261 +1,390 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AppShell } from '../../layout/AppShell'
-import { useAuth } from '../../hooks/useAuth'
-import { readProfile, saveProfile, roleLabel } from '../../services/users'
-import { updateDisplayName } from '../../services/auth'
-import { Btn, Card, Field, Input, PageHeader, ProfilePhotoEditor } from '../../components'
-
-/** The editable part of the page's state, from a profile read. */
-function formFrom(profile) {
-  return {
-    fullName: profile?.fullName ?? '',
-    phoneNumber: profile?.phoneNumber ?? '',
-  }
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { AppShell } from "../../layout/AppShell";
+import { useAuth } from "../../hooks/useAuth";
+import { readProfile, saveProfile, roleLabel } from "../../services/users";
+import { updateDisplayName } from "../../services/auth";
+import {
+  Btn,
+  Field,
+  Icon,
+  Input,
+  PageHeader,
+  ProfilePhotoEditor,
+} from "../../components";
+const formFrom = (profile) => ({
+  fullName: profile?.fullName || "",
+  phoneNumber: profile?.phoneNumber || "",
+});
+function dateLabel(value) {
+  const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
+  return date && Number.isFinite(date.getTime())
+    ? new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(date)
+    : "Not recorded";
 }
 
-/** The tone a status badge should wear; both are defined in the shared sheet. */
-function statusTone(status) {
-  return status === 'Active' ? 'active' : 'inactive'
-}
-
-/** A readable date for the last profile write, or a dashed placeholder. */
-function updatedLabel(value) {
-  if (!value) return '—'
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(value)
-}
-
-/**
- * Admin profile — `/admin/profile` (FR-047).
- *
- * The signed-in administrator's own account: name and phone are editable, the
- * rest is read-only because email, account type and status are managed outside
- * this screen (the account type lives in `users.role` and custom claims, the
- * status is an admin action on `/admin/accounts`, D26).
- *
- * Reads `users/{uid}` directly rather than trusting the session context, so a
- * save here shows the stored values immediately and a suspended account cannot
- * reach the screen at all (`layout/RequireAuth.jsx`).
- */
+/** Administrator identity, contact details and read-only access facts. */
 export default function Profile() {
-  const { user, role, reloadUser } = useAuth()
-
-  const [source, setSource] = useState(null)
-  const [form, setForm] = useState(formFrom(null))
-  const [saved, setSaved] = useState(formFrom(null))
-  const [loading, setLoading] = useState(true)
-  const [loadFailed, setLoadFailed] = useState(false)
-  const [errors, setErrors] = useState({})
-  const [message, setMessage] = useState('')
-  const [note, setNote] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  const load = () => {
-    if (!user?.uid) return undefined
-    let current = true
-    setLoading(true)
-    setLoadFailed(false)
-    readProfile(user.uid)
-      .then((found) => {
-        if (!current) return
-        const next = formFrom(found)
-        setSource(found)
-        setForm(next)
-        setSaved(next)
-        setLoading(false)
-      })
-      .catch(() => {
-        if (!current) return
-        setLoadFailed(true)
-        setLoading(false)
-      })
-    return () => {
-      current = false
-    }
-  }
-
-  useEffect(load, [user?.uid])
-
-  const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved])
-
-  const set = (key) => (event) => {
-    const value = event.target.value
-    setForm((prev) => ({ ...prev, [key]: value }))
-    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: '' }))
-    setMessage('')
-    setNote('')
-  }
-
-  const submit = async (event) => {
-    event.preventDefault()
-    if (!source || loadFailed) return
-    const found = {}
-    if (!form.fullName.trim()) found.fullName = 'Enter the name your team should see.'
-    setErrors(found)
-    setMessage('')
-    setNote('')
-    if (Object.keys(found).length) return
-
-    setBusy(true)
+  const { user, role, reloadUser } = useAuth();
+  const [source, setSource] = useState(null);
+  const [form, setForm] = useState(formFrom(null));
+  const [saved, setSaved] = useState(formFrom(null));
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState("");
+  const [note, setNote] = useState("");
+  const generation = useRef(0),
+    nameInput = useRef(null);
+  async function load() {
+    if (!user?.uid) return;
+    const version = ++generation.current;
+    setLoading(true);
+    setLoadFailed(false);
+    setMessage("");
     try {
-      const next = {
-        fullName: form.fullName.trim(),
-        phoneNumber: form.phoneNumber.trim(),
-      }
-      await saveProfile(user.uid, next)
-      // The shell greets the admin by their Firebase display name, so keep the
-      // two in step; a failure here leaves the stored profile intact.
-      if (next.fullName !== (user.displayName ?? '')) {
-        await updateDisplayName(next.fullName)
-          .then(() => reloadUser())
-          .catch(() => {})
-      }
-      setForm(next)
-      setSaved(next)
-      // The read only refreshes on mount, so carry the write time into the
-      // facts card; a reload shows the server's own timestamp.
-      setSource((prev) => ({ ...prev, ...next, updatedAt: new Date() }))
-      setNote('Profile saved.')
+      const found = await readProfile(user.uid);
+      if (!found) throw new Error("Profile unavailable");
+      if (version !== generation.current) return;
+      setSource(found);
+      setForm(formFrom(found));
+      setSaved(formFrom(found));
+      setErrors({});
     } catch {
-      setMessage('Your profile could not be saved. Check your connection and try again.')
+      if (version === generation.current) setLoadFailed(true);
     } finally {
-      setBusy(false)
+      if (version === generation.current) setLoading(false);
     }
   }
-
-  const reset = () => {
-    setForm(saved)
-    setErrors({})
-    setMessage('')
-    setNote('')
+  useEffect(() => {
+    load();
+    return () => {
+      generation.current++;
+    };
+  }, [user?.uid]);
+  const dirty = JSON.stringify(form) !== JSON.stringify(saved);
+  const locked = loading || loadFailed || busy;
+  function set(key) {
+    return (event) => {
+      const value = event.target.value;
+      setForm((prev) => ({ ...prev, [key]: value }));
+      setErrors((prev) => ({ ...prev, [key]: "" }));
+      setNote("");
+      setMessage("");
+    };
   }
-
+  function discard() {
+    setForm({ ...saved });
+    setErrors({});
+    setMessage("");
+    setNote("");
+  }
+  async function submit(event) {
+    event.preventDefault();
+    if (locked || !source || !dirty) return;
+    if (!form.fullName.trim()) {
+      setErrors({ fullName: "Enter the name your team should see." });
+      nameInput.current?.focus();
+      return;
+    }
+    setErrors({});
+    setMessage("");
+    setNote("");
+    setBusy(true);
+    const next = {
+      fullName: form.fullName.trim(),
+      phoneNumber: form.phoneNumber.trim(),
+    };
+    try {
+      await saveProfile(user.uid, next);
+      let refreshIssue = false;
+      if (next.fullName !== saved.fullName)
+        try {
+          await updateDisplayName(next.fullName);
+        } catch {
+          refreshIssue = true;
+        }
+      try {
+        await reloadUser();
+      } catch {
+        refreshIssue = true;
+      }
+      let updated = null;
+      try {
+        updated = await readProfile(user.uid);
+      } catch {
+        refreshIssue = true;
+      }
+      setSource((prev) => ({
+        ...prev,
+        ...next,
+        updatedAt: updated?.updatedAt || null,
+      }));
+      setForm(next);
+      setSaved(next);
+      setNote(
+        refreshIssue
+          ? "Your details are saved. Some account display information could not refresh; reload this page to check it."
+          : "Your profile details are saved.",
+      );
+    } catch {
+      setMessage(
+        "Your details could not be saved. Your edits are still here; try again.",
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  const status = source?.status || "Active";
   return (
     <AppShell>
-      <PageHeader title="My profile" />
-      <div id="page-body">
-        <div className="admin-profile">
-          <Card as="form" noValidate onSubmit={submit} aria-busy={busy || loading}>
-            <header>
-              <h2>Your details</h2>
-              <p className="muted">
-                This name and number appear beside your admin actions. Your sign-in email is not
-                editable here.
-              </p>
-            </header>
-
-            {loading && <p className="muted">Loading your profile…</p>}
-            {loadFailed && (
-              <div role="alert">
-                <p data-state="error">
-                  Your profile could not be loaded, so saving now would overwrite it with what is on
-                  screen.
-                </p>
-                <Btn onClick={load}>Try again</Btn>
-              </div>
-            )}
-
-            <ProfilePhotoEditor disabled={loading || loadFailed || busy} />
-
-            <Field label="Full name">
-              <Input
-                autoComplete="name"
-                type="text"
-                value={form.fullName}
-                disabled={loading || loadFailed || busy}
-                aria-invalid={Boolean(errors.fullName) || undefined}
-                aria-describedby={errors.fullName ? 'admin-profile-name-error' : undefined}
-                onChange={set('fullName')}
-              />
-              {errors.fullName && (
-                <span id="admin-profile-name-error" data-state="error">
-                  {errors.fullName}
-                </span>
-              )}
-            </Field>
-
-            <Field label="Phone">
-              <Input
-                autoComplete="tel"
-                placeholder="0917 000 0000"
-                type="tel"
-                value={form.phoneNumber}
-                disabled={loading || loadFailed || busy}
-                onChange={set('phoneNumber')}
-              />
-            </Field>
-
-            <Field label="Sign-in email">
-              <Input type="email" value={user?.email ?? ''} readOnly disabled />
-            </Field>
-
-            {message && (
-              <p data-state="error" role="alert">
-                {message}
-              </p>
-            )}
-            {note && (
-              <p className="muted" role="status">
-                {note}
-              </p>
-            )}
-
-            <div className="admin-profile-actions">
-              <Btn
-                variant="primary"
-                type="submit"
-                disabled={busy || loading || loadFailed || !dirty}
-              >
-                {busy ? 'Saving…' : 'Save changes'}
-              </Btn>
-              <Btn onClick={reset} disabled={busy || loading || loadFailed || !dirty}>
-                Discard
-              </Btn>
-              <span className="muted" aria-live="polite">
-                {dirty ? 'Unsaved changes' : 'No changes to save'}
-              </span>
+      <div className="admin-workspace">
+        <PageHeader title="My Profile" />
+        <section className="aw-intro profile-intro">
+          <div>
+            <p className="admin-care-eyebrow">The person behind the work</p>
+            <h2>
+              A familiar face.
+              <br />
+              <em>A trusted connection.</em>
+            </h2>
+            <p>Keep the details your team sees clear and up to date.</p>
+          </div>
+          <div className="aw-intro-note">
+            <Icon name="user" />
+            <p>
+              Your administrator identity,
+              <br />
+              <strong>in one place.</strong>
+            </p>
+          </div>
+        </section>
+        {loadFailed && (
+          <div className="aw-notice aw-error" role="alert">
+            <strong>Your profile could not be loaded.</strong>
+            <p>Editing is disabled until your saved details are available.</p>
+            <Btn onClick={load}>Try again</Btn>
+          </div>
+        )}
+        <div className="admin-profile-layout">
+          <aside
+            className="card aw-panel admin-profile-identity"
+            aria-label="Your administrator identity"
+          >
+            <div className="profile-identity-band">
+              <Icon name="shield" />
+              <span>Administrator profile</span>
             </div>
-          </Card>
-
-          <Card as="aside" aria-label="Account facts">
-            <header>
-              <h2>Account</h2>
-              <p className="muted">Managed by Dugo+; contact support to change these.</p>
-            </header>
-            {loading ? (
-              <p className="muted">Loading…</p>
-            ) : loadFailed ? (
-              <p className="muted">Unavailable until the profile loads.</p>
-            ) : (
-              <dl className="admin-profile-facts">
+            <ProfilePhotoEditor
+              className="admin-profile-photo"
+              disabled={locked}
+            />
+            <div className="profile-identity-details">
+              <p className="admin-care-eyebrow">Signed in as</p>
+              <h2>
+                {loading
+                  ? "Loading profile…"
+                  : loadFailed
+                    ? "Profile unavailable"
+                    : source?.fullName || "Administrator"}
+              </h2>
+              <p>{user?.email || "Email unavailable"}</p>
+              <span className="pill">{roleLabel(role) || "Administrator"}</span>
+            </div>
+            <div className="profile-activity-link">
+              <Link
+                to={`/admin/audit-trail?actor=${encodeURIComponent(user?.uid || "")}`}
+              >
+                <Icon name="file" />
+                View my activity
+                <Icon name="arrow-right" />
+              </Link>
+            </div>
+          </aside>
+          <div className="admin-profile-main">
+            <form
+              className="card aw-panel aw-form"
+              noValidate
+              onSubmit={submit}
+              aria-busy={loading || busy}
+            >
+              <div className="aw-panel-heading">
                 <div>
-                  <dt>Account type</dt>
-                  <dd>{roleLabel(role) || 'Administrator'}</dd>
+                  <h2>Contact details</h2>
+                  <p>
+                    Your name and contact number for the people you work with.
+                  </p>
                 </div>
+                <Icon name="user" />
+              </div>
+              <div className="aw-panel-body">
+                {loading && (
+                  <p className="settings-help" role="status">
+                    Loading your saved details…
+                  </p>
+                )}
+                <fieldset disabled={locked} className="profile-contact-fields">
+                  <legend className="sr-only">Editable profile details</legend>
+                  <Field label="Full name">
+                    <Input
+                      ref={nameInput}
+                      autoComplete="name"
+                      maxLength={120}
+                      value={form.fullName}
+                      onChange={set("fullName")}
+                      aria-invalid={!!errors.fullName || undefined}
+                      aria-describedby={
+                        errors.fullName
+                          ? "admin-profile-name-error"
+                          : "admin-profile-name-help"
+                      }
+                    />
+                  </Field>
+                  {errors.fullName ? (
+                    <p
+                      id="admin-profile-name-error"
+                      className="aw-field-help profile-field-error"
+                      role="alert"
+                    >
+                      {errors.fullName}
+                    </p>
+                  ) : (
+                    <p id="admin-profile-name-help" className="aw-field-help">
+                      Use the name your team will recognize beside your actions.
+                    </p>
+                  )}
+                  <Field label="Phone number">
+                    <Input
+                      type="tel"
+                      autoComplete="tel"
+                      maxLength={40}
+                      value={form.phoneNumber}
+                      onChange={set("phoneNumber")}
+                    />
+                  </Field>
+                  <p className="aw-field-help">
+                    Optional. Include your area or country code when needed.
+                  </p>
+                </fieldset>
+                {message && (
+                  <p className="aw-notice aw-error" role="alert">
+                    {message}
+                  </p>
+                )}
+                {note && (
+                  <p className="aw-notice" role="status">
+                    {note}
+                  </p>
+                )}
+              </div>
+              <div className="aw-savebar profile-savebar">
+                <span role="status">
+                  {loading
+                    ? "Loading…"
+                    : loadFailed
+                      ? "Load your profile to continue"
+                      : dirty
+                        ? "You have unsaved changes"
+                        : "Your saved details are up to date"}
+                </span>
                 <div>
-                  <dt>Status</dt>
-                  <dd>
-                    <span className="badge" data-status={statusTone(source?.status)}>
-                      {source?.status ?? 'Active'}
-                    </span>
-                  </dd>
+                  <Btn onClick={discard} disabled={locked || !dirty}>
+                    Discard
+                  </Btn>
+                  <Btn
+                    type="submit"
+                    variant="primary"
+                    disabled={locked || !dirty}
+                  >
+                    {busy ? "Saving…" : "Save details"}
+                  </Btn>
                 </div>
+              </div>
+            </form>
+            <section
+              className="card aw-panel profile-access"
+              aria-labelledby="profile-access-title"
+            >
+              <div className="aw-panel-heading">
                 <div>
-                  <dt>Email verified</dt>
-                  <dd>{user?.emailVerified ? 'Yes' : 'No'}</dd>
+                  <h2 id="profile-access-title">Account & access</h2>
+                  <p>Read-only details for this administrator account.</p>
                 </div>
-                <div>
-                  <dt>Last updated</dt>
-                  <dd>{updatedLabel(source?.updatedAt)}</dd>
-                </div>
-              </dl>
-            )}
-          </Card>
+                <Icon name="lock" />
+              </div>
+              <div className="aw-panel-body">
+                {loading ? (
+                  <p role="status" className="settings-help">
+                    Loading account details…
+                  </p>
+                ) : loadFailed ? (
+                  <p className="settings-help">
+                    Account details will appear after your profile loads.
+                  </p>
+                ) : (
+                  <>
+                    <dl className="aw-facts">
+                      <div>
+                        <dt>Sign-in email</dt>
+                        <dd>{user?.email || "Not recorded"}</dd>
+                      </div>
+                      <div>
+                        <dt>Email verification</dt>
+                        <dd>
+                          <span className="profile-verification">
+                            <Icon
+                              name={user?.emailVerified ? "check" : "clock"}
+                            />
+                            {user?.emailVerified ? "Verified" : "Not verified"}
+                          </span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Access status</dt>
+                        <dd>
+                          <span
+                            className="chip"
+                            data-status={
+                              status === "Active"
+                                ? "active"
+                                : status === "Removed"
+                                  ? "emergency"
+                                  : "inactive"
+                            }
+                          >
+                            {status}
+                          </span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt>Details last updated</dt>
+                        <dd>{dateLabel(source?.updatedAt)}</dd>
+                      </div>
+                    </dl>
+                    <p className="aw-footnote">
+                      Your role, sign-in email and access status are managed
+                      through account administration.
+                    </p>
+                    <details className="profile-account-record">
+                      <summary>Account reference</summary>
+                      <dl>
+                        <dt>Account ID</dt>
+                        <dd>{user?.uid}</dd>
+                        <dt>Account type</dt>
+                        <dd>{roleLabel(role) || "Administrator"}</dd>
+                      </dl>
+                    </details>
+                  </>
+                )}
+              </div>
+            </section>
+          </div>
         </div>
       </div>
     </AppShell>
-  )
+  );
 }
