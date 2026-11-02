@@ -259,3 +259,10 @@ cannot change facility address/city/coordinates/geohash. Existing request
 location snapshots are preserved. Worker, Hosting and rules deployment remain
 pending; local REST, security-rules and browser verification is recorded in
 `docs/ACCOUNT_PROFILE_EDITING.md`.
+
+
+## 2026-11-02 — Global audit activity query indexes
+
+- **Origin:** build, F10/F12, D56.
+- Added eight `auditBlocks` composite indexes: all subsets of account (`hashedEntityRef`, `entityType`), actor (`hashedActorRef`), and event (`eventType`) equality fields, ending in `createdAt DESC, sequence DESC`.
+- No stored field, collection, or rules permission changes. Deploy additive indexes before the updated Worker and Hosting; runtime readiness must be checked.

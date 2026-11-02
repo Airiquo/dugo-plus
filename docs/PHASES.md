@@ -349,6 +349,9 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **D56 global Audit Trail (2026-11-02):** the event-first workspace and protected detail overlay are built with full-history account/actor/event/date filters, exclusive 25-row cursor pages, page-local search/sorting, and manual refresh/full-chain verification. Context/identity redaction and batched reads are covered by 109 regressions and seven REST-emulator checks; responsive fixtures pass at 390/768/1024/1440px. Requirements remain partial: deploy the eight additive indexes, then the updated Worker, authenticated-smoke it, then Hosting. This session cannot deploy `dugo-matching` with the available Cloudflare account (provider error 10007); its owner must deploy the merged revision, preserving `AUDIT_HASH_SECRET`. Health reports capability versions 2/1/1, not exact source identity. See `docs/ADMIN_AUDIT_WORKSPACE.md`.
+
+
 - **Record sorting across roles (2026-11-02, D55).** Owner requests ascending/descending table columns and extends sorting to hospital and donor screens. Shared headers and equivalent donor card controls preserve existing defaults; full loaded filtered table data sorts before pagination. See `docs/ROLE_RECORD_SORTING.md` for scope and fixture verification. No phase count changes.
 
 - **Erasure recovery fixed (2026-11-02, D54).** Owner authorizes the audit recommendations on feature/fix branches with meaningful commits. Accounts now permits permanent sign-in cleanup after profile erasure, using the existing Removed-only server action. Restore/edit protection remains. No schema or permission expansion; local regression/emulator evidence accompanies this fix.

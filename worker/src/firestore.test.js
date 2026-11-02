@@ -73,3 +73,9 @@ test('decodeDocument exposes id, data, and updateTime', () => {
   assert.deepEqual(decoded.data.matching, { currentTier: 1, exhausted: false })
   assert.equal(decoded.updateTime, '2026-06-01T12:00:00Z')
 })
+
+test('batch reads are bounded and empty input needs no credentials', async () => {
+  const { getDocuments } = await import('./firestore.js')
+  assert.deepEqual(await getDocuments({}, []), new Map())
+  await assert.rejects(getDocuments({}, Array.from({ length: 201 }, (_, i) => `users/${i}`)), { status: 400 })
+})

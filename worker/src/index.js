@@ -12,6 +12,7 @@ import { createDonorResponder, createDonorAlertReader } from './donorResponses.j
 import { getDocument, transactionStore } from './firestore.js'
 import { HttpError, corsHeaders, json } from './http.js'
 import { getAccountHistory } from './accountHistory.js'
+import { getAuditActivity } from './auditActivity.js'
 import { processRequest, runMatchingCycle } from './matcher.js'
 import { notifyNewMatches, retryNotifications } from './notify.js'
 import { reverseGeocodeCity } from './reverseGeocoding.js'
@@ -51,7 +52,7 @@ async function route(request, env) {
   }
 
   if (request.method === 'GET' && url.pathname === '/health') {
-    return json({ ok: true, service: 'dugo-matching', part: 1 }, 200, cors)
+    return json({ ok: true, service: 'dugo-matching', part: 1, accountOperationsVersion: 2, accountProfileVersion: 1, auditActivityVersion: 1 }, 200, cors)
   }
 
   if (request.method === 'POST' && url.pathname === '/donor/respond') {
@@ -159,6 +160,14 @@ async function route(request, env) {
       throw new HttpError(403, 'Only an active administrator can view account history.')
     const result = await getAccountHistory(env, url.searchParams.get('accountId'), url.searchParams.get('before'))
     return json({ ok: true, ...result }, 200, cors)
+  }
+
+  if (request.method === 'GET' && url.pathname === '/audit/activity') {
+    const user = await verifyIdToken(env, bearerToken(request))
+    const profile = await getDocument(env, 'users', user.uid)
+    if (user.claims?.role !== 'admin' || !profile || (profile.data.status || 'Active') !== 'Active')
+      throw new HttpError(403, 'Only an active administrator can view audit activity.')
+    return json({ ok: true, ...(await getAuditActivity(env, Object.fromEntries(url.searchParams))) }, 200, cors)
   }
 
   // GET /audit/blocks - admin only

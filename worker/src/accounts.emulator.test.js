@@ -48,8 +48,10 @@ const identities = new Map([
   ],
 ])
 let failAudit = false
+let externalServiceCalls = 0
 const capabilityToken = 'test-admin-token'
 globalThis.fetch = async (url, init = {}) => {
+  externalServiceCalls += 1
   const target = new URL(url)
   if (target.hostname === 'oauth2.googleapis.com')
     return Response.json({ access_token: 'emulator-owner', expires_in: 3600 })
@@ -408,4 +410,44 @@ test('HTTP profile editing validates authority, saves facility/donor locations a
 
 test.after(() => {
   globalThis.fetch = realFetch
+})
+
+test('HTTP audit activity enforces authority, filters full history, pages tied timestamps and batches details', async () => {
+  const request = (query = '', token = capabilityToken) => new Request(`https://worker.example.test/audit/activity?${query}`, { headers: { Authorization: `Bearer ${token}` } })
+  assert.equal((await worker.fetch(request('', 'invalid-token'), env)).status, 401)
+  assert.equal((await worker.fetch(request('', 'test-donor-token'), env)).status, 403)
+  await store.transact(async tx => { await tx.get('users', 'rest-admin'); tx.update('users/rest-admin', { status: 'Suspended' }) })
+  assert.equal((await worker.fetch(request(), env)).status, 403)
+  await store.transact(async tx => { await tx.get('users', 'rest-admin'); tx.update('users/rest-admin', { status: 'Active' }) })
+  assert.equal((await worker.fetch(request('cursor=broken'), env)).status, 400)
+  const time = new Date('2026-11-02T06:00:00Z')
+  for (let i = 0; i < 27; i++) {
+    await store.transact(async tx => { tx.create(`users/activity-${i}`, { role: 'donor', status: 'Active', fullName: `Activity person ${i}`, email: `activity-${i}@example.test` }) })
+    await appendAuditBlockSimple(env, { eventType: 'Audit.ActivityTest', entityType: 'user', entityId: `activity-${i}`, actorId: 'rest-admin', actorRole: 'admin', createdAt: time, context: { afterStatus: 'Suspended', beforeStatus: 'Active', reason: `Reason ${i}` } })
+  }
+  externalServiceCalls = 0
+  const response = await worker.fetch(request('event=Audit.ActivityTest'), env)
+  assert.equal(response.status, 200)
+  const first = await response.json()
+  assert.equal(first.activityVersion, 1)
+  assert.equal(first.events.length, 25)
+  assert.equal(first.events[0].affectedAccount.fullName, 'Activity person 26')
+  assert.equal(first.events[0].context.reason, 'Reason 26')
+  assert.ok(externalServiceCalls <= 6, `Expected bounded batch reads; received ${externalServiceCalls} external requests`)
+  console.log(`Audit page with 25 affected accounts used ${externalServiceCalls} external requests`)
+  const second = await (await worker.fetch(request(`event=Audit.ActivityTest&cursor=${encodeURIComponent(first.nextCursor)}`), env)).json()
+  assert.equal(second.events.length, 2)
+  assert.equal(second.nextCursor, null)
+  assert.equal(new Set([...first.events, ...second.events].map(event => event.id)).size, 27)
+  const filtered = await (await worker.fetch(request('event=Audit.ActivityTest&account=activity-26&actor=rest-admin&from=2026-11-02T00:00:00Z&to=2026-11-03T00:00:00Z'), env)).json()
+  assert.equal(filtered.events.length, 1)
+  const ref = await hashRef(env, 'activity-26')
+  await store.transact(async tx => { tx.create(`auditRedactions/${ref}`, { state: 'Pending' }) })
+  const erased = await (await worker.fetch(request('event=Audit.ActivityTest&account=activity-26'), env)).json()
+  assert.equal(erased.events[0].contextState, 'redacted')
+  assert.equal(erased.events[0].context, null)
+  assert.equal(erased.events[0].affectedAccount, null)
+  assert.equal((await verifyAuditChain(env)).valid, true)
+  const health = await (await worker.fetch(new Request('https://worker.example.test/health'), env)).json()
+  assert.deepEqual([health.accountOperationsVersion, health.accountProfileVersion, health.auditActivityVersion], [2, 1, 1])
 })
