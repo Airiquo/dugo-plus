@@ -349,6 +349,8 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Admin Settings (2026-11-02, D59):** grouped tier/retry editor, draft preview, persistent save/discard controls and load/save recovery are built on the existing configuration contract. Defaults remain a draft until saved; an unavailable read cannot overwrite settings. No data model, permissions or phase-count changes. See `docs/ADMIN_REMAINING_SCREENS.md`.
+
 - **Admin Dashboard (2026-11-02, D58):** overview now reads current account/privacy/configuration services and shows oldest open requests, precise count labels and independent source failure states. No new stored metrics or phase-count changes. See `docs/ADMIN_REMAINING_SCREENS.md`.
 
 - **Remaining admin screens (2026-11-02, D57):** owner authorizes Data Requests, Dashboard, Settings and Profile redesigns as separate feature branches/PRs. Data Requests now has an open queue, filters/sorting/pagination and centered read-only closed-request review. Completion/rejection requires a note; no server transition/audit-durability change is claimed. Phase counts are unchanged. See `docs/ADMIN_REMAINING_SCREENS.md`.
