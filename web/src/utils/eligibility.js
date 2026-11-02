@@ -11,6 +11,25 @@
 /** Whole-blood deferral from D13 and `donationTypes/whole-blood`. */
 export const WHOLE_BLOOD_INTERVAL_DAYS = 56
 
+/**
+ * Per-component deferral intervals (D13), keyed by the `donationTypes` doc ID.
+ * `scripts/seed-reference-data.mjs` seeds the same values, and a read of that
+ * collection overrides them when it is available.
+ */
+export const DEFAULT_INTERVALS = {
+  'whole-blood': 56,
+  platelets: 7,
+  plasma: 28,
+  'double-red-cells': 112,
+}
+
+/**
+ * The interval used when the last donation's type is unknown: the longest one,
+ * so guidance never tells a donor they can give sooner than a facility would
+ * allow. The screen states that the facility confirms the exact date.
+ */
+export const UNKNOWN_INTERVAL_DAYS = 112
+
 /** Donor age window. */
 export const MIN_AGE = 18
 export const MAX_AGE = 65
@@ -64,6 +83,18 @@ export function toDate(value) {
 }
 
 /**
+ * Map a derived status onto the shared `data-eligibility` tone vocabulary the
+ * stylesheet colours for both themes: `eligible` green, `deferred` and the
+ * refusals red, `unknown` neutral.
+ */
+export function eligibilityTone(status) {
+  if (status === 'eligible') return 'eligible'
+  if (status === 'unknown') return 'unknown'
+  if (status === 'deferred') return 'deferred'
+  return 'permanently-deferred'
+}
+
+/**
  * Eligibility for a profile.
  *
  * @param {{
@@ -81,7 +112,8 @@ export function toDate(value) {
  * }}
  *
  * `intervalDays` is the selected donation type's deferral (D13); leaving it out
- * uses the whole-blood interval. `status` is the machine-readable value;
+ * uses the whole-blood interval. Pass null for an unknown component to use
+ * the longest interval. `status` is the machine-readable value;
  * `label` and `detail` are the copy the screen renders. `unknown` means the
  * profile is missing the dates needed to decide, which is the normal state for
  * a new account.
@@ -122,7 +154,8 @@ export function eligibilityFor(
     }
   }
 
-  const next = nextEligibleDate(lastDonationAt, intervalDays)
+  const knownInterval = Number.isFinite(intervalDays) && intervalDays > 0
+  const next = nextEligibleDate(lastDonationAt, knownInterval ? intervalDays : UNKNOWN_INTERVAL_DAYS)
   if (next) {
     const daysLeft = daysBetween(now, next)
     if (daysLeft > 0) {

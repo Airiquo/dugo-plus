@@ -4,6 +4,7 @@ import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
 import { readProfile, saveProfile, BLOOD_TYPES, roleLabel } from '../../services/users'
 import { saveDonorLocation } from '../../services/donorLocations'
+import { latestDonorDonation } from '../../services/donations'
 import { eligibilityFor, toDate } from '../../utils/eligibility'
 import { validateProfile } from '../../utils/validate'
 import { FieldError, Icon, CarePageHeader, CareDonorCard, ProfilePhotoEditor } from '../../components'
@@ -91,9 +92,31 @@ export default function Profile() {
     }
   }, [user?.uid])
 
+  const [lastDonation, setLastDonation] = useState(null)
+  useEffect(() => {
+    setLastDonation(null)
+    if (!user?.uid || !saved.lastDonationAt) return
+    let current = true
+    latestDonorDonation(user.uid)
+      .then((found) => {
+        if (current) setLastDonation(found)
+      })
+      .catch(() => {
+        if (current) setLastDonation(null)
+      })
+    return () => {
+      current = false
+    }
+  }, [user?.uid, saved.lastDonationAt])
+
   const eligibility = useMemo(
-    () => eligibilityFor({ dateOfBirth: form.dateOfBirth, lastDonationAt: saved.lastDonationAt }),
-    [form.dateOfBirth, saved.lastDonationAt],
+    () =>
+      eligibilityFor({
+        dateOfBirth: form.dateOfBirth,
+        lastDonationAt: saved.lastDonationAt,
+        intervalDays: lastDonation?.intervalDays || null,
+      }),
+    [form.dateOfBirth, saved.lastDonationAt, lastDonation],
   )
 
   const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved])

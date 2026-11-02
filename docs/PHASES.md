@@ -28,7 +28,7 @@ numbers rather than trusting this section.
 | --- | --- | --- |
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | in progress (F3: hospital posts, lists, and manages its requests; smoke pending) |
-| **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; FR-010 derived on the profile; F5 history/rewards/tracker open. F4 smoke pending) |
+| **P3** | Donor browse, respond, history, rewards, health tracker | partial (F4 donor requests/respond/map built; F5 history/rewards/tracker built at `/donor/activity`; signed-in live smoke pending) |
 | **P4** | Hospital dashboard, inventory, screening | core workflows not started; NFR-23 request-queue usability half partial (D37), full dashboard still unbuilt |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; D40: versioned Worker account operations, durable audit outbox and owned provisioning recovery built; 181 rules checks, 64 unit/regression tests and four REST-emulator tests pass locally; coordinated deployment/live-provider smoke pending; functions not deployed, no signed-in smoke here) |
@@ -348,6 +348,8 @@ The app does not run unconfigured: with any `VITE_FIREBASE_*` missing, every
 route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
+
+- **F4/F5/map integration (2026-11-02).** Owner requests a separate branch from integration combining F4, F5 and `fix/f4_map`. F4 is already an ancestor; conflicts retain the current auth, account, navigation and redesign work while adding activity/history/rewards and map fixes. D41 records F5 points-only scope without replacing D26. Verification and remaining signed-in smoke are recorded in `docs/F4_F5_INTEGRATION.md`; no deployment is requested.
 
 - **Profile pictures (2026-11-01, D39).** Owner requests Cloudinary pictures for all three account types in a separate worktree and supplies cloud `dmecmkdww` / preset `dugo-plus-profiles`; the owner enables Unsigned after the first provider rejection, and a tiny generated test icon then uploads successfully. No provider configuration question remains. Removal/replacement/erasure clear only the profile URL; support must delete retained Cloudinary assets. No deployment is included. Verification and the retained test asset are recorded in `docs/PROFILE_PICTURES.md`. Phase counts are unchanged.
 
