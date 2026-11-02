@@ -75,6 +75,8 @@ export default function DataRequests() {
   const [page, setPage] = useState(1);
   const [directoryError, setDirectoryError] = useState("");
   const generation = useRef(0);
+  const notice = useRef(null);
+  useEffect(() => { if (!activeId && note) notice.current?.focus(); }, [activeId, note]);
 
   const load = async () => {
     const current = ++generation.current;
@@ -466,7 +468,7 @@ export default function DataRequests() {
             </label>
           </div>
           {note && !active && (
-            <p className="aw-notice" role="status">
+            <p className="aw-notice" role="status" ref={notice} tabIndex={-1}>
               {note}
             </p>
           )}
