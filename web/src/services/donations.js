@@ -1,6 +1,8 @@
 import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { toDate } from '../utils/eligibility'
+import { listDonationTypes } from './donationTypes'
+export { listDonationTypes } from './donationTypes'
 
 /**
  * Donation records — `donations/{matchId}` (schema §2.9). The doc ID is the
@@ -28,25 +30,6 @@ function donorDonationsQuery(uid) {
     where('donorId', '==', uid),
     orderBy('donationDate', 'desc'),
   )
-}
-
-/**
- * Reference data: `donationTypes/{id}`. Four documents, seeded by
- * `scripts/seed-reference-data.mjs`, each carrying its D13 `intervalDays`.
- *
- * @returns {Promise<Array<{ id: string, name: string, intervalDays: number }>>}
- */
-export async function listDonationTypes() {
-  requireDb()
-  const snap = await getDocs(collection(db, 'donationTypes'))
-  return snap.docs.map((entry) => {
-    const data = entry.data() ?? {}
-    return {
-      id: entry.id,
-      name: text(data.name) || entry.id,
-      intervalDays: Number(data.intervalDays) || 0,
-    }
-  })
 }
 
 /**

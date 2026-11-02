@@ -49,3 +49,10 @@ test('nextEligibleDate accepts a component interval', () => {
   assert.equal(nextEligibleDate(last).toISOString(), '2026-06-26T00:00:00.000Z')
   assert.equal(nextEligibleDate(last, 7).toISOString(), '2026-05-08T00:00:00.000Z')
 })
+
+test('an explicitly unknown component retains F5 longest-interval guidance', () => {
+  const result = eligibilityFor({ dateOfBirth: adult, lastDonationAt: daysAgo(57), intervalDays: null }, now)
+  assert.equal(result.status, 'deferred')
+  assert.match(result.detail, /facility confirms the exact date/)
+  assert.equal(eligibilityFor({ dateOfBirth: adult, lastDonationAt: daysAgo(113), intervalDays: null }, now).status, 'eligible')
+})

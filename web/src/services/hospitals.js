@@ -12,6 +12,7 @@ function text(value) {
 }
 
 function num(value) {
+  if (value == null || String(value).trim() === '') return null
   const n = Number(value)
   return Number.isFinite(n) ? n : null
 }

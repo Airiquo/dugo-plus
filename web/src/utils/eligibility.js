@@ -100,7 +100,7 @@ export function eligibilityTone(status) {
  * @param {{
  *   dateOfBirth?: unknown,
  *   lastDonationAt?: unknown,
- *   intervalDays?: number,
+ *   intervalDays?: number|null,
  * }} profile
  * @param {Date} [now]
  * @returns {{
@@ -163,7 +163,8 @@ export function eligibilityFor(
         status: 'deferred',
         eligible: false,
         label: 'Deferred',
-        detail: `You can donate again in ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}.`,
+        detail: `You can donate again in ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}.` +
+          (knownInterval ? '' : ' The wait depends on what you last donated; a facility confirms the exact date.'),
         nextEligibleOn: next,
       }
     }

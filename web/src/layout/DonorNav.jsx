@@ -5,7 +5,7 @@ import { useAuth, userName } from '../hooks/useAuth'
 export const DONOR_NAV = [
   { to: '/home', label: 'My profile', icon: 'user' },
   { to: '/donor/requests', label: 'Requests', icon: 'droplet' },
-  { to: '/donor/activity', label: 'Activity', icon: 'heart' },
+  { to: '/donor/activity', label: 'Activity', icon: 'chart' },
   { to: '/donor/alerts', label: 'Alerts', icon: 'bell' },
   { to: '/donor/privacy', label: 'Privacy', icon: 'settings' },
 ]
