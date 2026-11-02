@@ -14,7 +14,7 @@
 |---|---|
 | Directory | Search name/email/account/facility ID, role/status filters, clickable status totals and 10-row pagination. Counts explicitly describe loaded accounts. |
 | Visible actions | View history, Suspend, Remove access, Restore, Delete sign-in. Unsupported actions remain disabled; keyboard-reachable Action availability disclosure explains each restriction. |
-| Protected states | Own/admin/unknown-role accounts, erased profiles, provisioning/deleting/deleted sign-ins and unsupported states cannot be mutated from this screen. Server authority remains decisive. |
+| Protected states | Own/admin/unknown-role accounts, provisioning/deleting/deleted sign-ins and unsupported states cannot be mutated from this screen. D54 allows permanent sign-in cleanup for erased Removed profiles, while restoration/editing/access changes remain blocked. Server authority remains decisive. |
 | Hospital setup | Centered native dialog with grouped facility/person/sign-in fields. Required labels, input-linked errors, first-invalid-field focus, coordinate bounds and facility-ID validation. Password is masked and cleared on close/success; failed submissions retain the draft in memory. |
 | Confirmations | Identity and access status precede the action explanation and reason. Destructive changes require a reason; restoration accepts an optional note. Busy dialogs cannot be dismissed. |
 | Operation results | Uses existing v2 services and retry identity. Pending/network errors leave the form open for retry. Completed mutations with queued audit delivery are described as completed with activity awaiting delivery. |
@@ -50,3 +50,7 @@
 | 4 | Verify authenticated account-history responses have `historyVersion: 1`, then deploy the compatible frontend from clean merged integration under D37. |
 | 5 | Complete outstanding D40 rules rollout in its documented order. No additional rules changes are introduced in Batch 2. |
 | 6 | Perform authorized live creation/status/history/retry smoke. This document does not claim it has passed. |
+
+## Erasure cleanup correction (D54)
+
+The Data Requests erasure result directs the administrator to delete the retained Auth sign-in. Removed/erased profiles now enable that existing action when no deletion is pending/completed. All other controls retain their restrictions. The state-matrix regression and actual REST-emulator erasure→sign-in-deletion path verify the correction; no live production account is deleted.

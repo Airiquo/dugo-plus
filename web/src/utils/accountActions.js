@@ -16,8 +16,6 @@ export function accountActionReasons(account, actorId, busy = false) {
     return all("You cannot change your own account access.");
   if (!["donor", "hospital"].includes(account.role))
     return all("Administrator and unknown account types are protected.");
-  if (account.personalDataErased)
-    return all("Personal data was erased. Access cannot be restored.");
   if (["Deleting", "Provisioning"].includes(account.loginState))
     return all(
       "Sign-in setup or deletion is still processing. Refresh before making another change.",
@@ -27,6 +25,13 @@ export function accountActionReasons(account, actorId, busy = false) {
   const status = account.status || "Active";
   if (!["Active", "Suspended", "Removed"].includes(status))
     return all("This account has an unsupported access state.");
+  if (account.personalDataErased)
+    return {
+      ...all("Personal data was erased. Access cannot be restored."),
+      delete: status === "Removed"
+        ? ""
+        : "Remove account access before permanently deleting its sign-in.",
+    };
   return {
     suspend:
       status === "Active" ? "" : "Only an active account can be suspended.",

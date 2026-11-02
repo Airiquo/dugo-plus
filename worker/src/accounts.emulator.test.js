@@ -282,6 +282,12 @@ test('erasure removes saved context, retains a verifiable chain, and cannot be r
       ),
     /personal data was erased/,
   )
+  identities.set('rest-donor', { email: 'donor@example.test', emailVerified: true })
+  const cleanup = await deleteAuthAccount(env, 'rest-donor', 'rest-admin', 'Complete sign-in cleanup after erasure', key())
+  assert.equal(cleanup.state, 'Completed')
+  assert.equal(identities.has('rest-donor'), false)
+  assert.equal((await store.get('users', 'rest-donor')).data.loginState, 'Deleted')
+  assert.equal((await verifyAuditChain(env)).valid, true)
 })
 
 test('HTTP admin routes reject suspended profiles and forged account-event appends', async () => {

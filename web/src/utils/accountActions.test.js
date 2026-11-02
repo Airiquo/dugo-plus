@@ -2,6 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { accountActionReasons, accountProfileEditReason } from "./accountActions.js";
 const account = { id: "donor", role: "donor", status: "Active" };
+test('erased removed accounts permit sign-in cleanup while access and editing stay blocked', () => {
+  const erased = { ...account, status: 'Removed', personalDataErased: true }
+  const actions = accountActionReasons(erased, 'admin')
+  assert.equal(actions.delete, '')
+  assert.ok(actions.suspend && actions.remove && actions.restore)
+  assert.ok(accountProfileEditReason(erased, 'admin'))
+  for (const update of [{ id: 'admin' }, { role: 'admin' }, { loginState: 'Deleted' }, { loginState: 'Deleting' }, { loginDeletedAt: new Date() }])
+    assert.ok(accountActionReasons({ ...erased, ...update }, 'admin').delete)
+  assert.ok(accountActionReasons(erased, 'admin', true).delete)
+})
 test('profile editing is available for live donor/hospital accounts and explains protected states', () => {
   assert.equal(accountProfileEditReason(account, 'admin'), '')
   assert.equal(accountProfileEditReason({ ...account, status: 'Suspended', role: 'hospital' }, 'admin'), '')
