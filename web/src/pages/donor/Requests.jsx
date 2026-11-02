@@ -5,7 +5,7 @@ import { useTheme } from '../../hooks/useTheme'
 import { useDonorRequests } from '../../hooks/useDonorRequests'
 import { useDonorLocation } from '../../hooks/useDonorLocation'
 import { DonorNav } from '../../layout/DonorNav'
-import { Icon, DonorRequestMap, DonorRequestDetails } from '../../components'
+import { Icon, DonorRequestMap, DonorRequestDetails, BloodlineMark } from '../../components'
 import { respondToMatch } from '../../services/matches'
 import { listDonationTypes } from '../../services/donationTypes'
 import { DEFAULT_INTERVALS, eligibilityFor } from '../../utils/eligibility'
@@ -162,10 +162,7 @@ export default function Requests() {
             </p>
           </div>
           <div className="donation-hero-note">
-            <span className="donation-hero-blood">
-              {profile?.bloodType || '—'}
-              <Icon name="droplet" size={24} />
-            </span>
+            <BloodlineMark bloodType={profile?.bloodType} />
             <div>
               <strong>Your blood type. Someone’s lifeline.</strong>
               <p>

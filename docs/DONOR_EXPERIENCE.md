@@ -72,3 +72,37 @@ screens use a wrapper centered on the actual select, independent of label/errors
 
 The local app remains on port 5173 and its authenticated donor API on 8788.
 Worker, rules and Hosting production deployments have not been performed.
+
+## Activity and lifeline visual refresh — 2026-11-02
+
+Activity now shares the donor hub hierarchy: factual visit/unit/latest-visit
+summary, year-grouped history with expandable date/location/confirmation details,
+hospital/type search, donation-type filter and a dedicated readiness panel.
+The existing eligibility calculation and data services are unchanged. A shared
+`BloodlineMark` SVG replaces the plain blood-type pill in Requests and appears in
+Activity; a token-colored drop, continuous pulse line and connection nodes remain
+legible in both themes. No reward UI is introduced.
+
+Build/docs checks pass. Actual SDK/browser review verifies both themes at
+1440/1024/768/390/360px with no horizontal overflow, visit expansion, hospital/type
+search and filter reset, select-caret geometry and the shared emblem. Isolated
+service fixtures cover loading, empty, error/retry and deferred-readiness states;
+retry restores real history. No data-service or eligibility behavior changed.
+Proof images: `/private/tmp/dugo-activity-refresh/`.
+
+## Expanded test data — 2026-11-02
+
+Seeded 45 additional clearly labeled records in the configured `dugo-plus` project,
+without overwriting earlier commitments or creating rewards/provider deliveries.
+`donor@dugo.com` now has 11 confirmed donations, 14 units and history across
+2024–2026; hospital/type searches and expanded details have varied records.
+
+Additional dedicated test donors:
+
+- `donor.new@dugo.com`: verified, no donation history, two pending requests and alerts.
+- `donor.deferred@dugo.com`: verified, recent whole-blood donation and pending requests.
+- `donor.unverified@dugo.com`: held at the email-verification gate.
+
+Credentials are supplied to the owner in chat, not stored in source. Fixture
+manifests remain in `/private/tmp/dugo-seed-donor/`; no source-only flag is needed
+to see these records. Pending responses are left available for manual testing.
