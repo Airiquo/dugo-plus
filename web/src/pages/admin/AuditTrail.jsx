@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Table } from '../../components/Table'
 import { Drawer } from '../../components/Overlay'
 import { getAuditBlocks, verifyAuditChain } from '../../services/audit'
+import { useTableSort } from '../../hooks/useTableSort'
+import { sortRows, sortDate } from '../../utils/sortRows'
 import { cx } from '../../utils/cx'
 
 /**
@@ -12,6 +14,7 @@ import { cx } from '../../utils/cx'
  * and displays tamper-evident audit blocks.
  */
 export default function AuditTrail() {
+  const { sort, toggleSort } = useTableSort()
   const [blocks, setBlocks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -100,6 +103,7 @@ export default function AuditTrail() {
     },
     {
       key: 'actions',
+      sortable: false,
       header: '',
       render: (row) => (
         <button className="btn" type="button" onClick={() => setSelectedBlock(row)}>
@@ -155,7 +159,7 @@ export default function AuditTrail() {
             No audit activity has been recorded yet.
           </div>
         ) : (
-          <Table columns={columns} rows={blocks} rowKey={(row) => row.id} />
+          <Table columns={columns} sort={sort} onSort={toggleSort} rows={sortRows(blocks, sort.key ? row => sort.key === 'createdAt' ? sortDate(row.createdAt) : row[sort.key] : null, sort.direction)} rowKey={(row) => row.id} />
         )}
       </div>
 
