@@ -291,6 +291,7 @@ export default function DataRequests() {
   const columns = [
     {
       key: "subject",
+      mobileWide: true,
       header: "Requested by",
       render: (req) => (
         <div className="aw-person">
@@ -303,6 +304,7 @@ export default function DataRequests() {
     },
     {
       key: "type",
+      mobileWide: true,
       header: "Request",
       render: (req) => (
         <div className="aw-person">
@@ -329,6 +331,7 @@ export default function DataRequests() {
     },
     {
       key: "actions",
+      mobileWide: true,
       header: "Review",
       sortable: false,
       render: (req) => (
@@ -489,6 +492,7 @@ export default function DataRequests() {
             </div>
           ) : rows.length ? (
             <Table
+              mobileCards
               className="aw-table privacy-table"
               columns={columns}
               rows={rows}

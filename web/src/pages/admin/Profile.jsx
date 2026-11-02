@@ -11,6 +11,7 @@ import {
   Input,
   PageHeader,
   ProfilePhotoEditor,
+  ProfileAvatar,
 } from "../../components";
 const formFrom = (profile) => ({
   fullName: profile?.fullName || "",
@@ -28,7 +29,7 @@ function dateLabel(value) {
 
 /** Administrator identity, contact details and read-only access facts. */
 export default function Profile() {
-  const { user, role, reloadUser } = useAuth();
+  const { user, profile, role, reloadUser } = useAuth();
   const [source, setSource] = useState(null);
   const [form, setForm] = useState(formFrom(null));
   const [saved, setSaved] = useState(formFrom(null));
@@ -144,25 +145,9 @@ export default function Profile() {
     <AppShell>
       <div className="admin-workspace">
         <PageHeader title="My Profile" />
-        <section className="aw-intro profile-intro">
-          <div>
-            <p className="admin-care-eyebrow">The person behind the work</p>
-            <h2>
-              A familiar face.
-              <br />
-              <em>A trusted connection.</em>
-            </h2>
-            <p>Keep the details your team sees clear and up to date.</p>
-          </div>
-          <div className="aw-intro-note">
-            <Icon name="user" />
-            <p>
-              Your administrator identity,
-              <br />
-              <strong>in one place.</strong>
-            </p>
-          </div>
-        </section>
+        <p className="profile-page-note">
+          Manage your contact details and administrator identity.
+        </p>
         {loadFailed && (
           <div className="aw-notice aw-error" role="alert">
             <strong>Your profile could not be loaded.</strong>
@@ -179,22 +164,38 @@ export default function Profile() {
               <Icon name="shield" />
               <span>Administrator profile</span>
             </div>
-            <ProfilePhotoEditor
-              className="admin-profile-photo"
-              disabled={locked}
-            />
-            <div className="profile-identity-details">
-              <p className="admin-care-eyebrow">Signed in as</p>
-              <h2>
-                {loading
-                  ? "Loading profile…"
-                  : loadFailed
-                    ? "Profile unavailable"
-                    : source?.fullName || "Administrator"}
-              </h2>
-              <p>{user?.email || "Email unavailable"}</p>
-              <span className="pill">{roleLabel(role) || "Administrator"}</span>
+            <div className="profile-identity-summary">
+              <ProfileAvatar
+                src={profile?.photoURL}
+                name={source?.fullName || user?.displayName || user?.email}
+              />
+              <div className="profile-identity-details">
+                <p className="admin-care-eyebrow">Signed in as</p>
+                <h2>
+                  {loading
+                    ? "Loading profile…"
+                    : loadFailed
+                      ? "Profile unavailable"
+                      : source?.fullName || "Administrator"}
+                </h2>
+                <p>{user?.email || "Email unavailable"}</p>
+                <span className="pill">
+                  {roleLabel(role) || "Administrator"}
+                </span>
+              </div>
             </div>
+            <details className="profile-photo-settings">
+              <summary>
+                <span>Profile photo</span>
+                <span>
+                  Change <Icon name="chevron-right" />
+                </span>
+              </summary>
+              <ProfilePhotoEditor
+                className="admin-profile-photo"
+                disabled={locked}
+              />
+            </details>
             <div className="profile-activity-link">
               <Link
                 to={`/admin/audit-trail?actor=${encodeURIComponent(user?.uid || "")}`}

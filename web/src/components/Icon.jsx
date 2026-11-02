@@ -1,4 +1,6 @@
 const PATHS = {
+  menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+  logout: <><path d="M9 4H4v16h5M14 8l4 4-4 4M8 12h10" /></>,
   compass: <><circle cx="12" cy="12" r="9" /><path d="m16 8-2.5 5.5L8 16l2.5-5.5L16 8z" /></>,
   expand: <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5" />,
   collapse: <path d="M3 8h5V3M16 3v5h5M21 16h-5v5M8 21v-5H3" />,

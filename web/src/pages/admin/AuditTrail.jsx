@@ -256,6 +256,7 @@ export default function AuditTrail() {
   const columns = [
     {
       key: "event",
+      mobileWide: true,
       header: "Activity",
       render: (row) => (
         <div className="audit-event">
@@ -302,6 +303,7 @@ export default function AuditTrail() {
     },
     {
       key: "details",
+      mobileWide: true,
       header: "Details",
       sortable: false,
       render: (row) => (
@@ -468,6 +470,7 @@ export default function AuditTrail() {
             </div>
           ) : sorted.length ? (
             <Table
+              mobileCards
               className="audit-table"
               columns={columns}
               rows={sorted}
