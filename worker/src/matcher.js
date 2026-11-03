@@ -233,6 +233,7 @@ export function selectMatches({
     matches.push({
       requestId: request.id,
       donorId: donor.id,
+      donorBloodType: profile.bloodType,
       donationTypeId: donationType.id,
       component: request.component,
       tier: tier.number,

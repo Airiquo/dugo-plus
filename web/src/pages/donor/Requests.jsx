@@ -10,6 +10,7 @@ import { useTableSort } from '../../hooks/useTableSort'
 import { sortRows, sortDate } from '../../utils/sortRows'
 import { SortControls } from '../../components/SortControls'
 import { respondToMatch } from '../../services/matches'
+import { isMatchingConfigured } from '../../services/matching'
 import { listDonationTypes } from '../../services/donationTypes'
 import { DEFAULT_INTERVALS, eligibilityFor } from '../../utils/eligibility'
 import { donationTypeForComponent, urgencyRank } from '../../utils/matching'
@@ -206,6 +207,16 @@ export default function Requests() {
             </button>
           </div>
         )}
+        {feed.status === 'ready' && feed.items.length === 0 && !isMatchingConfigured() && (
+          <div className="donation-state" role="status">
+            <Icon name="alert" size={24} />
+            <h2>Matching is offline</h2>
+            <p>
+              The matching service is not configured, so new hospital requests may not reach you yet.
+              A request appears here once the matching run pairs it with your profile.
+            </p>
+          </div>
+        )}
         {feed.status === 'loading' && (
           <div className="donation-state" role="status">
             <span className="donation-loading-mark" />
@@ -247,9 +258,11 @@ export default function Requests() {
                     {active.request.bloodType}
                   </p>
                   <p className="donation-subtle">
-                    Contact the hospital to arrange your visit. You can accept
-                    another request after this donation is completed, closed,
-                    or you withdraw.
+                    {active.match.screeningStatus === 'Cleared'
+                      ? 'You’re cleared. Go to the hospital to complete your donation.'
+                      : 'Final eligibility verification happens at the hospital before you donate — physical screening, blood tests and your medical history. Contact them to arrange the visit.'}{' '}
+                    You can accept another request after this donation is
+                    completed, closed, or you withdraw.
                   </p>
                   {commitments.length > 1 && (
                     <p className="donation-error">
@@ -459,6 +472,10 @@ export default function Requests() {
                                 'Donation completed'
                               ) : item.request.status === 'cancelled' ? (
                                 'Request closed'
+                              ) : item.match.screeningStatus === 'Cleared' ? (
+                                'Cleared to donate'
+                              ) : item.match.screeningStatus ? (
+                                `Screening ${item.match.screeningStatus.toLowerCase()}`
                               ) : (
                                 item.match.responseStatus
                               )

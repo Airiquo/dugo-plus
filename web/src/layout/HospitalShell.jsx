@@ -1,5 +1,10 @@
 import { RoleShell } from "./RoleShell";
 export const HOSPITAL_NAV = [
+  { slug: "dashboard", label: "Dashboard", icon: "grid" },
+  { slug: "inventory", label: "Inventory", icon: "box" },
+  { slug: "inventory-log", label: "Inventory log", icon: "list" },
+  { slug: "map", label: "Hospital map", icon: "map" },
+  { slug: "facility", label: "Facility details", icon: "settings" },
   { slug: "requests", label: "Requests", icon: "list" },
   { slug: "profile", label: "My profile", icon: "user" },
 ];

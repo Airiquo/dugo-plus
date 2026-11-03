@@ -8,6 +8,11 @@ import { useTableSort } from "../../hooks/useTableSort";
 import { sortRows, sortDate } from "../../utils/sortRows";
 
 const EVENTS = {
+  "Donation.Confirmed": "Donation confirmed",
+  "Donation.Screened": "Donor screening recorded",
+  "Inventory.DonationReceived": "Donation added to stock",
+  "Inventory.Transfused": "Stock issued for transfusion",
+  "Inventory.Adjusted": "Stock adjusted",
   "Account.HospitalCreated": "Hospital account created",
   "Account.Suspended": "Access suspended",
   "Account.Removed": "Access removed",

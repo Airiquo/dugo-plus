@@ -204,12 +204,12 @@ export function RoleShell({
             : "Hospital mobile navigation"
         }
       >
-        {area === "admin" && (
+        {mobileItems.some(item => !primary.some(link => link.to === item.to)) && (
           <button
             type="button"
             data-active={moreActive ? "true" : "false"}
             aria-expanded={menuOpen}
-            aria-controls="admin-navigation-modal"
+            aria-controls={`${area}-navigation-modal`}
             onClick={() => setMenuOpen(true)}
           >
             <span className="donor-nav-icon">

@@ -203,8 +203,9 @@ export function DonorRequestDetails({
                   <div>
                     <strong>Complete the screening</strong>
                     <p>
-                      The hospital confirms your eligibility and records your
-                      donation.
+                      Final verification at the hospital: physical screening,
+                      blood tests and your medical history. The donation is
+                      recorded only after you’re cleared.
                     </p>
                   </div>
                 </li>

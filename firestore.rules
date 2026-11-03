@@ -133,7 +133,7 @@ service cloud.firestore {
       // Both paths preserve the server-owned fields by presence and value.
       // lastDonationAt is frozen by presence AND value (D14): clearing it
       // would restart the deferral clock and defeat FR-031.
-      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'hospitalId', 'status', 'statusReason', 'statusUpdatedAt', 'loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased'])
+      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastDonationAt', 'role', 'hospitalId', 'status', 'statusReason', 'statusUpdatedAt', 'loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased'])
                     && ((
                          // Administrator corrections retain the profile's validated shape.
                          isAdmin()
@@ -240,6 +240,7 @@ service cloud.firestore {
     }
 
     // Account operations and event details are served by the authorized Worker.
+    match /inventoryOperations/{id} { allow read, write: if false; }
     match /accountOperations/{id} { allow read, write: if false; }
     match /auditOutbox/{id} { allow read, write: if false; }
     match /auditContexts/{id} { allow read, write: if false; }
@@ -279,32 +280,16 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // Stock counts: staff of this hospital and admins read and write. The
-      // confirmation screen batches its increment with the log write below
-      // (schema §2.3.3).
-      match /inventory/{bloodType} {
+      // Component/group stock is read by facility staff/admins and written by the Worker.
+      match /inventory/{stockKey} {
         allow read: if isAdmin() || isStaffOf(hospitalId);
-        allow create, update: if (isAdmin() || isStaffOf(hospitalId))
-                              && request.resource.data.bloodType == bloodType
-                              && request.resource.data.unitsAvailable is int
-                              && request.resource.data.lastUpdated is timestamp;
+        allow create, update: if false;
         allow delete: if false;
 
-        // Change log: append-only, written by the session that moved stock.
+        // Movement logs are append-only and Worker-written.
         match /logs/{logId} {
           allow read: if isAdmin() || isStaffOf(hospitalId);
-          allow create: if (isAdmin() || isStaffOf(hospitalId))
-                        && request.resource.data.keys().hasOnly(
-                             ['donationId', 'userId', 'changeType', 'unitsChanged', 'createdAt']
-                           )
-                        && (
-                             request.resource.data.donationId == null
-                             || request.resource.data.donationId is string
-                           )
-                        && request.resource.data.userId is string
-                        && request.resource.data.changeType is string
-                        && request.resource.data.unitsChanged is int
-                        && request.resource.data.createdAt == request.time;
+          allow create: if false;
           allow update, delete: if false;
         }
       }
@@ -318,7 +303,7 @@ service cloud.firestore {
       // donor role. Blood type, quantity and the denormalized hospital fields
       // are checked so the matcher's query shape stays sound; urgencyLevel and
       // status keep open enums until their feature decides them (schema §9.5).
-      allow create: if signedIn()
+      allow create: if signedIn() && !('transfusedUnits' in request.resource.data)
                     && request.resource.data.hospitalId is string
                     && (
                          request.resource.data.recipientId == null
@@ -364,12 +349,9 @@ service cloud.firestore {
 
       // Status changes belong to the hospital's staff and admins (schema §6);
       // the request may not be re-pointed at another hospital or blood type.
-      allow update: if isAdmin()
-                    || (
-                         isStaffOf(resource.data.hospitalId)
-                         && request.resource.data.hospitalId == resource.data.hospitalId
-                         && request.resource.data.bloodType == resource.data.bloodType
-                       );
+      allow update: if (isAdmin() || isStaffOf(resource.data.hospitalId))
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                    && request.resource.data.status in ['urgent', 'collecting', 'matched', 'fulfilled', 'cancelled'];
 
       allow delete: if false;
     }
@@ -388,24 +370,8 @@ service cloud.firestore {
       // Creation is matcher-only (schema §5.2).
       allow create: if false;
 
-      // Donor responses and consent are committed by the server transaction.
-      allow update: if isAdmin()
-                    // Staff record the screening result: those fields only
-                    // (schema §6). ScreeningStatus is a decided enum.
-                    || (
-                         isStaffOf(requestHospital(resource.data.requestId))
-                         && request.resource.data.diff(resource.data).affectedKeys()
-                              .hasOnly(['screenedByUserId', 'screeningStatus'])
-                         && (
-                              request.resource.data.screenedByUserId == null
-                              || request.resource.data.screenedByUserId is string
-                            )
-                         && (
-                              request.resource.data.screeningStatus == null
-                              || request.resource.data.screeningStatus
-                                   in ['Cleared', 'Deferred', 'Rejected']
-                            )
-                       );
+      // Responses and screening commit through the authorized Worker.
+      allow update: if false;
 
       allow delete: if false;
     }
@@ -486,18 +452,7 @@ service cloud.firestore {
                   || (signedIn() && resource.data.donorId == me())
                   || isStaffOf(resource.data.hospitalId);
 
-      allow create: if (isAdmin() || isStaffOf(request.resource.data.hospitalId))
-                    && request.resource.data.matchId == matchId
-                    && request.resource.data.confirmedBy is string
-                    && request.resource.data.donationDate is timestamp
-                    && request.resource.data.units is int
-                    && request.resource.data.units > 0
-                    && request.resource.data.confirmedAt is timestamp
-                    && request.resource.data.donorId is string
-                    && request.resource.data.bloodType is string;
-
-      // Corrections are an admin action; the record is never removed.
-      allow update: if isAdmin();
+      allow create, update: if false;
       allow delete: if false;
     }
 

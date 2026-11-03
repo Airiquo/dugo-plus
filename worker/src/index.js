@@ -7,6 +7,8 @@
  * account operations (FR-040).
  */
 
+import { createInventoryManager } from './inventoryOperations.js'
+import { hashRef } from './audit.js'
 import { verifyIdToken } from './firebase-auth.js'
 import { createDonorResponder, createDonorAlertReader } from './donorResponses.js'
 import { getDocument, transactionStore } from './firestore.js'
@@ -52,7 +54,16 @@ async function route(request, env) {
   }
 
   if (request.method === 'GET' && url.pathname === '/health') {
-    return json({ ok: true, service: 'dugo-matching', part: 1, accountOperationsVersion: 2, accountProfileVersion: 1, auditActivityVersion: 1 }, 200, cors)
+    return json({ ok: true, service: 'dugo-matching', part: 1, accountOperationsVersion: 2, accountProfileVersion: 1, auditActivityVersion: 1, inventoryOperationsVersion: 1 }, 200, cors)
+  }
+
+  if (request.method === 'POST' && url.pathname === '/inventory') {
+    const user = await verifyIdToken(env, bearerToken(request))
+    if (!env.AUDIT_HASH_SECRET) throw new HttpError(503, 'Inventory changes are temporarily unavailable.')
+    let input
+    try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
+    const result = await createInventoryManager({ store: transactionStore(env), hash: value => hashRef(env, value) })(user, input)
+    return json(result, 200, cors)
   }
 
   if (request.method === 'POST' && url.pathname === '/donor/respond') {

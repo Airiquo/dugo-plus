@@ -54,11 +54,11 @@ export function roleLabel(role) {
 }
 
 /**
- * Where a signed-in account of this type lands. Admins get the built admin
- * area; donors get their profile screen; hospital accounts get their requests
- * screen (F3). An account with no role yet goes to the landing page —
- * self-registration is donor-only (D20), so a missing role means the
- * auto-provision write failed, not a choice to make.
+ * Where a signed-in account of this type lands. Admins get the admin dashboard,
+ * donors their profile, and hospital accounts the hospital dashboard. An
+ * account with no role yet goes to the landing page — self-registration is
+ * donor-only (D20), so a missing role means the auto-provision write failed,
+ * not a choice to make.
  *
  * @param {string|null} role
  * @returns {string} a route path
@@ -66,7 +66,7 @@ export function roleLabel(role) {
 export function homeFor(role) {
   if (role === 'admin') return '/admin/dashboard'
   if (role === 'donor') return '/home'
-  if (role === 'hospital') return '/hospital/requests'
+  if (role === 'hospital') return '/hospital/dashboard'
   return '/'
 }
 

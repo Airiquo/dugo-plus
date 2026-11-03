@@ -28,7 +28,12 @@ import Requests from './pages/donor/Requests'
 import Alerts from './pages/donor/Alerts'
 import HospitalRequests from './pages/hospital/Requests'
 import NewRequest from './pages/hospital/NewRequest'
+import HospitalDashboard from './pages/hospital/Dashboard'
+import Inventory from './pages/hospital/Inventory'
+import HospitalMap from './pages/hospital/Map'
 import HospitalProfile from './pages/hospital/Profile'
+import HospitalFacility from './pages/hospital/Facility'
+import InventoryLog from './pages/hospital/InventoryLog'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
@@ -43,6 +48,8 @@ const TRANSLATED = new Set([
   'accounts',
   'settings',
   'data-requests',
+  'inventory',
+  'inventory-log',
 ])
 
 /**
@@ -53,7 +60,7 @@ const TRANSLATED = new Set([
  * and there is no demo mode any more.
  *
  * Known admin screens: 12. `dashboard`, `blood-requests`, `profile`, `accounts`,
- * `settings` and `data-requests` are built; the rest render a `ScreenStub`
+ * `settings`, `data-requests`, and `inventory` are built; the rest render a `ScreenStub`
  * pointing at the live mockups served from `/mockups/*`.
  *
  * `/admin/*` sits behind three gates, in order: `RequireAuth` checks there is a
@@ -63,6 +70,10 @@ const TRANSLATED = new Set([
  * donor in `hooks/useAuth.jsx`, and `/partner` is how a facility requests a
  * hospital account. `/login` and `/register` have no mockup of their own and
  * are built on `AuthLayout`.
+ *
+ * `/hospital/*` repeats the same gates with `role === 'hospital'`. The
+ * dashboard is the account's landing; the facility profile (FR-013) is the
+ * first editable screen.
  */
 export default function App() {
   // `NotConfigured` wears `AuthLayout`, so it still needs the theme context even
@@ -175,21 +186,6 @@ export default function App() {
             element={
               <RequireAuth>
                 <RequireVerified>
-                  <RequireRole roles={['hospital']}>
-                    <Outlet />
-                  </RequireRole>
-                </RequireVerified>
-              </RequireAuth>
-            }
-          >
-            <Route path="/hospital/requests" element={<HospitalRequests />} />
-            <Route path="/hospital/requests/new" element={<NewRequest />} />
-            <Route path="/hospital/profile" element={<HospitalProfile />} />
-          </Route>
-          <Route
-            element={
-              <RequireAuth>
-                <RequireVerified>
                   <RequireRole roles={['admin']}>
                     <Outlet />
                   </RequireRole>
@@ -204,6 +200,8 @@ export default function App() {
             <Route path="/admin/accounts" element={<AdminAccounts />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/admin/data-requests" element={<AdminDataRequests />} />
+            <Route path="/admin/inventory" element={<Inventory />} />
+            <Route path="/admin/inventory-log" element={<InventoryLog />} />
             {NAV.filter((item) => !TRANSLATED.has(item.slug)).map((item) => (
               <Route
                 key={item.slug}
@@ -224,6 +222,27 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route
+            element={
+              <RequireAuth>
+                <RequireVerified>
+                  <RequireRole roles={['hospital']}>
+                    <Outlet />
+                  </RequireRole>
+                </RequireVerified>
+              </RequireAuth>
+            }
+          >
+            <Route path="/hospital" element={<Navigate to="/hospital/dashboard" replace />} />
+            <Route path="/hospital/dashboard" element={<HospitalDashboard />} />
+            <Route path="/hospital/requests" element={<HospitalRequests />} />
+            <Route path="/hospital/requests/new" element={<NewRequest />} />
+            <Route path="/hospital/inventory" element={<Inventory />} />
+            <Route path="/hospital/inventory-log" element={<InventoryLog />} />
+            <Route path="/hospital/map" element={<HospitalMap />} />
+            <Route path="/hospital/profile" element={<HospitalProfile />} />
+            <Route path="/hospital/facility" element={<HospitalFacility />} />
+          </Route>
           <Route path="/gallery" element={<Gallery />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

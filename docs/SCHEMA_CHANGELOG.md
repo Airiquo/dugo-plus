@@ -266,3 +266,15 @@ pending; local REST, security-rules and browser verification is recorded in
 - **Origin:** build, F10/F12, D56.
 - Added eight `auditBlocks` composite indexes: all subsets of account (`hashedEntityRef`, `entityType`), actor (`hashedActorRef`), and event (`eventType`) equality fields, ending in `createdAt DESC, sequence DESC`.
 - No stored field, collection, or rules permission changes. Deploy additive indexes before the updated Worker and Hosting; runtime readiness must be checked.
+
+## 2026-11-03 — Trusted hospital inventory operations (D63)
+
+Owner chooses existing Cloudflare Worker transactions, administrator-only facility address/location changes, a separate staff facility-details page, removal of partnership plan management, and component/group stock identity.
+
+- Inventory IDs become `{component}_{bloodType}` with required component/group fields; group-only legacy rows remain preserved, unclassified, read-only and excluded from usable counts.
+- Movement logs include component/group and optional reason. Worker-only confirmation/movements atomically write stock, logs, operation receipts and audit outbox; donation confirmation also writes donation/component/request fields and the donor clock.
+- Add server-only `inventoryOperations/{operationHash}` receipts. Confirmation keys bind the match; other operations bind actor+UUID. Fingerprints reject changed-input reuse.
+- Add optional matcher `donorBloodType` display snapshot, and server-owned `bloodRequests.transfusedUnits` for partial issuance. Actual confirmation uses the current donor profile and active consents.
+- Deny browser stock/log/donation/screening/clock writes; retain the prior admin-only subscription boundary and stored records while removing its self-service UI.
+
+No automatic data migration or production deployment occurs in this task. See `HOSPITAL_WORKER_RECONCILIATION.md` for local evidence and rollout.
