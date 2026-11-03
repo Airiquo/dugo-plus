@@ -1,5 +1,5 @@
 import { auth } from '../lib/firebase'
-import { accountOperationRequest } from '../utils/accountOperationRequest.js'
+import { ACCOUNT_QUOTA_MESSAGE, accountOperationRequest } from '../utils/accountOperationRequest.js'
 
 /** Privileged account operations use the server's recoverable, audited path. */
 const SERVICE_URL = (import.meta.env.VITE_ACCOUNT_SERVICE_URL || '').trim()
@@ -26,6 +26,8 @@ function codeForStatus(status) {
       return 'functions/not-found'
     case 409:
       return 'functions/already-exists'
+    case 429:
+      return 'functions/resource-exhausted'
     case 503:
       return 'functions/unavailable'
     case 412:
@@ -94,6 +96,9 @@ export function accountServiceError(error) {
   const message = raw.replace(/\s\[\d+\]$/, '')
 
   switch (code) {
+    case 'functions/resource-exhausted':
+    case 'resource-exhausted':
+      return ACCOUNT_QUOTA_MESSAGE
     case 'functions/not-found':
     case 'functions/unimplemented':
       return NOT_DEPLOYED

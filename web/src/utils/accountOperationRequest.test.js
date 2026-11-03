@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { accountOperationRequest } from './accountOperationRequest.js'
+import { ACCOUNT_QUOTA_MESSAGE, accountOperationRequest } from './accountOperationRequest.js'
 
 function setup() {
   const values = new Map()
@@ -134,4 +134,41 @@ test('unavailable browser storage still supports retry IDs in memory', async () 
     fetcher: state.fetcher,
   }
   assert.equal((await accountOperationRequest(options)).uid, 'test')
+})
+
+
+test('quota failure during capabilities preserves 429 and never sends a mutation', async () => {
+  const state = setup()
+  const actions = []
+  await assert.rejects(() => accountOperationRequest({
+    ...state.options,
+    fetcher: async (url, init) => {
+      actions.push(JSON.parse(init.body).action)
+      return state.response({ error: 'Firestore request failed: 429 Quota exceeded.' }, 429)
+    },
+  }), failure => failure.status === 429 && failure.message === ACCOUNT_QUOTA_MESSAGE)
+  assert.deepEqual(actions, ['capabilities'])
+  assert.equal(state.values.size, 1)
+})
+
+test('quota failure after mutation keeps its operation ID for a later manual retry', async () => {
+  const state = setup()
+  let exhausted = true
+  const ids = []
+  const fetcher = async (url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.action === 'capabilities') return state.fetcher(url, init)
+    ids.push(body.operationId)
+    return exhausted
+      ? state.response({ error: 'Quota exceeded.' }, 429)
+      : state.response({ state: 'Completed', uid: 'test' })
+  }
+  await assert.rejects(() => accountOperationRequest({ ...state.options, fetcher }),
+    failure => failure.status === 429 && failure.message === ACCOUNT_QUOTA_MESSAGE)
+  assert.equal(ids.length, 1)
+  assert.equal(state.values.size, 1)
+  exhausted = false
+  await accountOperationRequest({ ...state.options, fetcher })
+  assert.equal(ids[0], ids[1])
+  assert.equal(state.values.size, 0)
 })
