@@ -303,6 +303,16 @@ D63 adds optional `donorBloodType` (string) as a matcher snapshot for staff disp
 | acknowledgedAt | Timestamp | O | Set when guidelinesAcknowledged becomes true |
 | matchedAt | Timestamp | R | |
 
+D67: `GET /hospital/request-responses` reads the request, matches, current
+match-specific Data Sharing consents and donor profiles in one server transaction.
+Active staff claims/profile must agree on the request’s hospital; the facility must
+be active. Accepted matches with unrevoked consent return only name, email, phone,
+blood type and city from an active, unerased donor profile. Other rows return no
+donor identity. Client `users` reads stay owner/admin only. Pages use 25 matches
+ordered by document ID and an exclusive document-name cursor; the optional exact
+response filter uses the existing requestId/responseStatus index. No stored fields
+or indexes are added.
+
 ### 2.6 `donorConsents/{consentId}`
 
 | Field | Type | R/O | Notes |

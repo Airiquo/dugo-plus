@@ -2,7 +2,7 @@ import { TableExport } from '../../components/TableExport'
 import { requestReportColumns } from '../../utils/reportColumns'
 /** Facility request queue, filters and explicit status updates (FR-016, FR-037). */
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Icon, LinkBtn, PageHeader, Table, RequestStatusDialog } from '../../components'
+import { Icon, LinkBtn, PageHeader, Table, RequestStatusDialog, HospitalRequestResponses } from '../../components'
 import { HospitalShell } from '../../layout/HospitalShell'
 import { useAuth } from '../../hooks/useAuth'
 import {
@@ -73,6 +73,7 @@ export default function Requests() {
   const [notice, setNotice] = useState(null)
   const [rowError, setRowError] = useState(null)
   const [confirmation, setConfirmation] = useState(null)
+  const [selectedRequest, setSelectedRequest] = useState(null)
   const statuses = useMemo(
     () => FILTERS.find((item) => item.value === filter)?.statuses ?? ACTIVE_STATUSES,
     [filter],
@@ -225,13 +226,13 @@ export default function Requests() {
       header: 'Blood & component',
       cellProps: { 'data-label': 'Request' },
       render: (row) => (
-        <div className="hreq-identity">
+        <button type="button" className="hreq-identity hreq-open-request" aria-label={`View donor responses for request ${shortId(row)}`} onClick={() => setSelectedRequest(row)}>
           <span className="hreq-blood">{row.bloodType || '—'}</span>
           <div>
             <strong>{componentLabel(row.component) || 'Not recorded'}</strong>
-            <small title={row.id}>Request #{shortId(row)}</small>
+            <small title={row.id}>Request #{shortId(row)} · View responses</small>
           </div>
-        </div>
+        </button>
       ),
     },
     {
@@ -353,7 +354,7 @@ export default function Requests() {
         }
       />
       <p className="hreq-description">
-        A clear view of what’s needed. Keep every request moving toward care.
+        Open a request to see donor responses and shared contact details.
       </p>
       <div className="hreq-overview" aria-label="Current request view summary">
         {metrics.map((metric) => (
@@ -604,6 +605,7 @@ export default function Requests() {
           )}
         </div>
       </section>
+      {selectedRequest && <HospitalRequestResponses key={selectedRequest.id} request={selectedRequest} onClose={() => setSelectedRequest(null)} />}
       <RequestStatusDialog
         fallbackFocusRef={currentTabRef}
         request={confirmation}

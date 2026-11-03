@@ -20,7 +20,8 @@
     "test:donor:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/donorResponses.emulator.test.js\"",
     "test:matching:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/matcher.emulator.test.js\"",
     "test:accounts:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/accounts.emulator.test.js\"",
-    "test:inventory:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/inventoryOperations.emulator.test.js\""
+    "test:inventory:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/inventoryOperations.emulator.test.js\"",
+    "test:hospital-responses:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/hospitalRequestResponses.emulator.test.js\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",
