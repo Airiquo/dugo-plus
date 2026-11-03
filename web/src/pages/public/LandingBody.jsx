@@ -1,3 +1,5 @@
+import { PubThemeToggle } from '../../components/PubThemeToggle'
+import { SupportContact } from '../../components/SupportContact'
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { LOGIN_URL, PARTNER_URL, partners, steps, values, faqs, bloodTypes, redCellRecipients, impactMetrics, reviews, perspectives } from '../../utils/landingContent.js'
 import DonationMark from '../../components/CareDonationMark.jsx'
@@ -49,7 +51,7 @@ function Header() {
   }, [open])
   return <header className="site-header"><div className="header-inner flex items-center justify-between">
     <Brand /><nav className="desktop-nav" aria-label="Main navigation">{links.map(([name, href]) => <a key={name} href={href}>{name}</a>)}<a className="nav-signin" href={LOGIN_URL}>Sign In<span className="tiny-dot" /></a></nav>
-    <div className="header-controls"><button className="menu-toggle" ref={trigger} onClick={() => setOpen(!open)} aria-label={open ? 'Close navigation' : 'Open navigation'} aria-expanded={open} aria-controls="mobile-navigation"><Icon name={open ? 'close' : 'menu'} /></button></div>
+    <div className="header-controls"><PubThemeToggle /><button className="menu-toggle" ref={trigger} onClick={() => setOpen(!open)} aria-label={open ? 'Close navigation' : 'Open navigation'} aria-expanded={open} aria-controls="mobile-navigation"><Icon name={open ? 'close' : 'menu'} /></button></div>
   </div>{open && <nav id="mobile-navigation" className="mobile-nav" aria-label="Mobile navigation">{[...links, ['How it works', '/#how-it-works'], ['About', '/#about'], ['Sign In', LOGIN_URL], ['Become a Partner', PARTNER_URL]].map(([name, href]) => <a href={href} key={name} onClick={() => setOpen(false)}>{name}<Icon size={17} /></a>)}</nav>}</header>
 }
 
@@ -216,7 +218,7 @@ function Faqs() {
 }
 
 function Contact() {
-  return <MotionSection id="contact" className="contact-section" aria-labelledby="contact-title"><div className="page-container"><div className="contact-copy"><p className="eyebrow">Care starts with a connection</p><h2 id="contact-title">Be part of<br /><em>the next match.</em></h2><p>Working together for the next person who needs a donor.</p><div className="contact-actions"><Pill href={PARTNER_URL}>Become a Partner</Pill><Pill href={LOGIN_URL} outline>Sign In</Pill></div></div><span className="contact-mark" data-loop aria-hidden="true" /><span className="contact-orbit" data-loop aria-hidden="true" /></div></MotionSection>
+  return <MotionSection id="contact" className="contact-section" aria-labelledby="contact-title"><div className="page-container"><div className="contact-copy"><p className="eyebrow">Care starts with a connection</p><h2 id="contact-title">Be part of<br /><em>the next match.</em></h2><p>Working together for the next person who needs a donor.</p><SupportContact /><div className="contact-actions"><Pill href={PARTNER_URL}>Become a Partner</Pill><Pill href={LOGIN_URL} outline>Sign In</Pill></div></div><span className="contact-mark" data-loop aria-hidden="true" /><span className="contact-orbit" data-loop aria-hidden="true" /></div></MotionSection>
 }
 
 function Footer() {

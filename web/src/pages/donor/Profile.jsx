@@ -1,3 +1,4 @@
+import { SupportContact } from '../../components/SupportContact'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
@@ -477,6 +478,7 @@ export default function Profile() {
         </form>
         <CareDonorCard bloodType={form.bloodType} city={form.city} eligibility={eligibility} loaded={profileLoaded && !loadFailed} error={loadFailed} photoURL={profile?.photoURL} name={form.fullName || user.displayName || user.email} />
         </div>
+        <SupportContact />
       </main>
       <dialog
         ref={identityDialog}

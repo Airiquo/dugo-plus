@@ -1,3 +1,4 @@
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '../../utils/support'
 import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
@@ -64,7 +65,7 @@ export default function Blocked() {
         </p>
         <p className="pub-fine">
           Think this is a mistake? Contact{' '}
-          <a href="mailto:support@dugoplus.ph">support@dugoplus.ph</a> with the address above and
+          <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a> with the address above and
           the team can restore the account.
         </p>
         {error && (

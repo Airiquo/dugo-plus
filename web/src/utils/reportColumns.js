@@ -1,0 +1,14 @@
+/** Explicit report field allowlists; action controls and hidden record fields are excluded. */
+const column = (key, label = key) => ({ label, value: row => row[key] })
+export const donationReportColumns = [column('id','Donation ID'),column('donationDate','Donation date'),column('donorId','Donor ID'),column('bloodType','Blood group'),column('component','Component'),column('donationType','Donation type'),column('units','Units'),column('hospitalId','Facility ID'),column('requestId','Request ID')]
+export const stockReportColumns = [column('bloodType','Blood group'),column('component','Component'),column('unitsAvailable','Units available'),column('lastUpdated','Last updated')]
+export const movementReportColumns = [column('id','Movement ID'),column('createdAt','Date'),column('bloodType','Blood group'),column('component','Component'),column('changeType','Movement'),column('unitsChanged','Unit change'),column('reason','Reason'),column('userId','Recorded by')]
+export const requestReportColumns = [column('id','Request ID'),column('createdAt','Requested'),column('bloodType','Blood group'),column('component','Component'),column('quantity','Units requested'),column('urgencyLevel','Priority'),column('status','Status')]
+export const accountReportColumns = [column('id','Account ID'),column('fullName','Name'),column('email','Email'),column('role','Account type'),{label:'Access',value:row=>row.status || 'Active'},column('hospitalId','Facility ID'),column('createdAt','Created')]
+export const auditReportColumns = [column('sequence','Record'),column('createdAt','Date'),column('eventType','Event'),{label:'Account',value:row=>row.affectedAccount?.fullName || row.affectedAccount?.email || 'Identity unavailable'},{label:'Actor',value:row=>row.actor?.fullName || row.actor?.email || 'Identity unavailable'},column('contextState','Context status'),{label:'Reason',value:row=>row.context?.reason || ''},{label:'Record hash',value:row=>row.recordHash || row.id}]
+export const privacyReportColumns = [column('id','Request ID'),column('userId','Subject ID'),column('requestType','Request type'),column('status','Status'),column('createdAt','Submitted'),column('details','Request details'),column('resolvedAt','Answered'),column('adminNote','Response')]
+export const pendingReportColumns = [column('id','Match ID'),column('matchedAt','Matched'),column('donorId','Donor ID'),column('bloodType','Donor blood group'),column('component','Component'),column('requestId','Request ID'),column('responseStatus','Response'),column('screeningStatus','Screening'),column('guidelinesAcknowledged','Guidelines acknowledged')]
+
+const printWidths = (columns, widths) => columns.forEach((column, index) => { column.printWidth = widths[index] })
+printWidths(donationReportColumns, [13,13,12,8,11,11,5,13,14])
+printWidths(auditReportColumns, [6,12,15,14,12,8,21,12])

@@ -1,9 +1,11 @@
+import { TableExport } from '../../components/TableExport'
+import { stockReportColumns, pendingReportColumns, movementReportColumns } from '../../utils/reportColumns'
+import { allHospitalDonations, allInventory, allStockMovements } from '../../services/tableExports'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import {
   getFacilityMatches,
-  getHospitalDonations,
   getInventoryLogs,
   listHospitals,
   readHospital,
@@ -49,7 +51,6 @@ const ADJUST_OPTIONS = ADJUSTMENT_TYPES.map((value) => ({
   label: value === 'EXPIRED' ? 'Expired stock' : 'Manual adjustment',
 }))
 
-const HISTORY_PAGE = 50
 
 /** Rows per page in the donation log table. */
 const LOG_PAGE_SIZE = 10
@@ -302,7 +303,7 @@ export default function Inventory() {
 
     Promise.allSettled([
       getFacilityMatches(hospitalId),
-      getHospitalDonations(hospitalId, { limit: HISTORY_PAGE }),
+      allHospitalDonations(hospitalId).then(rows => ({ rows })),
     ])
       .then(([matchResult, donationResult]) => {
         if (!current) return
@@ -650,6 +651,7 @@ export default function Inventory() {
                         transaction with its inventory log.
                       </p>
                     </header>
+                    <TableExport name="inventory" title={`${hospital?.name || "Facility"} blood inventory`} columns={stockReportColumns} disabled={loading || loadFailed || !hospitalId} getRows={scope => scope === 'filtered' ? rows.map(row => ({...row, component: stockComponent})) : allInventory(hospitalId)} />
                     <Table
                       mobileCards
                       className="hospital-table"
@@ -732,6 +734,12 @@ export default function Inventory() {
                       )}
                     </header>
 
+                    <TableExport name="pending-donations" title="Awaiting donation confirmation" columns={pendingReportColumns} disabled={matchesLoading || matchesFailed || historyFailed || !hospitalId} getRows={async (scope, progress) => {
+                      const [found, confirmed] = await Promise.all([getFacilityMatches(hospitalId), allHospitalDonations(hospitalId, {}, progress)])
+                      const done = new Set(confirmed.map(row => row.id))
+                      return found.filter(row => !done.has(row.id) && (scope !== 'filtered' || !logType || row.bloodType === logType))
+                        .sort((a,b) => ((a.matchedAt?.getTime() || 0) - (b.matchedAt?.getTime() || 0)) * (logSort === 'new' ? -1 : 1))
+                    }} />
                     {matchesLoading && <p className="hospital-state">Loading donation log…</p>}
 
                     {!matchesLoading && historyFailed && (
@@ -1164,6 +1172,7 @@ export default function Inventory() {
             Every {componentLabel(stockComponent).toLowerCase()} movement recorded for {logBloodType} at this facility.
           </p>
 
+          <TableExport name="stock-history" title={`${logBloodType || ''} ${componentLabel(stockComponent)} movements`} columns={movementReportColumns} disabled={!logBloodType || stockLogsLoading || Boolean(stockLogsError)} getRows={(_, progress) => allStockMovements(hospitalId, {component: stockComponent, bloodType: logBloodType}, progress)} />
           {stockLogsLoading && <p className="hospital-state">Loading movements…</p>}
 
           {!stockLogsLoading && stockLogsError && (

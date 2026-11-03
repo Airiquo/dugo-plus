@@ -43,7 +43,7 @@ registration. It covers:
 1. **RA 10173 compliance has not been assessed by a lawyer.** Rules and a
    notice are not a compliance certificate.
 2. **No Data Protection Officer is named.** The notice points at
-   support@dugoplus.ph as an interim contact.
+   dugoplushelp@gmail.com as an interim contact.
 3. **Retention schedule is a policy, not a job.** No scheduled purge exists
    for error logs, closed requests or removed profiles.
 4. **Encryption is Google's platform default.** There is no field-level
@@ -62,3 +62,11 @@ registration. It covers:
 The notice version is `2026-11-01`. Pictures are optional and sent to Cloudinary through a public unsigned preset; the private `users` document stores `photoURL`, but its image delivery URL is public to anyone who has the link. The editor discloses this before upload. Registration stores the updated notice version; historical acceptance records remain unchanged.
 
 `anonymiseUser()` clears `photoURL`. Removing/replacing a photo also clears or replaces the account link, but does not delete the Cloudinary asset. Support must remove current/replaced assets from the Cloudinary Media Library and invalidate their delivery copies when processing erasure. There is no automated Cloudinary deletion job or signed backend in this feature; see `PROFILE_PICTURES.md`.
+
+## Support contact correction (2026-11-03, D66)
+
+The owner supplies `dugoplushelp@gmail.com`. The notice and blocked-account
+contact links now use that mailbox. The current notice version is `2026-11-03`;
+new registration acceptances record it and historical acceptance records remain
+unchanged. This contact correction does not add a re-consent gate or change the
+processing purposes or access rules.

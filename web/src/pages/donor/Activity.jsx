@@ -1,3 +1,5 @@
+import { SupportContact } from '../../components/SupportContact'
+import { TableExport } from '../../components/TableExport'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
@@ -241,6 +243,10 @@ export default function Activity() {
                   </div>
                 )}
                 <SortControls name="donor-history" sort={sort} onChange={setSort} defaultLabel="Newest visits first" fields={[{key:"date",label:"Donation date"},{key:"hospital",label:"Hospital"},{key:"component",label:"Donation type"},{key:"units",label:"Units"}]} />
+                <TableExport name="donor-donations" title="Your donation history" disabled={state.status !== 'ready'} columns={[
+                  {label:'Donation ID',value:row=>row.id},{label:'Date',value:row=>row.donationDate},{label:'Hospital',value:row=>state.hospitals.get(row.hospitalId)?.name || row.hospitalId},
+                  {label:'Blood group',value:row=>row.bloodType},{label:'Donation type',value:row=>row.donationTypeName || row.donationTypeId},{label:'Units',value:row=>row.units},
+                ]} getRows={scope => scope === 'filtered' ? visible : state.donations} />
                 {visible.length > 0 ? (
                   <div className="story-timeline">
                     {[...years].map(([year, donations]) => (
@@ -478,6 +484,7 @@ export default function Activity() {
             </div>
           </>
         )}
+        <SupportContact />
       </main>
     </div>
   )

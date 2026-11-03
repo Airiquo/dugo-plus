@@ -44,3 +44,5 @@ export { SortControls } from './SortControls'
 
 export { WorkspaceNav } from './WorkspaceNav'
 export { NavigationSheet } from './NavigationSheet'
+export { TableExport } from './TableExport'
+export { SupportContact } from './SupportContact'
