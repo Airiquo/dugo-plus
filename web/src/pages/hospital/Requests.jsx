@@ -13,6 +13,7 @@ import {
   HospitalPageHeader,
   Table,
   RequestStatusDialog,
+  HospitalRequestResponses,
 } from "../../components";
 import { HospitalShell } from "../../layout/HospitalShell";
 import { useAuth } from "../../hooks/useAuth";
@@ -123,6 +124,7 @@ export default function Requests() {
   const [notice, setNotice] = useState(null);
   const [rowError, setRowError] = useState(null);
   const [confirmation, setConfirmation] = useState(null);
+  const [selectedRequest, setSelectedRequest] = useState(null);
   const statuses = useMemo(
     () =>
       FILTERS.find((item) => item.value === filter)?.statuses ??
@@ -305,13 +307,20 @@ export default function Requests() {
       header: "Blood & component",
       cellProps: { "data-label": "Request" },
       render: (row) => (
-        <div className="hreq-identity">
+        <button
+          type="button"
+          className="hreq-identity hreq-open-request"
+          aria-label={`View donor responses for request ${shortId(row)}`}
+          onClick={() => setSelectedRequest(row)}
+        >
           <span className="hreq-blood">{row.bloodType || "—"}</span>
           <div>
             <strong>{componentLabel(row.component) || "Not recorded"}</strong>
-            <small title={row.id}>Request #{shortId(row)}</small>
+            <small title={row.id}>
+              Request #{shortId(row)} · View responses
+            </small>
           </div>
-        </div>
+        </button>
       ),
     },
     {
@@ -415,7 +424,7 @@ export default function Requests() {
       <HospitalPageHeader
         className="hreq-header"
         eyebrow="Requests / Facility queue"
-        description="Know what’s needed, act on what’s urgent, and keep each request moving toward care."
+        description="Know what’s needed and act on what’s urgent. Open a request to view donor responses and consented contact details."
         title="Blood requests"
         actions={
           <>
@@ -843,6 +852,13 @@ export default function Requests() {
           )}
         </div>
       </section>
+      {selectedRequest && (
+        <HospitalRequestResponses
+          key={selectedRequest.id}
+          request={selectedRequest}
+          onClose={() => setSelectedRequest(null)}
+        />
+      )}
       <RequestStatusDialog
         fallbackFocusRef={currentTabRef}
         request={confirmation}
