@@ -1,3 +1,6 @@
+import { TableExport } from '../../components/TableExport'
+import { donationReportColumns } from '../../utils/reportColumns'
+import { allHospitalDonations } from '../../services/tableExports'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { getHospitalDonations, readHospital } from '../../services/hospitals'
@@ -240,6 +243,7 @@ export default function Dashboard() {
 
                     <div className="hospital-collections-recent">
                       <h3>Recent collections in period</h3>
+                      <TableExport name="collections" title={`${hospital?.name || "Facility"} blood collections`} columns={donationReportColumns} disabled={donationsLoading || donationsFailed || !hospitalId} getRows={(scope, progress) => scope === 'filtered' ? donations : allHospitalDonations(hospitalId, {}, progress)} />
                       {donations.length === 0 ? (
                         <p className="hospital-state" data-kind="warn" role="status">
                           No blood units collected at this facility during this period.

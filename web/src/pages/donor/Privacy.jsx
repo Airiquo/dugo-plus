@@ -1,3 +1,6 @@
+import { SupportContact } from '../../components/SupportContact'
+import { TableExport } from '../../components/TableExport'
+import { privacyReportColumns } from '../../utils/reportColumns'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
@@ -195,6 +198,7 @@ export default function Privacy() {
             <h3 id="privacy-history-h">Your requests</h3>
             <p className="pub-muted">Only you and the Dugo+ team can see these.</p>
 
+            <TableExport name="your-data-requests" title="Your privacy requests" columns={privacyReportColumns} disabled={loading || Boolean(error)} getRows={() => requests} />
             {loading && <p className="pub-msg">Loading your requests…</p>}
             {!loading && error && requests.length === 0 && (
               <p className="pub-msg" data-kind="error" role="alert">
@@ -239,6 +243,7 @@ export default function Privacy() {
             )}
           </section>
         </div>
+        <SupportContact />
       </main>
     </div>
   )

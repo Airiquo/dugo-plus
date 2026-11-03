@@ -1,3 +1,5 @@
+import { TableExport } from '../../components/TableExport'
+import { requestReportColumns } from '../../utils/reportColumns'
 /** Facility request queue, filters and explicit status updates (FR-016, FR-037). */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon, LinkBtn, PageHeader, Table, RequestStatusDialog } from '../../components'
@@ -411,6 +413,7 @@ export default function Requests() {
             </label>
           </div>
         </header>
+        <TableExport name="hospital-requests" title="Blood requests" columns={requestReportColumns} disabled={!hospitalId || loading || Boolean(error)} getRows={async scope => scope === 'filtered' ? visible : sortRows(sortRequestsByUrgency(await listHospitalRequests(hospitalId, [])), REQUEST_SORT[sort.key], sort.direction)} />
         <div id="hreq-view" aria-busy={loading}>
           <div className="hreq-toolbar">
             <label className="hreq-search">

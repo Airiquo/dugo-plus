@@ -1,3 +1,6 @@
+import { TableExport } from '../../components/TableExport'
+import { auditReportColumns } from '../../utils/reportColumns'
+import { allAuditActivity } from '../../services/tableExports'
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppShell } from "../../layout/AppShell";
@@ -188,7 +191,7 @@ export default function AuditTrail() {
       setVerifying(false);
     }
   }
-  const visible = page.events.filter((row) =>
+  const matchesQuery = (row) =>
     [
       title(row.eventType),
       name(row.actor),
@@ -200,8 +203,8 @@ export default function AuditTrail() {
     ]
       .join(" ")
       .toLowerCase()
-      .includes(query.toLowerCase()),
-  );
+      .includes(query.toLowerCase());
+  const visible = page.events.filter(matchesQuery);
   const sorted = sortRows(
     visible,
     sort.key
@@ -463,6 +466,11 @@ export default function AuditTrail() {
               Search and column sorting apply to this page of up to 25 records.
             </p>
           </div>
+          <TableExport name="audit-activity" title="Audit activity" columns={auditReportColumns} disabled={loading || Boolean(error)} getRows={async (scope, progress) => {
+            const records = await allAuditActivity(scope === 'filtered' ? filters : {}, progress)
+            const matching = scope === 'filtered' ? records.filter(matchesQuery) : records
+            return sortRows(matching, sort.key ? row => ({event: title(row.eventType), account: row.affectedAccount ? name(row.affectedAccount) : null, actor: row.actor ? name(row.actor) : null, createdAt: sortDate(row.createdAt)})[sort.key] : null, sort.direction)
+          }} />
           {loading ? (
             <div className="audit-state" role="status">
               Loading activity…

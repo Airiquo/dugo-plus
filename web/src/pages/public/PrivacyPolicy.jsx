@@ -1,3 +1,4 @@
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '../../utils/support'
 import { Link } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { PubThemeToggle } from '../../components'
@@ -22,7 +23,7 @@ const SECTIONS = [
       <>
         Dugo+ is a blood-donation service for the Philippines. The Dugo+ team decides what is
         collected and answers requests. For anything in this notice, write to{' '}
-        <a href="mailto:support@dugoplus.ph">support@dugoplus.ph</a>.
+        <a href={SUPPORT_MAILTO}>{SUPPORT_EMAIL}</a>.
       </>
     ),
   },

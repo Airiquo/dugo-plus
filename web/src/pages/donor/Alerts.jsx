@@ -1,3 +1,5 @@
+import { SupportContact } from '../../components/SupportContact'
+import { TableExport } from '../../components/TableExport'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
@@ -92,6 +94,11 @@ export default function Alerts() {
             aria-label="Donation updates"
           >
             <SortControls name="donor-alerts" sort={sort} onChange={setSort} defaultLabel="Newest updates first" fields={[{key:"date",label:"Received date"},{key:"hospital",label:"Hospital"},{key:"read",label:"Read status"}]} />
+            <TableExport name="donor-alerts" title="Your donation updates" disabled={state.status !== 'ready'} columns={[
+              {label:'Alert ID',value:row=>row.id},{label:'Request ID',value:row=>row.requestId},
+              {label:'Hospital',value:row=>{const item=feed.items.find(item=>item.request.id===row.requestId);return item?.hospital?.name || item?.request.hospitalName || ''}},
+              {label:'Received',value:row=>row.createdAt || row.sentAt},{label:'Delivery',value:row=>row.deliveryStatus},{label:'Read',value:row=>Boolean(row.readAt)},{label:'Read at',value:row=>row.readAt},
+            ]} getRows={scope => scope === 'filtered' ? visible : state.items} />
             <div className="donation-list-heading">
               <div>
                 <p className="donation-eyebrow">Your inbox</p>
@@ -297,6 +304,7 @@ export default function Alerts() {
             </div>
           </aside>
         </div>
+        <SupportContact />
       </main>
     </div>
   )

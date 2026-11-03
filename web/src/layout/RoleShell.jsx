@@ -1,3 +1,4 @@
+import { SupportContact } from '../components/SupportContact'
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -194,6 +195,7 @@ export function RoleShell({
           </p>
         )}
         {children}
+        <SupportContact />
       </main>
       <WorkspaceNav
         className="staff-bottom-nav"

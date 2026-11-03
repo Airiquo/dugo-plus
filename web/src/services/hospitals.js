@@ -130,6 +130,7 @@ function donationRow(snap) {
   const data = snap.data() ?? {}
   return {
     id: snap.id,
+    hospitalId: text(data.hospitalId),
     donorId: typeof data.donorId === 'string' ? data.donorId : '',
     donorName: typeof data.donorName === 'string' ? data.donorName : '',
     bloodType: typeof data.bloodType === 'string' ? data.bloodType : '',

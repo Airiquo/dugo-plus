@@ -1,3 +1,5 @@
+import { SupportContact } from '../../components/SupportContact'
+import { TableExport } from '../../components/TableExport'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
@@ -354,6 +356,12 @@ export default function Requests() {
                   </button>
                 </div>
                 <SortControls name="donor-requests" sort={sort} onChange={setSort} defaultLabel="Urgency, then distance" fields={[{key:"hospital",label:"Hospital"},{key:"distance",label:"Distance"},{key:"requested",label:"Requested date"},{key:"units",label:"Units"},{key:"component",label:"Donation type"}]} />
+                <TableExport name="donor-requests" title="Your blood requests" disabled={feed.status !== 'ready'} columns={[
+                  {label:'Request ID',value:item=>item.request.id},{label:'Hospital',value:item=>item.hospital?.name || item.request.hospitalName},
+                  {label:'Requested',value:item=>item.request.createdAt},{label:'Blood group',value:item=>item.request.bloodType},{label:'Component',value:item=>componentName(item.request.component)},
+                  {label:'Units',value:item=>item.request.quantity},{label:'Priority',value:item=>item.request.urgencyLevel},{label:'Request status',value:item=>item.request.status},
+                  {label:'Your response',value:item=>item.match.responseStatus},{label:'Screening',value:item=>item.match.screeningStatus},{label:'Donation confirmed',value:item=>item.donated},
+                ]} getRows={scope => scope === 'filtered' ? visible : items} />
                 <div className="donation-filters">
                   <label className="donation-search">
                     <Icon name="search" size={18} />
@@ -584,6 +592,7 @@ export default function Requests() {
             </Link>
           </div>
         </dialog>
+        <SupportContact />
       </main>
     </div>
   )

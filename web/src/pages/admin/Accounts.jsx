@@ -1,3 +1,6 @@
+import { TableExport } from '../../components/TableExport'
+import { accountReportColumns, auditReportColumns } from '../../utils/reportColumns'
+import { allAccountHistory } from '../../services/tableExports'
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "../../layout/AppShell";
@@ -470,9 +473,10 @@ export default function Accounts() {
               <p>All roles · {accounts.length} loaded accounts</p>
             </div>
             <Btn icon="refresh" onClick={load} disabled={loading}>
-              {loading ? "Refreshing…" : "Refresh"}
+          {loading ? "Refreshing…" : "Refresh"}
             </Btn>
           </div>
+              <TableExport name="accounts" title="Accounts" columns={accountReportColumns} disabled={loading || Boolean(error)} getRows={scope => scope === 'filtered' ? sorted : sortRows(accounts, ACCOUNT_SORT[sort.key], sort.direction)} />
           <div className="aa-filters">
             <Field label="Search accounts">
               <Input
@@ -923,6 +927,7 @@ export default function Accounts() {
                   Refresh
                 </Btn>
               </div>
+              <TableExport name="account-history" title={`${label(selected)} account activity`} columns={auditReportColumns} disabled={history.loading || Boolean(history.error)} getRows={(_, progress) => allAccountHistory(selected.id, progress)} />
               {history.error && (
                 <p className="aa-inline-error" role="alert">
                   {history.error}

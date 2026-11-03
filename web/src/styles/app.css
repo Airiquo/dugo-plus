@@ -9228,3 +9228,23 @@ dialog.navigation-sheet[id$=-modal]{inset:auto 0 0;transform:none;width:min(540p
   .table.hospital-table.table--mobile-cards .hospital-inventory-actions { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; }
   .table.hospital-table.table--mobile-cards .hospital-inventory-actions .btn { flex: 1; min-height: 44px; }
 }
+
+/* Intentional shared report controls for role tables and equivalent record lists. */
+.table-export{margin:16px 0;min-width:0;font:13px/1.5 var(--d-font-sans)}
+.table-export-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.table-export-actions select{min-height:40px;max-width:100%;border:1px solid var(--d-line);border-radius:var(--d-radius-sm);background:var(--d-field);color:var(--d-ink);padding:8px 32px 8px 12px;font:inherit}
+.table-export-actions .btn{min-height:40px;white-space:nowrap}
+.table-export p{margin:8px 0 0;color:var(--d-muted)}
+.table-export .table-export-error{color:var(--d-red-ink)}
+@media(max-width:760px){.table-export-actions{display:grid;grid-template-columns:1fr 1fr}.table-export-actions>label{grid-column:1/-1}.table-export-actions select{width:100%}.table-export-actions .btn{min-height:44px;justify-content:center}}
+
+/* Intentional shared support line and landing theme control follow the existing tokens. */
+.support-contact{margin:24px 0 0;color:var(--d-muted);font:13px/1.7 var(--d-font-sans);overflow-wrap:anywhere}
+.support-contact a{color:var(--d-ink);text-underline-offset:3px}
+.support-contact a:hover{color:var(--d-red)}
+.care-auth-footer>.support-contact{grid-column:1/-1;margin:0}
+.role-shell #page-content>.support-contact{padding:8px 0 0}
+.care-landing .header-controls .pub-theme{display:grid;place-items:center;flex:none;width:44px;height:44px;border:1px solid var(--landing-border);border-radius:50%;background:var(--d-panel);color:var(--d-ink);cursor:pointer}
+.care-landing .header-controls .pub-theme:hover{border-color:var(--d-red);color:var(--d-red)}
+.care-landing .contact-section .support-contact{color:inherit;margin:20px 0}
+.care-landing .contact-section .support-contact a{color:inherit}

@@ -1,3 +1,5 @@
+import { TableExport } from '../../components/TableExport'
+import { privacyReportColumns } from '../../utils/reportColumns'
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "../../layout/AppShell";
@@ -480,6 +482,7 @@ export default function DataRequests() {
               {directoryError}
             </p>
           )}
+          <TableExport name="data-requests" title="Privacy requests" columns={privacyReportColumns} disabled={loading || Boolean(error)} getRows={scope => scope === 'filtered' ? orderedRequests : requests} />
           {loading ? (
             <div className="aw-empty" role="status">
               Loading requests…

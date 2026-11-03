@@ -1,3 +1,6 @@
+import { TableExport } from '../../components/TableExport'
+import { donationReportColumns, movementReportColumns } from '../../utils/reportColumns'
+import { allHospitalDonations, allStockMovements } from '../../services/tableExports'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
@@ -324,6 +327,10 @@ export default function InventoryLog() {
                       </p>
                     </header>
 
+                    <TableExport name="donation-history" title={`${hospital?.name || "Facility"} confirmed donations`} columns={donationReportColumns} disabled={!hospitalId || donationsLoading || donationsFailed} getRows={async (scope, progress) => {
+                      const all = await allHospitalDonations(hospitalId, {}, progress)
+                      return sortDate(scope === 'filtered' && donFilterType ? all.filter(row => row.bloodType === donFilterType) : all, 'donationDate', donSort)
+                    }} />
                     {donationsLoading && <p className="hospital-state">Loading donations…</p>}
 
                     {!donationsLoading && donationsFailed && (
@@ -480,6 +487,7 @@ export default function InventoryLog() {
                     </p>
                   </header>
 
+                  <TableExport name="stock-movements" title="Stock movements" columns={movementReportColumns} disabled={!hospitalId || movementsLoading || movementsFailed} getRows={async (scope, progress) => sortDate(await allStockMovements(hospitalId, scope === 'filtered' ? {component: stockComponent, bloodType: selectedType || undefined} : {}, progress), 'createdAt', movSort)} />
                   {movementsLoading && <p className="hospital-state">Loading movements…</p>}
 
                   {!movementsLoading && movementsFailed && (
