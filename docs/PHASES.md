@@ -33,7 +33,7 @@ numbers rather than trusting this section.
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; D40: versioned Worker account operations, durable audit outbox and owned provisioning recovery built; 181 rules checks, 64 unit/regression tests and four REST-emulator tests pass locally; coordinated deployment/live-provider smoke pending; functions not deployed, no signed-in smoke here) |
 | **P7** | Hash-chain audit trail | in progress (F10a/F10b; D40 account/erasure outbox and erasable context verified locally; other DSR hooks remain best-effort; D63 donation/inventory outbox is locally verified, production rollout pending) |
-| **P8** | Compliance and privacy | not started; mostly documents |
+| **P8** | Compliance and privacy | partial (D67 hospital contact reads enforce match-specific donor consent; compliance documents and production verification remain) |
 | **P9** | Non-functional hardening (responsiveness, scale, compatibility) | in progress (D35: responsive care redesign inspected with fixture data; live/mobile-device and performance verification remain) |
 
 Phase numbers order the table. They are not a build order and not a work
@@ -348,6 +348,8 @@ The app does not run unconfigured: with any `VITE_FIREBASE_*` missing, every
 route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
+
+- **Hospital request responses (2026-11-03, D67).** Owner requests a separate worktree and opening requests to see respondents. Implemented with accepted donor contacts behind current match-specific data-sharing consent; other match identities stay private. No new product question is raised. Local checks are in `docs/HOSPITAL_REQUEST_RESPONSES.md`; the updated Worker must be deployed before the response endpoint is available in production. No deployment is included.
 
 - **Cross-role exports and public help (2026-11-03, D65/D66):** owner requests CSV and PDF/print for every applicable built table/list, with filtered/all-data scopes, then a landing-navbar dark toggle and the mailbox `dugoplushelp@gmail.com`. These choices are resolved. Controls use complete pre-pagination datasets or traverse authorized server cursors, with no partial export on errors. Scope never expands beyond the donor/facility/account context. Existing phase counts are unchanged; browser/emulator and PDF verification plus the full coverage matrix are in `docs/TABLE_EXPORTS.md`. No Worker/rules/schema change or deployment is part of this frontend feature.
 

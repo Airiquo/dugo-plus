@@ -7,6 +7,8 @@
  * account operations (FR-040).
  */
 
+import { createHospitalRequestResponses } from './hospitalRequestResponses.js'
+import { documentName } from './firestore.js'
 import { createInventoryManager } from './inventoryOperations.js'
 import { hashRef } from './audit.js'
 import { verifyIdToken } from './firebase-auth.js'
@@ -55,6 +57,16 @@ async function route(request, env) {
 
   if (request.method === 'GET' && url.pathname === '/health') {
     return json({ ok: true, service: 'dugo-matching', part: 1, accountOperationsVersion: 2, accountProfileVersion: 1, auditActivityVersion: 1, inventoryOperationsVersion: 1 }, 200, cors)
+  }
+
+  if (request.method === 'GET' && url.pathname === '/hospital/request-responses') {
+    const user = await verifyIdToken(env, bearerToken(request))
+    const result = await createHospitalRequestResponses(transactionStore(env), path => documentName(env, path))(user, {
+      requestId: url.searchParams.get('requestId'),
+      status: url.searchParams.get('status') || '',
+      after: url.searchParams.get('after'),
+    })
+    return json(result, 200, cors)
   }
 
   if (request.method === 'POST' && url.pathname === '/inventory') {

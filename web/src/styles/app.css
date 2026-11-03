@@ -9248,3 +9248,26 @@ dialog.navigation-sheet[id$=-modal]{inset:auto 0 0;transform:none;width:min(540p
 .care-landing .header-controls .pub-theme:hover{border-color:var(--d-red);color:var(--d-red)}
 .care-landing .contact-section .support-contact{color:inherit;margin:20px 0}
 .care-landing .contact-section .support-contact a{color:inherit}
+
+/* Intentional request contact dialog sizing and queue button treatment. */
+.hreq-open-request{border:0;background:transparent;color:inherit;font:inherit;text-align:left;padding:4px;border-radius:10px;cursor:pointer;min-height:48px}
+.hreq-open-request small{color:var(--d-red)}
+.hreq-open-request:hover{background:var(--d-field)}
+.hreq-open-request:focus-visible{outline:2px solid var(--d-red);outline-offset:4px}
+dialog.hresponses[id$=-modal]{inset:0;transform:none;margin:auto;width:min(760px,calc(100% - 32px));max-width:760px;max-height:calc(100dvh - 40px);padding:0;border:1px solid var(--d-line);border-radius:20px;background:var(--d-panel);color:var(--d-ink);box-shadow:var(--care-shadow);overflow:auto}
+.hresponses::backdrop{background:var(--d-ink);opacity:.45}
+.hresponses-header{position:sticky;top:0;z-index:2;background:var(--d-panel);display:flex;justify-content:space-between;align-items:center;gap:16px;padding:26px 28px 20px}
+.hresponses-header h2{font:500 28px/1.2 var(--d-font-sans);letter-spacing:-.04em;margin:8px 0 0}
+.hresponses-header .btn{min-width:44px;min-height:44px;padding:10px}
+.hresponses-summary{display:flex;align-items:center;gap:16px;padding:20px 28px;background:var(--d-field);border-block:1px solid var(--d-line)}
+.hresponses-summary>div{display:grid;gap:7px;flex:1;min-width:0;font-size:14px}.hresponses-summary>div>span{font-size:12px;color:var(--d-muted)}
+.hresponses-toolbar{display:flex;align-items:end;justify-content:space-between;gap:16px;padding:22px 28px 12px}
+.hresponses-toolbar label{display:grid;gap:8px;font-size:11px;font-weight:500}.hresponses-toolbar select{border:1px solid var(--d-line);border-radius:9px;background:var(--d-field);color:var(--d-ink);min-height:44px;padding:10px 32px 10px 12px;font:inherit;font-size:13px}
+.hresponses-privacy{display:flex;align-items:flex-start;gap:8px;font-size:11px;line-height:1.7;color:var(--d-muted);margin:0;padding:4px 28px 20px}.hresponses-privacy svg{flex:none;margin-top:2px}
+.hresponses-content{min-height:180px}.hresponses-list{margin:0;padding:0 28px;list-style:none}.hresponses-list>li{padding:24px 0;border-top:1px solid var(--d-line)}
+.hresponses-person{display:flex;align-items:center;gap:12px}.hresponses-avatar{width:42px;height:42px;flex:none;border-radius:50%;background:var(--care-pink);color:var(--d-red);display:grid;place-items:center;font-size:13px;font-weight:600}.hresponses-person>div{flex:1;min-width:0}.hresponses-person h3{font-size:15px;margin:0 0 7px;overflow-wrap:anywhere}.hresponses-person p{font-size:12px;color:var(--d-muted);margin:0;overflow-wrap:anywhere}.hresponses-person>.chip{flex:none}
+.hresponses-contact{display:flex;flex-wrap:wrap;gap:12px 20px;padding:18px 0 14px 54px;font-size:12px;line-height:1.6;color:var(--d-muted)}.hresponses-contact a{display:inline-flex;align-items:center;gap:7px;color:var(--d-ink);text-decoration:underline;text-underline-offset:4px;overflow-wrap:anywhere;max-width:100%}.hresponses-contact svg{flex:none}
+.hresponses-list li>footer{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding-left:54px;color:var(--d-muted);font-size:10px}.hresponses-list li>footer small{margin-left:auto;font-size:10px}
+.hresponses-state{display:flex;align-items:center;justify-content:center;flex-direction:column;text-align:center;gap:14px;padding:36px 28px;color:var(--d-muted)}.hresponses-state h3{color:var(--d-ink);font-size:17px;margin:0}.hresponses-state p{font-size:13px;line-height:1.7;margin:0;max-width:390px}
+.hresponses-pagination{position:sticky;bottom:0;background:var(--d-panel);display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid var(--d-line);padding:18px 28px;font-size:11px;color:var(--d-muted)}.hresponses-pagination>div{display:flex;gap:8px}.hresponses .btn{min-height:44px}
+@media(max-width:540px){dialog.hresponses[id$=-modal]{width:calc(100% - 16px);max-height:calc(100dvh - 16px);border-radius:14px}.hresponses-header,.hresponses-summary,.hresponses-toolbar,.hresponses-pagination{padding-inline:18px}.hresponses-privacy{padding-inline:18px}.hresponses-list{padding-inline:18px}.hresponses-person{flex-wrap:wrap}.hresponses-person>.chip{margin-left:54px}.hresponses-contact,.hresponses-list li>footer{padding-left:0}.hresponses-summary{flex-wrap:wrap}.hresponses-toolbar select{font-size:16px;max-width:210px}.hresponses-header h2{font-size:25px}.hresponses-pagination{flex-wrap:wrap}}
