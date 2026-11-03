@@ -1,6 +1,9 @@
 /** Keep a non-secret retry ID for each unfinished account operation. */
 const memory = new Map()
 
+export const ACCOUNT_QUOTA_MESSAGE =
+  'Firestore has reached a usage limit. Account actions are unavailable until the quota recovers. Contact the project administrator if this continues.'
+
 function error(message, status = 503) {
   return Object.assign(new Error(message), { status })
 }
@@ -67,8 +70,10 @@ export async function accountOperationRequest({
     const version = await capability.json().catch(() => ({}))
     if (!capability.ok || version.accountOperationsVersion !== 2) {
       throw error(
-        'Account changes are temporarily unavailable. Please try again later.',
-        capability.status === 401 || capability.status === 403
+        capability.status === 429
+          ? ACCOUNT_QUOTA_MESSAGE
+          : 'Account changes are temporarily unavailable. Please try again later.',
+        [401, 403, 429].includes(capability.status)
           ? capability.status
           : 503,
       )
@@ -98,7 +103,9 @@ export async function accountOperationRequest({
     )
       forget()
     throw error(
-      data.error || 'The account change could not be completed.',
+      response.status === 429
+        ? ACCOUNT_QUOTA_MESSAGE
+        : data.error || 'The account change could not be completed.',
       response.status,
     )
   }
