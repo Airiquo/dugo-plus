@@ -341,13 +341,15 @@ Firebase CLI, for rules and deploys:
 ```bash
 npm install -g firebase-tools
 firebase login
-firebase use dugo-plus
+firebase use dugo-plus-clean
 ```
 
 The app does not run unconfigured: with any `VITE_FIREBASE_*` missing, every
 route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
+
+- **Fresh Firebase project (2026-11-04, D73):** owner chooses `dugo-plus-clean`, a fresh `admin@dugo.com` and only reference/settings defaults; all old users and operational records are excluded. This supersedes the initial `admin@test.com` wording. Source data is retained. Provisioning, rules, 24 ready indexes, Worker binding switch and both Hosting releases completed. Fresh administrator sign-in and Worker access are verified; release source remains the existing clean integration revision. Evidence is in `docs/FIREBASE_PROJECT_MOVE.md`. No phase count changes or unresolved product question.
 
 - **Hospital request responses (2026-11-03, D71).** Owner requests a separate worktree and opening requests to see respondents. Implemented with accepted donor contacts behind current match-specific data-sharing consent; other match identities stay private. No new product question is raised. Local checks are in `docs/HOSPITAL_REQUEST_RESPONSES.md`; the updated Worker must be deployed before the response endpoint is available in production. No deployment is included.
 

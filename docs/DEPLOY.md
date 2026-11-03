@@ -1,14 +1,17 @@
 # Deploy to Firebase Hosting
 
-The app is a Vite SPA served from Firebase Hosting, against the `dugo-plus`
+The app is a Vite SPA served from Firebase Hosting, against the `dugo-plus-clean`
 Firebase project. Hosting ships the built frontend only; Firestore rules are a
 separate, deliberate step.
+
+The existing `dugo-plus.web.app` address is retained as a second Hosting entry
+point into the clean project. See [the migration record](FIREBASE_PROJECT_MOVE.md).
 
 ## How it is wired
 
 - `firebase.json` declares one hosting site whose `public` is **`web/dist`**, the
   directory Vite's `outDir` targets. There is no `site` field, so the default
-  site `dugo-plus.web.app` is used.
+  site `dugo-plus-clean.web.app` is used.
 - A catch-all rewrite sends every path to `/index.html`, so deep links like
   `/donor/profile` and `/admin/dashboard` survive a refresh instead of 404ing.
 - `tools/deploy.sh` builds and then deploys, because `firebase deploy` uploads
@@ -19,20 +22,20 @@ separate, deliberate step.
 ```bash
 npm install -g firebase-tools   # the CLI lives outside the repo
 firebase login
-firebase use dugo-plus          # writes .firebaserc
+firebase use dugo-plus-clean          # writes .firebaserc
 ```
 
 Then, in the Firebase console:
 
 1. **Build → Hosting** — confirm a site exists. The default is
-   `dugo-plus.web.app`.
-2. **Authentication → Settings → Authorized domains** — `dugo-plus.web.app` must
+   `dugo-plus-clean.web.app`.
+2. **Authentication → Settings → Authorized domains** — `dugo-plus-clean.web.app` must
    be listed. Sign-in fails with `auth/unauthorized-domain` without it, and the
    deploy itself gives no hint that anything is wrong.
 
 ## Deploying
 
-**Active temporary direction (D37, 2026-11-01): deploy from clean integration after its protected PR/checks, per the owner.** The main/prod promotion path is temporarily superseded; do not advance those branches for this release. Pass `--project dugo-plus` explicitly if this worktree has no local Firebase alias.
+**Active temporary direction (D37, 2026-11-01): deploy from clean integration after its protected PR/checks, per the owner.** The main/prod promotion path is temporarily superseded; do not advance those branches for this release. Pass `--project dugo-plus-clean` explicitly if this worktree has no local Firebase alias.
 
 ```bash
 ./tools/deploy.sh
@@ -73,7 +76,7 @@ the earlier revision.
 After building/deploying from clean `prod`, run:
 
 ```bash
-node tools/verify-hosting-build.mjs https://dugo-plus.web.app
+node tools/verify-hosting-build.mjs https://dugo-plus-clean.web.app
 ```
 
 This asserts the HTML stamp matches HEAD, the bundle includes the same log stamp,
@@ -108,7 +111,7 @@ full compatibility contract. Never rotate the HMAC secret without migration.
 
 ## Verifying a deploy
 
-1. Open the URL the CLI prints, `https://dugo-plus.web.app`.
+1. Open the URL the CLI prints, `https://dugo-plus-clean.web.app`.
 2. Sign in with email and password. `auth/unauthorized-domain` means the console
    step above was skipped.
 3. Visit `/donor/profile` directly and reload the page. A 404 means the rewrite

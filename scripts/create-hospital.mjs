@@ -7,7 +7,7 @@
 // `hospitals/{hospitalId}` and the `role: 'staff'` + `hospitalId` claims.
 //
 // Usage (key stays outside the repo):
-//   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus/sa-key.json \
+//   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus-clean/sa-key.json \
 //     npm run create:hospital -- \
 //       --email partner@example.ph --password 'temp-password' \
 //       --name 'Dr. Reyes' --facility 'St. Mary General' \
@@ -41,7 +41,7 @@ if (!keyPath) {
   refuse(
     'GOOGLE_APPLICATION_CREDENTIALS is not set.\n' +
       '  Create a service-account key for the project in the Firebase console,\n' +
-      '  keep it outside the repo (e.g. ~/.config/dugo-plus/sa-key.json),\n' +
+      '  keep it outside the repo (e.g. ~/.config/dugo-plus-clean/sa-key.json),\n' +
       '  then re-run with that variable set.',
   )
 }
@@ -93,7 +93,7 @@ function geohash(lat, lng, precision = 7) {
   return hash
 }
 
-const project = flag('project') || process.env.GCLOUD_PROJECT || 'dugo-plus'
+const project = flag('project') || process.env.GCLOUD_PROJECT || 'dugo-plus-clean'
 const email = (flag('email') || '').trim().toLowerCase()
 const password = flag('password') || ''
 const fullName = (flag('name') || '').trim()

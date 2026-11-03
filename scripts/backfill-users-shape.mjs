@@ -14,7 +14,7 @@
 // Runs with the Admin SDK, which bypasses the security rules — the supported
 // writer for a migration (D15). `users` is otherwise owner-written.
 //
-//   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus/sa-key.json \
+//   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus-clean/sa-key.json \
 //     node scripts/backfill-users-shape.mjs [--apply] [--project <id>]
 //
 // The key must live outside this repository. Delete it once the backfill has
@@ -28,7 +28,7 @@ const apply = process.argv.includes('--apply');
 const emulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 const project = process.argv.includes('--project')
   ? process.argv[process.argv.indexOf('--project') + 1]
-  : process.env.GCLOUD_PROJECT || 'dugo-plus';
+  : process.env.GCLOUD_PROJECT || 'dugo-plus-clean';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 function refuse(message) {
@@ -41,8 +41,8 @@ if (!emulator) {
   if (!keyPath) {
     refuse(
       'GOOGLE_APPLICATION_CREDENTIALS is not set.\n' +
-        '  Create a service-account key for dugo-plus in the Firebase console,\n' +
-        '  keep it outside the repo (e.g. ~/.config/dugo-plus/sa-key.json),\n' +
+        '  Create a service-account key for dugo-plus-clean in the Firebase console,\n' +
+        '  keep it outside the repo (e.g. ~/.config/dugo-plus-clean/sa-key.json),\n' +
         '  then re-run with that variable set. Delete it after the backfill.',
     );
   }

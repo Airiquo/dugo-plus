@@ -7,7 +7,7 @@
 // (schema §6), while `users.role` keeps the shipped `hospital` value.
 //
 // Usage (key stays outside the repo):
-//   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus/sa-key.json \
+//   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus-clean/sa-key.json \
 //     npm run set:claims -- [--uid <uid>] [--dry]
 //
 // After a run, the signed-in client must refresh its token: sign out and in,
@@ -23,7 +23,7 @@ const dry = process.argv.includes('--dry')
 const emulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST)
 const project = process.argv.includes('--project')
   ? process.argv[process.argv.indexOf('--project') + 1]
-  : process.env.GCLOUD_PROJECT || 'dugo-plus'
+  : process.env.GCLOUD_PROJECT || 'dugo-plus-clean'
 const uidArg = process.argv.includes('--uid')
   ? process.argv[process.argv.indexOf('--uid') + 1]
   : null
@@ -40,8 +40,8 @@ if (!emulator) {
   if (!keyPath) {
     refuse(
       'GOOGLE_APPLICATION_CREDENTIALS is not set.\n' +
-        '  Create a service-account key for dugo-plus in the Firebase console,\n' +
-        '  keep it outside the repo (e.g. ~/.config/dugo-plus/sa-key.json),\n' +
+        '  Create a service-account key for dugo-plus-clean in the Firebase console,\n' +
+        '  keep it outside the repo (e.g. ~/.config/dugo-plus-clean/sa-key.json),\n' +
         '  then re-run with that variable set.',
     )
   }

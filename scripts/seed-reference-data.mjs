@@ -7,7 +7,7 @@
 // writer for these server-owned collections (D15). Existing docs are kept
 // unless --force is passed.
 //
-//   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus/sa-key.json npm run seed
+//   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus-clean/sa-key.json npm run seed
 //
 // The key must live outside this repository (emulator runs may use a throwaway
 // key), and an admin account must already
@@ -29,7 +29,7 @@ const linkEmail = process.argv.includes('--link-email')
 const emulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
 const project = process.argv.includes('--project')
   ? process.argv[process.argv.indexOf('--project') + 1]
-  : process.env.GCLOUD_PROJECT || 'dugo-plus';
+  : process.env.GCLOUD_PROJECT || 'dugo-plus-clean';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 function refuse(message) {
@@ -42,8 +42,8 @@ if (!emulator) {
   if (!keyPath) {
     refuse(
       'GOOGLE_APPLICATION_CREDENTIALS is not set.\n' +
-        '  Create a service-account key for dugo-plus in the Firebase console,\n' +
-        '  keep it outside the repo (e.g. ~/.config/dugo-plus/sa-key.json),\n' +
+        '  Create a service-account key for dugo-plus-clean in the Firebase console,\n' +
+        '  keep it outside the repo (e.g. ~/.config/dugo-plus-clean/sa-key.json),\n' +
         '  then re-run with that variable set. Delete the key after seeding.',
     );
   }
