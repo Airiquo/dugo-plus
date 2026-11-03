@@ -22,8 +22,8 @@ on integration `98ff79e`.
   focuses the first invalid choice. Posting failure retains entries. Facility
   address remains read-only.
 - Inventory shows eight stock cards for the selected component with exact counts,
-  labeled in-stock/zero-stock states, Issue, Adjust and movement history. No
-  unapproved low-stock thresholds, forecasts or clinical recommendations are added.
+  labeled numeric quantity bands, Issue, Adjust and movement history. D68 adds
+  0/1–4/5+ display colors and a chart/legend, without clinical stock thresholds.
   Legacy unclassified units remain excluded from usable stock and explicitly labeled.
 - `?view=screening` opens the screening/donation tab directly from workflow links.
   Match and complete donation-history reads start when this view opens, avoiding
@@ -37,10 +37,9 @@ on integration `98ff79e`.
   existing native-dialog primitive: focus containment, Escape dismissal, return
   to the trigger and dismissal disabled during mutations. `AdminDialog` gains
   an optional eyebrow; its administrator default is preserved.
-- History keeps donation and movement views, filtering, ordering, Load more,
-  pagination and complete filtered/all exports. Movement component controls appear
-  in the movement view. Loaded donation summaries remain labeled as loaded and
-  show unavailable while loading/failed.
+- History keeps donation and movement views, filtering, ordering, pagination
+  and complete filtered/all exports. D69 replaces partial initial reads with
+  complete authorized reads before filtering/totals. Failures remain unavailable.
 - Facility details use a focused name/contact editor with validation, save/discard,
   retained failed edits, and a separate administrator-managed address panel.
   Saved values are reconciled locally after the successful write, avoiding a
@@ -77,13 +76,14 @@ Worker deployment or Firestore rules/index requirement to the earlier D63 rollou
 
 - Vite production build passes; compiled bundles contain the redesigned screens,
   hospital-scoped styles, native dialog review and existing export controls.
-- All 123 existing account/audit/matching/inventory/export regression tests pass.
+- All 133 account/audit/matching/inventory/export/analytics regression tests pass.
 - `node tools/check-docs.mjs` and whitespace checks pass.
 - Local sample preview uses isolated Firebase Auth/Firestore emulators and the
   existing Worker harness; it contains fictional data and no production access.
   The app is served at `http://127.0.0.1:5195/hospital/dashboard`.
 - **Current blocker:** the owner confirmed local browser access was enabled,
-  but the browser tool still reports it disabled after refreshing its session.
+  but the browser tool still reported it disabled after refreshing its session
+  and was subsequently removed from this session.
   Desktop/phone visual review, both-theme inspection, native-dialog interaction,
   save/reload and export UI verification of this redesign remain blocked on the
   connection. Previous D63/D65 browser checks verify the baseline only. The
@@ -95,3 +95,11 @@ Worker deployment or Firestore rules/index requirement to the earlier D63 rollou
   mockup images are presented as this app's preview.
 - Production and physical-device verification remain outside the local build.
   No production deploy was performed.
+
+## Analytics, filters and report follow-up
+
+D68–D70 add the requested stock amount colors, charts, day-click donation calendar,
+month/year/custom-date controls, KPI filter shortcuts, cross-role applied record
+filters and in-app print preview with Back. Donor map zoom controls and the shared
+Requests icon are included. Coverage, read-cost tradeoffs and current verification
+limits are in `docs/RECORD_FILTERS_AND_ANALYTICS.md`.

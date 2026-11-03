@@ -1,3 +1,9 @@
+import {
+  filterStock,
+  stockBand,
+  STOCK_BANDS,
+} from "../../utils/hospitalReports";
+import { filterRecords } from "../../utils/recordFilters";
 import { TableExport } from "../../components/TableExport";
 import {
   stockReportColumns,
@@ -41,6 +47,9 @@ import {
   PageHeader,
   HospitalPageHeader,
   HospitalNotice,
+  HospitalMetric,
+  HospitalStockChart,
+  RecordFilters,
   Icon,
   Select,
   Table,
@@ -146,6 +155,25 @@ function shortId(value) {
  */
 export default function Inventory() {
   const workspaceRef = useRef(null);
+  const stockRef = useRef(null);
+  const [stockFilter, setStockFilter] = useState({
+    band: "all",
+    bloodType: "all",
+  });
+  const [pendingFilters, setPendingFilters] = useState({
+    search: "",
+    component: "all",
+    responseStatus: "all",
+    screeningStatus: "all",
+    from: "",
+    to: "",
+  });
+  const [movementFilters, setMovementFilters] = useState({
+    search: "",
+    changeType: "all",
+    from: "",
+    to: "",
+  });
   const [stockComponent, setStockComponent] = useState("whole-blood");
   const { profile, role } = useAuth();
   const isAdmin = role === "admin";
@@ -243,12 +271,14 @@ export default function Inventory() {
 
   const openLogs = async (bt) => {
     setLogBloodType(bt);
+    setMovementFilters({ search: "", changeType: "all", from: "", to: "" });
     setStockLogs([]);
     setStockLogsLoading(true);
     setStockLogsError("");
     try {
-      const list = await getInventoryLogs(hospitalId, bt, {
+      const list = await allStockMovements(hospitalId, {
         component: stockComponent,
+        bloodType: bt,
       });
       setStockLogs(list);
     } catch (error) {
@@ -384,6 +414,17 @@ export default function Inventory() {
     return { units, stocked, latest };
   }, [rows]);
 
+  const filteredStock = filterStock(
+    rows,
+    stockFilter.band,
+    stockFilter.bloodType,
+  );
+  function chooseStock(band = "all", bloodType = "all") {
+    setStockFilter({ band, bloodType });
+    requestAnimationFrame(() =>
+      stockRef.current?.scrollIntoView({ block: "start", behavior: "instant" }),
+    );
+  }
   const selectedStock = form?.bloodType
     ? rows.find((row) => row.bloodType === form.bloodType)
     : null;
@@ -416,23 +457,32 @@ export default function Inventory() {
     [matches, donationIds],
   );
   const logRows = useMemo(() => {
-    const filtered = logType
-      ? pending.filter((row) => row.bloodType === logType)
-      : pending;
+    const filtered = filterRecords(
+      logType ? pending.filter((row) => row.bloodType === logType) : pending,
+      pendingFilters,
+      {
+        date: (row) => row.matchedAt,
+        search: (row) =>
+          `${row.donorId} ${row.requestId} ${row.bloodType} ${componentLabel(row.component)}`,
+        fields: {
+          screeningStatus: (row) => row.screeningStatus || "unscreened",
+        },
+      },
+    );
     const dir = logSort === "new" ? -1 : 1;
     return [...filtered].sort(
       (a, b) =>
         ((a.matchedAt?.getTime?.() ?? 0) - (b.matchedAt?.getTime?.() ?? 0)) *
         dir,
     );
-  }, [pending, logType, logSort]);
+  }, [pending, logType, logSort, pendingFilters]);
   const logPageCount = Math.max(1, Math.ceil(logRows.length / LOG_PAGE_SIZE));
   const logCurrentPage = Math.min(logPage, logPageCount);
   const logPaged = logRows.slice(
     (logCurrentPage - 1) * LOG_PAGE_SIZE,
     logCurrentPage * LOG_PAGE_SIZE,
   );
-  const ready = useMemo(() => pending.filter(isConfirmable), [pending]);
+  const ready = useMemo(() => logRows.filter(isConfirmable), [logRows]);
   const selectedReady = selected.filter((id) =>
     ready.some((row) => row.id === id),
   );
@@ -481,7 +531,7 @@ export default function Inventory() {
   // retries when several donations land on the same blood type's stock row.
   const confirmSelected = async () => {
     if (!hospitalId || confirming) return;
-    const chosen = pending.filter(
+    const chosen = ready.filter(
       (row) => selected.includes(row.id) && isConfirmable(row),
     );
     if (!chosen.length) {
@@ -750,34 +800,105 @@ export default function Inventory() {
               {tab === "stock" && (
                 <>
                   <section
-                    className="hospital-inventory-summary"
+                    className="hw-metrics hw-stock-metrics"
                     aria-label="Inventory summary"
                   >
-                    <Card>
-                      <span>Units on hand</span>
-                      <strong>{totals.units}</strong>
-                      <small>
-                        {componentLabel(stockComponent)} · all blood groups
-                      </small>
-                    </Card>
-                    <Card>
-                      <span>Types stocked</span>
-                      <strong>
-                        {totals.stocked}
-                        <small> / {BLOOD_TYPES.length}</small>
-                      </strong>
-                      <small>With at least one unit</small>
-                    </Card>
-                    <Card>
-                      <span>Last change</span>
-                      <strong className="hospital-inventory-last">
-                        {formatDate(totals.latest)}
-                      </strong>
-                      <small>Most recent stock movement</small>
-                    </Card>
+                    <HospitalMetric
+                      name="stock-units"
+                      label="Units on hand"
+                      value={totals.units}
+                      detail={`${componentLabel(stockComponent)} · view all groups`}
+                      icon="box"
+                      onClick={() => chooseStock()}
+                      aria-pressed={
+                        stockFilter.band === "all" &&
+                        stockFilter.bloodType === "all"
+                      }
+                    />
+                    <HospitalMetric
+                      name="stock-stocked"
+                      label="Groups in stock"
+                      value={totals.stocked}
+                      detail="Filter groups with at least one unit"
+                      icon="check"
+                      tone="success"
+                      onClick={() => chooseStock("stocked")}
+                      aria-pressed={stockFilter.band === "stocked"}
+                    />
+                    <HospitalMetric
+                      name="stock-empty"
+                      label="Groups with 0 units"
+                      value={
+                        rows.filter((row) => row.unitsAvailable === 0).length
+                      }
+                      detail="Filter empty stock groups"
+                      icon="alert"
+                      tone="urgent"
+                      onClick={() => chooseStock("empty")}
+                      aria-pressed={stockFilter.band === "empty"}
+                    />
+                    <HospitalMetric
+                      name="stock-one-to-four"
+                      label="Groups with 1–4 units"
+                      value={
+                        rows.filter(
+                          (row) =>
+                            stockBand(row.unitsAvailable) === "one-to-four",
+                        ).length
+                      }
+                      detail="Filter this quantity band"
+                      icon="droplet"
+                      tone="attention"
+                      onClick={() => chooseStock("one-to-four")}
+                      aria-pressed={stockFilter.band === "one-to-four"}
+                    />
                   </section>
+                  <Card className="hw-panel hw-stock-chart-panel">
+                    <div className="hw-panel-heading">
+                      <div>
+                        <p className="hw-eyebrow">Stock at a glance</p>
+                        <h2>{componentLabel(stockComponent)} by blood group</h2>
+                        <p className="hw-panel-description">
+                          Click a bar to filter stock cards. Bars compare actual
+                          unit counts, not capacity.
+                        </p>
+                      </div>
+                      <Icon name="chart" size={23} />
+                    </div>
+                    <HospitalStockChart
+                      rows={rows}
+                      selectedGroup={stockFilter.bloodType}
+                      onSelect={(group) =>
+                        chooseStock(
+                          "all",
+                          stockFilter.bloodType === group ? "all" : group,
+                        )
+                      }
+                    />
+                    <div
+                      className="hw-stock-legend"
+                      aria-label="Stock quantity bands"
+                    >
+                      {STOCK_BANDS.map((band) => (
+                        <button
+                          type="button"
+                          key={band.value}
+                          data-band={band.value}
+                          aria-pressed={stockFilter.band === band.value}
+                          onClick={() => chooseStock(band.value)}
+                        >
+                          <i aria-hidden="true" />
+                          {band.label}
+                        </button>
+                      ))}
+                      <span>Display bands only; clinical targets vary.</span>
+                    </div>
+                    <p className="hw-panel-description">
+                      Latest movement: {formatDate(totals.latest)}
+                    </p>
+                  </Card>
 
-                  <Card className="hospital-inventory-table">
+                  <Card className="hospital-inventory-table" ref={stockRef}>
                     <header>
                       <h2>Stock by blood type</h2>
                       <p className="muted">
@@ -786,6 +907,59 @@ export default function Inventory() {
                         a correction.
                       </p>
                     </header>
+                    <div className="hw-stock-filterbar">
+                      <label>
+                        Quantity
+                        <select
+                          aria-label="Filter stock by quantity"
+                          value={stockFilter.band}
+                          onChange={(event) =>
+                            setStockFilter((previous) => ({
+                              ...previous,
+                              band: event.target.value,
+                            }))
+                          }
+                        >
+                          <option value="all">All quantities</option>
+                          <option value="stocked">In stock (1+ units)</option>
+                          {STOCK_BANDS.map((band) => (
+                            <option key={band.value} value={band.value}>
+                              {band.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Blood group
+                        <select
+                          aria-label="Filter stock by blood group"
+                          value={stockFilter.bloodType}
+                          onChange={(event) =>
+                            setStockFilter((previous) => ({
+                              ...previous,
+                              bloodType: event.target.value,
+                            }))
+                          }
+                        >
+                          <option value="all">All blood groups</option>
+                          {BLOOD_TYPES.map((type) => (
+                            <option key={type} value={type}>
+                              {type}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <Btn
+                        onClick={() =>
+                          setStockFilter({ band: "all", bloodType: "all" })
+                        }
+                      >
+                        Reset filters
+                      </Btn>
+                      <span role="status">
+                        {filteredStock.length} matching blood groups
+                      </span>
+                    </div>
                     <TableExport
                       name="inventory"
                       title={`${hospital?.name || "Facility"} blood inventory`}
@@ -793,20 +967,27 @@ export default function Inventory() {
                       disabled={loading || loadFailed || !hospitalId}
                       getRows={(scope) =>
                         scope === "filtered"
-                          ? rows.map((row) => ({
+                          ? filteredStock.map((row) => ({
                               ...row,
                               component: stockComponent,
                             }))
                           : allInventory(hospitalId)
                       }
                     />
+                    {!filteredStock.length && (
+                      <p className="hospital-note" role="status">
+                        No blood groups match these filters. Reset filters to
+                        see all groups.
+                      </p>
+                    )}
                     {!isAdmin ? (
                       <div className="hw-stock-grid">
-                        {rows.map((row) => (
+                        {filteredStock.map((row) => (
                           <article
                             className="hw-stock-card"
                             key={row.bloodType}
                             data-empty={row.unitsAvailable === 0}
+                            data-band={stockBand(row.unitsAvailable)}
                             aria-label={`${row.bloodType} ${componentLabel(stockComponent)} stock`}
                           >
                             <div className="hw-stock-top">
@@ -816,10 +997,13 @@ export default function Inventory() {
                               <span
                                 className="hw-stock-status"
                                 data-empty={row.unitsAvailable === 0}
+                                data-band={stockBand(row.unitsAvailable)}
                               >
                                 {row.unitsAvailable === 0
-                                  ? "No stock"
-                                  : "In stock"}
+                                  ? "0 units"
+                                  : row.unitsAvailable < 5
+                                    ? "1–4 units"
+                                    : "5+ units"}
                               </span>
                             </div>
                             <div className="hw-stock-amount">
@@ -917,7 +1101,7 @@ export default function Inventory() {
                             ),
                           },
                         ]}
-                        rows={rows}
+                        rows={filteredStock}
                         rowKey={(row) => row.bloodType}
                         scroll={false}
                         rowProps={(row) => ({
@@ -981,6 +1165,52 @@ export default function Inventory() {
                       )}
                     </header>
 
+                    <RecordFilters
+                      name="pending donations"
+                      onReset={() => {
+                        setLogType("");
+                        setLogSort("new");
+                        setLogPage(1);
+                        setSelected([]);
+                      }}
+                      value={pendingFilters}
+                      onChange={(next) => {
+                        setPendingFilters(next);
+                        setLogPage(1);
+                        setSelected([]);
+                      }}
+                      fields={[
+                        {
+                          key: "component",
+                          label: "Component",
+                          options: COMPONENTS,
+                        },
+                        {
+                          key: "responseStatus",
+                          label: "Donor response",
+                          options: [
+                            "Pending",
+                            "Accepted",
+                            "Declined",
+                            "Expired",
+                          ],
+                        },
+                        {
+                          key: "screeningStatus",
+                          label: "Screening",
+                          options: [
+                            { value: "unscreened", label: "Not screened" },
+                            "Cleared",
+                            "Deferred",
+                            "Rejected",
+                          ],
+                        },
+                      ]}
+                      disabled={
+                        matchesLoading || historyFailed || matchesFailed
+                      }
+                      searchPlaceholder="Search donor or request reference…"
+                    />
                     <TableExport
                       name="pending-donations"
                       title="Awaiting donation confirmation"
@@ -997,7 +1227,19 @@ export default function Inventory() {
                           allHospitalDonations(hospitalId, {}, progress),
                         ]);
                         const done = new Set(confirmed.map((row) => row.id));
-                        return found
+                        return filterRecords(
+                          found,
+                          scope === "filtered" ? pendingFilters : {},
+                          {
+                            date: (row) => row.matchedAt,
+                            search: (row) =>
+                              `${row.donorId} ${row.requestId} ${row.bloodType} ${componentLabel(row.component)}`,
+                            fields: {
+                              screeningStatus: (row) =>
+                                row.screeningStatus || "unscreened",
+                            },
+                          },
+                        )
                           .filter(
                             (row) =>
                               !done.has(row.id) &&
@@ -1072,6 +1314,7 @@ export default function Inventory() {
                                 onChange={(event) => {
                                   setLogType(event.target.value);
                                   setLogPage(1);
+                                  setSelected([]);
                                 }}
                               >
                                 <option value="">All blood types</option>
@@ -1117,7 +1360,7 @@ export default function Inventory() {
                                       <input
                                         type="checkbox"
                                         className="hospital-inventory-check"
-                                        aria-label="Select every ready donation"
+                                        aria-label="Select every ready donation matching these filters"
                                         checked={allSelected}
                                         disabled={!ready.length || confirming}
                                         onChange={toggleAll}
@@ -1614,6 +1857,19 @@ export default function Inventory() {
             recorded for {logBloodType} at this facility.
           </p>
 
+          <RecordFilters
+            name="stock movement history"
+            value={movementFilters}
+            onChange={setMovementFilters}
+            fields={[
+              {
+                key: "changeType",
+                label: "Movement",
+                options: ["DONATION", "TRANSFUSION", "ADJUSTMENT", "EXPIRED"],
+              },
+            ]}
+            disabled={stockLogsLoading || Boolean(stockLogsError)}
+          />
           <TableExport
             name="stock-history"
             title={`${logBloodType || ""} ${componentLabel(stockComponent)} movements`}
@@ -1621,11 +1877,14 @@ export default function Inventory() {
             disabled={
               !logBloodType || stockLogsLoading || Boolean(stockLogsError)
             }
-            getRows={(_, progress) =>
-              allStockMovements(
-                hospitalId,
-                { component: stockComponent, bloodType: logBloodType },
-                progress,
+            getRows={async (scope, progress) =>
+              filterRecords(
+                await allStockMovements(
+                  hospitalId,
+                  { component: stockComponent, bloodType: logBloodType },
+                  progress,
+                ),
+                scope === "filtered" ? movementFilters : {},
               )
             }
           />
@@ -1645,6 +1904,15 @@ export default function Inventory() {
             </p>
           )}
 
+          {!stockLogsLoading &&
+            !stockLogsError &&
+            stockLogs.length > 0 &&
+            !filterRecords(stockLogs, movementFilters).length && (
+              <p className="hospital-note" role="status">
+                No movements match these filters. Reset filters to view this
+                blood group’s history.
+              </p>
+            )}
           {!stockLogsLoading && !stockLogsError && stockLogs.length > 0 && (
             <Table
               mobileCards
@@ -1694,7 +1962,7 @@ export default function Inventory() {
                     row.userId ? <code>{shortId(row.userId)}</code> : "—",
                 },
               ]}
-              rows={stockLogs}
+              rows={filterRecords(stockLogs, movementFilters)}
               rowKey={(row) => row.id}
             />
           )}

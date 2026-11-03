@@ -1,829 +1,510 @@
-import { TableExport } from "../../components/TableExport";
-import {
-  donationReportColumns,
-  movementReportColumns,
-} from "../../utils/reportColumns";
+import { useEffect, useMemo, useState } from "react";
+import { AppShell } from "../../layout/AppShell";
+import { HospitalShell } from "../../layout/HospitalShell";
+import { useAuth } from "../../hooks/useAuth";
+import { listHospitals, readHospital } from "../../services/hospitals";
 import {
   allHospitalDonations,
   allStockMovements,
 } from "../../services/tableExports";
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth";
-import {
-  getHospitalDonations,
-  getInventoryLogs,
-  listHospitals,
-  readHospital,
-} from "../../services/hospitals";
-import { BLOOD_TYPES } from "../../services/users";
 import { COMPONENTS, componentLabel } from "../../services/requests";
-import { toDate } from "../../utils/eligibility";
-import { AppShell } from "../../layout/AppShell";
-import { HospitalShell } from "../../layout/HospitalShell";
+import { BLOOD_TYPES } from "../../services/users";
+import {
+  donationReportColumns,
+  movementReportColumns,
+} from "../../utils/reportColumns";
+import { collectedUnits } from "../../utils/hospitalReports";
+import { filterRecords } from "../../utils/recordFilters";
+import { sortDate, sortRows } from "../../utils/sortRows";
+import { useTableSort } from "../../hooks/useTableSort";
 import {
   Badge,
   Btn,
   Card,
   Field,
-  PageHeader,
+  HospitalMetric,
   HospitalPageHeader,
+  PageHeader,
+  RecordFilters,
   Select,
+  SortControls,
   Table,
+  TableExport,
   TablePager,
   Tabs,
 } from "../../components";
 
-const HISTORY_PAGE = 50;
-
-/** Rows per page in the log tables. */
-const PAGE_SIZE = 10;
-
-const TYPE_FILTER_OPTIONS = [
-  { value: "", label: "All blood types" },
-  ...BLOOD_TYPES.map((bt) => ({ value: bt, label: bt })),
-];
-
-function formatDate(value) {
-  const date = toDate(value);
-  return date
-    ? date.toLocaleString(undefined, {
+const emptyFilters = {
+  search: "",
+  bloodType: "all",
+  component: "all",
+  changeType: "all",
+  direction: "all",
+  from: "",
+  to: "",
+};
+const dateLabel = (value) => {
+  const date = value?.toDate?.() || (value ? new Date(value) : null);
+  return date && Number.isFinite(date.getTime())
+    ? date.toLocaleString("en-PH", {
         dateStyle: "medium",
         timeStyle: "short",
+        timeZone: "Asia/Manila",
       })
-    : "—";
-}
+    : "Not recorded";
+};
 
-function shortId(value) {
-  if (!value || typeof value !== "string") return "—";
-  return value.length > 12 ? `${value.slice(0, 8)}…` : value;
-}
-
-/**
- * Inventory log screen — `/hospital/inventory-log` for hospital staff (FR-020)
- * and `/admin/inventory-log` for administrators.
- *
- * Displays:
- * 1. Confirmed donations: every completed donation at this facility (schema §2.9).
- * 2. Stock movements: audit log of all stock changes (schema §2.3.3) across blood types.
- */
+/** Complete facility histories with shared filters, sorting, pagination and matching report scopes. */
 export default function InventoryLog() {
-  const [stockComponent, setStockComponent] = useState("whole-blood");
-  const { profile, role } = useAuth();
-  const isAdmin = role === "admin";
-  const staffHospitalId = profile?.hospitalId ?? "";
-
-  const [facilities, setFacilities] = useState([]);
-  const [facilitiesLoading, setFacilitiesLoading] = useState(false);
-  const [facilitiesFailed, setFacilitiesFailed] = useState(false);
-  const [picked, setPicked] = useState("");
-
-  const hospitalId = isAdmin ? picked : staffHospitalId;
-
-  const [hospital, setHospital] = useState(null);
-  const [tab, setTab] = useState("donations");
-
-  // Confirmed donations state
-  const [donations, setDonations] = useState([]);
-  const [cursor, setCursor] = useState(null);
-  const [donationsLoading, setDonationsLoading] = useState(true);
-  const [donationsFailed, setDonationsFailed] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  // Stock movements state
-  const [selectedType, setSelectedType] = useState("");
-  const [movements, setMovements] = useState([]);
-  const [movementsLoading, setMovementsLoading] = useState(false);
-  const [movementsFailed, setMovementsFailed] = useState(false);
-
-  // Table controls: per-tab blood-type filter (movements filter server-side),
-  // date sort and client-side pagination.
-  const [donFilterType, setDonFilterType] = useState("");
-  const [donSort, setDonSort] = useState("new");
-  const [donPage, setDonPage] = useState(1);
-  const [movSort, setMovSort] = useState("new");
-  const [movPage, setMovPage] = useState(1);
-
-  const [reloadKey, setReloadKey] = useState(0);
-
-  // Facility name for header and shell
+  const { profile, role } = useAuth(),
+    isAdmin = role === "admin";
+  const [facilities, setFacilities] = useState([]),
+    [picked, setPicked] = useState(""),
+    [facilityError, setFacilityError] = useState(false);
+  const hospitalId = isAdmin ? picked : profile?.hospitalId || "";
+  const [hospital, setHospital] = useState(null),
+    [tab, setTab] = useState("donations");
+  const [data, setData] = useState({ status: "loading", rows: [] }),
+    [progress, setProgress] = useState(0);
+  const [filters, setFilters] = useState(emptyFilters),
+    [page, setPage] = useState(1),
+    [attempt, setAttempt] = useState(0);
+  const { sort, setSort, toggleSort } = useTableSort();
   useEffect(() => {
-    if (!hospitalId) return undefined;
-    let current = true;
+    if (!isAdmin) return;
+    let active = true;
+    setFacilityError(false);
+    listHospitals()
+      .then((rows) => {
+        if (active) {
+          setFacilities(rows);
+          setPicked((previous) => previous || rows[0]?.id || "");
+        }
+      })
+      .catch(() => {
+        if (active) setFacilityError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [isAdmin, attempt]);
+  useEffect(() => {
+    if (!hospitalId) return;
+    let active = true;
     readHospital(hospitalId)
-      .then((found) => current && setHospital(found))
+      .then((found) => {
+        if (active) setHospital(found);
+      })
       .catch(() => {});
     return () => {
-      current = false;
+      active = false;
     };
   }, [hospitalId]);
-
-  // Admin facility list
-  useEffect(() => {
-    if (!isAdmin) return undefined;
-    let current = true;
-    setFacilitiesLoading(true);
-    setFacilitiesFailed(false);
-    listHospitals()
-      .then((list) => {
-        if (!current) return;
-        setFacilities(list);
-        setPicked((prev) => prev || list[0]?.id || "");
-      })
-      .catch(() => current && setFacilitiesFailed(true))
-      .finally(() => current && setFacilitiesLoading(false));
-    return () => {
-      current = false;
-    };
-  }, [isAdmin, reloadKey]);
-
-  // Load confirmed donations
   useEffect(() => {
     if (!hospitalId) {
-      setDonations([]);
-      setDonationsLoading(false);
-      return undefined;
+      setData({ status: "ready", rows: [] });
+      return;
     }
-    let current = true;
-    setDonationsLoading(true);
-    setDonationsFailed(false);
-    setCursor(null);
-
-    getHospitalDonations(hospitalId, { limit: HISTORY_PAGE })
-      .then((page) => {
-        if (!current) return;
-        setDonations(page.rows);
-        setCursor(page.cursor);
+    let active = true;
+    setData({ status: "loading", rows: [] });
+    setProgress(0);
+    const progress = (count) => {
+      if (active) setProgress(count);
+    };
+    const load =
+      tab === "donations"
+        ? allHospitalDonations(hospitalId, {}, progress)
+        : allStockMovements(hospitalId, {}, progress);
+    load
+      .then((rows) => {
+        if (active) setData({ status: "ready", rows });
       })
       .catch(() => {
-        if (current) setDonationsFailed(true);
-      })
-      .finally(() => {
-        if (current) setDonationsLoading(false);
+        if (active) setData({ status: "error", rows: [] });
       });
-
     return () => {
-      current = false;
+      active = false;
     };
-  }, [hospitalId, reloadKey]);
-
-  // Load stock movements
-  useEffect(() => {
-    if (!hospitalId || tab !== "movements") return undefined;
-    let current = true;
-    setMovementsLoading(true);
-    setMovementsFailed(false);
-
-    const typesToLoad = selectedType ? [selectedType] : BLOOD_TYPES;
-
-    Promise.allSettled(
-      typesToLoad.map((bt) =>
-        getInventoryLogs(hospitalId, bt, {
-          limit: 50,
-          component: stockComponent,
-        }).then((logs) => logs.map((item) => ({ ...item, bloodType: bt }))),
-      ),
-    )
-      .then((results) => {
-        if (!current) return;
-        if (results.some((result) => result.status === "rejected"))
-          setMovementsFailed(true);
-        const allLogs = results
-          .filter((r) => r.status === "fulfilled")
-          .flatMap((r) => r.value)
-          .sort(
-            (a, b) =>
-              (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0),
-          );
-        setMovements(allLogs);
-      })
-      .catch(() => {
-        if (current) setMovementsFailed(true);
-      })
-      .finally(() => {
-        if (current) setMovementsLoading(false);
-      });
-
-    return () => {
-      current = false;
-    };
-  }, [hospitalId, selectedType, stockComponent, tab, reloadKey]);
-
-  const loadMoreDonations = async () => {
-    if (!hospitalId || !cursor || loadingMore) return;
-    setLoadingMore(true);
-    try {
-      const page = await getHospitalDonations(hospitalId, {
-        cursor,
-        limit: HISTORY_PAGE,
-      });
-      setDonations((prev) => [...prev, ...page.rows]);
-      setCursor(page.cursor);
-    } catch {
-      setDonationsFailed(true);
-    } finally {
-      setLoadingMore(false);
-    }
+  }, [hospitalId, tab, attempt]);
+  const donations = tab === "donations";
+  const filterOptions = {
+    date: (row) => (donations ? row.donationDate : row.createdAt),
+    search: (row) =>
+      `${row.id} ${row.donorId || ""} ${row.requestId || ""} ${row.reason || ""} ${row.userId || ""} ${row.bloodType} ${componentLabel(row.component)}`,
+    fields: {
+      component: (row) => row.component?.toLowerCase() || "unclassified",
+      direction: (row) =>
+        row.unitsChanged > 0
+          ? "added"
+          : row.unitsChanged < 0
+            ? "removed"
+            : "unchanged",
+    },
   };
-
-  const sortDate = (rows, key, dir) =>
-    [...rows].sort(
-      (a, b) =>
-        ((a[key]?.getTime?.() ?? 0) - (b[key]?.getTime?.() ?? 0)) *
-        (dir === "new" ? -1 : 1),
-    );
-  const donationRows = useMemo(
+  const accessors = {
+    date: (row) => sortDate(donations ? row.donationDate : row.createdAt),
+    bloodType: (row) => row.bloodType,
+    component: (row) => componentLabel(row.component),
+    units: (row) => (donations ? Number(row.units) : Number(row.unitsChanged)),
+    type: (row) => row.changeType,
+    reference: (row) => row.donorId || row.userId,
+  };
+  const visible = useMemo(
     () =>
-      sortDate(
-        donFilterType
-          ? donations.filter((row) => row.bloodType === donFilterType)
-          : donations,
-        "donationDate",
-        donSort,
+      sortRows(
+        filterRecords(data.rows, filters, filterOptions),
+        sort.key ? accessors[sort.key] : accessors.date,
+        sort.key ? sort.direction : "desc",
       ),
-    [donations, donFilterType, donSort],
+    [data.rows, filters, sort, tab],
   );
-  const donationPageCount = Math.max(
-    1,
-    Math.ceil(donationRows.length / PAGE_SIZE),
+  const currentPage = Math.min(
+    page,
+    Math.max(1, Math.ceil(visible.length / 10)),
   );
-  const donationCurrentPage = Math.min(donPage, donationPageCount);
-  const donationPaged = donationRows.slice(
-    (donationCurrentPage - 1) * PAGE_SIZE,
-    donationCurrentPage * PAGE_SIZE,
-  );
-  const movementRows = useMemo(
-    () => sortDate(movements, "createdAt", movSort),
-    [movements, movSort],
-  );
-  const movementPageCount = Math.max(
-    1,
-    Math.ceil(movementRows.length / PAGE_SIZE),
-  );
-  const movementCurrentPage = Math.min(movPage, movementPageCount);
-  const movementPaged = movementRows.slice(
-    (movementCurrentPage - 1) * PAGE_SIZE,
-    movementCurrentPage * PAGE_SIZE,
-  );
-
-  const totals = useMemo(() => {
-    const totalUnits = donations.reduce(
-      (sum, row) => sum + (Number(row.units) || 0),
-      0,
-    );
-    const latest = donations.reduce((last, row) => {
-      const date = toDate(row.donationDate);
-      return date && (!last || date > last) ? date : last;
-    }, null);
-    return { count: donations.length, totalUnits, latest };
-  }, [donations]);
-
-  const Shell = isAdmin ? AppShell : HospitalShell;
-  const Header = isAdmin ? PageHeader : HospitalPageHeader;
-
+  const ready = Boolean(hospitalId) && data.status === "ready";
+  const Shell = isAdmin ? AppShell : HospitalShell,
+    Header = isAdmin ? PageHeader : HospitalPageHeader;
+  const fields = [
+    { key: "bloodType", label: "Blood group", options: BLOOD_TYPES },
+    {
+      key: "component",
+      label: "Component",
+      options: [
+        ...COMPONENTS,
+        { value: "unclassified", label: "Unclassified" },
+      ],
+    },
+    ...(!donations
+      ? [
+          {
+            key: "changeType",
+            label: "Movement",
+            options: ["DONATION", "TRANSFUSION", "ADJUSTMENT", "EXPIRED"],
+          },
+          {
+            key: "direction",
+            label: "Direction",
+            options: [
+              { value: "added", label: "Units added" },
+              { value: "removed", label: "Units removed" },
+            ],
+          },
+        ]
+      : []),
+  ];
+  function apply(next) {
+    setFilters(next);
+    setPage(1);
+  }
+  function kpi(next = {}) {
+    apply({ ...emptyFilters, ...next });
+    document
+      .getElementById("history-records")
+      ?.scrollIntoView({ block: "start", behavior: "instant" });
+  }
+  const columns = [
+    {
+      key: "date",
+      header: donations ? "Collected" : "Recorded",
+      render: (row) => dateLabel(donations ? row.donationDate : row.createdAt),
+    },
+    {
+      key: "bloodType",
+      header: "Blood group",
+      render: (row) => <Badge>{row.bloodType || "—"}</Badge>,
+    },
+    {
+      key: "component",
+      header: "Component",
+      render: (row) => componentLabel(row.component) || "Unclassified",
+    },
+    {
+      key: "units",
+      header: donations ? "Units collected" : "Unit change",
+      render: (row) => (
+        <strong>
+          {donations
+            ? row.units
+            : row.unitsChanged > 0
+              ? `+${row.unitsChanged}`
+              : row.unitsChanged}
+        </strong>
+      ),
+    },
+    ...(donations
+      ? [
+          {
+            key: "reference",
+            header: "Donor reference",
+            render: (row) => row.donorName || row.donorId || "Not recorded",
+          },
+          {
+            key: "request",
+            header: "Request reference",
+            sortable: false,
+            render: (row) => row.requestId || "Not recorded",
+          },
+        ]
+      : [
+          { key: "type", header: "Movement", render: (row) => row.changeType },
+          {
+            key: "reason",
+            header: "Reason",
+            sortable: false,
+            render: (row) => row.reason || "Not recorded",
+          },
+          {
+            key: "reference",
+            header: "Recorded by",
+            render: (row) => row.userId || "Not recorded",
+          },
+        ]),
+  ];
   return (
     <Shell facility={hospital?.name}>
       <Header
         tag={isAdmin ? "Dugo+ admin" : undefined}
-        title={isAdmin ? "Inventory Log" : "Donation & stock history"}
+        title="Donation & stock history"
         eyebrow="Records / Your facility"
-        description="Trace every confirmed donation and every change to stock."
+        description="Find the records behind each collection and every change to stock."
+        actions={
+          <Btn
+            icon="refresh"
+            disabled={data.status === "loading"}
+            onClick={() => setAttempt((n) => n + 1)}
+          >
+            Refresh
+          </Btn>
+        }
       />
-      <div id="page-body">
+      {isAdmin && (
+        <Card>
+          <Field label="Facility">
+            <Select
+              aria-label="Facility"
+              value={picked}
+              options={facilities.map((item) => ({
+                value: item.id,
+                label: item.name,
+              }))}
+              onChange={(event) => {
+                setPicked(event.target.value);
+                apply(emptyFilters);
+              }}
+            />
+          </Field>
+          {facilityError && (
+            <p role="alert">
+              Facilities couldn’t load.{" "}
+              <Btn onClick={() => setAttempt((n) => n + 1)}>Try again</Btn>
+            </p>
+          )}
+        </Card>
+      )}
+      {!hospitalId ? (
+        <p className="hospital-state" role="status">
+          A linked facility is required to view these records.
+        </p>
+      ) : (
         <div className="hospital-inventory">
-          {tab === "movements" && (
-            <Card className="hw-history-component">
-              <div>
-                <p className="hw-eyebrow">Movement history</p>
-                <h2>Find the stock record you need</h2>
-              </div>
-              <Field label="Movement component">
-                <Select
-                  aria-label="Movement component"
-                  value={stockComponent}
-                  options={[
-                    ...COMPONENTS,
-                    {
-                      value: "unclassified",
-                      label: "Legacy unclassified stock",
-                    },
-                  ]}
-                  onChange={(event) => {
-                    setStockComponent(event.target.value);
-                    setMovPage(1);
-                  }}
+          <Tabs
+            className="hospital-inventory-tabs"
+            label="History views"
+            value={tab}
+            tabs={[
+              { value: "donations", label: "Confirmed donations" },
+              { value: "movements", label: "Stock movements" },
+            ]}
+            onChange={(value) => {
+              setTab(value);
+              apply(emptyFilters);
+              setSort({ key: null, direction: "asc" });
+            }}
+          />
+          <section
+            className="hw-metrics hw-history-metrics"
+            aria-label="History summaries"
+          >
+            {donations ? (
+              <>
+                <HospitalMetric
+                  name="history-donations"
+                  label="Confirmed donations"
+                  value={ready ? data.rows.length : "—"}
+                  detail="View all confirmed donation records"
+                  icon="check"
+                  onClick={() => kpi()}
+                  disabled={!ready}
                 />
-              </Field>
-            </Card>
-          )}
-          {isAdmin && (
-            <Card>
-              <Field label="Facility">
-                <Select
-                  options={facilities.map((item) => ({
-                    value: item.id,
-                    label: item.name,
-                  }))}
-                  value={picked}
-                  onChange={(event) => setPicked(event.target.value)}
-                  disabled={facilitiesLoading || facilitiesFailed}
-                  aria-label="Facility"
+                <HospitalMetric
+                  name="history-collected"
+                  label="Units collected"
+                  value={ready ? collectedUnits(data.rows) : "—"}
+                  detail="View all donation records"
+                  icon="droplet"
+                  tone="success"
+                  onClick={() => kpi()}
+                  disabled={!ready}
                 />
-              </Field>
-              {facilitiesLoading && (
-                <p className="hospital-state">Loading facilities…</p>
-              )}
-              {!facilitiesLoading && facilitiesFailed && (
-                <div role="alert">
-                  <p className="hospital-state" data-kind="error">
-                    The facility list could not be loaded.
-                  </p>
-                  <Btn onClick={() => setReloadKey((k) => k + 1)}>
-                    Try again
-                  </Btn>
-                </div>
-              )}
-            </Card>
-          )}
-
-          {!hospitalId && !isAdmin && (
-            <Card>
-              <p className="hospital-state" data-kind="warn" role="status">
-                This account is not linked to a facility yet. Ask an
-                administrator to link your account.
+              </>
+            ) : (
+              <>
+                <HospitalMetric
+                  name="history-added"
+                  label="Units added"
+                  value={
+                    ready
+                      ? data.rows.reduce(
+                          (sum, row) => sum + Math.max(0, row.unitsChanged),
+                          0,
+                        )
+                      : "—"
+                  }
+                  detail="Filter positive stock movements"
+                  icon="plus"
+                  tone="success"
+                  onClick={() => kpi({ direction: "added" })}
+                  disabled={!ready}
+                />
+                <HospitalMetric
+                  name="history-removed"
+                  label="Units removed"
+                  value={
+                    ready
+                      ? data.rows.reduce(
+                          (sum, row) => sum + Math.max(0, -row.unitsChanged),
+                          0,
+                        )
+                      : "—"
+                  }
+                  detail="Filter negative stock movements"
+                  icon="droplet"
+                  tone="attention"
+                  onClick={() => kpi({ direction: "removed" })}
+                  disabled={!ready}
+                />
+                <HospitalMetric
+                  name="history-adjustments"
+                  label="Manual adjustments"
+                  value={
+                    ready
+                      ? data.rows.filter(
+                          (row) => row.changeType === "ADJUSTMENT",
+                        ).length
+                      : "—"
+                  }
+                  detail="Filter adjustment records"
+                  icon="settings"
+                  onClick={() => kpi({ changeType: "ADJUSTMENT" })}
+                  disabled={!ready}
+                />
+              </>
+            )}
+          </section>
+          <Card className="hospital-inventory-table" id="history-records">
+            <header>
+              <p className="hw-eyebrow">Complete facility records</p>
+              <h2>{donations ? "Confirmed donations" : "Stock movements"}</h2>
+              <p className="muted">
+                {ready
+                  ? `${visible.length} matching records. Filters and exports include all matching pages.`
+                  : "Loading every page before showing totals or filtered results."}
               </p>
-            </Card>
-          )}
-
-          {hospitalId && (
-            <>
-              <Tabs
-                className="hospital-inventory-tabs"
-                label="Log views"
-                tabs={[
-                  {
-                    value: "donations",
-                    label: "Confirmed donations",
-                    count: donations.length || undefined,
-                  },
-                  { value: "movements", label: "Stock movements" },
-                ]}
-                value={tab}
-                onChange={setTab}
-              />
-
-              {tab === "donations" && (
+            </header>
+            <RecordFilters
+              name={donations ? "donation history" : "stock movements"}
+              value={filters}
+              fields={fields}
+              disabled={!ready}
+              onChange={apply}
+              searchPlaceholder={
+                donations
+                  ? "Search donor, request or donation reference…"
+                  : "Search reason, reference or recorded-by ID…"
+              }
+            />
+            <SortControls
+              name="hospital-history"
+              sort={sort}
+              onChange={(next) => {
+                setSort(next);
+                setPage(1);
+              }}
+              defaultLabel="Newest records first"
+              fields={columns
+                .filter((column) => column.sortable !== false)
+                .map((column) => ({ key: column.key, label: column.header }))}
+            />
+            <TableExport
+              name={donations ? "donation-history" : "stock-movements"}
+              title={`${hospital?.name || "Facility"} ${donations ? "confirmed donations" : "stock movements"}`}
+              columns={
+                donations ? donationReportColumns : movementReportColumns
+              }
+              disabled={!ready}
+              getRows={(scope) => (scope === "filtered" ? visible : data.rows)}
+              filterSummary={Object.entries(filters)
+                .filter(([, value]) => value && value !== "all")
+                .map(([key, value]) => `${key}: ${value}`)
+                .join(" · ")}
+            />
+            {data.status === "loading" && (
+              <p className="hospital-state" role="status">
+                Loading complete history
+                {progress ? ` · ${progress} records read` : ""}…
+              </p>
+            )}
+            {data.status === "error" && (
+              <div role="alert">
+                <p className="hospital-state" data-kind="error">
+                  The complete history couldn’t load. Partial totals and reports
+                  are unavailable.
+                </p>
+                <Btn onClick={() => setAttempt((n) => n + 1)}>Try again</Btn>
+              </div>
+            )}
+            {ready &&
+              (visible.length ? (
                 <>
-                  <section
-                    className="hospital-inventory-summary"
-                    aria-label="Donations summary"
-                  >
-                    <Card>
-                      <span>Loaded donations</span>
-                      <strong>
-                        {donationsLoading || donationsFailed
-                          ? "—"
-                          : totals.count}
-                      </strong>
-                      <small>Load more below to extend this history</small>
-                    </Card>
-                    <Card>
-                      <span>Loaded units collected</span>
-                      <strong>
-                        {donationsLoading || donationsFailed
-                          ? "—"
-                          : totals.totalUnits}
-                      </strong>
-                      <small>Across the loaded donation history</small>
-                    </Card>
-                    <Card>
-                      <span>Latest donation</span>
-                      <strong className="hospital-inventory-last">
-                        {donationsLoading || donationsFailed
-                          ? "—"
-                          : formatDate(totals.latest)}
-                      </strong>
-                      <small>Most recent collection</small>
-                    </Card>
-                  </section>
-
-                  <Card className="hospital-inventory-table hospital-inventory-history">
-                    <header>
-                      <p className="hw-eyebrow">Collected & confirmed</p>
-                      <h2>Confirmed donations</h2>
-                      <p className="muted">
-                        Every confirmed donation record at this facility (schema
-                        §2.9).
-                      </p>
-                    </header>
-
-                    <TableExport
-                      name="donation-history"
-                      title={`${hospital?.name || "Facility"} confirmed donations`}
-                      columns={donationReportColumns}
-                      disabled={
-                        !hospitalId || donationsLoading || donationsFailed
-                      }
-                      getRows={async (scope, progress) => {
-                        const all = await allHospitalDonations(
-                          hospitalId,
-                          {},
-                          progress,
-                        );
-                        return sortDate(
-                          scope === "filtered" && donFilterType
-                            ? all.filter(
-                                (row) => row.bloodType === donFilterType,
-                              )
-                            : all,
-                          "donationDate",
-                          donSort,
-                        );
-                      }}
-                    />
-                    {donationsLoading && (
-                      <p className="hospital-state">Loading donations…</p>
+                  <Table
+                    mobileCards
+                    className="hospital-table"
+                    columns={columns}
+                    rows={visible.slice(
+                      (currentPage - 1) * 10,
+                      currentPage * 10,
                     )}
-
-                    {!donationsLoading && donationsFailed && (
-                      <div role="alert">
-                        <p className="hospital-state" data-kind="error">
-                          Confirmed donations could not be loaded.
-                        </p>
-                        <Btn onClick={() => setReloadKey((k) => k + 1)}>
-                          Try again
-                        </Btn>
-                      </div>
-                    )}
-
-                    {!donationsLoading &&
-                      !donationsFailed &&
-                      donationRows.length === 0 && (
-                        <p className="hospital-note">
-                          {donations.length === 0 ? (
-                            <>
-                              No donations confirmed here yet. Screen and
-                              confirm matches on the{" "}
-                              <Link
-                                to={
-                                  isAdmin
-                                    ? "/admin/inventory"
-                                    : "/hospital/inventory"
-                                }
-                              >
-                                Inventory screen
-                              </Link>{" "}
-                              to record them here.
-                            </>
-                          ) : (
-                            "No donations match this filter."
-                          )}
-                        </p>
-                      )}
-
-                    {!donationsLoading &&
-                      !donationsFailed &&
-                      donationRows.length > 0 && (
-                        <>
-                          <div className="hospital-table-tools">
-                            <label className="hospital-table-tool">
-                              <span className="care-sr-only">
-                                Filter donations by blood type
-                              </span>
-                              <select
-                                aria-label="Filter donations by blood type"
-                                value={donFilterType}
-                                onChange={(event) => {
-                                  setDonFilterType(event.target.value);
-                                  setDonPage(1);
-                                }}
-                              >
-                                <option value="">All blood types</option>
-                                {BLOOD_TYPES.map((bt) => (
-                                  <option key={bt} value={bt}>
-                                    {bt}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <label className="hospital-table-tool">
-                              <span className="care-sr-only">
-                                Sort donations by date
-                              </span>
-                              <select
-                                aria-label="Sort donations by date"
-                                value={donSort}
-                                onChange={(event) => {
-                                  setDonSort(event.target.value);
-                                  setDonPage(1);
-                                }}
-                              >
-                                <option value="new">Newest first</option>
-                                <option value="old">Oldest first</option>
-                              </select>
-                            </label>
-                          </div>
-
-                          <Table
-                            mobileCards
-                            className="hospital-table"
-                            columns={[
-                              {
-                                key: "donationDate",
-                                header: "Date",
-                                render: (row) => formatDate(row.donationDate),
-                              },
-                              {
-                                key: "donorName",
-                                header: "Donor",
-                                render: (row) =>
-                                  row.donorName ? (
-                                    row.donorName
-                                  ) : row.donorId ? (
-                                    <code title={row.donorId}>
-                                      {shortId(row.donorId)}
-                                    </code>
-                                  ) : (
-                                    "—"
-                                  ),
-                              },
-                              {
-                                key: "bloodType",
-                                header: "Blood type",
-                                render: (row) =>
-                                  row.bloodType ? (
-                                    <Badge data-blood-type={row.bloodType}>
-                                      {row.bloodType}
-                                    </Badge>
-                                  ) : (
-                                    "—"
-                                  ),
-                              },
-                              {
-                                key: "component",
-                                header: "Component",
-                                render: (row) =>
-                                  row.component
-                                    ? componentLabel(row.component)
-                                    : "Unclassified",
-                              },
-                              {
-                                key: "units",
-                                header: "Units",
-                                render: (row) => <strong>{row.units}</strong>,
-                              },
-                              {
-                                key: "requestId",
-                                header: "Request",
-                                render: (row) =>
-                                  row.requestId ? (
-                                    <code>{row.requestId}</code>
-                                  ) : (
-                                    "—"
-                                  ),
-                              },
-                              {
-                                key: "confirmedBy",
-                                header: "Confirmed by",
-                                render: (row) =>
-                                  row.confirmedBy ? (
-                                    <code title={row.confirmedBy}>
-                                      {shortId(row.confirmedBy)}
-                                    </code>
-                                  ) : (
-                                    "—"
-                                  ),
-                              },
-                            ]}
-                            rows={donationPaged}
-                            rowKey={(row) => row.id}
-                            scroll={false}
-                          />
-
-                          <TablePager
-                            page={donationCurrentPage}
-                            pageCount={donationPageCount}
-                            onPage={setDonPage}
-                            rangeStart={
-                              (donationCurrentPage - 1) * PAGE_SIZE + 1
-                            }
-                            rangeEnd={Math.min(
-                              donationCurrentPage * PAGE_SIZE,
-                              donationRows.length,
-                            )}
-                            total={donationRows.length}
-                          />
-
-                          <div className="hospital-form-actions">
-                            {cursor ? (
-                              <Btn
-                                onClick={loadMoreDonations}
-                                disabled={loadingMore}
-                              >
-                                {loadingMore ? "Loading…" : "Load more"}
-                              </Btn>
-                            ) : (
-                              <span className="muted">
-                                End of confirmed donations
-                              </span>
-                            )}
-                          </div>
-                        </>
-                      )}
-                  </Card>
-                </>
-              )}
-
-              {tab === "movements" && (
-                <Card className="hospital-inventory-table">
-                  <header>
-                    <h2>Stock movement audit log</h2>
-                    <p className="muted">
-                      Every change to inventory: donations, transfusions,
-                      adjustments, and expired stock (schema §2.3.3).
-                    </p>
-                  </header>
-
-                  <TableExport
-                    name="stock-movements"
-                    title="Stock movements"
-                    columns={movementReportColumns}
-                    disabled={
-                      !hospitalId || movementsLoading || movementsFailed
-                    }
-                    getRows={async (scope, progress) =>
-                      sortDate(
-                        await allStockMovements(
-                          hospitalId,
-                          scope === "filtered"
-                            ? {
-                                component: stockComponent,
-                                bloodType: selectedType || undefined,
-                              }
-                            : {},
-                          progress,
-                        ),
-                        "createdAt",
-                        movSort,
-                      )
-                    }
+                    rowKey={(row) => row.id}
+                    scroll={false}
+                    sort={sort}
+                    onSort={(key) => {
+                      toggleSort(key);
+                      setPage(1);
+                    }}
                   />
-                  {movementsLoading && (
-                    <p className="hospital-state">Loading movements…</p>
-                  )}
-
-                  {!movementsLoading && movementsFailed && (
-                    <div role="alert">
-                      <p className="hospital-state" data-kind="error">
-                        Movement logs could not be loaded.
-                      </p>
-                      <Btn onClick={() => setReloadKey((k) => k + 1)}>
-                        Try again
-                      </Btn>
-                    </div>
-                  )}
-
-                  {!movementsLoading &&
-                    !movementsFailed &&
-                    movements.length === 0 && (
-                      <p className="hospital-note">
-                        No stock movements recorded{" "}
-                        {selectedType ? `for ${selectedType}` : ""} yet.
-                      </p>
-                    )}
-
-                  {!movementsLoading &&
-                    !movementsFailed &&
-                    movements.length > 0 && (
-                      <>
-                        <div className="hospital-table-tools">
-                          <label className="hospital-table-tool">
-                            <span className="care-sr-only">
-                              Filter movements by blood type
-                            </span>
-                            <Select
-                              options={TYPE_FILTER_OPTIONS}
-                              value={selectedType}
-                              onChange={(e) => {
-                                setSelectedType(e.target.value);
-                                setMovPage(1);
-                              }}
-                              aria-label="Filter movements by blood type"
-                            />
-                          </label>
-                          <label className="hospital-table-tool">
-                            <span className="care-sr-only">
-                              Sort movements by date
-                            </span>
-                            <select
-                              aria-label="Sort movements by date"
-                              value={movSort}
-                              onChange={(event) => {
-                                setMovSort(event.target.value);
-                                setMovPage(1);
-                              }}
-                            >
-                              <option value="new">Newest first</option>
-                              <option value="old">Oldest first</option>
-                            </select>
-                          </label>
-                        </div>
-
-                        <Table
-                          mobileCards
-                          className="hospital-table"
-                          columns={[
-                            {
-                              key: "createdAt",
-                              header: "Date",
-                              render: (row) => formatDate(row.createdAt),
-                            },
-                            {
-                              key: "bloodType",
-                              header: "Blood type",
-                              render: (row) => (
-                                <Badge data-blood-type={row.bloodType}>
-                                  {row.bloodType}
-                                </Badge>
-                              ),
-                            },
-                            {
-                              key: "changeType",
-                              header: "Type",
-                              render: (row) => (
-                                <Badge
-                                  data-status={
-                                    row.changeType === "DONATION"
-                                      ? "ok"
-                                      : row.changeType === "EXPIRED"
-                                        ? "rejected"
-                                        : "pending"
-                                  }
-                                >
-                                  {row.changeType}
-                                </Badge>
-                              ),
-                            },
-                            {
-                              key: "unitsChanged",
-                              header: "Change",
-                              render: (row) => (
-                                <strong
-                                  style={{
-                                    color:
-                                      row.unitsChanged > 0
-                                        ? "var(--color-ok)"
-                                        : "var(--color-text)",
-                                  }}
-                                >
-                                  {row.unitsChanged > 0
-                                    ? `+${row.unitsChanged}`
-                                    : row.unitsChanged}
-                                </strong>
-                              ),
-                            },
-                            {
-                              key: "reason",
-                              header: "Reason",
-                              render: (row) => row.reason || "—",
-                            },
-                            {
-                              key: "userId",
-                              header: "Actor",
-                              render: (row) =>
-                                row.userId ? (
-                                  <code title={row.userId}>
-                                    {shortId(row.userId)}
-                                  </code>
-                                ) : (
-                                  "—"
-                                ),
-                            },
-                          ]}
-                          rows={movementPaged}
-                          rowKey={(row) => `${row.bloodType}_${row.id}`}
-                          scroll={false}
-                        />
-
-                        <TablePager
-                          page={movementCurrentPage}
-                          pageCount={movementPageCount}
-                          onPage={setMovPage}
-                          rangeStart={(movementCurrentPage - 1) * PAGE_SIZE + 1}
-                          rangeEnd={Math.min(
-                            movementCurrentPage * PAGE_SIZE,
-                            movementRows.length,
-                          )}
-                          total={movementRows.length}
-                        />
-                      </>
-                    )}
-                </Card>
-              )}
-            </>
-          )}
+                  <TablePager
+                    page={currentPage}
+                    pageCount={Math.max(1, Math.ceil(visible.length / 10))}
+                    onPage={setPage}
+                    total={visible.length}
+                    rangeStart={(currentPage - 1) * 10 + 1}
+                    rangeEnd={Math.min(currentPage * 10, visible.length)}
+                  />
+                </>
+              ) : (
+                <div className="hw-empty">
+                  <h3>No records match these filters</h3>
+                  <p>
+                    Try a broader date range, another component, or clear your
+                    filters.
+                  </p>
+                  <Btn onClick={() => apply(emptyFilters)}>Reset filters</Btn>
+                </div>
+              ))}
+          </Card>
         </div>
-      </div>
+      )}
     </Shell>
   );
 }

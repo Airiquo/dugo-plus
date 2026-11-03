@@ -11,13 +11,16 @@ export function HospitalMetric({
   icon,
   tone,
   to,
+  onClick,
   className,
   ...rest
 }) {
-  const Tag = to ? Link : "div";
+  const Tag = to ? Link : onClick ? "button" : "div";
   return (
     <Tag
       to={to}
+      type={onClick && !to ? "button" : undefined}
+      onClick={onClick}
       className={cx("card hw-metric", className)}
       data-tone={tone}
       {...rest}
@@ -29,7 +32,7 @@ export function HospitalMetric({
       <strong id={`${name}-value`}>{value}</strong>
       <span className="hw-metric-detail">
         {detail}
-        {to && <Icon name="arrow-right" size={16} />}
+        {(to || onClick) && <Icon name="arrow-right" size={16} />}
       </span>
     </Tag>
   );

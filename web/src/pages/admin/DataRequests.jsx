@@ -1,5 +1,7 @@
-import { TableExport } from '../../components/TableExport'
-import { privacyReportColumns } from '../../utils/reportColumns'
+import { RecordFilters } from "../../components/RecordFilters";
+import { filterRecords } from "../../utils/recordFilters";
+import { TableExport } from "../../components/TableExport";
+import { privacyReportColumns } from "../../utils/reportColumns";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "../../layout/AppShell";
@@ -72,13 +74,20 @@ export default function DataRequests() {
   });
   const [confirmErase, setConfirmErase] = useState(false);
   const [query, setQuery] = useState("");
+  const [recordFilters, setRecordFilters] = useState({
+    search: "",
+    from: "",
+    to: "",
+  });
   const [statusFilter, setStatusFilter] = useState("open");
   const [typeFilter, setTypeFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [directoryError, setDirectoryError] = useState("");
   const generation = useRef(0);
   const notice = useRef(null);
-  useEffect(() => { if (!activeId && note) notice.current?.focus(); }, [activeId, note]);
+  useEffect(() => {
+    if (!activeId && note) notice.current?.focus();
+  }, [activeId, note]);
 
   const load = async () => {
     const current = ++generation.current;
@@ -122,7 +131,7 @@ export default function DataRequests() {
     return map;
   }, [accounts]);
 
-  const filtered = requests.filter((row) => {
+  const filtered = filterRecords(requests, recordFilters).filter((row) => {
     const person = byId.get(row.userId);
     return (
       (statusFilter === "all" ||
@@ -231,7 +240,8 @@ export default function DataRequests() {
   };
 
   const applyCorrection = async () => {
-    if (!active || closed || working || !subject || subject.personalDataErased) return;
+    if (!active || closed || working || !subject || subject.personalDataErased)
+      return;
     if (!correction.fullName.trim()) {
       setError("A corrected name is required.");
       return;
@@ -258,7 +268,8 @@ export default function DataRequests() {
   };
 
   const erasePersonalData = async () => {
-    if (!active || closed || working || !subject || subject.personalDataErased) return;
+    if (!active || closed || working || !subject || subject.personalDataErased)
+      return;
     if (!adminNote.trim()) {
       setError(
         "Record the reason for erasure in the note before deleting anything.",
@@ -404,7 +415,13 @@ export default function DataRequests() {
               className="card aw-metric"
               type="button"
               aria-pressed={statusFilter === key}
-              onClick={() => setStatusFilter(key)}
+              onClick={() => {
+                setStatusFilter(key);
+                setQuery("");
+                setTypeFilter("all");
+                setRecordFilters({ search: "", from: "", to: "" });
+                setPage(1);
+              }}
             >
               <span className="aw-metric-top">
                 {label}
@@ -482,7 +499,30 @@ export default function DataRequests() {
               {directoryError}
             </p>
           )}
-          <TableExport name="data-requests" title="Privacy requests" columns={privacyReportColumns} disabled={loading || Boolean(error)} getRows={scope => scope === 'filtered' ? orderedRequests : requests} />
+          <RecordFilters
+            name="privacy queue"
+            onReset={() => {
+              setQuery("");
+              setStatusFilter("open");
+              setTypeFilter("all");
+            }}
+            value={recordFilters}
+            onChange={(next) => {
+              setRecordFilters(next);
+              setPage(1);
+            }}
+            search={false}
+            disabled={loading || Boolean(error)}
+          />
+          <TableExport
+            name="data-requests"
+            title="Privacy requests"
+            columns={privacyReportColumns}
+            disabled={loading || Boolean(error)}
+            getRows={(scope) =>
+              scope === "filtered" ? orderedRequests : requests
+            }
+          />
           {loading ? (
             <div className="aw-empty" role="status">
               Loading requests…
@@ -522,6 +562,7 @@ export default function DataRequests() {
                     setQuery("");
                     setStatusFilter("all");
                     setTypeFilter("all");
+                    setRecordFilters({ search: "", from: "", to: "" });
                   }}
                 >
                   Clear filters
@@ -641,7 +682,12 @@ export default function DataRequests() {
                       Update only the fields the person asked you to correct.
                     </p>
                     <fieldset
-                      disabled={!!working || closed || !subject || subject?.personalDataErased}
+                      disabled={
+                        !!working ||
+                        closed ||
+                        !subject ||
+                        subject?.personalDataErased
+                      }
                       className="aw-form"
                     >
                       <Field label="Full name">
@@ -700,7 +746,12 @@ export default function DataRequests() {
                       <Btn
                         variant="alert"
                         onClick={() => setConfirmErase(true)}
-                        disabled={!!working || closed || !subject || subject?.personalDataErased}
+                        disabled={
+                          !!working ||
+                          closed ||
+                          !subject ||
+                          subject?.personalDataErased
+                        }
                       >
                         Erase personal data
                       </Btn>

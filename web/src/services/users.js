@@ -9,12 +9,12 @@ import {
   setDoc,
   updateDoc,
   where,
-} from 'firebase/firestore'
-import { db } from '../lib/firebase'
-import { geohash, isCoordinate } from '../utils/geohash'
-import { recordAuditEvent } from './audit'
-import { callAccountService } from './accounts'
-import { isProfilePhotoUrl } from '../utils/profilePhoto'
+} from "firebase/firestore";
+import { db } from "../lib/firebase";
+import { geohash, isCoordinate } from "../utils/geohash";
+import { recordAuditEvent } from "./audit";
+import { callAccountService } from "./accounts";
+import { isProfilePhotoUrl } from "../utils/profilePhoto";
 
 /**
  * `users/{uid}` profiles — the account type the guards read back.
@@ -27,30 +27,30 @@ import { isProfilePhotoUrl } from '../utils/profilePhoto'
  */
 
 /** Every account type that exists. */
-export const ROLES = ['donor', 'hospital', 'admin']
+export const ROLES = ["donor", "hospital", "admin"];
 
 /** Account access states enforced by rules and server account operations. */
-export const STATUSES = ['Active', 'Suspended', 'Removed']
+export const STATUSES = ["Active", "Suspended", "Removed"];
 
 /** The eight blood types, in the order a picker should read them. */
-export const BLOOD_TYPES = ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']
+export const BLOOD_TYPES = ["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"];
 
 /** geohash precision stored with a location. ~150 m, enough for a donor radius. */
-export const GEOHASH_PRECISION = 7
+export const GEOHASH_PRECISION = 7;
 
 /** Display name for an account type, as the shell labels the signed-in user. */
 const ROLE_LABELS = {
-  donor: 'Donor',
-  hospital: 'Hospital / Blood Bank',
-  admin: 'System admin',
-}
+  donor: "Donor",
+  hospital: "Hospital / Blood Bank",
+  admin: "System admin",
+};
 
 /**
  * @param {string|null} role
  * @returns {string} the label for that account type, or '' when unknown.
  */
 export function roleLabel(role) {
-  return ROLE_LABELS[role] ?? ''
+  return ROLE_LABELS[role] ?? "";
 }
 
 /**
@@ -64,22 +64,23 @@ export function roleLabel(role) {
  * @returns {string} a route path
  */
 export function homeFor(role) {
-  if (role === 'admin') return '/admin/dashboard'
-  if (role === 'donor') return '/home'
-  if (role === 'hospital') return '/hospital/dashboard'
-  return '/'
+  if (role === "admin") return "/admin/dashboard";
+  if (role === "donor") return "/home";
+  if (role === "hospital") return "/hospital/dashboard";
+  return "/";
 }
 
-const NOT_CONFIGURED = 'Firestore is not available. Copy web/.env.example to web/.env.local.'
+const NOT_CONFIGURED =
+  "Firestore is not available. Copy web/.env.example to web/.env.local.";
 
 /** Firestore's local copy of `request.auth.uid`; throws when unconfigured. */
 function requireDb() {
-  if (!db) throw new Error(NOT_CONFIGURED)
+  if (!db) throw new Error(NOT_CONFIGURED);
 }
 
 /** A trimmed string, or '' for anything that is not a string. */
 function text(value) {
-  return typeof value === 'string' ? value.trim() : ''
+  return typeof value === "string" ? value.trim() : "";
 }
 
 /**
@@ -93,18 +94,18 @@ function text(value) {
  *             city: string } | null}
  */
 function normaliseLocation(location) {
-  if (!location) return null
-  const city = text(location.city)
-  const lat = Number(location.coordinates?.lat)
-  const lng = Number(location.coordinates?.lng)
-  const hasPoint = isCoordinate(lat, lng)
-  if (!hasPoint && !city) return null
+  if (!location) return null;
+  const city = text(location.city);
+  const lat = Number(location.coordinates?.lat);
+  const lng = Number(location.coordinates?.lng);
+  const hasPoint = isCoordinate(lat, lng);
+  if (!hasPoint && !city) return null;
   return {
     latitude: hasPoint ? lat : 0,
     longitude: hasPoint ? lng : 0,
-    geohash: hasPoint ? geohash(lat, lng, GEOHASH_PRECISION) : '',
+    geohash: hasPoint ? geohash(lat, lng, GEOHASH_PRECISION) : "",
     city,
-  }
+  };
 }
 
 /**
@@ -158,26 +159,26 @@ function normaliseLocation(location) {
  *          which is the caller's own data when it created the document
  */
 export async function ensureProfile(uid, profile, consentVersion) {
-  requireDb()
-  const ref = doc(db, 'users', uid)
+  requireDb();
+  const ref = doc(db, "users", uid);
   const data = {
     role: profile.role,
-    fullName: profile.fullName ?? '',
-    email: profile.email ?? '',
-    phoneNumber: '',
-    status: 'Active',
+    fullName: profile.fullName ?? "",
+    email: profile.email ?? "",
+    phoneNumber: "",
+    status: "Active",
     createdAt: serverTimestamp(),
-  }
+  };
   if (consentVersion) {
-    data.privacyConsentAt = serverTimestamp()
-    data.privacyNoticeVersion = consentVersion
+    data.privacyConsentAt = serverTimestamp();
+    data.privacyNoticeVersion = consentVersion;
   }
   return runTransaction(db, async (transaction) => {
-    const found = await transaction.get(ref)
-    if (found.exists()) return { created: false, profile: found.data() }
-    transaction.set(ref, data)
-    return { created: true, profile: data }
-  })
+    const found = await transaction.get(ref);
+    if (found.exists()) return { created: false, profile: found.data() };
+    transaction.set(ref, data);
+    return { created: true, profile: data };
+  });
 }
 
 /**
@@ -199,40 +200,45 @@ export async function ensureProfile(uid, profile, consentVersion) {
  * }} changes
  */
 export async function saveProfile(uid, changes) {
-  requireDb()
-  const data = { updatedAt: serverTimestamp() }
+  requireDb();
+  const data = { updatedAt: serverTimestamp() };
 
-  if ('fullName' in changes) data.fullName = text(changes.fullName)
+  if ("fullName" in changes) data.fullName = text(changes.fullName);
 
-  if ('bloodType' in changes) {
-    const type = text(changes.bloodType)
+  if ("bloodType" in changes) {
+    const type = text(changes.bloodType);
     if (type && !BLOOD_TYPES.includes(type)) {
-      throw new Error(`Unknown blood type: ${type}`)
+      throw new Error(`Unknown blood type: ${type}`);
     }
-    data.bloodType = type
+    data.bloodType = type;
   }
 
-  if ('dateOfBirth' in changes) data.dateOfBirth = changes.dateOfBirth || null
-  if ('lastDonationAt' in changes) data.lastDonationAt = changes.lastDonationAt || null
-  if ('phoneNumber' in changes) data.phoneNumber = text(changes.phoneNumber)
+  if ("dateOfBirth" in changes) data.dateOfBirth = changes.dateOfBirth || null;
+  if ("lastDonationAt" in changes)
+    data.lastDonationAt = changes.lastDonationAt || null;
+  if ("phoneNumber" in changes) data.phoneNumber = text(changes.phoneNumber);
 
-  if ('location' in changes) {
+  if ("location" in changes) {
     // Stored flat, or cleared to the empty strings when the donor cleared it.
-    const next = normaliseLocation(changes.location)
-    data.latitude = next?.latitude ?? 0
-    data.longitude = next?.longitude ?? 0
-    data.geohash = next?.geohash ?? ''
-    data.city = next?.city ?? ''
+    const next = normaliseLocation(changes.location);
+    data.latitude = next?.latitude ?? 0;
+    data.longitude = next?.longitude ?? 0;
+    data.geohash = next?.geohash ?? "";
+    data.city = next?.city ?? "";
   }
 
-  await setDoc(doc(db, 'users', uid), data, { merge: true })
+  await setDoc(doc(db, "users", uid), data, { merge: true });
 }
 
 /** Save or clear the picture on an existing account without changing its other details. */
 export async function saveProfilePhoto(uid, photoURL) {
-  requireDb()
-  if (!uid || !isProfilePhotoUrl(photoURL)) throw new Error('Choose a valid profile picture.')
-  await updateDoc(doc(db, 'users', uid), { photoURL, updatedAt: serverTimestamp() })
+  requireDb();
+  if (!uid || !isProfilePhotoUrl(photoURL))
+    throw new Error("Choose a valid profile picture.");
+  await updateDoc(doc(db, "users", uid), {
+    photoURL,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /**
@@ -245,26 +251,30 @@ export async function saveProfilePhoto(uid, photoURL) {
  * @param {{ fullName: string, phoneNumber?: string, city?: string }} changes
  */
 export async function correctUserProfile(uid, changes) {
-  requireDb()
-  if (!uid) throw new Error('Choose an account first.')
-  const fullName = text(changes.fullName)
-  if (!fullName) throw new Error('A corrected name is required.')
+  requireDb();
+  if (!uid) throw new Error("Choose an account first.");
+  const fullName = text(changes.fullName);
+  if (!fullName) throw new Error("A corrected name is required.");
 
-  const data = { fullName, updatedAt: serverTimestamp() }
-  if ('phoneNumber' in changes) data.phoneNumber = text(changes.phoneNumber)
-  if ('city' in changes) data.city = text(changes.city)
+  const data = { fullName, updatedAt: serverTimestamp() };
+  if ("phoneNumber" in changes) data.phoneNumber = text(changes.phoneNumber);
+  if ("city" in changes) data.city = text(changes.city);
 
-  await updateDoc(doc(db, 'users', uid), data)
+  await updateDoc(doc(db, "users", uid), data);
   // F10b: a data-access event (FR-042).
-  await recordAuditEvent({ eventType: 'DataAccess.Rectification', entityType: 'user', entityId: uid })
+  await recordAuditEvent({
+    eventType: "DataAccess.Rectification",
+    entityType: "user",
+    entityId: uid,
+  });
 }
 
 /** A Firestore value that may be a Timestamp, Date, or absent, as a Date. */
 function asDate(value) {
-  if (!value) return null
-  if (value instanceof Date) return value
-  if (typeof value.toDate === 'function') return value.toDate()
-  return null
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value.toDate === "function") return value.toDate();
+  return null;
 }
 
 /**
@@ -278,23 +288,23 @@ function asDate(value) {
  * @returns {Promise<Profile | null>}
  */
 export async function readProfile(uid) {
-  requireDb()
-  const snap = await getDoc(doc(db, 'users', uid))
-  if (!snap.exists()) return null
-  const data = snap.data() ?? {}
+  requireDb();
+  const snap = await getDoc(doc(db, "users", uid));
+  if (!snap.exists()) return null;
+  const data = snap.data() ?? {};
 
-  const latitude = Number(data.latitude)
-  const longitude = Number(data.longitude)
+  const latitude = Number(data.latitude);
+  const longitude = Number(data.longitude);
 
   return {
     // Only trusted values survive: an unknown or absent role reads as absent,
     // so the guards do not open a route for it.
     role: ROLES.includes(data.role) ? data.role : null,
     fullName: text(data.fullName),
-    photoURL: isProfilePhotoUrl(data.photoURL) ? data.photoURL : '',
+    photoURL: isProfilePhotoUrl(data.photoURL) ? data.photoURL : "",
     email: text(data.email),
     phoneNumber: text(data.phoneNumber),
-    bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : '',
+    bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : "",
     dateOfBirth: asDate(data.dateOfBirth),
     lastDonationAt: asDate(data.lastDonationAt),
     latitude: isCoordinate(latitude, longitude) ? latitude : 0,
@@ -302,7 +312,7 @@ export async function readProfile(uid) {
     geohash: text(data.geohash),
     city: text(data.city),
     hospitalId: text(data.hospitalId),
-    status: STATUSES.includes(data.status) ? data.status : 'Active',
+    status: STATUSES.includes(data.status) ? data.status : "Active",
     statusReason: text(data.statusReason),
     loginState: text(data.loginState),
     loginDeletedAt: asDate(data.loginDeletedAt),
@@ -311,7 +321,7 @@ export async function readProfile(uid) {
     privacyConsentAt: asDate(data.privacyConsentAt),
     privacyNoticeVersion: text(data.privacyNoticeVersion),
     updatedAt: asDate(data.updatedAt),
-  }
+  };
 }
 
 /**
@@ -319,20 +329,21 @@ export async function readProfile(uid) {
  * @returns {Promise<Array<Profile & {id:string}>>}
  */
 export async function listUsers() {
-  requireDb()
-  const snap = await getDocs(collection(db, 'users'))
-  const out = []
+  requireDb();
+  const snap = await getDocs(collection(db, "users"));
+  const out = [];
   snap.forEach((docSnap) => {
-    const data = docSnap.data() ?? {}
-    const latitude = Number(data.latitude)
-    const longitude = Number(data.longitude)
+    const data = docSnap.data() ?? {};
+    const latitude = Number(data.latitude);
+    const longitude = Number(data.longitude);
     out.push({
       id: docSnap.id,
+      createdAt: asDate(data.createdAt),
       role: ROLES.includes(data.role) ? data.role : null,
       fullName: text(data.fullName),
       email: text(data.email),
       phoneNumber: text(data.phoneNumber),
-      bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : '',
+      bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : "",
       dateOfBirth: asDate(data.dateOfBirth),
       lastDonationAt: asDate(data.lastDonationAt),
       latitude: isCoordinate(latitude, longitude) ? latitude : 0,
@@ -340,7 +351,7 @@ export async function listUsers() {
       geohash: text(data.geohash),
       city: text(data.city),
       hospitalId: text(data.hospitalId),
-      status: STATUSES.includes(data.status) ? data.status : 'Active',
+      status: STATUSES.includes(data.status) ? data.status : "Active",
       statusReason: text(data.statusReason),
       loginState: text(data.loginState),
       loginDeletedAt: asDate(data.loginDeletedAt),
@@ -349,9 +360,9 @@ export async function listUsers() {
       privacyConsentAt: asDate(data.privacyConsentAt),
       privacyNoticeVersion: text(data.privacyNoticeVersion),
       updatedAt: asDate(data.updatedAt),
-    })
-  })
-  return out
+    });
+  });
+  return out;
 }
 
 /**
@@ -361,14 +372,20 @@ export async function listUsers() {
  * @param {{status: 'Active'|'Suspended'|'Removed', statusReason?: string}} changes
  */
 export async function updateUserStatus(uid, changes) {
-  requireDb()
-  if (!uid) throw new Error('Choose an account first.')
-  if (!STATUSES.includes(changes.status)) throw new Error('Unknown account status.')
-  const reason = typeof changes.statusReason === 'string' ? changes.statusReason.trim() : ''
-  if (changes.status !== 'Active' && !reason) {
-    throw new Error('Add a reason for closing or suspending this account.')
+  requireDb();
+  if (!uid) throw new Error("Choose an account first.");
+  if (!STATUSES.includes(changes.status))
+    throw new Error("Unknown account status.");
+  const reason =
+    typeof changes.statusReason === "string" ? changes.statusReason.trim() : "";
+  if (changes.status !== "Active" && !reason) {
+    throw new Error("Add a reason for closing or suspending this account.");
   }
-  return callAccountService('updateAccountStatus', { uid, status: changes.status, reason })
+  return callAccountService("updateAccountStatus", {
+    uid,
+    status: changes.status,
+    reason,
+  });
 }
 
 /**
@@ -380,7 +397,7 @@ export async function updateUserStatus(uid, changes) {
  * @param {string} reason
  */
 export async function removeUser(uid, reason) {
-  return updateUserStatus(uid, { status: 'Removed', statusReason: reason })
+  return updateUserStatus(uid, { status: "Removed", statusReason: reason });
 }
 
 /**
@@ -393,10 +410,9 @@ export async function removeUser(uid, reason) {
  * @param {string} reason
  */
 export async function anonymiseUser(uid, reason) {
-  requireDb()
-  if (!uid) throw new Error('Choose an account first.')
-  const note = typeof reason === 'string' ? reason.trim() : ''
-  if (!note) throw new Error('Record why the personal data was erased.')
-  return callAccountService('eraseAccountData', { uid, reason: note })
+  requireDb();
+  if (!uid) throw new Error("Choose an account first.");
+  const note = typeof reason === "string" ? reason.trim() : "";
+  if (!note) throw new Error("Record why the personal data was erased.");
+  return callAccountService("eraseAccountData", { uid, reason: note });
 }
-

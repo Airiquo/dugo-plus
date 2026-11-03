@@ -1,3 +1,4 @@
+import { lockDialogScroll } from "../utils/dialogScrollLock";
 import { useEffect, useRef } from "react";
 import { cx } from "../utils/cx";
 import { Btn } from "./Btn";
@@ -20,12 +21,11 @@ export function AdminDialog({
     const dialog = ref.current;
     if (!open) return;
     const trigger = document.activeElement;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    dialog.showModal();
+    if (!dialog.open) dialog.showModal();
+    const unlockScroll = lockDialogScroll();
     return () => {
       dialog.close();
-      document.body.style.overflow = previousOverflow;
+      unlockScroll();
       requestAnimationFrame(() => {
         const target =
           trigger?.isConnected && !trigger.disabled

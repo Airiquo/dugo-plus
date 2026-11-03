@@ -85,7 +85,7 @@ export function RoleShell({
           {
             to: "/hospital/requests",
             label: "Requests",
-            icon: "droplet",
+            icon: "request",
             exact: false,
           },
           {

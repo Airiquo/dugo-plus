@@ -12,3 +12,5 @@ mutations are served by the authenticated Cloudflare Worker; there is no browser
 write fallback. See `docs/HOSPITAL_WORKER_RECONCILIATION.md` for rollout and verification.
 
 Design, interaction details and current verification: `docs/HOSPITAL_EXPERIENCE.md`.
+
+Donation calendars, charts, stock quantity colors, complete date filters and KPI shortcuts: `docs/RECORD_FILTERS_AND_ANALYTICS.md`.

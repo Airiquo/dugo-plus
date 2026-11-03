@@ -1,3 +1,8 @@
+import { useSearchParams } from "react-router-dom";
+import { RecordFilters } from "../../components/RecordFilters";
+import { filterRecords } from "../../utils/recordFilters";
+import { BLOOD_TYPES } from "../../services/users";
+import { PRIORITY_OPTIONS } from "../../utils/recordOptions";
 import { TableExport } from "../../components/TableExport";
 import { requestReportColumns } from "../../utils/reportColumns";
 /** Facility request queue, filters and explicit status updates (FR-016, FR-037). */
@@ -33,6 +38,7 @@ const STATUS_LABELS = {
 };
 const FILTERS = [
   { value: "active", label: "Active", statuses: ACTIVE_STATUSES },
+  { value: "all", label: "All statuses", statuses: [] },
   ...["urgent", "collecting", "matched", "fulfilled", "cancelled"].map(
     (value) => ({
       value,
@@ -85,8 +91,27 @@ export default function Requests() {
   const hospitalId = profile?.hospitalId ?? "";
   const [hospital, setHospital] = useState(null);
   const [rows, setRows] = useState([]);
-  const [filter, setFilter] = useState("active");
-  const [search, setSearch] = useState("");
+  const [params, setParams] = useSearchParams();
+  const filter = FILTERS.some((item) => item.value === params.get("status"))
+    ? params.get("status")
+    : "active";
+  const setFilter = (value) =>
+    setParams(
+      (previous) => {
+        const next = new URLSearchParams(previous);
+        next.set("status", value);
+        return next;
+      },
+      { replace: true },
+    );
+  const priority = params.get("priority") || "all";
+  const [recordFilters, setRecordFilters] = useState({
+    search: "",
+    from: "",
+    to: "",
+    bloodType: "all",
+  });
+  const [search, setSearch] = useState(() => params.get("search") || "");
   const [component, setComponent] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -167,30 +192,42 @@ export default function Requests() {
     );
   }, [ordered, search, component]);
   const visible = useMemo(
-    () => sortRows(filteredRows, REQUEST_SORT[sort.key], sort.direction),
-    [filteredRows, sort],
+    () =>
+      sortRows(
+        filterRecords(filteredRows, recordFilters).filter(
+          (row) =>
+            priority === "all" ||
+            (priority === "time-sensitive"
+              ? ["urgent", "stat"].includes(row.urgencyLevel)
+              : row.urgencyLevel === priority),
+        ),
+        REQUEST_SORT[sort.key],
+        sort.direction,
+      ),
+    [filteredRows, recordFilters, priority, sort],
   );
   const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const start = (currentPage - 1) * pageSize;
   const paged = visible.slice(start, start + pageSize);
   const viewReady = hospitalId && !loading && !error;
+  const metricRows = filterRecords(filteredRows, recordFilters);
   const metrics = [
     {
       label: "Requests in this view",
-      value: visible.length,
+      value: metricRows.length,
       icon: "list",
       hint: FILTERS.find((item) => item.value === filter)?.label + " requests",
     },
     {
       label: "Units requested",
-      value: visible.reduce((sum, row) => sum + row.quantity, 0),
+      value: metricRows.reduce((sum, row) => sum + row.quantity, 0),
       icon: "droplet",
       hint: "Across the current view",
     },
     {
       label: "Time-sensitive",
-      value: visible.filter((row) =>
+      value: metricRows.filter((row) =>
         ["urgent", "stat"].includes(row.urgencyLevel),
       ).length,
       icon: "alert",
@@ -208,6 +245,8 @@ export default function Requests() {
   const resetSearch = () => {
     setSearch("");
     setComponent("all");
+    setRecordFilters({ search: "", from: "", to: "", bloodType: "all" });
+    setParams({ status: "active" }, { replace: true });
     setPage(1);
   };
 
@@ -407,7 +446,30 @@ export default function Requests() {
       />
       <div className="hreq-overview" aria-label="Current request view summary">
         {metrics.map((metric) => (
-          <div
+          <button
+            type="button"
+            disabled={!viewReady || Boolean(busyId)}
+            aria-pressed={
+              metric.icon === "alert"
+                ? priority === "time-sensitive"
+                : priority === "all"
+            }
+            onClick={() => {
+              setParams(
+                (previous) => {
+                  const next = new URLSearchParams(previous);
+                  if (metric.icon === "alert")
+                    next.set("priority", "time-sensitive");
+                  else next.delete("priority");
+                  return next;
+                },
+                { replace: true },
+              );
+              setPage(1);
+              document
+                .getElementById("hreq-view")
+                ?.scrollIntoView({ block: "start", behavior: "instant" });
+            }}
             className="hreq-metric"
             data-tone={
               metric.icon === "alert" && metric.value > 0 ? "urgent" : undefined
@@ -422,7 +484,7 @@ export default function Requests() {
             <span className="hreq-metric-icon" aria-hidden="true">
               <Icon name={metric.icon} size={23} />
             </span>
-          </div>
+          </button>
         ))}
       </div>
       {!isMatchingConfigured() && (
@@ -481,18 +543,18 @@ export default function Requests() {
               <span className="care-sr-only">Sort requests</span>
               <select
                 aria-label="Sort requests"
-                value={sort.key ? `${sort.key}:${sort.direction}` : "priority"}
+                value={sort.key ? `${sort.key}:${sort.direction}` : "default"}
                 onChange={(event) => {
                   const [key, direction] = event.target.value.split(":");
                   setSort(
-                    key === "priority"
+                    key === "default"
                       ? { key: null, direction: "asc" }
                       : { key, direction },
                   );
                   setPage(1);
                 }}
               >
-                <option value="priority">Urgency first</option>
+                <option value="default">Urgency first</option>
                 {columns
                   .filter((column) => column.sortable !== false)
                   .flatMap((column) =>
@@ -510,6 +572,39 @@ export default function Requests() {
             </label>
           </div>
         </header>
+        <RecordFilters
+          name="hospital requests"
+          onReset={resetSearch}
+          value={{ ...recordFilters, priority }}
+          onChange={(next) => {
+            const { priority: nextPriority, ...rest } = next;
+            setRecordFilters(rest);
+            setParams(
+              (previous) => {
+                const params = new URLSearchParams(previous);
+                if (nextPriority && nextPriority !== "all")
+                  params.set("priority", nextPriority);
+                else params.delete("priority");
+                return params;
+              },
+              { replace: true },
+            );
+            setPage(1);
+          }}
+          disabled={loading || Boolean(busyId)}
+          fields={[
+            { key: "bloodType", label: "Blood group", options: BLOOD_TYPES },
+            {
+              key: "priority",
+              label: "Priority",
+              options: [
+                { value: "time-sensitive", label: "Urgent & stat" },
+                ...PRIORITY_OPTIONS,
+              ],
+            },
+          ]}
+          search={false}
+        />
         <TableExport
           name="hospital-requests"
           title="Blood requests"

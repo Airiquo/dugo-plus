@@ -9677,3 +9677,155 @@ html:has(.role-shell[data-area="hospital"]) { scrollbar-gutter: stable; }
   .role-shell[data-area="hospital"] #sidebar-nav { min-height: 0; scrollbar-gutter: stable; }
   .role-shell[data-area="hospital"] #sidebar-nav>.btn { flex-shrink: 0; }
 }
+
+/* Intentional report containment applies at the panel width, including narrow
+   dialogs and desktop side panels, rather than relying only on viewport size. */
+.table-export { box-sizing: border-box; width: 100%; max-width: 100%; min-width: 0; container: report-controls / inline-size; }
+.table-export-actions { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; width: 100%; min-width: 0; gap: 10px; }
+.table-export-actions>label { display: block; grid-column: auto; min-width: 0; margin: 0; }
+.table-export-actions select { display: block; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.table-export-actions .btn { min-width: 0; max-width: 100%; white-space: normal; justify-content: center; text-align: center; padding: 10px 14px; }
+.table-export>p { max-width: 100%; overflow-wrap: anywhere; }
+.hospital-workspace .hreq-workspace>.table-export,
+:is(.aa-directory,.aw-panel,.audit-records)>.table-export { width: calc(100% - 48px); max-width: calc(100% - 48px); margin-inline: 24px; }
+@container report-controls (max-width: 430px) {
+  .table-export-actions { grid-template-columns: minmax(0,1fr) minmax(0,1fr); }
+  .table-export-actions>label { grid-column: 1 / -1; }
+  .table-export-actions .btn { min-height: 44px; width: 100%; }
+}
+dialog.admin-care-dialog.table-print-dialog[id$=-modal] { width: min(1180px,calc(100vw - 32px)); height: min(920px,calc(100dvh - 32px)); max-height: calc(100dvh - 32px); overflow: hidden; }
+dialog.table-print-dialog[open] { display: flex; flex-direction: column; }
+.table-print-dialog .admin-care-dialog-head { flex: none; padding: 20px 24px; }
+.table-print-dialog .admin-care-dialog-head h2 { font-size: 24px; }
+.table-print-dialog .admin-care-dialog-body { display: flex; flex-direction: column; flex: 1; gap: 18px; padding: 20px 24px 24px; min-height: 0; overflow: hidden; }
+.table-print-toolbar { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; flex: none; }
+.table-print-toolbar>span { flex: 1; min-width: 160px; color: var(--d-muted); font-size: 12px; line-height: 1.7; }
+.table-print-frame { display: block; flex: 1; width: 100%; min-height: 180px; border: 1px solid var(--d-line); border-radius: 10px; }
+.table-print-loading { padding: 40px 20px; text-align: center; color: var(--d-muted); }
+
+/* Intentional cross-role applied filters share labels, validation and reset behavior. */
+.record-filters { width: 100%; max-width: 100%; min-width: 0; padding: 18px; margin: 16px 0; border: 1px solid var(--d-line); border-radius: 12px; background: var(--d-field); color: var(--d-ink); }
+.record-filters>fieldset { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,155px),1fr)); gap: 14px; min-width: 0; padding: 0; margin: 0; border: 0; }
+.record-filters>fieldset>label { display: flex; flex-direction: column; gap: 7px; min-width: 0; margin: 0; }
+.record-filters>fieldset>label>span { display: block; color: var(--d-muted); font: 500 11px/1.5 var(--d-font-sans); letter-spacing: 0; text-transform: none; }
+.record-filters :is(input,select) { display: block; box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 44px; margin: 0; border: 1px solid var(--d-line); border-radius: 9px; padding: 10px 12px; background: var(--d-panel); color: var(--d-ink); font: 400 13px/1.5 var(--d-font-sans); }
+.record-filters .record-search { grid-column: span 2; }
+.record-filter-actions { display: flex; gap: 8px; align-self: end; flex-wrap: wrap; grid-column: 1 / -1; }
+.record-filter-actions .btn { min-height: 44px; font-size: 12px; border-radius: 9px; }
+.record-filters .record-filter-help { color: var(--d-muted); font-size: 10px; line-height: 1.6; margin: 12px 0 0; }
+.record-filter-error { color: var(--d-red-ink); font-size: 12px; line-height: 1.7; margin: 10px 0 0; }
+.hreq-workspace>.record-filters,.aa-directory>.record-filters,.aw-panel>.record-filters { width: calc(100% - 48px); margin-inline: 24px; }
+.hospital-workspace .hw-metric[type=button] { text-align: left; cursor: pointer; width: 100%; }
+.hw-metric[aria-pressed=true],.hospital-workspace .hreq-metric[aria-pressed=true] { outline: 2px solid var(--d-blue); outline-offset: -2px; }
+.hw-metric[type=button]:hover:not(:disabled) { background: var(--d-field); border-color: var(--d-dashed); }
+.hw-metric[type=button]:disabled { cursor: default; opacity: .65; }
+.hospital-workspace button.hreq-metric { text-align: left; color: var(--d-ink); font-family: var(--d-font-sans); cursor: pointer; }
+.hw-history-metrics { grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
+
+/* Quantity colors describe visible numeric bands, not clinical stock targets. */
+.hw-stock-card[data-band],.hw-stock-chart button[data-band],.hw-stock-legend button[data-band] { --stock-tone: var(--d-green); }
+.hw-stock-card[data-band=empty],.hw-stock-chart button[data-band=empty],.hw-stock-legend button[data-band=empty] { --stock-tone: var(--d-red-ink); }
+.hw-stock-card[data-band=one-to-four],.hw-stock-chart button[data-band=one-to-four],.hw-stock-legend button[data-band=one-to-four] { --stock-tone: var(--d-amber); }
+.hw-stock-card[data-band] { border-top: 3px solid var(--stock-tone); background: color-mix(in srgb,var(--stock-tone) 4%,var(--d-panel)); }
+.hw-stock-card[data-band] .hw-stock-amount>strong,.hw-stock-card[data-band] .hw-stock-status { color: var(--stock-tone); }
+.hw-metric[data-tone=attention] { border-top-color: var(--d-amber); }
+.hw-metric[data-tone=attention] .hw-metric-heading>svg { color: var(--d-amber); }
+.hw-stock-chart { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 28px; }
+.hw-stock-chart>button { display: grid; grid-template-columns: 32px minmax(0,1fr) 66px; gap: 10px; align-items: center; border: 0; border-radius: 8px; padding: 10px 8px; background: transparent; color: var(--d-ink); cursor: pointer; font: 400 12px var(--d-font-sans); text-align: left; }
+.hw-stock-chart>button:hover,.hw-stock-chart>button[aria-pressed=true] { background: var(--d-field); outline: 1px solid var(--d-blue); }
+.hw-stock-chart button>span:last-child { text-align: right; font-weight: 500; }
+.hw-stock-chart small { color: var(--d-muted); font-size: 10px; }
+.hw-stock-chart-track { height: 10px; border-radius: 20px; background: var(--d-field); overflow: hidden; }
+.hw-stock-chart-track>i { display: block; height: 100%; background: var(--stock-tone); border-radius: inherit; }
+.hw-stock-legend { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 20px; border-top: 1px solid var(--d-line); margin-top: 20px; }
+.hw-stock-legend>button { display: flex; gap: 7px; align-items: center; min-height: 36px; padding: 6px 10px; border: 1px solid var(--d-line); border-radius: 20px; background: var(--d-panel); color: var(--d-ink); cursor: pointer; font: 400 11px var(--d-font-sans); }
+.hw-stock-legend>button>i { width: 8px; height: 8px; border-radius: 50%; background: var(--stock-tone); }
+.hw-stock-legend>span { color: var(--d-muted); font-size: 10px; line-height: 1.7; }
+.hw-stock-filterbar { display: flex; align-items: end; flex-wrap: wrap; gap: 14px; }
+.hw-stock-filterbar>label { display: grid; gap: 7px; min-width: 150px; font-size: 11px; color: var(--d-muted); }
+.hw-stock-filterbar>span { color: var(--d-muted); font-size: 11px; align-self: center; }
+
+/* Donation analytics share a PHT date scope and keep long calendars inside their panel. */
+.hw-donation-activity,.hw-analytics-grid,.hw-priorities-panel { margin-bottom: 28px; }
+.hw-analytics-grid { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(260px,1fr); gap: 24px; }
+.hw-calendar-selectors { display: flex; gap: 12px; flex-wrap: wrap; }
+.hw-calendar-selectors label { display: grid; gap: 6px; color: var(--d-muted); font-size: 10px; min-width: 120px; }
+.hw-date-range { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; padding: 16px; margin-bottom: 22px; border: 1px solid var(--d-line); background: var(--d-field); border-radius: 12px; }
+.hw-date-range>label { display: grid; gap: 7px; flex: 1; min-width: 145px; color: var(--d-muted); font-size: 11px; }
+.hw-date-range input { display: block; width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--d-line); border-radius: 9px; padding: 8px 12px; font: 400 13px var(--d-font-sans); color: var(--d-ink); background: var(--d-panel); }
+.hw-date-range>p { flex-basis: 100%; font-size: 10px; color: var(--d-muted); margin: 0; }
+.hw-calendar { min-width: 0; width: 100%; }
+.hw-calendar-scroll { min-width: 0; width: 100%; max-width: 100%; overflow-x: auto; padding: 8px 3px 12px; scrollbar-gutter: stable; }
+.hw-calendar-months { display: grid; grid-template-columns: repeat(12,1fr); width: 950px; min-width: 950px; padding-left: 36px; margin-bottom: 10px; color: var(--d-muted); font-size: 10px; }
+.hw-calendar-body { display: flex; gap: 10px; width: max-content; }
+.hw-calendar-weekdays { display: grid; grid-template-rows: repeat(7,14px); gap: 4px; width: 26px; font: 400 8px/14px var(--d-font-sans); color: var(--d-muted); }
+.hw-calendar-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7,14px); grid-auto-columns: 14px; gap: 4px; }
+.hw-calendar-day,.hw-calendar-legend>i { width: 14px; height: 14px; padding: 0; border: 1px solid color-mix(in srgb,var(--d-ink) 8%,transparent); border-radius: 3px; background: var(--d-field); }
+.hw-calendar-day { cursor: pointer; }
+:is(.hw-calendar-day,.hw-calendar-legend>i)[data-level="1"] { background: color-mix(in srgb,var(--d-green) 25%,var(--d-panel)); }
+:is(.hw-calendar-day,.hw-calendar-legend>i)[data-level="2"] { background: color-mix(in srgb,var(--d-green) 45%,var(--d-panel)); }
+:is(.hw-calendar-day,.hw-calendar-legend>i)[data-level="3"] { background: color-mix(in srgb,var(--d-green) 70%,var(--d-panel)); }
+:is(.hw-calendar-day,.hw-calendar-legend>i)[data-level="4"] { background: var(--d-green); }
+.hw-calendar-day[data-outside=true] { opacity: .35; }
+.hw-calendar-day:disabled { cursor: default; opacity: .25; }
+.hw-calendar-day[aria-pressed=true] { outline: 2px solid var(--d-blue); outline-offset: 2px; opacity: 1; }
+.hw-calendar-footer { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; color: var(--d-muted); font-size: 10px; line-height: 1.8; margin-top: 10px; }
+.hw-calendar-legend { display: flex; align-items: center; gap: 5px; }
+.hw-calendar-legend>i { flex: none; }
+.hw-scope-line { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--d-line); font-size: 12px; color: var(--d-muted); flex-wrap: wrap; }
+.hw-scope-line strong { color: var(--d-ink); font-weight: 500; }
+.hw-trend { min-width: 0; width: 100%; }
+.hw-trend>svg { display: block; width: 100%; height: auto; min-height: 150px; }
+.hw-trend svg text { fill: var(--d-muted); font: 10px var(--d-font-sans); }
+.hw-chart-gridline { stroke: var(--d-line); stroke-dasharray: 3 4; }
+.hw-chart-area { fill: color-mix(in srgb,var(--d-blue) 12%,transparent); }
+.hw-chart-line { stroke: var(--d-blue); stroke-width: 3; fill: none; stroke-linejoin: round; }
+.hw-chart-dot { fill: var(--d-panel); stroke: var(--d-blue); stroke-width: 2; }
+.hw-trend-values { display: flex; gap: 5px; overflow-x: auto; padding: 4px; max-width: 100%; }
+.hw-trend-values>button { flex: 1; min-width: 62px; display: grid; gap: 6px; padding: 8px 5px; background: transparent; border: 1px solid transparent; border-radius: 8px; color: var(--d-ink); cursor: pointer; font: 400 11px var(--d-font-sans); }
+.hw-trend-values>button>span { font-size: 9px; color: var(--d-muted); white-space: nowrap; }
+.hw-trend-values>button:hover { border-color: var(--d-blue); background: var(--d-field); }
+.hw-group-chart>button { display: grid; grid-template-columns: 32px minmax(0,1fr) 60px; align-items: center; gap: 12px; font: 400 12px var(--d-font-sans); padding: 6px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--d-ink); cursor: pointer; text-align: left; }
+.hw-group-chart>button>span:last-child { text-align: right; }
+.hw-group-chart>button[aria-pressed=true],.hw-group-chart>button:hover { border-color: var(--d-blue); background: var(--d-field); }
+.hw-collections { scroll-margin-top: 24px; }
+@media(max-width:1000px) { .hw-analytics-grid { grid-template-columns: 1fr; } }
+@media(max-width:760px) {
+  .record-filters>fieldset { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .record-filters .record-search { grid-column: 1 / -1; }
+  .record-filters :is(input,select),.hw-date-range input,.hw-calendar-selectors select { font-size: 16px; }
+  .record-filter-actions .btn { flex: 1; }
+  .hw-stock-chart { grid-template-columns: 1fr; gap: 5px; }
+  .hw-stock-legend>button { min-height: 44px; }
+  .hw-stock-filterbar>label { flex: 1; }
+  .hw-history-metrics { grid-template-columns: 1fr !important; }
+  .table-print-toolbar>span { flex-basis: 100%; order: 3; }
+  .table-print-toolbar>.btn { flex: 1; min-height: 44px; }
+  .table-print-dialog .admin-care-dialog-body { padding: 16px; gap: 12px; }
+  .table-print-dialog .admin-care-dialog-head { padding: 16px; }
+  .table-print-dialog .admin-care-dialog-head h2 { font-size: 20px; }
+}
+@media(max-width:420px) {
+  .record-filters>fieldset { grid-template-columns: minmax(0,1fr); }
+  .hw-calendar-selectors { width: 100%; }
+  .hw-calendar-selectors>label { flex: 1; min-width: 0; }
+  .hw-date-range>.btn { flex: 1; }
+}
+.hw-calendar-months { position: relative; display: block; height: 16px; width: calc(var(--calendar-weeks) * 18px + 32px); min-width: calc(var(--calendar-weeks) * 18px + 32px); padding-left: 0; }
+.hw-calendar-months>span { position: absolute; top: 0; }
+.hw-calendar-jump { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; padding-top: 18px; margin-top: 16px; border-top: 1px solid var(--d-line); }
+.hw-calendar-jump>label { display: grid; gap: 7px; font-size: 11px; color: var(--d-muted); }
+.hw-calendar-jump input { min-height: 44px; padding: 8px 12px; border: 1px solid var(--d-line); border-radius: 9px; background: var(--d-panel); color: var(--d-ink); font: 400 14px var(--d-font-sans); }
+.hw-calendar-jump>span { font-size: 10px; color: var(--d-muted); align-self: center; }
+@media(max-width:760px) { .hw-calendar-jump input { font-size: 16px; } }
+.record-filter-summary { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; font: 400 10px/1.6 var(--d-font-sans); color: var(--d-muted); }
+.record-filter-summary>strong { font-weight: 500; color: var(--d-blue); }
+/* Intentional explicit donor zoom controls remain available in compact and expanded maps. */
+.donation-map-zoom { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--d-line); border-radius: 12px; overflow: hidden; background: var(--d-panel); }
+.pub .donation-map-zoom .donation-icon-button { border: 0; border-radius: 0; box-shadow: none; width: 44px; min-height: 44px; }
+.pub .donation-map-zoom .donation-icon-button+button { border-top: 1px solid var(--d-line); }
+.pub .donation-map-zoom .donation-icon-button:disabled { color: var(--d-muted); opacity: .45; cursor: default; }
+.pub .donation-map-zoom .donation-icon-button:focus-visible { outline-offset: -3px; }
+@container report-controls (max-width:430px) {
+  .hospital-workspace .table-export-actions .btn { min-height: 44px; }
+}

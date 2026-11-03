@@ -343,6 +343,13 @@ Relationship in ERD is **1 → 1..many**: every donation type should have at lea
 
 ### 2.9 `donations/{matchId}`
 
+D68/D69 reporting reads keep the hospital equality scope and date-descending
+cursor order. `getHospitalDonations` accepts optional `since` (inclusive) and
+`until` (exclusive) date bounds; an inclusive PHT end day is the next PHT midnight
+passed as `until`. No new stored fields or composite index are introduced. Admin
+account-directory reads expose the existing `users.createdAt` as a Date for
+creation-date filtering (D69).
+
 Doc ID = the `donorMatches` doc ID. One donation per match (ERD 1:1).
 
 | Field | Type | R/O | Notes |

@@ -1,22 +1,34 @@
-import { SupportContact } from '../../components/SupportContact'
-import { TableExport } from '../../components/TableExport'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { useAuth } from '../../hooks/useAuth'
-import { useTheme } from '../../hooks/useTheme'
-import { useDonorRequests } from '../../hooks/useDonorRequests'
-import { useDonorLocation } from '../../hooks/useDonorLocation'
-import { DonorNav } from '../../layout/DonorNav'
-import { Icon, DonorRequestMap, DonorRequestDetails, BloodlineMark } from '../../components'
-import { useTableSort } from '../../hooks/useTableSort'
-import { sortRows, sortDate } from '../../utils/sortRows'
-import { SortControls } from '../../components/SortControls'
-import { respondToMatch } from '../../services/matches'
-import { isMatchingConfigured } from '../../services/matching'
-import { listDonationTypes } from '../../services/donationTypes'
-import { DEFAULT_INTERVALS, eligibilityFor } from '../../utils/eligibility'
-import { donationTypeForComponent, urgencyRank } from '../../utils/matching'
-import { missingDonorProfileFields } from '../../utils/profileCompletion'
+import { RecordFilters } from "../../components/RecordFilters";
+import { filterRecords } from "../../utils/recordFilters";
+import { COMPONENTS } from "../../services/requests";
+import {
+  PRIORITY_OPTIONS,
+  REQUEST_STATUS_OPTIONS,
+} from "../../utils/recordOptions";
+import { SupportContact } from "../../components/SupportContact";
+import { TableExport } from "../../components/TableExport";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { useTheme } from "../../hooks/useTheme";
+import { useDonorRequests } from "../../hooks/useDonorRequests";
+import { useDonorLocation } from "../../hooks/useDonorLocation";
+import { DonorNav } from "../../layout/DonorNav";
+import {
+  Icon,
+  DonorRequestMap,
+  DonorRequestDetails,
+  BloodlineMark,
+} from "../../components";
+import { useTableSort } from "../../hooks/useTableSort";
+import { sortRows, sortDate } from "../../utils/sortRows";
+import { SortControls } from "../../components/SortControls";
+import { respondToMatch } from "../../services/matches";
+import { isMatchingConfigured } from "../../services/matching";
+import { listDonationTypes } from "../../services/donationTypes";
+import { DEFAULT_INTERVALS, eligibilityFor } from "../../utils/eligibility";
+import { donationTypeForComponent, urgencyRank } from "../../utils/matching";
+import { missingDonorProfileFields } from "../../utils/profileCompletion";
 import {
   componentName,
   enrichRequest,
@@ -24,47 +36,55 @@ import {
   isAvailableRequest,
   requestDistance,
   directionsUrl,
-} from '../../utils/donorRequests'
+} from "../../utils/donorRequests";
 
 /** Donor request discovery, one active commitment, and informed responses. */
 export default function Requests() {
-  const { sort, setSort } = useTableSort()
+  const { sort, setSort } = useTableSort();
   const { user, profile } = useAuth(),
-    { theme } = useTheme()
+    { theme } = useTheme();
   const feed = useDonorRequests(user?.uid),
-    position = useDonorLocation(profile)
+    position = useDonorLocation(profile);
   const [params, setParams] = useSearchParams(),
-    [selectedId, setSelectedId] = useState(null)
-  const [mobileView, setMobileView] = useState('list')
-  const [tab, setTab] = useState('available'),
-    [search, setSearch] = useState(''),
-    [component, setComponent] = useState('all'),
-    [radius, setRadius] = useState('25')
+    [selectedId, setSelectedId] = useState(null);
+  const [recordFilters, setRecordFilters] = useState({
+    search: "",
+    from: "",
+    to: "",
+    priority: "all",
+    status: "all",
+    response: "all",
+  });
+  const [mobileView, setMobileView] = useState("list");
+  const [tab, setTab] = useState("available"),
+    [search, setSearch] = useState(""),
+    [component, setComponent] = useState("all"),
+    [radius, setRadius] = useState("25");
   const [types, setTypes] = useState(new Map()),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState(''),
-    [notice, setNotice] = useState(''),
-    [profilePrompt, setProfilePrompt] = useState(false)
-  const profileDialog = useRef(null)
-  const missingProfileFields = missingDonorProfileFields(profile)
+    [error, setError] = useState(""),
+    [notice, setNotice] = useState(""),
+    [profilePrompt, setProfilePrompt] = useState(false);
+  const profileDialog = useRef(null);
+  const missingProfileFields = missingDonorProfileFields(profile);
   useEffect(() => {
-    const dialog = profileDialog.current
-    if (!dialog) return
-    if (profilePrompt && !dialog.open) dialog.showModal()
-    if (!profilePrompt && dialog.open) dialog.close()
-  }, [profilePrompt])
+    const dialog = profileDialog.current;
+    if (!dialog) return;
+    if (profilePrompt && !dialog.open) dialog.showModal();
+    if (!profilePrompt && dialog.open) dialog.close();
+  }, [profilePrompt]);
   useEffect(() => {
-    let current = true
+    let current = true;
     listDonationTypes()
       .then((rows) => {
         if (current)
-          setTypes(new Map(rows.map((row) => [row.id, row.intervalDays])))
+          setTypes(new Map(rows.map((row) => [row.id, row.intervalDays])));
       })
-      .catch(() => {})
+      .catch(() => {});
     return () => {
-      current = false
-    }
-  }, [])
+      current = false;
+    };
+  }, []);
   const items = useMemo(
     () =>
       feed.items
@@ -76,37 +96,56 @@ export default function Requests() {
             (a.distance ?? Infinity) - (b.distance ?? Infinity),
         ),
     [feed.items, position, profile?.bloodType],
-  )
+  );
   const commitments = items.filter(isActiveCommitment),
-    active = commitments[0]
+    active = commitments[0];
   const available = items.filter(
     (item) => isAvailableRequest(item) && item.compatible,
-  )
+  );
   const past = items.filter(
     (item) => !isAvailableRequest(item) && !isActiveCommitment(item),
-  )
-  const source = tab === 'available' ? available : past
-  const filteredRequests = source.filter(
+  );
+  const source = tab === "available" ? available : past;
+  const filteredRequests = filterRecords(source, recordFilters, {
+    date: (item) => item.request.createdAt,
+    search: (item) =>
+      `${item.request.id} ${item.hospital?.name || item.request.hospitalName} ${componentName(item.request.component)}`,
+    fields: {
+      priority: (item) => item.request.urgencyLevel,
+      status: (item) => item.request.status,
+      response: (item) => item.match.responseStatus,
+    },
+  }).filter(
     (item) =>
-      (component === 'all' || item.request.component === component) &&
+      (component === "all" || item.request.component === component) &&
       (!Number.isFinite(item.distance) ||
-        radius === 'all' ||
+        radius === "all" ||
         item.distance <= Number(radius)) &&
-      `${item.hospital?.name || item.request.hospitalName} ${componentName(item.request.component)} ${item.request.bloodType} ${item.hospital?.address || ''}`
+      `${item.hospital?.name || item.request.hospitalName} ${componentName(item.request.component)} ${item.request.bloodType} ${item.hospital?.address || ""}`
         .toLowerCase()
         .includes(search.toLowerCase()),
-  )
-  const visible = sortRows(filteredRequests, { hospital: item => item.hospital?.name || item.request.hospitalName, distance: item => item.distance, requested: item => sortDate(item.request.createdAt), units: item => Number(item.request.quantity), component: item => componentName(item.request.component) }[sort.key], sort.direction)
-  const selected = items.find((item) => item.match.id === selectedId)
+  );
+  const visible = sortRows(
+    filteredRequests,
+    {
+      hospital: (item) => item.hospital?.name || item.request.hospitalName,
+      distance: (item) => item.distance,
+      requested: (item) => sortDate(item.request.createdAt),
+      units: (item) => Number(item.request.quantity),
+      component: (item) => componentName(item.request.component),
+    }[sort.key],
+    sort.direction,
+  );
+  const selected = items.find((item) => item.match.id === selectedId);
   useEffect(() => {
-    const id = params.get('request')
-    if (id && feed.status === 'ready') {
+    const id = params.get("request");
+    if (id && feed.status === "ready") {
       const item = items.find(
         (item) => item.request.id === id || item.match.id === id,
-      )
-      if (item) setSelectedId(item.match.id)
+      );
+      if (item) setSelectedId(item.match.id);
     }
-  }, [params, feed.status, items])
+  }, [params, feed.status, items]);
   const selectedEligibility = selected
     ? eligibilityFor({
         ...profile,
@@ -117,54 +156,54 @@ export default function Requests() {
           ] ||
           null,
       })
-    : null
+    : null;
   const select = (item) => {
-    setSelectedId(item.match.id)
-    setError('')
-  }
+    setSelectedId(item.match.id);
+    setError("");
+  };
   const close = () => {
-    if (busy) return
-    setSelectedId(null)
-    setError('')
-    if (params.has('request')) {
-      const next = new URLSearchParams(params)
-      next.delete('request')
-      setParams(next, { replace: true })
+    if (busy) return;
+    setSelectedId(null);
+    setError("");
+    if (params.has("request")) {
+      const next = new URLSearchParams(params);
+      next.delete("request");
+      setParams(next, { replace: true });
     }
-  }
+  };
   const respond = async (response, consent = {}) => {
-    if (!selected || busy || feed.status !== 'ready') return
-    if (response === 'Accepted' && missingProfileFields.length) {
-      setProfilePrompt(true)
-      return
+    if (!selected || busy || feed.status !== "ready") return;
+    if (response === "Accepted" && missingProfileFields.length) {
+      setProfilePrompt(true);
+      return;
     }
-    setBusy(true)
-    setError('')
+    setBusy(true);
+    setError("");
     try {
       await respondToMatch(
         selected.match.id,
         response,
-        response === 'Accepted' && position
+        response === "Accepted" && position
           ? { latitude: position.lat, longitude: position.lng }
           : null,
         consent,
-      )
-      setSelectedId(null)
-      const next = new URLSearchParams(params)
-      next.delete('request')
-      setParams(next, { replace: true })
+      );
+      setSelectedId(null);
+      const next = new URLSearchParams(params);
+      next.delete("request");
+      setParams(next, { replace: true });
       setNotice(
-        response === 'Accepted'
-          ? 'Your donation is planned. Contact the hospital to arrange your visit.'
-          : 'Response saved. You can explore other requests when you’re ready.',
-      )
+        response === "Accepted"
+          ? "Your donation is planned. Contact the hospital to arrange your visit."
+          : "Response saved. You can explore other requests when you’re ready.",
+      );
     } catch (caught) {
-      setError(caught.message)
+      setError(caught.message);
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
-  }
-  const activeUrl = active && directionsUrl(position, active.facility)
+  };
+  const activeUrl = active && directionsUrl(position, active.facility);
   return (
     <div className="pub donor-surface" data-theme={theme}>
       <DonorNav />
@@ -203,30 +242,33 @@ export default function Requests() {
               className="btn donation-icon-button"
               type="button"
               aria-label="Dismiss confirmation"
-              onClick={() => setNotice('')}
+              onClick={() => setNotice("")}
             >
               <Icon name="x" />
             </button>
           </div>
         )}
-        {feed.status === 'ready' && feed.items.length === 0 && !isMatchingConfigured() && (
-          <div className="donation-state" role="status">
-            <Icon name="alert" size={24} />
-            <h2>Matching is offline</h2>
-            <p>
-              The matching service is not configured, so new hospital requests may not reach you yet.
-              A request appears here once the matching run pairs it with your profile.
-            </p>
-          </div>
-        )}
-        {feed.status === 'loading' && (
+        {feed.status === "ready" &&
+          feed.items.length === 0 &&
+          !isMatchingConfigured() && (
+            <div className="donation-state" role="status">
+              <Icon name="alert" size={24} />
+              <h2>Matching is offline</h2>
+              <p>
+                The matching service is not configured, so new hospital requests
+                may not reach you yet. A request appears here once the matching
+                run pairs it with your profile.
+              </p>
+            </div>
+          )}
+        {feed.status === "loading" && (
           <div className="donation-state" role="status">
             <span className="donation-loading-mark" />
             <h2>Finding your connections</h2>
             <p>Loading your matched requests and donation plans…</p>
           </div>
         )}
-        {feed.status === 'error' && (
+        {feed.status === "error" && (
           <div className="donation-state" role="alert">
             <Icon name="alert" size={28} />
             <h2>We couldn’t load your requests.</h2>
@@ -237,7 +279,7 @@ export default function Requests() {
             </button>
           </div>
         )}
-        {feed.status === 'ready' && (
+        {feed.status === "ready" && (
           <>
             {active && (
               <section
@@ -255,14 +297,14 @@ export default function Requests() {
                   <p>
                     <strong>
                       {active.hospital?.name || active.request.hospitalName}
-                    </strong>{' '}
-                    · {componentName(active.request.component)} ·{' '}
+                    </strong>{" "}
+                    · {componentName(active.request.component)} ·{" "}
                     {active.request.bloodType}
                   </p>
                   <p className="donation-subtle">
-                    {active.match.screeningStatus === 'Cleared'
-                      ? 'You’re cleared. Go to the hospital to complete your donation.'
-                      : 'Final eligibility verification happens at the hospital before you donate — physical screening, blood tests and your medical history. Contact them to arrange the visit.'}{' '}
+                    {active.match.screeningStatus === "Cleared"
+                      ? "You’re cleared. Go to the hospital to complete your donation."
+                      : "Final eligibility verification happens at the hospital before you donate — physical screening, blood tests and your medical history. Contact them to arrange the visit."}{" "}
                     You can accept another request after this donation is
                     completed, closed, or you withdraw.
                   </p>
@@ -304,16 +346,16 @@ export default function Requests() {
             >
               <button
                 type="button"
-                aria-pressed={mobileView === 'list'}
-                onClick={() => setMobileView('list')}
+                aria-pressed={mobileView === "list"}
+                onClick={() => setMobileView("list")}
               >
                 <Icon name="list" size={16} />
                 Request list
               </button>
               <button
                 type="button"
-                aria-pressed={mobileView === 'map'}
-                onClick={() => setMobileView('map')}
+                aria-pressed={mobileView === "map"}
+                onClick={() => setMobileView("map")}
               >
                 <Icon name="compass" size={16} />
                 Nearby map
@@ -342,26 +384,108 @@ export default function Requests() {
                 >
                   <button
                     type="button"
-                    aria-pressed={tab === 'available'}
-                    onClick={() => setTab('available')}
+                    aria-pressed={tab === "available"}
+                    onClick={() => setTab("available")}
                   >
                     Available requests<span>{available.length}</span>
                   </button>
                   <button
                     type="button"
-                    aria-pressed={tab === 'past'}
-                    onClick={() => setTab('past')}
+                    aria-pressed={tab === "past"}
+                    onClick={() => setTab("past")}
                   >
                     Past responses<span>{past.length}</span>
                   </button>
                 </div>
-                <SortControls name="donor-requests" sort={sort} onChange={setSort} defaultLabel="Urgency, then distance" fields={[{key:"hospital",label:"Hospital"},{key:"distance",label:"Distance"},{key:"requested",label:"Requested date"},{key:"units",label:"Units"},{key:"component",label:"Donation type"}]} />
-                <TableExport name="donor-requests" title="Your blood requests" disabled={feed.status !== 'ready'} columns={[
-                  {label:'Request ID',value:item=>item.request.id},{label:'Hospital',value:item=>item.hospital?.name || item.request.hospitalName},
-                  {label:'Requested',value:item=>item.request.createdAt},{label:'Blood group',value:item=>item.request.bloodType},{label:'Component',value:item=>componentName(item.request.component)},
-                  {label:'Units',value:item=>item.request.quantity},{label:'Priority',value:item=>item.request.urgencyLevel},{label:'Request status',value:item=>item.request.status},
-                  {label:'Your response',value:item=>item.match.responseStatus},{label:'Screening',value:item=>item.match.screeningStatus},{label:'Donation confirmed',value:item=>item.donated},
-                ]} getRows={scope => scope === 'filtered' ? visible : items} />
+                <RecordFilters
+                  name="donor requests"
+                  onReset={() => {
+                    setSearch("");
+                    setComponent("all");
+                    setRadius("25");
+                  }}
+                  value={recordFilters}
+                  onChange={setRecordFilters}
+                  fields={[
+                    {
+                      key: "priority",
+                      label: "Priority",
+                      options: PRIORITY_OPTIONS,
+                    },
+                    {
+                      key: "status",
+                      label: "Request status",
+                      options: REQUEST_STATUS_OPTIONS,
+                    },
+                    {
+                      key: "response",
+                      label: "Your response",
+                      options: ["Pending", "Accepted", "Declined", "Expired"],
+                    },
+                  ]}
+                  disabled={feed.status !== "ready"}
+                  search={false}
+                />
+                <SortControls
+                  name="donor-requests"
+                  sort={sort}
+                  onChange={setSort}
+                  defaultLabel="Urgency, then distance"
+                  fields={[
+                    { key: "hospital", label: "Hospital" },
+                    { key: "distance", label: "Distance" },
+                    { key: "requested", label: "Requested date" },
+                    { key: "units", label: "Units" },
+                    { key: "component", label: "Donation type" },
+                  ]}
+                />
+                <TableExport
+                  name="donor-requests"
+                  title="Your blood requests"
+                  disabled={feed.status !== "ready"}
+                  columns={[
+                    { label: "Request ID", value: (item) => item.request.id },
+                    {
+                      label: "Hospital",
+                      value: (item) =>
+                        item.hospital?.name || item.request.hospitalName,
+                    },
+                    {
+                      label: "Requested",
+                      value: (item) => item.request.createdAt,
+                    },
+                    {
+                      label: "Blood group",
+                      value: (item) => item.request.bloodType,
+                    },
+                    {
+                      label: "Component",
+                      value: (item) => componentName(item.request.component),
+                    },
+                    { label: "Units", value: (item) => item.request.quantity },
+                    {
+                      label: "Priority",
+                      value: (item) => item.request.urgencyLevel,
+                    },
+                    {
+                      label: "Request status",
+                      value: (item) => item.request.status,
+                    },
+                    {
+                      label: "Your response",
+                      value: (item) => item.match.responseStatus,
+                    },
+                    {
+                      label: "Screening",
+                      value: (item) => item.match.screeningStatus,
+                    },
+                    {
+                      label: "Donation confirmed",
+                      value: (item) => item.donated,
+                    },
+                  ]}
+                  getRows={(scope) => (scope === "filtered" ? visible : items)}
+                />
                 <div className="donation-filters">
                   <label className="donation-search">
                     <Icon name="search" size={18} />
@@ -381,11 +505,14 @@ export default function Requests() {
                           onChange={(event) => setComponent(event.target.value)}
                         >
                           <option value="all">All types</option>
-                          {[
-                            ...new Set(
-                              items.map((item) => item.request.component),
-                            ),
-                          ].map((type) => (
+                          {Array.from(
+                            new Set([
+                              ...COMPONENTS.map((option) => option.value),
+                              ...items
+                                .map((item) => item.request.component)
+                                .filter(Boolean),
+                            ]),
+                          ).map((type) => (
                             <option key={type} value={type}>
                               {componentName(type)}
                             </option>
@@ -412,14 +539,14 @@ export default function Requests() {
                   </div>
                 </div>
                 <p className="donation-result-count" aria-live="polite">
-                  {visible.length}{' '}
-                  {visible.length === 1 ? 'request' : 'requests'}{' '}
-                  {tab === 'available'
-                    ? 'you can explore'
-                    : 'in your past responses'}
-                  {active && tab === 'available'
-                    ? ' · Your next acceptance unlocks after your current donation.'
-                    : ''}
+                  {visible.length}{" "}
+                  {visible.length === 1 ? "request" : "requests"}{" "}
+                  {tab === "available"
+                    ? "you can explore"
+                    : "in your past responses"}
+                  {active && tab === "available"
+                    ? " · Your next acceptance unlocks after your current donation."
+                    : ""}
                 </p>
                 {visible.length ? (
                   <div className="donation-request-list">
@@ -427,7 +554,7 @@ export default function Requests() {
                       <article
                         key={item.match.id}
                         className="donation-request-card"
-                        data-urgent={['urgent', 'stat'].includes(
+                        data-urgent={["urgent", "stat"].includes(
                           item.request.urgencyLevel,
                         )}
                       >
@@ -442,18 +569,18 @@ export default function Requests() {
                             <h3>
                               {item.hospital?.name ||
                                 item.request.hospitalName ||
-                                'Requesting hospital'}
+                                "Requesting hospital"}
                             </h3>
                           </div>
                           <span
                             className="donation-priority"
                             data-priority={item.request.urgencyLevel}
                           >
-                            {item.request.urgencyLevel === 'stat'
-                              ? 'Immediate need'
-                              : item.request.urgencyLevel === 'urgent'
-                                ? 'Urgent'
-                                : 'Routine'}
+                            {item.request.urgencyLevel === "stat"
+                              ? "Immediate need"
+                              : item.request.urgencyLevel === "urgent"
+                                ? "Urgent"
+                                : "Routine"}
                           </span>
                         </div>
                         <div className="donation-card-meta">
@@ -463,25 +590,25 @@ export default function Requests() {
                           </span>
                           <span>
                             <Icon name="droplet" size={15} />
-                            {item.request.quantity}{' '}
+                            {item.request.quantity}{" "}
                             {item.request.quantity === 1
-                              ? 'unit needed'
-                              : 'units needed'}
+                              ? "unit needed"
+                              : "units needed"}
                           </span>
                         </div>
                         <p className="donation-card-address">
                           {item.hospital?.address ||
-                            'Contact the hospital for its address.'}
+                            "Contact the hospital for its address."}
                         </p>
                         <div className="donation-card-footer">
                           <span>
-                            {tab === 'past' ? (
+                            {tab === "past" ? (
                               item.donated ? (
-                                'Donation completed'
-                              ) : item.request.status === 'cancelled' ? (
-                                'Request closed'
-                              ) : item.match.screeningStatus === 'Cleared' ? (
-                                'Cleared to donate'
+                                "Donation completed"
+                              ) : item.request.status === "cancelled" ? (
+                                "Request closed"
+                              ) : item.match.screeningStatus === "Cleared" ? (
+                                "Cleared to donate"
                               ) : item.match.screeningStatus ? (
                                 `Screening ${item.match.screeningStatus.toLowerCase()}`
                               ) : (
@@ -510,24 +637,24 @@ export default function Requests() {
                   <div className="donation-state donation-empty">
                     <Icon name="search" size={30} />
                     <h3>
-                      {available.length && tab === 'available'
-                        ? 'No requests match these filters.'
-                        : tab === 'past'
-                          ? 'Your story is just beginning.'
-                          : 'You’re all caught up.'}
+                      {available.length && tab === "available"
+                        ? "No requests match these filters."
+                        : tab === "past"
+                          ? "Your story is just beginning."
+                          : "You’re all caught up."}
                     </h3>
                     <p>
-                      {tab === 'past'
-                        ? 'Your responses and completed requests will appear here.'
-                        : 'Try a wider distance, or check back when a new request matches you.'}
+                      {tab === "past"
+                        ? "Your responses and completed requests will appear here."
+                        : "Try a wider distance, or check back when a new request matches you."}
                     </p>
                     <button
                       className="btn"
                       type="button"
                       onClick={() => {
-                        setSearch('')
-                        setComponent('all')
-                        setRadius('all')
+                        setSearch("");
+                        setComponent("all");
+                        setRadius("all");
                       }}
                     >
                       Reset filters
@@ -573,21 +700,41 @@ export default function Requests() {
           className="donation-profile-dialog"
           aria-labelledby="donation-profile-dialog-title"
           onCancel={(event) => {
-            event.preventDefault()
-            setProfilePrompt(false)
+            event.preventDefault();
+            setProfilePrompt(false);
           }}
         >
-          <div className="donation-profile-dialog-icon"><Icon name="user" size={22} /></div>
+          <div className="donation-profile-dialog-icon">
+            <Icon name="user" size={22} />
+          </div>
           <p className="donation-eyebrow">One quick step first</p>
           <h2 id="donation-profile-dialog-title">Finish your donor profile</h2>
-          <p>We need a few details to confirm a safe match before you accept this request.</p>
+          <p>
+            We need a few details to confirm a safe match before you accept this
+            request.
+          </p>
           <ul>
-            {missingProfileFields.map((field) => <li key={field}>{field[0].toUpperCase() + field.slice(1)}</li>)}
+            {missingProfileFields.map((field) => (
+              <li key={field}>{field[0].toUpperCase() + field.slice(1)}</li>
+            ))}
           </ul>
-          <p className="donation-profile-dialog-note">Phone number and GPS location are optional. Your city is enough.</p>
+          <p className="donation-profile-dialog-note">
+            Phone number and GPS location are optional. Your city is enough.
+          </p>
           <div className="donation-profile-dialog-actions">
-            <button className="btn" type="button" onClick={() => setProfilePrompt(false)}>Maybe later</button>
-            <Link className="btn" data-primary to="/home" onClick={() => setProfilePrompt(false)}>
+            <button
+              className="btn"
+              type="button"
+              onClick={() => setProfilePrompt(false)}
+            >
+              Maybe later
+            </button>
+            <Link
+              className="btn"
+              data-primary
+              to="/home"
+              onClick={() => setProfilePrompt(false)}
+            >
               Complete profile <Icon name="arrow-right" size={16} />
             </Link>
           </div>
@@ -595,5 +742,5 @@ export default function Requests() {
         <SupportContact />
       </main>
     </div>
-  )
+  );
 }

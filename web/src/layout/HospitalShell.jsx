@@ -1,7 +1,7 @@
 import { RoleShell } from "./RoleShell";
 export const HOSPITAL_NAV = [
   { slug: "dashboard", label: "Overview", icon: "grid" },
-  { slug: "requests", label: "Blood requests", icon: "droplet" },
+  { slug: "requests", label: "Blood requests", icon: "request" },
   { slug: "inventory", label: "Inventory", icon: "box" },
   { slug: "inventory-log", label: "Donation & stock history", icon: "list" },
   { slug: "map", label: "Hospital map", icon: "map" },

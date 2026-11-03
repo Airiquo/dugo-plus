@@ -1,6 +1,7 @@
-import { TableExport } from '../../components/TableExport'
-import { auditReportColumns } from '../../utils/reportColumns'
-import { allAuditActivity } from '../../services/tableExports'
+import { dayStart, donationDay, shiftDay } from "../../utils/hospitalReports";
+import { TableExport } from "../../components/TableExport";
+import { auditReportColumns } from "../../utils/reportColumns";
+import { allAuditActivity } from "../../services/tableExports";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { AppShell } from "../../layout/AppShell";
@@ -49,10 +50,7 @@ function readFilters(params) {
   return Object.fromEntries(KEYS.map((key) => [key, params.get(key) || ""]));
 }
 function dateInput(value) {
-  if (!value) return "";
-  const parsed = new Date(value);
-  if (!Number.isFinite(parsed.getTime())) return "";
-  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, "0")}-${String(parsed.getDate()).padStart(2, "0")}`;
+  return value ? donationDay(value) : "";
 }
 function inputDraft(filters) {
   return {
@@ -63,13 +61,11 @@ function inputDraft(filters) {
 }
 function boundary(value, end) {
   if (!value) return "";
-  const parsed = new Date(`${value}T${end ? "23:59:59.999" : "00:00:00.000"}`);
-  if (
-    !Number.isFinite(parsed.getTime()) ||
-    dateInput(parsed.toISOString()) !== value
-  )
-    throw new Error("Choose valid calendar dates.");
-  return parsed.toISOString();
+  const start = dayStart(value);
+  if (!start) throw new Error("Choose valid calendar dates.");
+  return (
+    end ? new Date(dayStart(shiftDay(value, 1)).getTime() - 1) : start
+  ).toISOString();
 }
 function Person({ person, fallback = "Identity unavailable" }) {
   return (
@@ -466,11 +462,35 @@ export default function AuditTrail() {
               Search and column sorting apply to this page of up to 25 records.
             </p>
           </div>
-          <TableExport name="audit-activity" title="Audit activity" columns={auditReportColumns} disabled={loading || Boolean(error)} getRows={async (scope, progress) => {
-            const records = await allAuditActivity(scope === 'filtered' ? filters : {}, progress)
-            const matching = scope === 'filtered' ? records.filter(matchesQuery) : records
-            return sortRows(matching, sort.key ? row => ({event: title(row.eventType), account: row.affectedAccount ? name(row.affectedAccount) : null, actor: row.actor ? name(row.actor) : null, createdAt: sortDate(row.createdAt)})[sort.key] : null, sort.direction)
-          }} />
+          <TableExport
+            name="audit-activity"
+            title="Audit activity"
+            columns={auditReportColumns}
+            disabled={loading || Boolean(error)}
+            getRows={async (scope, progress) => {
+              const records = await allAuditActivity(
+                scope === "filtered" ? filters : {},
+                progress,
+              );
+              const matching =
+                scope === "filtered" ? records.filter(matchesQuery) : records;
+              return sortRows(
+                matching,
+                sort.key
+                  ? (row) =>
+                      ({
+                        event: title(row.eventType),
+                        account: row.affectedAccount
+                          ? name(row.affectedAccount)
+                          : null,
+                        actor: row.actor ? name(row.actor) : null,
+                        createdAt: sortDate(row.createdAt),
+                      })[sort.key]
+                  : null,
+                sort.direction,
+              );
+            }}
+          />
           {loading ? (
             <div className="audit-state" role="status">
               Loading activity…
