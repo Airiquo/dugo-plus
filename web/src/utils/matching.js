@@ -9,6 +9,7 @@
  */
 
 import { toDate } from './eligibility.js'
+import { distanceKm as haversineKm } from './geo.js'
 import { geohash, geohashNeighbors, isCoordinate } from './geohash.js'
 
 /** Every blood type, in display order. */
@@ -152,18 +153,12 @@ export function sortRequestsByUrgency(requests) {
   })
 }
 
-/** Great-circle distance in kilometres, or null for unusable coordinates. */
+/** Great-circle distance in kilometres, or null for unusable coordinates.
+ * The one haversine lives in utils/geo.js; this wrapper keeps the
+ * point-object signature the matcher and its tests share. */
 export function distanceKm(a, b) {
   if (!a || !b || !isCoordinate(a.lat, a.lng) || !isCoordinate(b.lat, b.lng)) return null
-  const radius = 6371.0088
-  const toRad = (degrees) => (degrees * Math.PI) / 180
-  const dLat = toRad(b.lat - a.lat)
-  const dLng = toRad(b.lng - a.lng)
-  const lat1 = toRad(a.lat)
-  const lat2 = toRad(b.lat)
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
-  return 2 * radius * Math.asin(Math.min(1, Math.sqrt(h)))
+  return haversineKm(a.lat, a.lng, b.lat, b.lng)
 }
 
 /**

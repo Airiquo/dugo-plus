@@ -71,10 +71,14 @@ if (rows.length === 0) {
 }
 
 // --- Decisions table -------------------------------------------------------
+if (reqLines.some(line => /^(<<<<<<<|=======|>>>>>>>)/.test(line))) errors.push('requirements contain merge conflict markers');
 const decisions = new Set();
 for (const line of reqLines) {
   const m = /^\|\s*(D\d+)\s*\|/.exec(line);
-  if (m) decisions.add(m[1]);
+  if (m) {
+    if (decisions.has(m[1])) errors.push(`duplicate decision ID ${m[1]}`);
+    decisions.add(m[1]);
+  }
 }
 
 // --- Feature roster in docs/PHASES.md --------------------------------------

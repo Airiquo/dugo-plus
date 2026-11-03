@@ -200,7 +200,7 @@ await writeDoc(
   `hospitals/${HOSPITAL_ID}`,
 );
 
-let units = 0;
+const stockByComponent = new Map();
 
 for (const item of DONATIONS) {
   const requestId = `demo-request-${item.key}`;
@@ -208,7 +208,7 @@ for (const item of DONATIONS) {
   const donatedAt = new Date(now.getTime() - item.daysAgo * DAY_MS);
   const requestedAt = new Date(donatedAt.getTime() - 2 * DAY_MS);
   const matchedAt = new Date(requestedAt.getTime() + 60 * 60 * 1000);
-  units += item.units;
+  stockByComponent.set(item.type, (stockByComponent.get(item.type) || 0) + item.units);
 
   await writeDoc(
     db.doc(`bloodRequests/${requestId}`),
@@ -235,6 +235,7 @@ for (const item of DONATIONS) {
     {
       requestId,
       donorId: donorUid,
+      donorBloodType: bloodType,
       donationTypeId: item.type,
       screenedByUserId: staffUid,
       responseStatus: 'Accepted',
@@ -257,32 +258,33 @@ for (const item of DONATIONS) {
       donorId: donorUid,
       hospitalId: HOSPITAL_ID,
       bloodType,
+      component: item.type,
+      donationType: item.type,
+      requestId,
     },
     `donations/${matchId}`,
   );
 
   await writeDoc(
-    db.doc(`hospitals/${HOSPITAL_ID}/inventory/${bloodType}/logs/${matchId}`),
+    db.doc(`hospitals/${HOSPITAL_ID}/inventory/${item.type}_${bloodType}/logs/${matchId}`),
     {
       donationId: matchId,
       userId: staffUid,
-      changeType: 'Donation',
+      component: item.type,
+      bloodType,
+      changeType: 'DONATION',
       unitsChanged: item.units,
       createdAt: Timestamp.fromDate(donatedAt),
     },
-    `hospitals/${HOSPITAL_ID}/inventory/${bloodType}/logs/${matchId}`,
+    `hospitals/${HOSPITAL_ID}/inventory/${item.type}_${bloodType}/logs/${matchId}`,
   );
 }
 
-await writeDoc(
-  db.doc(`hospitals/${HOSPITAL_ID}/inventory/${bloodType}`),
-  {
-    bloodType,
-    unitsAvailable: units,
-    lastUpdated: FieldValue.serverTimestamp(),
-  },
-  `hospitals/${HOSPITAL_ID}/inventory/${bloodType} (${units} units)`,
-);
+for (const [component, units] of stockByComponent) {
+  await writeDoc(db.doc(`hospitals/${HOSPITAL_ID}/inventory/${component}_${bloodType}`), {
+    bloodType, component, unitsAvailable: units, lastUpdated: FieldValue.serverTimestamp(),
+  }, `hospitals/${HOSPITAL_ID}/inventory/${component}_${bloodType} (${units} units)`);
+}
 
 // The newest donation is what a deferral counts from (D13); D14 freezes the
 // field for its owner, so only this Admin SDK path (or F8's transaction) writes it.
@@ -294,6 +296,6 @@ console.log(
   `\n${created} created, ${overwritten} overwritten, ${kept} kept` +
     `${force ? ' (--force)' : ''} — project ${project}${emulator ? ' (emulator)' : ''}\n` +
     `donor ${donorEmail ?? donorUid}: ${DONATIONS.length} donations, ` +
-    `${units} units of ${bloodType} at ${HOSPITAL_NAME}`,
+    `${[...stockByComponent.values()].reduce((sum, units) => sum + units, 0)} units of ${bloodType} across components at ${HOSPITAL_NAME}`,
 );
 process.exit(0);

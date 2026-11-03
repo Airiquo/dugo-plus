@@ -29,10 +29,10 @@ numbers rather than trusting this section.
 | **P1** | Auth, accounts, profile, error logging | **mostly done**. Done: FR-01, FR-02, FR-03, FR-04, FR-48, NFR-12, NFR-13, NFR-27 done; NFR-14 deferred |
 | **P2** | Blood request submission and listing | in progress (F3: hospital posts, lists, and manages its requests; smoke pending) |
 | **P3** | Donor browse, respond, history and health tracker | partial (F4 donor requests/respond/map built; D42 requests/alerts redesign and single-commitment service built; D49 requires a complete donor profile before acceptance; F5 history/tracker at `/donor/activity`; rewards removed by D43; coordinated rollout pending) |
-| **P4** | Hospital dashboard, inventory, screening | core workflows not started; NFR-23 request-queue usability half partial (D37), full dashboard still unbuilt |
+| **P4** | Hospital dashboard, inventory, screening | partial (D63: facility details/read-only map, complete period summaries, component/group inventory, Worker screening/confirmation/stock movements; local verification complete, production rollout pending; plan management removed) |
 | **P5** | Matching and notifications | in progress (F7 Part 1+2); needs Cloudflare Worker (free) + optional Brevo |
 | **P6** | Admin account management, data-request queue | partial (F9: FR-047 profile page; suspension/removal gate + `/admin/accounts` with hospital creation + `/admin/settings` + `/admin/data-requests` + `/donor/privacy` + `/privacy` + required registration consent recorded on the profile, built and building clean; D40: versioned Worker account operations, durable audit outbox and owned provisioning recovery built; 181 rules checks, 64 unit/regression tests and four REST-emulator tests pass locally; coordinated deployment/live-provider smoke pending; functions not deployed, no signed-in smoke here) |
-| **P7** | Hash-chain audit trail | in progress (F10a/F10b; D40 account/erasure outbox and erasable context verified locally; other DSR hooks remain best-effort; donation/inventory events wait on F8/F6) |
+| **P7** | Hash-chain audit trail | in progress (F10a/F10b; D40 account/erasure outbox and erasable context verified locally; other DSR hooks remain best-effort; D63 donation/inventory outbox is locally verified, production rollout pending) |
 | **P8** | Compliance and privacy | not started; mostly documents |
 | **P9** | Non-functional hardening (responsiveness, scale, compatibility) | in progress (D35: responsive care redesign inspected with fixture data; live/mobile-device and performance verification remain) |
 
@@ -348,6 +348,8 @@ The app does not run unconfigured: with any `VITE_FIREBASE_*` missing, every
 route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
+
+- **Hospital branch reconciliation (2026-11-03, D63):** owner resolves administrator-only facility location, personal `/hospital/profile` plus separate `/hospital/facility`, removal of plan management, and use of the existing Cloudflare Worker. Owner also answers the stock-identity question: separate component and blood group. No product question remains for this scope. Group-only legacy stock is preserved as unclassified, excluded from usable stock, and never automatically assigned a component. Local verification and coordinated Worker/rules/Hosting rollout are in `docs/HOSPITAL_WORKER_RECONCILIATION.md`; production smoke remains pending. P4 moves to partial. The established D27/D28/D41/D51 decisions are preserved; the pre-existing continuous-motion D40 collision is renamed D64.
 
 - **Admin Profile (2026-11-02, D60):** final requested screen redesign adds an identity/photo rail, contact form, read-only access facts and actor-filtered audit link. Existing service/auth/photo contracts remain; no backend rollout or production account mutation is claimed. Phase counts are unchanged; all four screen batches are documented in `docs/ADMIN_REMAINING_SCREENS.md`.
 

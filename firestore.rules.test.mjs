@@ -212,6 +212,12 @@ await no('a malformed tier is refused', updateDoc(doc(db(admin()), 'systemConfig
 await no('the writer must name themself', updateDoc(doc(db(admin()), 'systemConfig/global'), { notifRetryLimit: 3, updatedBy: 'someone-else', updatedAt: serverTimestamp() }));
 await ok('admin claim writes a valid config', updateDoc(doc(db(admin()), 'systemConfig/global'), { notifRetryLimit: 3, notifRetryInterval: 5, radiusTiers: [{ tierOrder: 1, radiusKm: 5, waitMinutes: 10 }, { tierOrder: 2, radiusKm: 10, waitMinutes: 15 }], updatedBy: 'admin1', updatedAt: serverTimestamp() }));
 
+await no('staff cannot advance an unrelated donor clock', updateDoc(doc(db(staff1()), 'users/alice'), { lastDonationAt: serverTimestamp() }));
+await no('admin browser cannot bypass the confirmation clock', updateDoc(doc(db(admin()), 'users/alice'), { lastDonationAt: serverTimestamp() }));
+await no('admin browser cannot adjust component stock', setDoc(doc(db(admin()), 'hospitals/h1/inventory/rbc_O-'), { bloodType: 'O-', component: 'rbc', unitsAvailable: 4, lastUpdated: serverTimestamp() }));
+await no('staff cannot mint an operation record', setDoc(doc(db(staff1()), 'inventoryOperations/fake'), { result: { ok: true } }));
+await no('staff cannot forge request fulfillment count', updateDoc(doc(db(staff1()), 'bloodRequests/r1'), { transfusedUnits: 2 }));
+
 // ---- hospitals + subcollections ------------------------------------------
 console.log('hospitals');
 await ok('signed-in reads hospitals', readDoc(as('alice'), 'hospitals/h1'));
@@ -239,12 +245,12 @@ await ok('admin claim writes subscriptions', setDoc(doc(db(admin()), 'hospitals/
 console.log('hospitals/inventory');
 await ok('own staff reads inventory', readDoc(staff1(), 'hospitals/h1/inventory/O+'));
 await no('staff of another hospital cannot read inventory', readDoc(staff2(), 'hospitals/h1/inventory/O+'));
-await ok('own staff updates units', updateDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+'), { unitsAvailable: 4 }));
+await no('own staff updates units', updateDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+'), { unitsAvailable: 4 }));
 await no('donor cannot update inventory', updateDoc(doc(db(as('alice')), 'hospitals/h1/inventory/O+'), { unitsAvailable: 99 }));
 await no('inventory doc must carry its blood type', updateDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+'), { bloodType: 'A+' }));
 
 console.log('hospitals/inventory/logs');
-await ok('own staff appends an inventory log', setDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+/logs/l1'), { donationId: null, userId: 'staff1', changeType: 'Usage', unitsChanged: -1, createdAt: serverTimestamp() }));
+await no('own staff appends an inventory log', setDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+/logs/l1'), { donationId: null, userId: 'staff1', changeType: 'Usage', unitsChanged: -1, createdAt: serverTimestamp() }));
 await no('inventory logs are append-only', updateDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+/logs/l1'), { unitsChanged: 0 }));
 await no('log shape is bounded', setDoc(doc(db(staff1()), 'hospitals/h1/inventory/O+/logs/l2'), { userId: 'staff1', changeType: 'Usage', unitsChanged: -1, createdAt: serverTimestamp(), extra: 1 }));
 await no('donor cannot append an inventory log', setDoc(doc(db(as('alice')), 'hospitals/h1/inventory/O+/logs/l3'), { userId: 'alice', changeType: 'Usage', unitsChanged: -1, createdAt: serverTimestamp() }));
@@ -276,7 +282,7 @@ await no('matches are created server-side only', setDoc(doc(db(as('alice')), 'do
 await no('donor cannot bypass the response service', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { responseStatus: 'Accepted', guidelinesAcknowledged: true, acknowledgedAt: new Date() }));
 await no('donor cannot write screening fields', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { screeningStatus: 'Cleared' }));
 await no('donor cannot re-point a match', updateDoc(doc(db(as('alice')), 'donorMatches/r1_alice'), { donationTypeId: 'platelets' }));
-await ok('staff writes the screening result', updateDoc(doc(db(staff1()), 'donorMatches/r1_alice'), { screenedByUserId: 'staff1', screeningStatus: 'Cleared' }));
+await no('staff writes the screening result', updateDoc(doc(db(staff1()), 'donorMatches/r1_alice'), { screenedByUserId: 'staff1', screeningStatus: 'Cleared' }));
 await no('screening status follows the decided enum', updateDoc(doc(db(staff1()), 'donorMatches/r1_alice'), { screeningStatus: 'Green' }));
 await no('matches are never deleted', deleteDoc(doc(db(admin()), 'donorMatches/r1_alice')));
 // D27: coordinates ride the match so that hospital's staff can see them.
@@ -324,7 +330,7 @@ await ok('donor reads own donation history', readDoc(as('alice'), 'donations/r1_
 await no('another donor cannot read a donation', readDoc(as('bob'), 'donations/r1_alice'));
 await ok('staff of the hospital reads donations', readDoc(staff1(), 'donations/r1_alice'));
 await no('staff of another hospital cannot read donations', readDoc(staff2(), 'donations/r1_alice'));
-await ok('own staff records a donation', setDoc(doc(db(staff1()), 'donations/r2_alice'), { matchId: 'r2_alice', confirmedBy: 'staff1', donationDate: new Date(), units: 1, confirmedAt: new Date(), donorId: 'alice', hospitalId: 'h1', bloodType: 'O+' }));
+await no('own staff records a donation', setDoc(doc(db(staff1()), 'donations/r2_alice'), { matchId: 'r2_alice', confirmedBy: 'staff1', donationDate: new Date(), units: 1, confirmedAt: new Date(), donorId: 'alice', hospitalId: 'h1', bloodType: 'O+' }));
 await no('staff of another hospital cannot record a donation', setDoc(doc(db(staff2()), 'donations/r2_bob'), { matchId: 'r2_bob', confirmedBy: 'staff2', donationDate: new Date(), units: 1, confirmedAt: new Date(), donorId: 'bob', hospitalId: 'h1', bloodType: 'O+' }));
 await no('donors cannot record their own donation', setDoc(doc(db(as('alice')), 'donations/r3_alice'), { matchId: 'r3_alice', confirmedBy: 'alice', donationDate: new Date(), units: 9, confirmedAt: new Date(), donorId: 'alice', hospitalId: 'h1', bloodType: 'O+' }));
 await no('donations are never deleted', deleteDoc(doc(db(admin()), 'donations/r1_alice')));

@@ -72,7 +72,7 @@ users/{uid}
 emailVerifications/{verificationId}                  (server-only)
 hospitals/{hospitalId}
   ├─ subscriptions/{subscriptionId}
-  └─ inventory/{bloodType}                           ← doc ID = blood type (enforces UK hospital+bloodType)
+  └─ inventory/{stockKey}                           ← doc ID = blood type (enforces UK hospital+component+bloodType)
        └─ logs/{logId}
 bloodRequests/{requestId}
 donorMatches/{requestId}_{donorId}                   ← deterministic ID prevents duplicate matches
@@ -88,6 +88,7 @@ donorCommitments/{donorId}                           [ADDED] server-owned active
 donorLocations/{donorId}                             [ADDED] donor coordinate mirror for staff (D31)
 auditBlocks/{blockId}                                (server-only, append-only)
 accountOperations/{operationHash}                    [ADDED] server-only recovery (D40)
+inventoryOperations/{operationHash}                 [ADDED] server-only movement receipts (D63)
 auditOutbox/{operationHash}                          [ADDED] server-only delivery (D40)
 auditContexts/{recordHash}                           [ADDED] erasable event details (D40)
 auditRedactions/{hashedUserRef}                      [ADDED] persistent erasure tombstone (D40)
@@ -110,7 +111,7 @@ errorLogs/{logId}                                    [ADDED] client-written, ope
 | Notifications | `notifications/{id}` | Queried by user |
 | Donations | `donations/{matchId}` | 1:1 with match |
 | Reward_Transaction | `rewardTransactions/{donationId}` | 1:1 with donation |
-| Blood_Inventory | `hospitals/{id}/inventory/{bloodType}` | Unique per hospital+bloodType |
+| Blood_Inventory | `hospitals/{id}/inventory/{stockKey}` | Unique per hospital+bloodType |
 | Inventory_Logs | `hospitals/{id}/inventory/{bt}/logs/{id}` | Child of an inventory row |
 | System_Config | `systemConfig/global` | Singleton in practice — the app only ever writes `global`; the rules match `{configId}` |
 | Radius_Tiler (sic) | embedded in `systemConfig/global.radiusTiers[]` | Small ordered list, always read with config |
@@ -228,17 +229,18 @@ Role/hospital claims: also set Firebase Auth **custom claims** `{ role, hospital
 
 (`hospitalId` is implied by the path. Also write it as a field if you want collection-group queries **[ADDED]**.)
 
-#### 2.3.2 `hospitals/{hospitalId}/inventory/{bloodType}`
+#### 2.3.2 `hospitals/{hospitalId}/inventory/{stockKey}`
 
-Doc ID **is** the blood type, so UK(hospital_id, blood_type) is guaranteed.
+D63: doc ID is `{component}_{bloodType}` (for example `rbc_O-`). The identity is unique per facility, component and blood group. Legacy group-only IDs remain unclassified/read-only and are excluded from usable stock; no automatic migration assigns a component.
 
 | Field | Type | R/O | Notes |
 |---|---|---|---|
-| bloodType | string | R | Same as doc ID |
+| bloodType | string | R | Actual collected/issued donor blood group |
+| component | string | R | D63: `whole-blood`, `rbc`, `platelets`, `plasma`, `cryoprecipitate` |
 | unitsAvailable | number (int) | R | Update only via transaction / increment |
 | lastUpdated | Timestamp | R | |
 
-#### 2.3.3 `hospitals/{hospitalId}/inventory/{bloodType}/logs/{logId}`
+#### 2.3.3 `hospitals/{hospitalId}/inventory/{stockKey}/logs/{logId}`
 
 | Field | Type | R/O | Notes |
 |---|---|---|---|
@@ -246,9 +248,11 @@ Doc ID **is** the blood type, so UK(hospital_id, blood_type) is guaranteed.
 | userId | string | R | FK → `users`, who made the change |
 | changeType | string | R | Values not in ERD. Suggested: `Donation \| Usage \| Adjustment \| Expired` |
 | unitsChanged | number (int) | R | Positive or negative |
+| component, bloodType | string | R | D63: movement stock identity |
+| reason | string | O | Adjustment explanation, up to 2000 characters |
 | createdAt | Timestamp | R | |
 
-Write the log and the inventory update in **one transaction/batch**.
+D63: only the authenticated Worker writes stock/logs, in one transaction with its operation record and audit outbox. Client writes are denied, including administrators. Screening and donation creation/updates are server-only too. Direct owner/admin profile edits cannot alter `lastDonationAt`.
 
 ### 2.4 `bloodRequests/{requestId}`
 
@@ -260,6 +264,7 @@ Write the log and the inventory update in **one transaction/batch**.
 | bloodType | string | R | `BloodType` |
 | component | string | R | FK → `donationTypes/{id}` — `whole-blood \| rbc \| platelets \| plasma \| cryoprecipitate`. **[ADDED]** (D24) |
 | quantity | number (int) | R | Units needed |
+| transfusedUnits | number (int) | O | D63: server-owned cumulative request-linked issuance; request is fulfilled when this reaches quantity |
 | urgencyLevel | string | R | `urgent \| stat \| routine` — the `.chip[data-priority]` tones the UI renders (D24) |
 | status | string | R | `urgent \| collecting \| matched \| fulfilled \| cancelled` — the shipped `.chip[data-status]` set (D24). The ERD's `Active \| Suspended \| Removed` was a copy-paste error (see §9) |
 | createdAt | Timestamp | R | |
@@ -282,6 +287,9 @@ Write the log and the inventory update in **one transaction/batch**.
 > urgency order. No additional fields or indexes are needed.
 
 ### 2.5 `donorMatches/{requestId}_{donorId}`
+
+D63 adds optional `donorBloodType` (string) as a matcher snapshot for staff display. Existing matches may omit it; confirmation always reads the current donor profile. No recipient blood-group fallback is used for collected stock. Screening is Worker-only and validates active Data Sharing/Screening consents.
+
 
 | Field | Type | R/O | Notes |
 |---|---|---|---|
@@ -345,6 +353,8 @@ Doc ID = the `donorMatches` doc ID. One donation per match (ERD 1:1).
 | units | number (int) | R | |
 | confirmedAt | Timestamp | R | |
 | donorId, hospitalId, bloodType | string | R | **[ADDED, denormalized]** from the match/request. ERD has no donorId on Donations, only via match |
+
+D63: donation records also carry `component` (request component code), `donationType` (interval-bearing reference ID), and `requestId`. The Worker derives the blood group from the donor profile; confirmation atomically writes the donation, matching component/group stock and log, donor clock, operation and audit outbox. Rewards remain removed by D43.
 
 ### 2.10 `rewardTransactions/{donationId}` — legacy only (D43)
 
@@ -484,6 +494,10 @@ pointer may outlive the donation: the next transaction checks donation existence
 request closure and screening outcome before replacing it. Existing accepted
 matches without a lock are checked too; no migration silently cancels them.
 
+### 2.20 `inventoryOperations/{operationHash}` — [ADDED] (D63)
+
+Server-only idempotency receipts: `fingerprint` (HMAC of the normalized operation), `createdAt` (Timestamp), and `result` (operation outcome with facility, component/group and stock count or screening status). Confirmation keys are HMACs of the match ID; other keys bind the actor UID and client operation UUID. Reusing a key with different input fails. The receipt commits with all domain writes and audit outbox entries. No raw reason or credential is stored in the receipt. Client read/write is denied.
+
 ## 3. Relationships (from ERD)
 
 Cardinality read from the crow's-foot notation.
@@ -551,8 +565,8 @@ TTL policy: `emailVerifications.expiresAt`.
 1. **Registering a user**: donor registration remains client-driven. Hospital provisioning reserves a UID/profile/facility in a server transaction, creates a disabled Auth user, publishes claims, enables the login, then atomically activates records and queues the audit event (D40).
 2. **Accepting a match (D42)**: use a transaction over `donorCommitments/{uid}`, prior accepted matches and request/donation state. Commit response, acknowledgment, two consent records and lock together.
 3. **Creating a match**: use the deterministic ID `{requestId}_{donorId}`. Fail if it exists.
-4. **Confirming a donation**: in ONE transaction: create `donations/{matchId}`, increment `hospitals/{h}/inventory/{bt}.unitsAvailable`, write an inventory `logs` doc, set `users/{donorId}.lastDonationAt`.
-5. **Inventory changes**: always `FieldValue.increment()` or a transaction. Never read-then-write.
+4. **Confirming a donation**: in ONE transaction: create `donations/{matchId}`, update the actual donor/component `hospitals/{h}/inventory/{stockKey}.unitsAvailable`, write its log, set `users/{donorId}.lastDonationAt`, and create the idempotency receipt plus audit outbox records (D63).
+5. **Inventory changes (D63)**: only Worker transactions, with facility/stock validation, an idempotency receipt and audit outbox. Perform every read before any write. Request-linked issuance atomically advances `transfusedUnits` and closes only a fully served request.
 6. **Audit blocks**: read the head and latest block, compute the hash, and atomically write block/head/optional erasable context/outbox acknowledgement. Status/erasure mutations and their pending outbox event commit together (D40).
 7. **Notification retries**: Cloud Function / scheduler reads `systemConfig/global` for `notifRetryLimit` and `notifRetryInterval`.
 8. **Radius expansion**: scheduler walks `radiusTiers` in `tierOrder`, waiting `waitMinutes` between tiers, querying donors via geohash ranges.
@@ -570,19 +584,19 @@ Use custom claims `request.auth.token.role` and `request.auth.token.hospitalId`.
 | `emailVerifications` | none | server-only |
 | `hospitals` | Authenticated | Staff of that hospital: name/contact only; Admin; locations managed through the admin editor (D52) |
 | `hospitals/*/subscriptions` | Staff of that hospital, Admin | Admin / server |
-| `hospitals/*/inventory` + `logs` | Staff of that hospital, Admin | Staff of that hospital, Admin (via function preferred) |
+| `hospitals/*/inventory` + `logs` | Staff of that hospital, Admin | Worker only (D63); legacy group-only stock remains read-only |
 | `bloodRequests` | Authenticated | Create: Recipient / Staff. Update status: Staff of hospital, Admin |
-| `donorMatches` | Donor (own), Staff of request's hospital, Admin | D42: responses/acknowledgment/location server-only; Staff update screening fields; creation server-only |
+| `donorMatches` | Donor (own), Staff of request's hospital, Admin | D42: responses/acknowledgment/location server-only; screening and creation server-only (D63) |
 | `donorCommitments` | Owner only | server-only (D42) |
 | `donorConsents` | Donor (own), Admin | Donor create / set `revokedAt` only. No delete |
 | `donationTypes` + `guidelines` | Authenticated | Admin |
 | `notifications` | Owner | server-only |
-| `donations` | Donor (own), Staff of hospital, Admin | Staff / server only |
+| `donations` | Donor (own), Staff of hospital, Admin | Worker only (D63) |
 | `rewardTransactions` | Donor (own), Admin | server-only |
 | `systemConfig` | Admin (Authenticated may read tiers if needed) | Admin |
 | `dataSubjectRequests` | Owner, Admin | Owner create; Admin update |
 | `auditBlocks` | Admin | server-only, no update/delete |
-| `accountOperations`, `auditOutbox`, `auditContexts`, `auditRedactions` | no client reads | server-only (D40) |
+| `inventoryOperations`, `accountOperations`, `auditOutbox`, `auditContexts`, `auditRedactions` | no client reads | server-only (D40) |
 
 Sensitive/health data (`bloodType`, `dateOfBirth`, screening results) should never be readable by other donors.
 
@@ -643,15 +657,19 @@ interface Subscription {
   status: EntityStatus;
 }
 
-interface InventoryItem {            // hospitals/{h}/inventory/{bloodType}
+interface InventoryItem {            // hospitals/{h}/inventory/{stockKey}
   bloodType: BloodType;
+  component: string;
   unitsAvailable: number;
   lastUpdated: Timestamp;
 }
 
-interface InventoryLog {             // .../inventory/{bt}/logs/{id}
+interface InventoryLog {             // .../inventory/{stockKey}/logs/{id}
   donationId?: string | null;
   userId: string;
+  component: string;
+  bloodType: BloodType;
+  reason?: string;
   changeType: string;
   unitsChanged: number;
   createdAt: Timestamp;
