@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "dugo-plus-clean",
+    "legacy": "dugo-plus"
+  }
+}

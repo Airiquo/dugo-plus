@@ -179,6 +179,10 @@ listener, authErrorMessage()   type the guards read back
 
 ### Configure a project
 
+The active project is `dugo-plus-clean`. Both [the new site](https://dugo-plus-clean.web.app)
+and [the existing address](https://dugo-plus.web.app) use it. The fresh administrator
+and initialization scope are documented in [the migration record](docs/FIREBASE_PROJECT_MOVE.md).
+
 1. In the [Firebase console](https://console.firebase.google.com) create a
    project, add a **Web app**, and copy the config from *Project settings → Your
    apps*.

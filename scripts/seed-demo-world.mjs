@@ -10,7 +10,7 @@
 // a fixture is the only way to exercise the screens before F8's transaction
 // exists. Delete the `demo-` documents once F8 writes real ones.
 //
-//   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus/sa-key.json \
+//   GOOGLE_APPLICATION_CREDENTIALS=~/.config/dugo-plus-clean/sa-key.json \
 //     npm run seed:demo -- --donor-email you@example.com --allow-live
 //
 // or against the emulator, with no key:
@@ -46,7 +46,7 @@ function refuse(message) {
 
 const force = has('force');
 const emulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST);
-const project = flag('project') || process.env.GCLOUD_PROJECT || 'dugo-plus';
+const project = flag('project') || process.env.GCLOUD_PROJECT || 'dugo-plus-clean';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 if (!emulator && !has('allow-live')) {
@@ -63,7 +63,7 @@ if (!emulator) {
     refuse(
       'GOOGLE_APPLICATION_CREDENTIALS is not set.\n' +
         '  Create a service-account key for ' + project + ' in the Firebase console,\n' +
-        '  keep it outside the repo (e.g. ~/.config/dugo-plus/sa-key.json),\n' +
+        '  keep it outside the repo (e.g. ~/.config/dugo-plus-clean/sa-key.json),\n' +
         '  then re-run with that variable set.',
     );
   }
