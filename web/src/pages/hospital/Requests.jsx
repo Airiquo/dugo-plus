@@ -1,10 +1,16 @@
-import { TableExport } from '../../components/TableExport'
-import { requestReportColumns } from '../../utils/reportColumns'
+import { TableExport } from "../../components/TableExport";
+import { requestReportColumns } from "../../utils/reportColumns";
 /** Facility request queue, filters and explicit status updates (FR-016, FR-037). */
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Icon, LinkBtn, PageHeader, Table, RequestStatusDialog } from '../../components'
-import { HospitalShell } from '../../layout/HospitalShell'
-import { useAuth } from '../../hooks/useAuth'
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Icon,
+  LinkBtn,
+  HospitalPageHeader,
+  Table,
+  RequestStatusDialog,
+} from "../../components";
+import { HospitalShell } from "../../layout/HospitalShell";
+import { useAuth } from "../../hooks/useAuth";
 import {
   ACTIVE_STATUSES,
   COMPONENTS,
@@ -12,119 +18,141 @@ import {
   fetchHospital,
   listHospitalRequests,
   updateRequestStatus,
-} from '../../services/requests'
-import { isMatchingConfigured } from '../../services/matching'
-import { useTableSort } from '../../hooks/useTableSort'
-import { sortRows, sortDate } from '../../utils/sortRows'
-import { sortRequestsByUrgency } from '../../utils/matching'
+} from "../../services/requests";
+import { isMatchingConfigured } from "../../services/matching";
+import { useTableSort } from "../../hooks/useTableSort";
+import { sortRows, sortDate } from "../../utils/sortRows";
+import { sortRequestsByUrgency } from "../../utils/matching";
 
 const STATUS_LABELS = {
-  urgent: 'Open',
-  collecting: 'Collecting',
-  matched: 'Matched',
-  fulfilled: 'Fulfilled',
-  cancelled: 'Cancelled',
-}
+  urgent: "Open",
+  collecting: "Collecting",
+  matched: "Matched",
+  fulfilled: "Fulfilled",
+  cancelled: "Cancelled",
+};
 const FILTERS = [
-  { value: 'active', label: 'Active', statuses: ACTIVE_STATUSES },
-  ...['urgent', 'collecting', 'matched', 'fulfilled', 'cancelled'].map((value) => ({
-    value,
-    label: STATUS_LABELS[value],
-    statuses: [value],
-  })),
-]
-const MANAGE_STATUSES = ['collecting', 'matched', 'fulfilled', 'cancelled']
-const NEEDS_CONFIRM = new Set(['fulfilled', 'cancelled'])
+  { value: "active", label: "Active", statuses: ACTIVE_STATUSES },
+  ...["urgent", "collecting", "matched", "fulfilled", "cancelled"].map(
+    (value) => ({
+      value,
+      label: STATUS_LABELS[value],
+      statuses: [value],
+    }),
+  ),
+];
+const MANAGE_STATUSES = ["collecting", "matched", "fulfilled", "cancelled"];
+const NEEDS_CONFIRM = new Set(["fulfilled", "cancelled"]);
 const priorityLabel = (value) =>
-  ({ urgent: 'Urgent', stat: 'Stat', routine: 'Routine' })[value] || value || 'Not set'
-const REQUEST_SORT = { request: row => `${row.bloodType || ''} ${componentLabel(row.component)}`, quantity: row => Number(row.quantity), priority: row => priorityLabel(row.urgencyLevel), status: row => STATUS_LABELS[row.status] || row.status, createdAt: row => sortDate(row.createdAt) }
-const shortId = (row) => row.id.slice(-6).toUpperCase()
+  ({ urgent: "Urgent", stat: "Stat", routine: "Routine" })[value] ||
+  value ||
+  "Not set";
+const REQUEST_SORT = {
+  request: (row) => `${row.bloodType || ""} ${componentLabel(row.component)}`,
+  quantity: (row) => Number(row.quantity),
+  priority: (row) => priorityLabel(row.urgencyLevel),
+  status: (row) => STATUS_LABELS[row.status] || row.status,
+  createdAt: (row) => sortDate(row.createdAt),
+};
+const shortId = (row) => row.id.slice(-6).toUpperCase();
 
 function requestedDate(date) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime()))
-    return <span className="hreq-muted">Not recorded</span>
+    return <span className="hreq-muted">Not recorded</span>;
   return (
     <time dateTime={date.toISOString()}>
       <span>
-        {date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+        {date.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        })}
       </span>
-      <small>{date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</small>
+      <small>
+        {date.toLocaleTimeString(undefined, {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}
+      </small>
     </time>
-  )
+  );
 }
 
 export default function Requests() {
-  const currentTabRef = useRef(null)
-  const { sort, toggleSort, setSort } = useTableSort()
-  const { profile } = useAuth()
-  const hospitalId = profile?.hospitalId ?? ''
-  const [hospital, setHospital] = useState(null)
-  const [rows, setRows] = useState([])
-  const [filter, setFilter] = useState('active')
-  const [search, setSearch] = useState('')
-  const [component, setComponent] = useState('all')
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [reloadKey, setReloadKey] = useState(0)
-  const [drafts, setDrafts] = useState({})
-  const [busyId, setBusyId] = useState('')
-  const [notice, setNotice] = useState(null)
-  const [rowError, setRowError] = useState(null)
-  const [confirmation, setConfirmation] = useState(null)
+  const currentTabRef = useRef(null);
+  const { sort, toggleSort, setSort } = useTableSort();
+  const { profile } = useAuth();
+  const hospitalId = profile?.hospitalId ?? "";
+  const [hospital, setHospital] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [filter, setFilter] = useState("active");
+  const [search, setSearch] = useState("");
+  const [component, setComponent] = useState("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  const [drafts, setDrafts] = useState({});
+  const [busyId, setBusyId] = useState("");
+  const [notice, setNotice] = useState(null);
+  const [rowError, setRowError] = useState(null);
+  const [confirmation, setConfirmation] = useState(null);
   const statuses = useMemo(
-    () => FILTERS.find((item) => item.value === filter)?.statuses ?? ACTIVE_STATUSES,
+    () =>
+      FILTERS.find((item) => item.value === filter)?.statuses ??
+      ACTIVE_STATUSES,
     [filter],
-  )
+  );
 
   useEffect(() => {
     if (!hospitalId) {
-      setRows([])
-      setLoading(false)
-      return
+      setRows([]);
+      setLoading(false);
+      return;
     }
-    let current = true
-    setLoading(true)
+    let current = true;
+    setLoading(true);
     listHospitalRequests(hospitalId, statuses)
       .then((found) => {
-        if (!current) return
-        setRows(found)
-        setError('')
+        if (!current) return;
+        setRows(found);
+        setError("");
       })
       .catch((err) => {
         if (current)
           setError(
-            err?.message || 'Requests could not be loaded. Check your connection and try again.',
-          )
+            err?.message ||
+              "Requests could not be loaded. Check your connection and try again.",
+          );
       })
       .finally(() => {
-        if (current) setLoading(false)
-      })
+        if (current) setLoading(false);
+      });
     return () => {
-      current = false
-    }
-  }, [hospitalId, statuses, reloadKey])
+      current = false;
+    };
+  }, [hospitalId, statuses, reloadKey]);
 
   useEffect(() => {
-    if (!hospitalId) return
-    let current = true
+    if (!hospitalId) return;
+    let current = true;
     fetchHospital(hospitalId)
       .then((found) => {
-        if (current) setHospital(found)
+        if (current) setHospital(found);
       })
-      .catch(() => {})
+      .catch(() => {});
     return () => {
-      current = false
-    }
-  }, [hospitalId])
+      current = false;
+    };
+  }, [hospitalId]);
 
-  const ordered = useMemo(() => sortRequestsByUrgency(rows), [rows])
+  const ordered = useMemo(() => sortRequestsByUrgency(rows), [rows]);
   const filteredRows = useMemo(() => {
-    const query = search.trim().toLowerCase()
+    const query = search.trim().toLowerCase();
     return ordered.filter(
       (row) =>
-        (component === 'all' || row.component === component) &&
+        (component === "all" || row.component === component) &&
         (!query ||
           [
             row.id,
@@ -133,122 +161,135 @@ export default function Requests() {
             priorityLabel(row.urgencyLevel),
             STATUS_LABELS[row.status],
           ]
-            .join(' ')
+            .join(" ")
             .toLowerCase()
             .includes(query)),
-    )
-  }, [ordered, search, component])
-  const visible = useMemo(() => sortRows(filteredRows, REQUEST_SORT[sort.key], sort.direction), [filteredRows, sort])
-  const totalPages = Math.max(1, Math.ceil(visible.length / pageSize))
-  const currentPage = Math.min(page, totalPages)
-  const start = (currentPage - 1) * pageSize
-  const paged = visible.slice(start, start + pageSize)
-  const viewReady = hospitalId && !loading && !error
+    );
+  }, [ordered, search, component]);
+  const visible = useMemo(
+    () => sortRows(filteredRows, REQUEST_SORT[sort.key], sort.direction),
+    [filteredRows, sort],
+  );
+  const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * pageSize;
+  const paged = visible.slice(start, start + pageSize);
+  const viewReady = hospitalId && !loading && !error;
   const metrics = [
     {
-      label: 'Requests in this view',
+      label: "Requests in this view",
       value: visible.length,
-      icon: 'list',
-      hint: FILTERS.find((item) => item.value === filter)?.label + ' requests',
+      icon: "list",
+      hint: FILTERS.find((item) => item.value === filter)?.label + " requests",
     },
     {
-      label: 'Units requested',
+      label: "Units requested",
       value: visible.reduce((sum, row) => sum + row.quantity, 0),
-      icon: 'droplet',
-      hint: 'Across the current view',
+      icon: "droplet",
+      hint: "Across the current view",
     },
     {
-      label: 'Time-sensitive',
-      value: visible.filter((row) => ['urgent', 'stat'].includes(row.urgencyLevel)).length,
-      icon: 'alert',
-      hint: 'Urgent or stat priority',
+      label: "Time-sensitive",
+      value: visible.filter((row) =>
+        ["urgent", "stat"].includes(row.urgencyLevel),
+      ).length,
+      icon: "alert",
+      hint: "Urgent or stat priority",
     },
-  ]
+  ];
 
   const selectFilter = (value) => {
-    if (busyId) return
-    setFilter(value)
-    setPage(1)
-    setDrafts({})
-    setRowError(null)
-  }
+    if (busyId) return;
+    setFilter(value);
+    setPage(1);
+    setDrafts({});
+    setRowError(null);
+  };
   const resetSearch = () => {
-    setSearch('')
-    setComponent('all')
-    setPage(1)
-  }
+    setSearch("");
+    setComponent("all");
+    setPage(1);
+  };
 
   const changeStatus = async (row, status = drafts[row.id]) => {
-    if (!status || busyId || !MANAGE_STATUSES.includes(status) || status === row.status) return
-    setBusyId(row.id)
-    setNotice(null)
-    setRowError(null)
+    if (
+      !status ||
+      busyId ||
+      !MANAGE_STATUSES.includes(status) ||
+      status === row.status
+    )
+      return;
+    setBusyId(row.id);
+    setNotice(null);
+    setRowError(null);
     try {
-      await updateRequestStatus(row.id, status)
-      setConfirmation(null)
-      setNotice({ text: `Request #${shortId(row)} marked ${STATUS_LABELS[status].toLowerCase()}.` })
+      await updateRequestStatus(row.id, status);
+      setConfirmation(null);
+      setNotice({
+        text: `Request #${shortId(row)} marked ${STATUS_LABELS[status].toLowerCase()}.`,
+      });
       setDrafts((previous) => {
-        const next = { ...previous }
-        delete next[row.id]
-        return next
-      })
-      setReloadKey((key) => key + 1)
+        const next = { ...previous };
+        delete next[row.id];
+        return next;
+      });
+      setReloadKey((key) => key + 1);
     } catch (err) {
       setRowError({
         id: row.id,
-        text: /permission|insufficient/i.test(err?.message || '')
-          ? 'Your account cannot update this request. Contact your administrator.'
-          : 'Update failed. Check your connection and apply again.',
-      })
+        text: /permission|insufficient/i.test(err?.message || "")
+          ? "Your account cannot update this request. Contact your administrator."
+          : "Update failed. Check your connection and apply again.",
+      });
     } finally {
-      setBusyId('')
+      setBusyId("");
     }
-  }
+  };
 
   const requestUpdate = (row) => {
-    const status = drafts[row.id]
+    const status = drafts[row.id];
     if (NEEDS_CONFIRM.has(status)) {
-      setRowError(null)
+      setRowError(null);
       setConfirmation({
         row,
         status,
         label: STATUS_LABELS[status],
         component: componentLabel(row.component),
         shortId: shortId(row),
-      })
-    } else changeStatus(row, status)
-  }
+      });
+    } else changeStatus(row, status);
+  };
 
   const columns = [
     {
-      key: 'request',
-      header: 'Blood & component',
-      cellProps: { 'data-label': 'Request' },
+      key: "request",
+      header: "Blood & component",
+      cellProps: { "data-label": "Request" },
       render: (row) => (
         <div className="hreq-identity">
-          <span className="hreq-blood">{row.bloodType || '—'}</span>
+          <span className="hreq-blood">{row.bloodType || "—"}</span>
           <div>
-            <strong>{componentLabel(row.component) || 'Not recorded'}</strong>
+            <strong>{componentLabel(row.component) || "Not recorded"}</strong>
             <small title={row.id}>Request #{shortId(row)}</small>
           </div>
         </div>
       ),
     },
     {
-      key: 'quantity',
-      header: 'Units',
-      cellProps: { 'data-label': 'Units' },
+      key: "quantity",
+      header: "Units",
+      cellProps: { "data-label": "Units" },
       render: (row) => (
         <span className="hreq-quantity">
           <strong>{row.quantity}</strong>
-          <small>{row.quantity === 1 ? 'unit' : 'units'}</small>
+          <small>{row.quantity === 1 ? "unit" : "units"}</small>
         </span>
       ),
     },
     {
-      key: 'priority',
-      header: 'Priority',
-      cellProps: { 'data-label': 'Priority' },
+      key: "priority",
+      header: "Priority",
+      cellProps: { "data-label": "Priority" },
       render: (row) => (
         <span className="hreq-priority" data-priority={row.urgencyLevel}>
           <i aria-hidden="true" />
@@ -257,46 +298,53 @@ export default function Requests() {
       ),
     },
     {
-      key: 'status',
-      header: 'Status',
-      cellProps: { 'data-label': 'Status' },
+      key: "status",
+      header: "Status",
+      cellProps: { "data-label": "Status" },
       render: (row) => (
         <span className="hreq-status" data-status={row.status}>
-          {['matched', 'fulfilled'].includes(row.status) && <Icon name="check" size={13} />}
+          {["matched", "fulfilled"].includes(row.status) && (
+            <Icon name="check" size={13} />
+          )}
           {STATUS_LABELS[row.status] || row.status}
         </span>
       ),
     },
     {
-      key: 'createdAt',
-      header: 'Requested',
-      cellProps: { 'data-label': 'Requested' },
+      key: "createdAt",
+      header: "Requested",
+      cellProps: { "data-label": "Requested" },
       render: (row) => requestedDate(row.createdAt),
     },
     {
-      key: 'manage',
-      header: 'Action',
+      key: "manage",
+      header: "Action",
       sortable: false,
-      cellProps: { 'data-label': 'Action' },
+      cellProps: { "data-label": "Action" },
       render: (row) =>
         ACTIVE_STATUSES.includes(row.status) ? (
           <div className="hreq-action">
             <div>
               <select
                 aria-label={`New status for request ${shortId(row)}`}
-                value={drafts[row.id] || ''}
+                value={drafts[row.id] || ""}
                 disabled={Boolean(busyId)}
                 onChange={(event) => {
-                  setDrafts((previous) => ({ ...previous, [row.id]: event.target.value }))
-                  if (rowError?.id === row.id) setRowError(null)
+                  setDrafts((previous) => ({
+                    ...previous,
+                    [row.id]: event.target.value,
+                  }));
+                  if (rowError?.id === row.id) setRowError(null);
                 }}
               >
                 <option value="">Change status</option>
-                {MANAGE_STATUSES.filter((status) => status !== row.status).map((status) => (
-                  <option key={status} value={status}>
-                    {STATUS_LABELS[status]}
-                  </option>
-                ))}
+                {MANAGE_STATUSES.filter((status) => status !== row.status).map(
+                  (status) => (
+                    <option key={status} value={status}>
+                      {STATUS_LABELS[status]}
+                    </option>
+                  ),
+                )}
               </select>
               <button
                 className="hreq-apply"
@@ -305,7 +353,7 @@ export default function Requests() {
                 onClick={() => requestUpdate(row)}
                 aria-label={`Apply status change to request ${shortId(row)}`}
               >
-                {busyId === row.id ? 'Saving…' : 'Apply'}
+                {busyId === row.id ? "Saving…" : "Apply"}
               </button>
             </div>
             {rowError?.id === row.id && (
@@ -316,18 +364,19 @@ export default function Requests() {
           </div>
         ) : (
           <span className="hreq-closed">
-            <Icon name={row.status === 'fulfilled' ? 'check' : 'x'} size={14} />
+            <Icon name={row.status === "fulfilled" ? "check" : "x"} size={14} />
             Closed
           </span>
         ),
     },
-  ]
+  ];
 
   return (
     <HospitalShell facility={hospital?.name}>
-      <PageHeader
+      <HospitalPageHeader
         className="hreq-header"
-        tag="Hospital workspace"
+        eyebrow="Requests / Facility queue"
+        description="Know what’s needed, act on what’s urgent, and keep each request moving toward care."
         title="Blood requests"
         actions={
           <>
@@ -338,10 +387,14 @@ export default function Requests() {
               disabled={loading || Boolean(busyId)}
             >
               <Icon name="refresh" size={16} />
-              {loading ? 'Refreshing…' : 'Refresh'}
+              {loading ? "Refreshing…" : "Refresh"}
             </button>
             {hospitalId ? (
-              <LinkBtn variant="primary" icon="plus" to="/hospital/requests/new">
+              <LinkBtn
+                variant="primary"
+                icon="plus"
+                to="/hospital/requests/new"
+              >
                 New request
               </LinkBtn>
             ) : (
@@ -352,15 +405,18 @@ export default function Requests() {
           </>
         }
       />
-      <p className="hreq-description">
-        A clear view of what’s needed. Keep every request moving toward care.
-      </p>
       <div className="hreq-overview" aria-label="Current request view summary">
         {metrics.map((metric) => (
-          <div className="hreq-metric" key={metric.label}>
+          <div
+            className="hreq-metric"
+            data-tone={
+              metric.icon === "alert" && metric.value > 0 ? "urgent" : undefined
+            }
+            key={metric.label}
+          >
             <div>
               <span>{metric.label}</span>
-              <strong>{viewReady ? metric.value.toLocaleString() : '—'}</strong>
+              <strong>{viewReady ? metric.value.toLocaleString() : "—"}</strong>
               <small>{metric.hint}</small>
             </div>
             <span className="hreq-metric-icon" aria-hidden="true">
@@ -373,8 +429,8 @@ export default function Requests() {
         <div className="hreq-banner" role="status">
           <Icon name="alert" size={18} />
           <p>
-            <strong>Matching update</strong> Immediate matching is unavailable. New requests will be
-            picked up by the scheduled matching run.
+            <strong>Matching update</strong> Immediate matching is unavailable.
+            New requests will be picked up by the scheduled matching run.
           </p>
         </div>
       )}
@@ -382,38 +438,95 @@ export default function Requests() {
         <div className="hreq-banner" data-kind="success" role="status">
           <Icon name="check" size={18} />
           <p>{notice.text}</p>
-          <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss update">
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            aria-label="Dismiss update"
+          >
             <Icon name="x" size={15} />
           </button>
         </div>
       )}
-      <section className="card hreq-workspace" aria-labelledby="hreq-queue-title">
+      <section
+        className="card hreq-workspace"
+        aria-labelledby="hreq-queue-title"
+      >
         <header className="hreq-workspace-heading">
           <div>
             <h2 id="hreq-queue-title">
-              Request queue<span>{viewReady ? visible.length : '—'}</span>
+              Request queue<span>{viewReady ? visible.length : "—"}</span>
             </h2>
-            <p>Urgency first, then oldest. Open requests are awaiting donors.</p>
+            <p>
+              Urgency first, then oldest. Open requests are awaiting donors.
+            </p>
           </div>
           <div className="hreq-heading-controls">
-            <label className="hreq-heading-select"><span className="care-sr-only">Filter requests by status</span>
-              <select ref={currentTabRef} aria-label="Filter requests by status" value={filter} disabled={Boolean(busyId)} onChange={event => selectFilter(event.target.value)}>
-                {FILTERS.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+            <label className="hreq-heading-select">
+              <span className="care-sr-only">Filter requests by status</span>
+              <select
+                ref={currentTabRef}
+                aria-label="Filter requests by status"
+                value={filter}
+                disabled={Boolean(busyId)}
+                onChange={(event) => selectFilter(event.target.value)}
+              >
+                {FILTERS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
               </select>
             </label>
-            <label className="hreq-heading-select"><span className="care-sr-only">Sort requests</span>
-              <select aria-label="Sort requests" value={sort.key ? `${sort.key}:${sort.direction}` : 'priority'} onChange={event => {
-                const [key, direction] = event.target.value.split(':')
-                setSort(key === 'priority' ? {key: null, direction: 'asc'} : {key, direction})
-                setPage(1)
-              }}>
+            <label className="hreq-heading-select">
+              <span className="care-sr-only">Sort requests</span>
+              <select
+                aria-label="Sort requests"
+                value={sort.key ? `${sort.key}:${sort.direction}` : "priority"}
+                onChange={(event) => {
+                  const [key, direction] = event.target.value.split(":");
+                  setSort(
+                    key === "priority"
+                      ? { key: null, direction: "asc" }
+                      : { key, direction },
+                  );
+                  setPage(1);
+                }}
+              >
                 <option value="priority">Urgency first</option>
-                {columns.filter(column => column.sortable !== false).flatMap(column => ['asc','desc'].map(direction => <option key={`${column.key}:${direction}`} value={`${column.key}:${direction}`}>{column.header}: {direction === 'asc' ? 'ascending' : 'descending'}</option>))}
+                {columns
+                  .filter((column) => column.sortable !== false)
+                  .flatMap((column) =>
+                    ["asc", "desc"].map((direction) => (
+                      <option
+                        key={`${column.key}:${direction}`}
+                        value={`${column.key}:${direction}`}
+                      >
+                        {column.header}:{" "}
+                        {direction === "asc" ? "ascending" : "descending"}
+                      </option>
+                    )),
+                  )}
               </select>
             </label>
           </div>
         </header>
-        <TableExport name="hospital-requests" title="Blood requests" columns={requestReportColumns} disabled={!hospitalId || loading || Boolean(error)} getRows={async scope => scope === 'filtered' ? visible : sortRows(sortRequestsByUrgency(await listHospitalRequests(hospitalId, [])), REQUEST_SORT[sort.key], sort.direction)} />
+        <TableExport
+          name="hospital-requests"
+          title="Blood requests"
+          columns={requestReportColumns}
+          disabled={!hospitalId || loading || Boolean(error)}
+          getRows={async (scope) =>
+            scope === "filtered"
+              ? visible
+              : sortRows(
+                  sortRequestsByUrgency(
+                    await listHospitalRequests(hospitalId, []),
+                  ),
+                  REQUEST_SORT[sort.key],
+                  sort.direction,
+                )
+          }
+        />
         <div id="hreq-view" aria-busy={loading}>
           <div className="hreq-toolbar">
             <label className="hreq-search">
@@ -425,8 +538,8 @@ export default function Requests() {
                 placeholder="Search type, component or ID…"
                 value={search}
                 onChange={(event) => {
-                  setSearch(event.target.value)
-                  setPage(1)
+                  setSearch(event.target.value);
+                  setPage(1);
                 }}
                 disabled={loading || !hospitalId}
               />
@@ -435,8 +548,8 @@ export default function Requests() {
                   type="button"
                   aria-label="Clear search"
                   onClick={() => {
-                    setSearch('')
-                    setPage(1)
+                    setSearch("");
+                    setPage(1);
                   }}
                 >
                   <Icon name="x" size={15} />
@@ -449,8 +562,8 @@ export default function Requests() {
                 aria-label="Filter by component"
                 value={component}
                 onChange={(event) => {
-                  setComponent(event.target.value)
-                  setPage(1)
+                  setComponent(event.target.value);
+                  setPage(1);
                 }}
                 disabled={loading || !hospitalId}
               >
@@ -464,8 +577,21 @@ export default function Requests() {
             </label>
             <span className="hreq-sort">
               <Icon name="list" size={15} />
-              {sort.key ? `${columns.find(column => column.key === sort.key)?.header}: ${sort.direction === 'asc' ? 'ascending' : 'descending'}` : 'Priority order'}
-              {sort.key && <button type="button" className="donation-text-link" onClick={() => { setSort({ key: null, direction: 'asc' }); setPage(1) }}>Reset order</button>}
+              {sort.key
+                ? `${columns.find((column) => column.key === sort.key)?.header}: ${sort.direction === "asc" ? "ascending" : "descending"}`
+                : "Priority order"}
+              {sort.key && (
+                <button
+                  type="button"
+                  className="donation-text-link"
+                  onClick={() => {
+                    setSort({ key: null, direction: "asc" });
+                    setPage(1);
+                  }}
+                >
+                  Reset order
+                </button>
+              )}
             </span>
           </div>
           {!hospitalId ? (
@@ -475,8 +601,8 @@ export default function Requests() {
               </span>
               <h3>Connect your facility</h3>
               <p>
-                This account is not linked to a hospital. Ask your administrator to link your
-                facility, then refresh.
+                This account is not linked to a hospital. Ask your administrator
+                to link your facility, then refresh.
               </p>
             </div>
           ) : error ? (
@@ -486,7 +612,11 @@ export default function Requests() {
               </span>
               <h3>We couldn’t load your requests</h3>
               <p>{error}</p>
-              <button className="btn" type="button" onClick={() => setReloadKey((key) => key + 1)}>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => setReloadKey((key) => key + 1)}
+              >
                 Try again
               </button>
             </div>
@@ -506,28 +636,39 @@ export default function Requests() {
           ) : visible.length === 0 ? (
             <div className="hreq-empty" role="status">
               <span>
-                <Icon name={search || component !== 'all' ? 'search' : 'droplet'} size={29} />
+                <Icon
+                  name={search || component !== "all" ? "search" : "droplet"}
+                  size={29}
+                />
               </span>
               <h3>
-                {search || component !== 'all'
-                  ? 'No requests match your filters'
-                  : 'A little quiet here'}
+                {search || component !== "all"
+                  ? "No requests match your filters"
+                  : "A little quiet here"}
               </h3>
               <p>
-                {search || component !== 'all'
-                  ? 'Try another blood type or request ID, or clear your filters.'
-                  : `There are no ${filter === 'active' ? 'active' : STATUS_LABELS[filter]?.toLowerCase()} requests in this view.`}
+                {search || component !== "all"
+                  ? "Try another blood type or request ID, or clear your filters."
+                  : `There are no ${filter === "active" ? "active" : STATUS_LABELS[filter]?.toLowerCase()} requests in this view.`}
               </p>
-              {search || component !== 'all' ? (
+              {search || component !== "all" ? (
                 <button className="btn" type="button" onClick={resetSearch}>
                   Clear filters
                 </button>
-              ) : filter === 'active' ? (
-                <LinkBtn to="/hospital/requests/new" variant="primary" icon="plus">
+              ) : filter === "active" ? (
+                <LinkBtn
+                  to="/hospital/requests/new"
+                  variant="primary"
+                  icon="plus"
+                >
                   Create a request
                 </LinkBtn>
               ) : (
-                <button className="btn" type="button" onClick={() => selectFilter('active')}>
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => selectFilter("active")}
+                >
                   View active requests
                 </button>
               )}
@@ -544,13 +685,16 @@ export default function Requests() {
                 aria-label="Facility blood requests"
                 columns={columns}
                 sort={sort}
-                onSort={key => { toggleSort(key); setPage(1) }}
+                onSort={(key) => {
+                  toggleSort(key);
+                  setPage(1);
+                }}
                 rows={paged}
                 rowKey={(row) => row.id}
                 scroll={false}
                 rowProps={(row) => ({
-                  'data-priority': row.urgencyLevel,
-                  'data-saving': busyId === row.id,
+                  "data-priority": row.urgencyLevel,
+                  "data-saving": busyId === row.id,
                 })}
               />
             </div>
@@ -558,10 +702,10 @@ export default function Requests() {
           {viewReady && visible.length > 0 && (
             <footer className="hreq-pagination">
               <p aria-live="polite">
-                Showing{' '}
+                Showing{" "}
                 <strong>
                   {start + 1}–{Math.min(start + pageSize, visible.length)}
-                </strong>{' '}
+                </strong>{" "}
                 of <strong>{visible.length}</strong> requests
               </p>
               <label>
@@ -570,8 +714,8 @@ export default function Requests() {
                   aria-label="Rows per page"
                   value={pageSize}
                   onChange={(event) => {
-                    setPageSize(Number(event.target.value))
-                    setPage(1)
+                    setPageSize(Number(event.target.value));
+                    setPage(1);
                   }}
                 >
                   {[10, 25, 50].map((size) => (
@@ -610,10 +754,10 @@ export default function Requests() {
         busy={Boolean(busyId)}
         error={rowError?.id === confirmation?.row.id ? rowError?.text : null}
         onClose={() => {
-          if (!busyId) setConfirmation(null)
+          if (!busyId) setConfirmation(null);
         }}
         onConfirm={() => changeStatus(confirmation.row, confirmation.status)}
       />
     </HospitalShell>
-  )
+  );
 }

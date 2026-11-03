@@ -2,13 +2,15 @@ import { useEffect, useRef } from "react";
 import { cx } from "../utils/cx";
 import { Btn } from "./Btn";
 
-/** Centered native dialog. `busy` prevents dismissal during a mutation. */
+/** Centered native dialog. `busy` prevents dismissal; `eyebrow` labels the workspace. `fallbackFocusRef` handles removed/disabled triggers. */
 export function AdminDialog({
   name,
   open,
   busy = false,
+  fallbackFocusRef,
   onClose,
   title,
+  eyebrow = "Dugo+ administration",
   children,
   className,
   ...rest
@@ -24,9 +26,15 @@ export function AdminDialog({
     return () => {
       dialog.close();
       document.body.style.overflow = previousOverflow;
-      if (trigger?.isConnected) trigger.focus();
+      requestAnimationFrame(() => {
+        const target =
+          trigger?.isConnected && !trigger.disabled
+            ? trigger
+            : fallbackFocusRef?.current;
+        target?.focus();
+      });
     };
-  }, [open]);
+  }, [open, fallbackFocusRef]);
   return (
     <dialog
       ref={ref}
@@ -42,7 +50,7 @@ export function AdminDialog({
     >
       <header className="admin-care-dialog-head">
         <div>
-          <p className="admin-care-eyebrow">Dugo+ administration</p>
+          <p className="admin-care-eyebrow">{eyebrow}</p>
           <h2 id={`${name}-title`}>{title}</h2>
         </div>
         <Btn
