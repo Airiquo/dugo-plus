@@ -136,6 +136,8 @@ represented by a droplet.
   this session. Current desktop/phone/theme visual checks, form clicks, donor
   map button interaction, iframe browser printing and the four manual auth
   smoke cases remain unverified. The prior D63/D65 browser results verify the
-  baseline only. The draft PR must not claim this work visually verified.
+  baseline only. The PR must not claim this work visually verified. The owner explicitly
+  requested merging into integration on 2026-11-03 with these checks outstanding;
+  merge authorization does not establish visual or production verification.
 - No production deploy, real-data mutation or physical-device check occurred.
   Existing build chunk-size warning remains; no new runtime chart dependency.
