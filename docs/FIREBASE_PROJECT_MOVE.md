@@ -51,6 +51,8 @@ Completed checks:
   approved transferring the destination credentials to the existing Worker.
 - The configured browser reaches `/admin/dashboard` with one Active profile,
   zero hospital profiles, no privacy requests and the seeded matching settings.
+- The live administrator profile saves successfully and keeps its updated name
+  after a full page reload.
 - A missing Firebase API key still renders NotConfigured at an admin route.
 - `npx vite build`, `node tools/check-docs.mjs`, 133 regression checks and syntax
   checks for the six changed operator scripts pass.
@@ -71,6 +73,6 @@ The configuration/documentation feature branch targets protected integration;
 its PR/check results are recorded by GitHub. The deployed frontend comes from
 integration's already-merged release revision above.
 
-Temporary credential files are removed after the Worker switch and
-verification. The uploaded service-account key remains active because the Worker
+Temporary password, session, Auth configuration and service-account key files
+were removed after the Worker switch and verification. The uploaded service-account key remains active because the Worker
 requires it; deleting its local file does not revoke the deployed credential.
