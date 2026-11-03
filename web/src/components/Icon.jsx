@@ -1,14 +1,53 @@
 const PATHS = {
+  request: (
+    <>
+      <path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3" />
+      <rect x="9" y="2" width="6" height="4" rx="1" />
+      <path d="M12 10v8M8 14h8" />
+    </>
+  ),
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
-  logout: <><path d="M9 4H4v16h5M14 8l4 4-4 4M8 12h10" /></>,
-  compass: <><circle cx="12" cy="12" r="9" /><path d="m16 8-2.5 5.5L8 16l2.5-5.5L16 8z" /></>,
+  logout: (
+    <>
+      <path d="M9 4H4v16h5M14 8l4 4-4 4M8 12h10" />
+    </>
+  ),
+  compass: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m16 8-2.5 5.5L8 16l2.5-5.5L16 8z" />
+    </>
+  ),
   expand: <path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5" />,
   collapse: <path d="M3 8h5V3M16 3v5h5M21 16h-5v5M8 21v-5H3" />,
-  pin: <><path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0z" /><circle cx="12" cy="10" r="2.5" /></>,
-  lock: <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V6a4 4 0 0 1 8 0v4" /><path d="M12 14v3" /></>,
-  phone: <path d="m7 3 3 5-3 2c2 4 3 5 7 7l2-3 5 3c-1 4-3 5-6 3C8 17 4 13 3 7c-1-3 1-4 4-4z" />,
-  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
-  shield: <><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z" /><path d="m8 12 3 3 5-6" /></>,
+  pin: (
+    <>
+      <path d="M20 10c0 6-8 11-8 11S4 16 4 10a8 8 0 1 1 16 0z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="4" y="10" width="16" height="11" rx="2" />
+      <path d="M8 10V6a4 4 0 0 1 8 0v4" />
+      <path d="M12 14v3" />
+    </>
+  ),
+  phone: (
+    <path d="m7 3 3 5-3 2c2 4 3 5 7 7l2-3 5 3c-1 4-3 5-6 3C8 17 4 13 3 7c-1-3 1-4 4-4z" />
+  ),
+  clock: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </>
+  ),
+  shield: (
+    <>
+      <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3z" />
+      <path d="m8 12 3 3 5-6" />
+    </>
+  ),
   grid: (
     <>
       <rect x="4" y="4" width="7" height="7" />
@@ -88,9 +127,9 @@ const PATHS = {
       d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8.94 3A8.994 8.994 0 0 0 13 3.06V1h-2v2.06A8.994 8.994 0 0 0 3.06 11H1v2h2.06A8.994 8.994 0 0 0 11 20.94V23h2v-2.06A8.994 8.994 0 0 0 20.94 13H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"
     />
   ),
-  'chevron-down': <path d="M6 9l6 6 6-6" />,
-  'chevron-right': <path d="M9 6l6 6-6 6" />,
-  'arrow-right': <path d="M4 12h16M14 6l6 6-6 6" />,
+  "chevron-down": <path d="M6 9l6 6 6-6" />,
+  "chevron-right": <path d="M9 6l6 6-6 6" />,
+  "arrow-right": <path d="M4 12h16M14 6l6 6-6 6" />,
   search: (
     <>
       <circle cx="11" cy="11" r="7" />
@@ -98,6 +137,7 @@ const PATHS = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  minus: <path d="M5 12h14" />,
   check: <path d="M5 13l4 4L19 7" />,
   x: <path d="M6 6l12 12M18 6L6 18" />,
   download: <path d="M12 3v12M7 10l5 5 5-5M4 21h16" />,
@@ -109,18 +149,18 @@ const PATHS = {
       <circle cx="12" cy="12" r="2.8" />
     </>
   ),
-  'eye-off': (
+  "eye-off": (
     <>
       <path d="M4 5l16 14" />
       <path d="M9.6 6.4A10.6 10.6 0 0 1 12 6c6.4 0 10 6 10 6a17 17 0 0 1-3.3 3.8" />
       <path d="M6.5 8.2A16.7 16.7 0 0 0 2 12s3.6 6 10 6c1.3 0 2.5-.2 3.5-.6" />
     </>
   ),
-}
+};
 export function Icon({ name, size = 16, className, ...rest }) {
   return (
     <svg
-      className={className ? `icon ${className}` : 'icon'}
+      className={className ? `icon ${className}` : "icon"}
       width={size}
       height={size}
       viewBox="0 0 24 24"
@@ -135,5 +175,5 @@ export function Icon({ name, size = 16, className, ...rest }) {
     >
       {PATHS[name]}
     </svg>
-  )
+  );
 }

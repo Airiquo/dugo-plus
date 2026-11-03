@@ -1,6 +1,12 @@
-import { TableExport } from '../../components/TableExport'
-import { accountReportColumns, auditReportColumns } from '../../utils/reportColumns'
-import { allAccountHistory } from '../../services/tableExports'
+import { RecordFilters } from "../../components/RecordFilters";
+import { filterRecords } from "../../utils/recordFilters";
+import { BLOOD_TYPES } from "../../utils/matching";
+import { TableExport } from "../../components/TableExport";
+import {
+  accountReportColumns,
+  auditReportColumns,
+} from "../../utils/reportColumns";
+import { allAccountHistory } from "../../services/tableExports";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "../../layout/AppShell";
@@ -25,7 +31,10 @@ import {
   PageHeader,
   Select,
 } from "../../components";
-import { accountActionReasons, accountProfileEditReason } from "../../utils/accountActions";
+import {
+  accountActionReasons,
+  accountProfileEditReason,
+} from "../../utils/accountActions";
 import { useTableSort } from "../../hooks/useTableSort";
 import { sortRows } from "../../utils/sortRows";
 import { asPoint } from "../../utils/geo";
@@ -104,7 +113,11 @@ const auditNote = (result) =>
     ? " Its activity record is saved and awaiting audit delivery."
     : "";
 
-const ACCOUNT_SORT = { account: row => row.fullName || row.email || "", type: row => `${role(row.role)} ${row.hospitalId || ""}`, status: row => row.status || "Active" };
+const ACCOUNT_SORT = {
+  account: (row) => row.fullName || row.email || "",
+  type: (row) => `${role(row.role)} ${row.hospitalId || ""}`,
+  status: (row) => row.status || "Active",
+};
 
 export default function Accounts() {
   const { sort, toggleSort, setSort } = useTableSort();
@@ -114,6 +127,12 @@ export default function Accounts() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
+  const [recordFilters, setRecordFilters] = useState({
+    search: "",
+    from: "",
+    to: "",
+    bloodType: "all",
+  });
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -124,6 +143,12 @@ export default function Accounts() {
   const [draft, setDraft] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [historyFilters, setHistoryFilters] = useState({
+    search: "",
+    from: "",
+    to: "",
+    eventType: "all",
+  });
   const [history, setHistory] = useState({
     events: [],
     nextBefore: null,
@@ -160,7 +185,7 @@ export default function Accounts() {
   }, [query, roleFilter, statusFilter]);
   const filtered = useMemo(
     () =>
-      accounts.filter((account) => {
+      filterRecords(accounts, recordFilters).filter((account) => {
         const term = query.trim().toLowerCase();
         return (
           (roleFilter === "all" || account.role === roleFilter) &&
@@ -175,9 +200,12 @@ export default function Accounts() {
             ].some((value) => value?.toLowerCase().includes(term)))
         );
       }),
-    [accounts, query, roleFilter, statusFilter],
+    [accounts, query, roleFilter, statusFilter, recordFilters],
   );
-  const sorted = useMemo(() => sortRows(filtered, ACCOUNT_SORT[sort.key], sort.direction), [filtered, sort]);
+  const sorted = useMemo(
+    () => sortRows(filtered, ACCOUNT_SORT[sort.key], sort.direction),
+    [filtered, sort],
+  );
   const pages = Math.max(1, Math.ceil(sorted.length / 10));
   const current = Math.min(page, pages);
   const visible = sorted.slice((current - 1) * 10, current * 10);
@@ -205,7 +233,14 @@ export default function Accounts() {
     setReason("");
     setShowPassword(false);
   }
-  async function loadHistory(accountId, before = null, append = false) {
+  async function loadHistory(
+    accountId,
+    before = null,
+    append = false,
+    complete = Object.values(historyFilters).some(
+      (value) => value && value !== "all",
+    ),
+  ) {
     const request = ++generation.current;
     setHistory((previous) => ({
       events: append ? previous.events : [],
@@ -214,7 +249,9 @@ export default function Accounts() {
       error: "",
     }));
     try {
-      const result = await getAccountHistory(accountId, before);
+      const result = complete
+        ? { events: await allAccountHistory(accountId), nextBefore: null }
+        : await getAccountHistory(accountId, before);
       if (request !== generation.current) return;
       setHistory((previous) => ({
         ...result,
@@ -233,7 +270,8 @@ export default function Accounts() {
   }
   function view(account) {
     open("history", account);
-    loadHistory(account.id);
+    setHistoryFilters({ search: "", from: "", to: "", eventType: "all" });
+    loadHistory(account.id, null, false, false);
   }
   async function submitAction(event) {
     event.preventDefault();
@@ -450,7 +488,12 @@ export default function Accounts() {
         </div>
         <div className="aa-feedback" aria-live="polite">
           {notice && (
-            <p ref={noticeRef} tabIndex={-1} className="aa-notice" role="status">
+            <p
+              ref={noticeRef}
+              tabIndex={-1}
+              className="aa-notice"
+              role="status"
+            >
               <Icon name="check" />
               {notice}
             </p>
@@ -473,10 +516,38 @@ export default function Accounts() {
               <p>All roles · {accounts.length} loaded accounts</p>
             </div>
             <Btn icon="refresh" onClick={load} disabled={loading}>
-          {loading ? "Refreshing…" : "Refresh"}
+              {loading ? "Refreshing…" : "Refresh"}
             </Btn>
           </div>
-              <TableExport name="accounts" title="Accounts" columns={accountReportColumns} disabled={loading || Boolean(error)} getRows={scope => scope === 'filtered' ? sorted : sortRows(accounts, ACCOUNT_SORT[sort.key], sort.direction)} />
+          <RecordFilters
+            name="account directory"
+            onReset={() => {
+              setQuery("");
+              setRoleFilter("all");
+              setStatusFilter("all");
+            }}
+            value={recordFilters}
+            onChange={(next) => {
+              setRecordFilters(next);
+              setPage(1);
+            }}
+            search={false}
+            fields={[
+              { key: "bloodType", label: "Blood group", options: BLOOD_TYPES },
+            ]}
+            disabled={loading || Boolean(error)}
+          />
+          <TableExport
+            name="accounts"
+            title="Accounts"
+            columns={accountReportColumns}
+            disabled={loading || Boolean(error)}
+            getRows={(scope) =>
+              scope === "filtered"
+                ? sorted
+                : sortRows(accounts, ACCOUNT_SORT[sort.key], sort.direction)
+            }
+          />
           <div className="aa-filters">
             <Field label="Search accounts">
               <Input
@@ -511,8 +582,22 @@ export default function Accounts() {
               />
             </Field>
           </div>
-        <SortControls className="table-sort-mobile" name="accounts" sort={sort} onChange={next => { setSort(next); setPage(1); }} defaultLabel="Account name (A–Z)" fields={[{key:'account',label:'Account'},{key:'type',label:'Type / facility'},{key:'status',label:'Access'}]} />
-        <div aria-busy={loading}>
+          <SortControls
+            className="table-sort-mobile"
+            name="accounts"
+            sort={sort}
+            onChange={(next) => {
+              setSort(next);
+              setPage(1);
+            }}
+            defaultLabel="Account name (A–Z)"
+            fields={[
+              { key: "account", label: "Account" },
+              { key: "type", label: "Type / facility" },
+              { key: "status", label: "Access" },
+            ]}
+          />
+          <div aria-busy={loading}>
             {loading && !accounts.length ? (
               <div className="aa-empty" role="status">
                 Loading the account directory…
@@ -536,6 +621,12 @@ export default function Accounts() {
                       setQuery("");
                       setRoleFilter("all");
                       setStatusFilter("all");
+                      setRecordFilters({
+                        search: "",
+                        from: "",
+                        to: "",
+                        bloodType: "all",
+                      });
                     }}
                   >
                     Clear filters
@@ -549,9 +640,36 @@ export default function Accounts() {
                 </caption>
                 <thead>
                   <tr>
-                    <SortableHeader sortKey="account" sort={sort} onSort={key => { toggleSort(key); setPage(1); }}>Account</SortableHeader>
-                    <SortableHeader sortKey="type" sort={sort} onSort={key => { toggleSort(key); setPage(1); }}>Type / facility</SortableHeader>
-                    <SortableHeader sortKey="status" sort={sort} onSort={key => { toggleSort(key); setPage(1); }}>Access</SortableHeader>
+                    <SortableHeader
+                      sortKey="account"
+                      sort={sort}
+                      onSort={(key) => {
+                        toggleSort(key);
+                        setPage(1);
+                      }}
+                    >
+                      Account
+                    </SortableHeader>
+                    <SortableHeader
+                      sortKey="type"
+                      sort={sort}
+                      onSort={(key) => {
+                        toggleSort(key);
+                        setPage(1);
+                      }}
+                    >
+                      Type / facility
+                    </SortableHeader>
+                    <SortableHeader
+                      sortKey="status"
+                      sort={sort}
+                      onSort={(key) => {
+                        toggleSort(key);
+                        setPage(1);
+                      }}
+                    >
+                      Access
+                    </SortableHeader>
                     <th scope="col">Actions</th>
                   </tr>
                 </thead>
@@ -611,11 +729,25 @@ export default function Accounts() {
                         <td data-label="Actions">
                           <div className="aa-row-actions">
                             <Btn
-                              disabled={Boolean(accountProfileEditReason(account, user?.uid, busy))}
-                              title={accountProfileEditReason(account, user?.uid, busy) || "Edit profile and facility details"}
+                              disabled={Boolean(
+                                accountProfileEditReason(
+                                  account,
+                                  user?.uid,
+                                  busy,
+                                ),
+                              )}
+                              title={
+                                accountProfileEditReason(
+                                  account,
+                                  user?.uid,
+                                  busy,
+                                ) || "Edit profile and facility details"
+                              }
                               onClick={() => open("edit", account)}
                               aria-label={`Edit details for ${label(account)}`}
-                            >Edit details</Btn>
+                            >
+                              Edit details
+                            </Btn>
                             <Btn
                               onClick={() => view(account)}
                               aria-label={`View history for ${label(account)}`}
@@ -697,7 +829,9 @@ export default function Accounts() {
           open={dialog?.kind === "edit"}
           onClose={close}
           onSaved={(result) => {
-            setNotice(`Profile details saved for ${label(selected)}.${auditNote(result)}`);
+            setNotice(
+              `Profile details saved for ${label(selected)}.${auditNote(result)}`,
+            );
             setDialog(null);
             load();
           }}
@@ -740,19 +874,23 @@ export default function Accounts() {
               </div>
               <div className="aa-location-fields">
                 <h3>Facility location</h3>
-                <HospitalLocationMap editable disabled={busy}
+                <HospitalLocationMap
+                  editable
+                  disabled={busy}
                   position={asPoint(draft.latitude, draft.longitude)}
                   label="Pin the new hospital location"
                   onChange={({ lat, lng }) => {
                     change("latitude", String(lat));
                     change("longitude", String(lng));
-                  }} />
+                  }}
+                />
                 <div className="aa-form-grid">
                   {field("latitude", "Latitude", { type: "number" })}
                   {field("longitude", "Longitude", { type: "number" })}
                 </div>
                 <p>
-                  Place a pin or enter both coordinates. Leave both empty if the location is not known yet.
+                  Place a pin or enter both coordinates. Leave both empty if the
+                  location is not known yet.
                 </p>
               </div>
             </fieldset>
@@ -927,7 +1065,57 @@ export default function Accounts() {
                   Refresh
                 </Btn>
               </div>
-              <TableExport name="account-history" title={`${label(selected)} account activity`} columns={auditReportColumns} disabled={history.loading || Boolean(history.error)} getRows={(_, progress) => allAccountHistory(selected.id, progress)} />
+              <RecordFilters
+                name="account activity"
+                value={historyFilters}
+                disabled={history.loading}
+                onChange={(next) => {
+                  setHistoryFilters(next);
+                  loadHistory(
+                    selected.id,
+                    null,
+                    false,
+                    Object.values(next).some(
+                      (value) => value && value !== "all",
+                    ),
+                  );
+                }}
+                fields={[
+                  {
+                    key: "eventType",
+                    label: "Event",
+                    options: [
+                      "Account.HospitalCreated",
+                      "Account.ProfileUpdated",
+                      "Account.Suspended",
+                      "Account.Reactivated",
+                      "Account.Removed",
+                      "Account.LoginDeleted",
+                      "Donation.Confirmed",
+                      "Donation.Screened",
+                      "Inventory.Adjusted",
+                      "Inventory.Transfused",
+                      "DataAccess.Erasure",
+                    ],
+                  },
+                ]}
+              />
+              <TableExport
+                name="account-history"
+                title={`${label(selected)} account activity`}
+                columns={auditReportColumns}
+                disabled={history.loading || Boolean(history.error)}
+                getRows={async (scope, progress) =>
+                  filterRecords(
+                    await allAccountHistory(selected.id, progress),
+                    scope === "filtered" ? historyFilters : {},
+                    {
+                      search: (row) =>
+                        `${row.eventType || ""} ${row.actor?.fullName || ""} ${row.context?.reason || ""}`,
+                    },
+                  )
+                }
+              />
               {history.error && (
                 <p className="aa-inline-error" role="alert">
                   {history.error}
@@ -950,8 +1138,22 @@ export default function Accounts() {
                   No recorded activity for this account.
                 </p>
               )}
+              {!history.loading &&
+                !history.error &&
+                history.events.length > 0 &&
+                !filterRecords(history.events, historyFilters, {
+                  search: (row) =>
+                    `${row.eventType || ""} ${row.actor?.fullName || ""} ${row.context?.reason || ""}`,
+                }).length && (
+                  <p className="aa-empty" role="status">
+                    No account activity matches these filters.
+                  </p>
+                )}
               <ol className="aa-history-list">
-                {history.events.map((item) => (
+                {filterRecords(history.events, historyFilters, {
+                  search: (row) =>
+                    `${row.eventType || ""} ${row.actor?.fullName || ""} ${row.context?.reason || ""}`,
+                }).map((item) => (
                   <li key={item.id}>
                     <span className="aa-history-dot" aria-hidden="true" />
                     <div>

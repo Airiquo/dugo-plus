@@ -10,11 +10,11 @@ import {
   startAfter,
   updateDoc,
   where,
-} from 'firebase/firestore'
-import { db } from '../lib/firebase'
-import { BLOOD_TYPES } from './users'
-import { inventoryKey } from '../utils/inventory'
-export { screenDonorMatch } from './inventory'
+} from "firebase/firestore";
+import { db } from "../lib/firebase";
+import { BLOOD_TYPES } from "./users";
+import { inventoryKey } from "../utils/inventory";
+export { screenDonorMatch } from "./inventory";
 
 /**
  * Facility documents — `hospitals/{hospitalId}` (schema §2.3) — plus the
@@ -29,22 +29,23 @@ export { screenDonorMatch } from './inventory'
  * (FR-034, D63).
  */
 
-const NOT_CONFIGURED = 'Firestore is not available. Copy web/.env.example to web/.env.local.'
+const NOT_CONFIGURED =
+  "Firestore is not available. Copy web/.env.example to web/.env.local.";
 
 /** Firestore's local copy of the document; throws when unconfigured. */
 function requireDb() {
-  if (!db) throw new Error(NOT_CONFIGURED)
+  if (!db) throw new Error(NOT_CONFIGURED);
 }
 
 /** A trimmed string, or '' for anything that is not a string. */
 function text(value) {
-  return typeof value === 'string' ? value.trim() : ''
+  return typeof value === "string" ? value.trim() : "";
 }
 
 function num(value) {
-  if (value == null || String(value).trim() === '') return null
-  const n = Number(value)
-  return Number.isFinite(n) ? n : null
+  if (value == null || String(value).trim() === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 }
 
 /**
@@ -57,12 +58,12 @@ function num(value) {
  * } | null>} null when the account has no facility or the document is missing.
  */
 export async function readHospital(hospitalId) {
-  requireDb()
-  const id = text(hospitalId)
-  if (!id) return null
-  const snap = await getDoc(doc(db, 'hospitals', id))
-  if (!snap.exists()) return null
-  const data = snap.data() ?? {}
+  requireDb();
+  const id = text(hospitalId);
+  if (!id) return null;
+  const snap = await getDoc(doc(db, "hospitals", id));
+  if (!snap.exists()) return null;
+  const data = snap.data() ?? {};
   return {
     id: snap.id,
     name: text(data.name),
@@ -72,74 +73,91 @@ export async function readHospital(hospitalId) {
     geohash: text(data.geohash),
     contactNumber: text(data.contactNumber),
     status: text(data.status),
-  }
+  };
 }
 
 /** Alias for readHospital used by donor/map components (FR-023). */
-export const getHospital = readHospital
+export const getHospital = readHospital;
 
 /** Save the staff-editable facility name/contact; address and location remain admin-managed. */
 export async function saveHospital(hospitalId, changes = {}) {
-  requireDb()
-  const id = text(hospitalId)
-  if (!id) throw new Error('This account is not linked to a facility.')
+  requireDb();
+  const id = text(hospitalId);
+  if (!id) throw new Error("This account is not linked to a facility.");
 
-  const data = {}
-  if ('name' in changes) data.name = text(changes.name)
-  if ('contactNumber' in changes) data.contactNumber = text(changes.contactNumber)
+  const data = {};
+  if ("name" in changes) data.name = text(changes.name);
+  if ("contactNumber" in changes)
+    data.contactNumber = text(changes.contactNumber);
 
-  if (!Object.keys(data).length) return
-  await updateDoc(doc(db, 'hospitals', id), data)
+  if (!Object.keys(data).length) return;
+  await updateDoc(doc(db, "hospitals", id), data);
 }
 
 /** A readable timestamp, or null for anything Firestore has not written yet. */
 function asDate(value) {
-  if (!value) return null
-  if (typeof value.toDate === 'function') return value.toDate()
-  if (value instanceof Date) return value
-  if (typeof value === 'number') return new Date(value)
-  return null
+  if (!value) return null;
+  if (typeof value.toDate === "function") return value.toDate();
+  if (value instanceof Date) return value;
+  if (typeof value === "number") return new Date(value);
+  return null;
 }
 
 /** The eight blood types, in display order, missing documents as zero. */
 function stockRows(snap, component) {
-  const found = new Map()
-  const legacy = new Map()
+  const found = new Map();
+  const legacy = new Map();
   snap.forEach((item) => {
-    const data = item.data() ?? {}
-    const bloodType = BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : item.id
-    if (!BLOOD_TYPES.includes(bloodType)) return
+    const data = item.data() ?? {};
+    const bloodType = BLOOD_TYPES.includes(data.bloodType)
+      ? data.bloodType
+      : item.id;
+    if (!BLOOD_TYPES.includes(bloodType)) return;
     if (!data.component) {
-      legacy.set(bloodType, Math.max(0, Math.trunc(Number(data.unitsAvailable) || 0)))
-      return
+      legacy.set(
+        bloodType,
+        Math.max(0, Math.trunc(Number(data.unitsAvailable) || 0)),
+      );
+      return;
     }
-    if (data.component !== component || item.id !== inventoryKey(component, bloodType)) return
+    if (
+      data.component !== component ||
+      item.id !== inventoryKey(component, bloodType)
+    )
+      return;
     found.set(bloodType, {
       bloodType,
       unitsAvailable: Math.max(0, Math.trunc(Number(data.unitsAvailable) || 0)),
       lastUpdated: asDate(data.lastUpdated),
-    })
-  })
-  return BLOOD_TYPES.map(
-    (bloodType) => ({ ...(found.get(bloodType) ?? { bloodType, unitsAvailable: 0, lastUpdated: null }), component, unclassifiedUnits: legacy.get(bloodType) || 0 }),
-  )
+    });
+  });
+  return BLOOD_TYPES.map((bloodType) => ({
+    ...(found.get(bloodType) ?? {
+      bloodType,
+      unitsAvailable: 0,
+      lastUpdated: null,
+    }),
+    component,
+    unclassifiedUnits: legacy.get(bloodType) || 0,
+  }));
 }
 
 /** One `donations` document, shaped for a history row (FR-020). */
 function donationRow(snap) {
-  const data = snap.data() ?? {}
+  const data = snap.data() ?? {};
   return {
     id: snap.id,
     hospitalId: text(data.hospitalId),
-    donorId: typeof data.donorId === 'string' ? data.donorId : '',
-    donorName: typeof data.donorName === 'string' ? data.donorName : '',
-    bloodType: typeof data.bloodType === 'string' ? data.bloodType : '',
+    donorId: typeof data.donorId === "string" ? data.donorId : "",
+    donorName: typeof data.donorName === "string" ? data.donorName : "",
+    bloodType: typeof data.bloodType === "string" ? data.bloodType : "",
     component: text(data.component),
-    donationType: typeof data.donationType === 'string' ? data.donationType : '',
-    requestId: typeof data.requestId === 'string' ? data.requestId : '',
+    donationType:
+      typeof data.donationType === "string" ? data.donationType : "",
+    requestId: typeof data.requestId === "string" ? data.requestId : "",
     units: Math.trunc(Number(data.units) || 0),
     donationDate: asDate(data.donationDate),
-  }
+  };
 }
 
 /**
@@ -149,12 +167,17 @@ function donationRow(snap) {
  * @param {string} hospitalId
  * @returns {Promise<Array<{bloodType: string, unitsAvailable: number, lastUpdated: Date|null}>>}
  */
-export async function getInventory(hospitalId, component = 'whole-blood') {
-  requireDb()
-  const id = text(hospitalId)
-  if (!id) return BLOOD_TYPES.map((bloodType) => ({ bloodType, unitsAvailable: 0, lastUpdated: null }))
-  const snap = await getDocs(collection(db, 'hospitals', id, 'inventory'))
-  return stockRows(snap, component)
+export async function getInventory(hospitalId, component = "whole-blood") {
+  requireDb();
+  const id = text(hospitalId);
+  if (!id)
+    return BLOOD_TYPES.map((bloodType) => ({
+      bloodType,
+      unitsAvailable: 0,
+      lastUpdated: null,
+    }));
+  const snap = await getDocs(collection(db, "hospitals", id, "inventory"));
+  return stockRows(snap, component);
 }
 
 /**
@@ -166,18 +189,29 @@ export async function getInventory(hospitalId, component = 'whole-blood') {
  * @param {(error: Error) => void} [onError]
  * @returns {() => void} unsubscribe
  */
-export function watchInventory(hospitalId, onNext, onError, component = 'whole-blood') {
-  requireDb()
-  const id = text(hospitalId)
+export function watchInventory(
+  hospitalId,
+  onNext,
+  onError,
+  component = "whole-blood",
+) {
+  requireDb();
+  const id = text(hospitalId);
   if (!id) {
-    onNext(BLOOD_TYPES.map((bloodType) => ({ bloodType, unitsAvailable: 0, lastUpdated: null })))
-    return () => {}
+    onNext(
+      BLOOD_TYPES.map((bloodType) => ({
+        bloodType,
+        unitsAvailable: 0,
+        lastUpdated: null,
+      })),
+    );
+    return () => {};
   }
   return onSnapshot(
-    collection(db, 'hospitals', id, 'inventory'),
+    collection(db, "hospitals", id, "inventory"),
     (snap) => onNext(stockRows(snap, component)),
     onError,
-  )
+  );
 }
 
 /**
@@ -186,21 +220,24 @@ export function watchInventory(hospitalId, onNext, onError, component = 'whole-b
  * snapshot. Confirmation always resolves the actual donor group server-side.
  */
 function matchRow(snap, request) {
-  const data = snap.data() ?? {}
+  const data = snap.data() ?? {};
   return {
     id: snap.id,
     requestId: request.id,
-    donorId: typeof data.donorId === 'string' ? data.donorId : '',
+    donorId: typeof data.donorId === "string" ? data.donorId : "",
     hospitalId: request.hospitalId,
     bloodType: text(data.donorBloodType),
     requestedBloodType: request.bloodType,
     component: request.component,
-    donationTypeId: typeof data.donationTypeId === 'string' ? data.donationTypeId : '',
-    responseStatus: typeof data.responseStatus === 'string' ? data.responseStatus : '',
-    screeningStatus: typeof data.screeningStatus === 'string' ? data.screeningStatus : '',
+    donationTypeId:
+      typeof data.donationTypeId === "string" ? data.donationTypeId : "",
+    responseStatus:
+      typeof data.responseStatus === "string" ? data.responseStatus : "",
+    screeningStatus:
+      typeof data.screeningStatus === "string" ? data.screeningStatus : "",
     guidelinesAcknowledged: data.guidelinesAcknowledged === true,
     matchedAt: asDate(data.matchedAt),
-  }
+  };
 }
 
 /**
@@ -218,39 +255,43 @@ function matchRow(snap, request) {
  * @returns {Promise<Array<ReturnType<typeof matchRow>>>}
  */
 export async function getFacilityMatches(hospitalId) {
-  requireDb()
-  const id = text(hospitalId)
-  if (!id) return []
+  requireDb();
+  const id = text(hospitalId);
+  if (!id) return [];
 
   const requestSnap = await getDocs(
-    query(collection(db, 'bloodRequests'), where('hospitalId', '==', id)),
-  )
+    query(collection(db, "bloodRequests"), where("hospitalId", "==", id)),
+  );
   const requests = requestSnap.docs
     .map((item) => {
-      const data = item.data() ?? {}
+      const data = item.data() ?? {};
       return {
         id: item.id,
         hospitalId: id,
         bloodType: text(data.bloodType),
         component: text(data.component),
         createdAt: asDate(data.createdAt)?.getTime() ?? 0,
-      }
+      };
     })
-    .sort((a, b) => b.createdAt - a.createdAt)
-
+    .sort((a, b) => b.createdAt - a.createdAt);
 
   const groups = await Promise.all(
     requests.map(async (request) => {
       const snap = await getDocs(
-        query(collection(db, 'donorMatches'), where('requestId', '==', request.id)),
-      )
-      return snap.docs.map((item) => matchRow(item, request))
+        query(
+          collection(db, "donorMatches"),
+          where("requestId", "==", request.id),
+        ),
+      );
+      return snap.docs.map((item) => matchRow(item, request));
     }),
-  )
+  );
 
   return groups
     .flat()
-    .sort((a, b) => (b.matchedAt?.getTime() ?? 0) - (a.matchedAt?.getTime() ?? 0))
+    .sort(
+      (a, b) => (b.matchedAt?.getTime() ?? 0) - (a.matchedAt?.getTime() ?? 0),
+    );
 }
 
 /**
@@ -260,43 +301,47 @@ export async function getFacilityMatches(hospitalId) {
  * @returns {Promise<Array<{id: string, name: string}>>} sorted by name
  */
 export async function listHospitals() {
-  requireDb()
-  const snap = await getDocs(collection(db, 'hospitals'))
+  requireDb();
+  const snap = await getDocs(collection(db, "hospitals"));
   return snap.docs
     .map((item) => ({ id: item.id, name: text(item.data()?.name) || item.id }))
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
  * The facility's donation history, newest first (FR-014, FR-020).
  *
  * @param {string} hospitalId
- * @param {{ since?: Date | number | null, cursor?: import('firebase/firestore').DocumentSnapshot | null, limit?: number }} [options]
+ * @param {{ since?: Date | number | null, until?: Date | number | null, cursor?: import('firebase/firestore').DocumentSnapshot | null, limit?: number }} [options]
  * @returns {Promise<{ rows: Array<ReturnType<typeof donationRow>>,
  *   cursor: import('firebase/firestore').DocumentSnapshot | null }>} `cursor` is
  *   null when the page returned fewer rows than asked for, i.e. the end.
  */
 export async function getHospitalDonations(
   hospitalId,
-  { since = null, cursor = null, limit: take = 50 } = {},
+  { since = null, until = null, cursor = null, limit: take = 50 } = {},
 ) {
-  requireDb()
-  const id = text(hospitalId)
-  if (!id) return { rows: [], cursor: null }
+  requireDb();
+  const id = text(hospitalId);
+  if (!id) return { rows: [], cursor: null };
 
-  const constraints = [where('hospitalId', '==', id)]
-  const sinceDate = asDate(since)
+  const constraints = [where("hospitalId", "==", id)];
+  const sinceDate = asDate(since);
   if (sinceDate) {
-    constraints.push(where('donationDate', '>=', sinceDate))
+    constraints.push(where("donationDate", ">=", sinceDate));
   }
-  constraints.push(orderBy('donationDate', 'desc'), limit(take))
-  if (cursor) constraints.push(startAfter(cursor))
+  const untilDate = asDate(until);
+  if (untilDate) constraints.push(where("donationDate", "<", untilDate));
+  constraints.push(orderBy("donationDate", "desc"), limit(take));
+  if (cursor) constraints.push(startAfter(cursor));
 
-  const snap = await getDocs(query(collection(db, 'donations'), ...constraints))
+  const snap = await getDocs(
+    query(collection(db, "donations"), ...constraints),
+  );
   return {
     rows: snap.docs.map(donationRow),
     cursor: snap.docs.length === take ? snap.docs[snap.docs.length - 1] : null,
-  }
+  };
 }
 
 /**
@@ -306,17 +351,17 @@ export async function getHospitalDonations(
  * @returns {Promise<Array<ReturnType<typeof donationRow>>>}
  */
 export async function getDonorDonations(donorId) {
-  requireDb()
-  const id = text(donorId)
-  if (!id) return []
+  requireDb();
+  const id = text(donorId);
+  if (!id) return [];
   const snap = await getDocs(
     query(
-      collection(db, 'donations'),
-      where('donorId', '==', id),
-      orderBy('donationDate', 'desc'),
+      collection(db, "donations"),
+      where("donorId", "==", id),
+      orderBy("donationDate", "desc"),
     ),
-  )
-  return snap.docs.map(donationRow)
+  );
+  return snap.docs.map(donationRow);
 }
 
 /**
@@ -327,20 +372,31 @@ export async function getDonorDonations(donorId) {
  * @param {{ limit?: number }} [options]
  * @returns {Promise<Array<{ id: string, changeType: string, unitsChanged: number, reason: string, userId: string, createdAt: Date|null }>>}
  */
-export async function getInventoryLogs(hospitalId, bloodType, { limit: take = 20, component = 'whole-blood' } = {}) {
-  requireDb()
-  const hid = text(hospitalId)
-  const bt = text(bloodType)
-  if (!hid || !bt) return []
+export async function getInventoryLogs(
+  hospitalId,
+  bloodType,
+  { limit: take = 20, component = "whole-blood" } = {},
+) {
+  requireDb();
+  const hid = text(hospitalId);
+  const bt = text(bloodType);
+  if (!hid || !bt) return [];
   const snap = await getDocs(
     query(
-      collection(db, 'hospitals', hid, 'inventory', component === 'unclassified' ? bt : inventoryKey(component, bt), 'logs'),
-      orderBy('createdAt', 'desc'),
+      collection(
+        db,
+        "hospitals",
+        hid,
+        "inventory",
+        component === "unclassified" ? bt : inventoryKey(component, bt),
+        "logs",
+      ),
+      orderBy("createdAt", "desc"),
       limit(take),
     ),
-  )
+  );
   return snap.docs.map((item) => {
-    const data = item.data() ?? {}
+    const data = item.data() ?? {};
     return {
       id: item.id,
       changeType: text(data.changeType),
@@ -348,8 +404,8 @@ export async function getInventoryLogs(hospitalId, bloodType, { limit: take = 20
       reason: text(data.reason),
       userId: text(data.userId),
       createdAt: asDate(data.createdAt),
-    }
-  })
+    };
+  });
 }
 
 /**
@@ -362,22 +418,19 @@ export async function getInventoryLogs(hospitalId, bloodType, { limit: take = 20
  * @returns {Promise<Map<string, { id: string, name: string, address: string } | null>>}
  */
 export async function readHospitals(ids) {
-  requireDb()
-  const unique = [...new Set(ids.filter((id) => typeof id === 'string' && id))]
+  requireDb();
+  const unique = [...new Set(ids.filter((id) => typeof id === "string" && id))];
   const rows = await Promise.all(
     unique.map(async (id) => {
       try {
-        const snap = await getDoc(doc(db, 'hospitals', id))
-        if (!snap.exists()) return [id, null]
-        const data = snap.data() ?? {}
-        return [
-          id,
-          { id, name: text(data.name), address: text(data.address) },
-        ]
+        const snap = await getDoc(doc(db, "hospitals", id));
+        if (!snap.exists()) return [id, null];
+        const data = snap.data() ?? {};
+        return [id, { id, name: text(data.name), address: text(data.address) }];
       } catch {
-        return [id, null]
+        return [id, null];
       }
     }),
-  )
-  return new Map(rows)
+  );
+  return new Map(rows);
 }

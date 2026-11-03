@@ -1,0 +1,105 @@
+# Hospital experience
+
+Owner-directed redesign of the hospital workspace, following the donor and
+administrator care direction (D67). Work is on `feat/hospital-experience`, based
+on integration `98ff79e`.
+
+## Design and interaction
+
+- Overview combines independently loaded active requests and complete selected-period
+  collections. Priority links, collection bars and workflow shortcuts lead to the
+  next action. Collection totals are explicitly distinct from current stock.
+  Failed sources are unavailable, never presented as zero.
+- Desktop navigation follows Overview → Requests → Inventory → History, then
+  facility/map/personal details. New request is a dedicated action. The mobile
+  dock exposes Overview, Requests, Inventory and More; all other destinations
+  remain available from More. The sidebar reserves two lines for the facility
+  label even while a page loads, keeps its viewport height consistent and reserves
+  scrollbar space. Shared route scroll resets run before paint with an immediate
+  scroll, avoiding the inherited smooth-scroll animation during navigation.
+- The request composer has native radio choices for blood group and urgency,
+  component/quantity inputs and a live pre-post summary. Invalid submission
+  focuses the first invalid choice. Posting failure retains entries. Facility
+  address remains read-only.
+- Inventory shows eight stock cards for the selected component with exact counts,
+  labeled numeric quantity bands, Issue, Adjust and movement history. D68 adds
+  0/1–4/5+ display colors and a chart/legend, without clinical stock thresholds.
+  Legacy unclassified units remain excluded from usable stock and explicitly labeled.
+- `?view=screening` opens the screening/donation tab directly from workflow links.
+  Match and complete donation-history reads start when this view opens, avoiding
+  those reads on a stock-only visit. Awaiting donor acceptance is distinguished
+  from awaiting screening. Selection
+  requires Accepted, completed guidelines and Cleared, matching the existing
+  server contract. New screenings require a deliberate result selection.
+  Confirmation opens a review of donor/component/units before the existing
+  sequential Worker operations. Partial failures remain reported per donation.
+- Stock, screening, movement-history and collection-review dialogs use the
+  existing native-dialog primitive: focus containment, Escape dismissal, return
+  to the trigger and dismissal disabled during mutations. `AdminDialog` gains
+  an optional eyebrow; its administrator default is preserved.
+- History keeps donation and movement views, filtering, ordering, pagination
+  and complete filtered/all exports. D69 replaces partial initial reads with
+  complete authorized reads before filtering/totals. Failures remain unavailable.
+- Facility details use a focused name/contact editor with validation, save/discard,
+  retained failed edits, and a separate administrator-managed address panel.
+  Saved values are reconciled locally after the successful write, avoiding a
+  delayed follow-up read replacing newer edits.
+- Personal profile is dedicated to staff identity, photo and account facts;
+  facility details and map have clear separate destinations. Personal details
+  remain read-only except the existing photo flow.
+- The map shows the actual saved pin, address, contact and coordinates with
+  administrator ownership stated. Missing location and tile failures remain visible.
+
+The app-owned CSS is scoped to the hospital workspace. Warm neutral surfaces,
+brand-red primary actions, red urgent indicators, amber attention/zero-stock and
+green ready/completed states use the existing theme tokens with text labels.
+Both themes share the composition; mobile controls retain 44-pixel targets and
+16-pixel form text. Shared base styles, data schema, rules and Worker are unchanged.
+The reused administrator inventory/history screens retain their table/picker
+behavior while receiving the clearer screening states and native dialogs.
+
+## Exports and existing boundaries
+
+CSV and Print / PDF remain on collections, requests, inventory, screening queue,
+stock movement history and donation history. Filtered and All table data retain
+D65's authorization and complete-pagination contracts. Switching the stock view
+changes only the filtered component; All table data still includes every
+component at the same facility. Movement-dialog exports keep the current
+component/group context. No new personal data fields are exported.
+
+Administrator-only location editing, removed partnership plans, existing route
+slugs, saved theme selection, help contact and existing service authorization
+remain in place. This task requires a frontend release after review. It adds no
+Worker deployment or Firestore rules/index requirement to the earlier D63 rollout.
+
+## Verification
+
+- Vite production build passes; compiled bundles contain the redesigned screens,
+  hospital-scoped styles, native dialog review and existing export controls.
+- All 133 account/audit/matching/inventory/export/analytics regression tests pass.
+- `node tools/check-docs.mjs` and whitespace checks pass.
+- Local sample preview uses isolated Firebase Auth/Firestore emulators and the
+  existing Worker harness; it contains fictional data and no production access.
+  The app is served at `http://127.0.0.1:5195/hospital/dashboard`.
+- **Current blocker:** the owner confirmed local browser access was enabled,
+  but the browser tool still reported it disabled after refreshing its session
+  and was subsequently removed from this session.
+  Desktop/phone visual review, both-theme inspection, native-dialog interaction,
+  save/reload and export UI verification of this redesign remain blocked on the
+  connection. Previous D63/D65 browser checks verify the baseline only. The
+  reported sidebar jitter is addressed in code by stable label/viewport/scrollbar
+  geometry and immediate pre-paint route scrolling; visual reproduction and
+  confirmation remain pending. The owner's answer is recorded, not re-requested.
+- Root `styles/`, `light/` and `dark/` mockups were not edited. Reference-image
+  rendering with `tools/screenshots.py` is pending browser access; no stale
+  mockup images are presented as this app's preview.
+- Production and physical-device verification remain outside the local build.
+  No production deploy was performed.
+
+## Analytics, filters and report follow-up
+
+D68–D70 add the requested stock amount colors, charts, day-click donation calendar,
+month/year/custom-date controls, KPI filter shortcuts, cross-role applied record
+filters and in-app print preview with Back. Donor map zoom controls and the shared
+Requests icon are included. Coverage, read-cost tradeoffs and current verification
+limits are in `docs/RECORD_FILTERS_AND_ANALYTICS.md`.

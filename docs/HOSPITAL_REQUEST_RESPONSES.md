@@ -1,6 +1,6 @@
 # Hospital request responses
 
-2026-11-03 · D67 · FR-016, FR-038, NFR-16
+2026-11-03 · D71 · FR-016, FR-038, NFR-16
 
 At `/hospital/requests`, click the blood/component identity or “View responses”
 within a request. The native dialog shows request context, matched donors,

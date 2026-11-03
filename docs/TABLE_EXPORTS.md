@@ -1,9 +1,10 @@
 # Cross-role table exports and public help — D65/D66
 
 The shared `TableExport` control offers Filtered results / All table data,
-Export CSV and Print / PDF. PDF opens an isolated print view and the browser's
-print dialog; choose Save as PDF to save a file. It uses no remote PDF service.
-A blocked popup gives a retryable message. Reports use explicit plain-value
+Export CSV and Print / PDF. D70 replaces the separate popup with an in-app
+native-dialog preview offering Back to table and Print / Save PDF; printing is
+explicit and uses the browser's Save as PDF option. It uses no remote PDF service.
+Closing the preview cancels pending preparation. Reports use explicit plain-value
 columns, not copied DOM cells, so IDs are complete and buttons/inputs are absent.
 
 Filtered means every matching record before display pagination. All removes
@@ -50,6 +51,12 @@ Receipt keys, claims, schema fields and security rules are unchanged. Existing
 pending-list loading also reads all confirmed donation IDs so older confirmed
 visits cannot reappear as pending merely because the display loaded 50 records.
 
+Current D68–D70 filters and preview controls are specified in
+`docs/RECORD_FILTERS_AND_ANALYTICS.md`. The coverage above includes the later
+search, status, component, group and date controls. Filtered exports apply those
+same predicates before pagination. History reads are complete rather than
+limited to the initially loaded screen. All data retains the same context.
+
 ## File and print behavior
 
 CSV uses a UTF-8 BOM, CRLF records and escaped quoted cells, preserving commas,
@@ -80,7 +87,7 @@ surfaces. Privacy and blocked-account links use the same mailbox constant. The
 current notice version is `2026-11-03`; historical acceptance records remain
 unchanged. No email is sent by this task.
 
-## Verification
+## Baseline verification (D65/D66)
 
 The feature is checked with production build, compiled-output inspection,
 traceability validation and all 123 regression tests. Five dedicated report tests cover

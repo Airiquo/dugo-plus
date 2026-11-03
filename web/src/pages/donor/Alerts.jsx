@@ -1,74 +1,104 @@
-import { SupportContact } from '../../components/SupportContact'
-import { TableExport } from '../../components/TableExport'
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../hooks/useAuth'
-import { useTheme } from '../../hooks/useTheme'
-import { useDonorRequests } from '../../hooks/useDonorRequests'
-import { DonorNav } from '../../layout/DonorNav'
-import { useTableSort } from '../../hooks/useTableSort'
-import { sortRows, sortDate } from '../../utils/sortRows'
-import { SortControls, Icon } from '../../components'
-import { listenDonorAlerts, markAlertsRead } from '../../services/alerts'
+import { RecordFilters } from "../../components/RecordFilters";
+import { filterRecords } from "../../utils/recordFilters";
+import { SupportContact } from "../../components/SupportContact";
+import { TableExport } from "../../components/TableExport";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { useTheme } from "../../hooks/useTheme";
+import { useDonorRequests } from "../../hooks/useDonorRequests";
+import { DonorNav } from "../../layout/DonorNav";
+import { useTableSort } from "../../hooks/useTableSort";
+import { sortRows, sortDate } from "../../utils/sortRows";
+import { SortControls, Icon } from "../../components";
+import { listenDonorAlerts, markAlertsRead } from "../../services/alerts";
 import {
   componentName,
   isActiveCommitment,
   isAvailableRequest,
-} from '../../utils/donorRequests'
-import { toDate } from '../../utils/eligibility'
+} from "../../utils/donorRequests";
+import { toDate } from "../../utils/eligibility";
 
 function alertTime(value) {
-  const date = toDate(value)
-  if (!date) return 'Just matched'
-  const days = Math.floor((Date.now() - date.getTime()) / 86400000)
+  const date = toDate(value);
+  if (!date) return "Just matched";
+  const days = Math.floor((Date.now() - date.getTime()) / 86400000);
   return days === 0
-    ? 'Today'
+    ? "Today"
     : days === 1
-      ? 'Yesterday'
-      : date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
+      ? "Yesterday"
+      : date.toLocaleDateString("en-PH", { month: "short", day: "numeric" });
 }
 /** Actionable donor inbox with request context, unread state, and request deep links. */
 export default function Alerts() {
-  const { sort, setSort } = useTableSort()
+  const { sort, setSort } = useTableSort();
   const { user } = useAuth(),
     { theme } = useTheme(),
-    navigate = useNavigate()
-  const feed = useDonorRequests(user?.uid)
-  const [state, setState] = useState({ status: 'loading', items: [] }),
-    [filter, setFilter] = useState('all'),
+    navigate = useNavigate();
+  const feed = useDonorRequests(user?.uid);
+  const [recordFilters, setRecordFilters] = useState({
+    search: "",
+    from: "",
+    to: "",
+    readStatus: "all",
+  });
+  const [state, setState] = useState({ status: "loading", items: [] }),
+    [filter, setFilter] = useState("all"),
     [attempt, setAttempt] = useState(0),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState('')
+    [error, setError] = useState("");
   useEffect(() => {
-    if (!user?.uid) return
-    setState({ status: 'loading', items: [] })
+    if (!user?.uid) return;
+    setState({ status: "loading", items: [] });
     return listenDonorAlerts(
       user.uid,
-      (items) => setState({ status: 'ready', items }),
-      () => setState((previous) => ({ ...previous, status: 'error' })),
-    )
-  }, [user?.uid, attempt])
+      (items) => setState({ status: "ready", items }),
+      () => setState((previous) => ({ ...previous, status: "error" })),
+    );
+  }, [user?.uid, attempt]);
   const unread = state.items.filter((item) => !item.readAt),
-    filteredAlerts = filter === 'unread' ? unread : state.items
-  const visible = sortRows(filteredAlerts, { date: row => sortDate(row.createdAt || row.sentAt), hospital: row => { const item = feed.items.find(item => item.request.id === row.requestId); return item?.hospital?.name || item?.request.hospitalName }, read: row => row.readAt ? 'Read' : 'Unread' }[sort.key], sort.direction)
-  const active = feed.items.find(isActiveCommitment)
+    filteredAlerts = filter === "unread" ? unread : state.items;
+  const visible = sortRows(
+    filterRecords(filteredAlerts, recordFilters, {
+      date: (row) => row.createdAt || row.sentAt,
+      search: (row) => {
+        const item = feed.items.find(
+          (item) => item.request.id === row.requestId,
+        );
+        return `${row.title || ""} ${row.message || ""} ${row.body || ""} ${item?.hospital?.name || item?.request.hospitalName || ""}`;
+      },
+      fields: { readStatus: (row) => (row.readAt ? "read" : "unread") },
+    }),
+    {
+      date: (row) => sortDate(row.createdAt || row.sentAt),
+      hospital: (row) => {
+        const item = feed.items.find(
+          (item) => item.request.id === row.requestId,
+        );
+        return item?.hospital?.name || item?.request.hospitalName;
+      },
+      read: (row) => (row.readAt ? "Read" : "Unread"),
+    }[sort.key],
+    sort.direction,
+  );
+  const active = feed.items.find(isActiveCommitment);
   const readAll = async () => {
-    setBusy(true)
-    setError('')
+    setBusy(true);
+    setError("");
     try {
       for (let i = 0; i < unread.length; i += 100)
-        await markAlertsRead(unread.slice(i, i + 100).map((item) => item.id))
+        await markAlertsRead(unread.slice(i, i + 100).map((item) => item.id));
     } catch (caught) {
-      setError(caught.message)
+      setError(caught.message);
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
-  }
+  };
   const open = async (alert, item) => {
-    if (!item) return
-    if (!alert.readAt) markAlertsRead([alert.id]).catch(() => {})
-    navigate(`/donor/requests?request=${encodeURIComponent(alert.requestId)}`)
-  }
+    if (!item) return;
+    if (!alert.readAt) markAlertsRead([alert.id]).catch(() => {});
+    navigate(`/donor/requests?request=${encodeURIComponent(alert.requestId)}`);
+  };
   return (
     <div className="pub donor-surface" data-theme={theme}>
       <DonorNav />
@@ -93,12 +123,67 @@ export default function Alerts() {
             className="donation-inbox-panel"
             aria-label="Donation updates"
           >
-            <SortControls name="donor-alerts" sort={sort} onChange={setSort} defaultLabel="Newest updates first" fields={[{key:"date",label:"Received date"},{key:"hospital",label:"Hospital"},{key:"read",label:"Read status"}]} />
-            <TableExport name="donor-alerts" title="Your donation updates" disabled={state.status !== 'ready'} columns={[
-              {label:'Alert ID',value:row=>row.id},{label:'Request ID',value:row=>row.requestId},
-              {label:'Hospital',value:row=>{const item=feed.items.find(item=>item.request.id===row.requestId);return item?.hospital?.name || item?.request.hospitalName || ''}},
-              {label:'Received',value:row=>row.createdAt || row.sentAt},{label:'Delivery',value:row=>row.deliveryStatus},{label:'Read',value:row=>Boolean(row.readAt)},{label:'Read at',value:row=>row.readAt},
-            ]} getRows={scope => scope === 'filtered' ? visible : state.items} />
+            <RecordFilters
+              name="donation updates"
+              onReset={() => setFilter("all")}
+              value={recordFilters}
+              onChange={(next) => {
+                setRecordFilters(next);
+                if (next.readStatus !== "all") setFilter("all");
+              }}
+              fields={[
+                {
+                  key: "readStatus",
+                  label: "Read status",
+                  options: [
+                    { value: "read", label: "Read" },
+                    { value: "unread", label: "Unread" },
+                  ],
+                },
+              ]}
+              disabled={state.status !== "ready"}
+            />
+            <SortControls
+              name="donor-alerts"
+              sort={sort}
+              onChange={setSort}
+              defaultLabel="Newest updates first"
+              fields={[
+                { key: "date", label: "Received date" },
+                { key: "hospital", label: "Hospital" },
+                { key: "read", label: "Read status" },
+              ]}
+            />
+            <TableExport
+              name="donor-alerts"
+              title="Your donation updates"
+              disabled={state.status !== "ready"}
+              columns={[
+                { label: "Alert ID", value: (row) => row.id },
+                { label: "Request ID", value: (row) => row.requestId },
+                {
+                  label: "Hospital",
+                  value: (row) => {
+                    const item = feed.items.find(
+                      (item) => item.request.id === row.requestId,
+                    );
+                    return (
+                      item?.hospital?.name || item?.request.hospitalName || ""
+                    );
+                  },
+                },
+                {
+                  label: "Received",
+                  value: (row) => row.createdAt || row.sentAt,
+                },
+                { label: "Delivery", value: (row) => row.deliveryStatus },
+                { label: "Read", value: (row) => Boolean(row.readAt) },
+                { label: "Read at", value: (row) => row.readAt },
+              ]}
+              getRows={(scope) =>
+                scope === "filtered" ? visible : state.items
+              }
+            />
             <div className="donation-list-heading">
               <div>
                 <p className="donation-eyebrow">Your inbox</p>
@@ -110,7 +195,7 @@ export default function Alerts() {
                 onClick={readAll}
                 disabled={busy || !unread.length}
               >
-                {busy ? 'Marking as read…' : 'Mark all as read'}
+                {busy ? "Marking as read…" : "Mark all as read"}
                 <Icon name="check" size={16} />
               </button>
             </div>
@@ -121,15 +206,27 @@ export default function Alerts() {
             >
               <button
                 type="button"
-                aria-pressed={filter === 'all'}
-                onClick={() => setFilter('all')}
+                aria-pressed={filter === "all"}
+                onClick={() => {
+                  setFilter("all");
+                  setRecordFilters((previous) => ({
+                    ...previous,
+                    readStatus: "all",
+                  }));
+                }}
               >
                 All updates<span>{state.items.length}</span>
               </button>
               <button
                 type="button"
-                aria-pressed={filter === 'unread'}
-                onClick={() => setFilter('unread')}
+                aria-pressed={filter === "unread"}
+                onClick={() => {
+                  setFilter("unread");
+                  setRecordFilters((previous) => ({
+                    ...previous,
+                    readStatus: "unread",
+                  }));
+                }}
               >
                 Unread<span>{unread.length}</span>
               </button>
@@ -139,13 +236,13 @@ export default function Alerts() {
                 {error}
               </p>
             )}
-            {(state.status === 'loading' || feed.status === 'loading') && (
+            {(state.status === "loading" || feed.status === "loading") && (
               <div className="donation-state" role="status">
                 <span className="donation-loading-mark" />
                 <p>Gathering your updates…</p>
               </div>
             )}
-            {(state.status === 'error' || feed.status === 'error') && (
+            {(state.status === "error" || feed.status === "error") && (
               <div className="donation-state" role="alert">
                 <Icon name="alert" size={28} />
                 <h3>Your updates couldn’t be loaded.</h3>
@@ -154,25 +251,25 @@ export default function Alerts() {
                   className="btn"
                   type="button"
                   onClick={() => {
-                    setAttempt((value) => value + 1)
-                    feed.retry()
+                    setAttempt((value) => value + 1);
+                    feed.retry();
                   }}
                 >
                   Try again
                 </button>
               </div>
             )}
-            {state.status === 'ready' &&
-              feed.status === 'ready' &&
+            {state.status === "ready" &&
+              feed.status === "ready" &&
               (visible.length ? (
                 <div className="donation-alert-list">
                   {visible.map((alert) => {
                     const item = feed.items.find(
                       (item) => item.request.id === alert.requestId,
-                    )
+                    );
                     const planned = item && isActiveCommitment(item),
                       available = item && isAvailableRequest(item),
-                      closed = item && !available && !planned
+                      closed = item && !available && !planned;
                     return (
                       <article
                         className="donation-alert"
@@ -182,7 +279,7 @@ export default function Alerts() {
                         <span className="donation-alert-icon">
                           <Icon
                             name={
-                              planned ? 'check' : closed ? 'file' : 'droplet'
+                              planned ? "check" : closed ? "file" : "droplet"
                             }
                             size={23}
                           />
@@ -191,10 +288,10 @@ export default function Alerts() {
                           <div className="donation-alert-top">
                             <p className="donation-eyebrow">
                               {planned
-                                ? 'Your donation'
+                                ? "Your donation"
                                 : closed
-                                  ? 'Request update'
-                                  : 'A new connection'}
+                                  ? "Request update"
+                                  : "A new connection"}
                             </p>
                             <span>{alertTime(alert.sentAt)}</span>
                             {!alert.readAt && (
@@ -206,31 +303,31 @@ export default function Alerts() {
                           </div>
                           <h3>
                             {planned
-                              ? 'Your next step is a visit.'
+                              ? "Your next step is a visit."
                               : closed
-                                ? 'An update on an earlier match.'
+                                ? "An update on an earlier match."
                                 : item
                                   ? `${item.hospital?.name || item.request.hospitalName} could use your help.`
-                                  : 'A hospital matched with you.'}
+                                  : "A hospital matched with you."}
                           </h3>
                           <p>
                             {item
-                              ? `${item.request.bloodType} · ${componentName(item.request.component)} · ${item.request.quantity} ${item.request.quantity === 1 ? 'unit' : 'units'} requested`
-                              : 'This request is no longer available. You can explore your other matches.'}
+                              ? `${item.request.bloodType} · ${componentName(item.request.component)} · ${item.request.quantity} ${item.request.quantity === 1 ? "unit" : "units"} requested`
+                              : "This request is no longer available. You can explore your other matches."}
                           </p>
                           <div className="donation-alert-bottom">
                             <span>
                               {planned
-                                ? 'Contact the hospital to arrange your visit'
+                                ? "Contact the hospital to arrange your visit"
                                 : closed
                                   ? item.donated
-                                    ? 'Donation completed'
-                                    : item.match.responseStatus === 'Declined'
-                                      ? 'You declined this request'
-                                      : 'This request has closed'
+                                    ? "Donation completed"
+                                    : item.match.responseStatus === "Declined"
+                                      ? "You declined this request"
+                                      : "This request has closed"
                                   : active
-                                    ? 'Browse now · one donation at a time'
-                                    : 'A match is an invitation. The choice is yours.'}
+                                    ? "Browse now · one donation at a time"
+                                    : "A match is an invitation. The choice is yours."}
                             </span>
                             {item && (
                               <button
@@ -238,31 +335,31 @@ export default function Alerts() {
                                 type="button"
                                 onClick={() => open(alert, item)}
                               >
-                                {planned ? 'View my donation' : 'View request'}
+                                {planned ? "View my donation" : "View request"}
                                 <Icon name="arrow-right" />
                               </button>
                             )}
                           </div>
                         </div>
                       </article>
-                    )
+                    );
                   })}
                 </div>
               ) : (
                 <div className="donation-state donation-empty">
                   <Icon
-                    name={filter === 'unread' ? 'check' : 'bell'}
+                    name={filter === "unread" ? "check" : "bell"}
                     size={32}
                   />
                   <h3>
-                    {filter === 'unread'
-                      ? 'All caught up.'
-                      : 'Your next connection is on its way.'}
+                    {filter === "unread"
+                      ? "All caught up."
+                      : "Your next connection is on its way."}
                   </h3>
                   <p>
-                    {filter === 'unread'
-                      ? 'You’ve seen all your updates. We’ll keep new matches here.'
-                      : 'When a request matches your blood type, you’ll find it here.'}
+                    {filter === "unread"
+                      ? "You’ve seen all your updates. We’ll keep new matches here."
+                      : "When a request matches your blood type, you’ll find it here."}
                   </p>
                   <Link className="btn" to="/donor/requests">
                     Explore requests
@@ -276,22 +373,22 @@ export default function Alerts() {
               <Icon name="shield" size={26} />
               <h3>
                 {active
-                  ? 'One donation. Your full attention.'
-                  : 'You’re always in control.'}
+                  ? "One donation. Your full attention."
+                  : "You’re always in control."}
               </h3>
               <p>
                 {active
                   ? `You have a donation planned at ${active.hospital?.name || active.request.hospitalName}. Your other matches will be here when you’re ready.`
-                  : 'A notification is an invitation, never an obligation. Review the request, ask questions, and decide what works for you.'}
+                  : "A notification is an invitation, never an obligation. Review the request, ask questions, and decide what works for you."}
               </p>
               <Link
                 to={
                   active
                     ? `/donor/requests?request=${active.request.id}`
-                    : '/donor/requests'
+                    : "/donor/requests"
                 }
               >
-                {active ? 'View my donation' : 'Find a request'}
+                {active ? "View my donation" : "Find a request"}
                 <Icon name="arrow-right" size={16} />
               </Link>
             </section>
@@ -307,5 +404,5 @@ export default function Alerts() {
         <SupportContact />
       </main>
     </div>
-  )
+  );
 }

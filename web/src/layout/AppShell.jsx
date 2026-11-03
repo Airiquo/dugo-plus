@@ -10,7 +10,7 @@ export const NAV = [
     slug: "blood-requests",
     screen: "admin-blood-requests",
     label: "Blood Requests",
-    icon: "list",
+    icon: "request",
     badge: { id: "nav-urgent-count", status: "urgent", text: "3" },
   },
   {

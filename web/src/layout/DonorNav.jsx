@@ -12,7 +12,7 @@ import { listenDonorAlerts } from "../services/alerts";
 
 export const DONOR_NAV = [
   { to: "/home", label: "My profile", icon: "user" },
-  { to: "/donor/requests", label: "Requests", icon: "droplet" },
+  { to: "/donor/requests", label: "Requests", icon: "request" },
   { to: "/donor/activity", label: "Activity", icon: "chart" },
   { to: "/donor/alerts", label: "Alerts", icon: "bell" },
   { to: "/donor/privacy", label: "Privacy", icon: "settings" },

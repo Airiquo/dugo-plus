@@ -1,4 +1,4 @@
-import { SupportContact } from '../components/SupportContact'
+import { SupportContact } from "../components/SupportContact";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -77,20 +77,29 @@ export function RoleShell({
           }))
       : [
           {
-            to: "/hospital/requests",
-            label: "Requests",
-            icon: "list",
+            to: "/hospital/dashboard",
+            label: "Overview",
+            icon: "grid",
             exact: true,
           },
           {
-            to: "/hospital/requests/new",
-            label: "New request",
-            icon: "plus",
+            to: "/hospital/requests",
+            label: "Requests",
+            icon: "request",
+            exact: false,
+          },
+          {
+            to: "/hospital/inventory",
+            label: "Inventory",
+            icon: "box",
             exact: true,
           },
-          { to: profileTo, label: "My profile", icon: "user", exact: true },
         ];
-  const moreActive = !primary.some((item) => item.to === pathname);
+  const moreActive = !primary.some(
+    (item) =>
+      pathname === item.to ||
+      (!item.exact && pathname.startsWith(`${item.to}/`)),
+  );
   const themeButton = (
     <button
       className="theme-toggle"
@@ -118,13 +127,30 @@ export function RoleShell({
             <span className="app-mark" aria-hidden="true" />
             dugo<span className="plus">+</span>
           </Link>
-          {(facility || area === "admin") && (
-            <span id="sidebar-logo-facility" className="pill">
-              {facility || "Account management"}
+          {(facility || area === "admin" || area === "hospital") && (
+            <span
+              id="sidebar-logo-facility"
+              className="pill"
+              title={facility || undefined}
+            >
+              {facility ||
+                (area === "hospital"
+                  ? "Hospital workspace"
+                  : "Account management")}
             </span>
           )}
         </div>
         <div id="sidebar-section-label">{roleLabel(role)}</div>
+        {area === "hospital" && (
+          <Link
+            to="/hospital/requests/new"
+            className="btn hw-sidebar-create"
+            data-primary="true"
+          >
+            <Icon name="plus" size={17} />
+            New request
+          </Link>
+        )}
         <WorkspaceNav
           id="sidebar-nav"
           items={items}
@@ -206,7 +232,9 @@ export function RoleShell({
             : "Hospital mobile navigation"
         }
       >
-        {mobileItems.some(item => !primary.some(link => link.to === item.to)) && (
+        {mobileItems.some(
+          (item) => !primary.some((link) => link.to === item.to),
+        ) && (
           <button
             type="button"
             data-active={moreActive ? "true" : "false"}

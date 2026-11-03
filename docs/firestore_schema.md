@@ -303,7 +303,7 @@ D63 adds optional `donorBloodType` (string) as a matcher snapshot for staff disp
 | acknowledgedAt | Timestamp | O | Set when guidelinesAcknowledged becomes true |
 | matchedAt | Timestamp | R | |
 
-D67: `GET /hospital/request-responses` reads the request, matches, current
+D71: `GET /hospital/request-responses` reads the request, matches, current
 match-specific Data Sharing consents and donor profiles in one server transaction.
 Active staff claims/profile must agree on the request’s hospital; the facility must
 be active. Accepted matches with unrevoked consent return only name, email, phone,
@@ -352,6 +352,13 @@ Relationship in ERD is **1 → 1..many**: every donation type should have at lea
 | sentAt | Timestamp | O | Null until sent. **Write it as an explicit `null` at create**: the donor inbox (§4) orders by `sentAt`, and Firestore omits documents that lack the orderBy field. |
 
 ### 2.9 `donations/{matchId}`
+
+D68/D69 reporting reads keep the hospital equality scope and date-descending
+cursor order. `getHospitalDonations` accepts optional `since` (inclusive) and
+`until` (exclusive) date bounds; an inclusive PHT end day is the next PHT midnight
+passed as `until`. No new stored fields or composite index are introduced. Admin
+account-directory reads expose the existing `users.createdAt` as a Date for
+creation-date filtering (D69).
 
 Doc ID = the `donorMatches` doc ID. One donation per match (ERD 1:1).
 

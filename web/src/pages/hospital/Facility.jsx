@@ -1,300 +1,269 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useAuth } from '../../hooks/useAuth'
-import { readHospital, saveHospital } from '../../services/hospitals'
-import { validateHospital } from '../../utils/validate'
-import { phDisplay, phE164, phNational } from '../../utils/phone'
-import { HospitalShell } from '../../layout/HospitalShell'
-import { Badge, Btn, Card, Field, FieldError, Icon, Input, PageHeader } from '../../components'
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { readHospital, saveHospital } from "../../services/hospitals";
+import { validateHospital } from "../../utils/validate";
+import { phDisplay, phE164, phNational } from "../../utils/phone";
+import { HospitalShell } from "../../layout/HospitalShell";
+import {
+  Btn,
+  Field,
+  FieldError,
+  HospitalNotice,
+  HospitalPageHeader,
+  Icon,
+  Input,
+} from "../../components";
 
-const EMPTY = { name: '', contactNumber: '' }
+const formFrom = (hospital) => ({
+  name: hospital?.name || "",
+  contactNumber: phNational(hospital?.contactNumber),
+});
 
-/** The form's state shape, from a facility read. */
-function formFrom(hospital) {
-  return {
-    name: hospital?.name ?? '',
-    contactNumber: phNational(hospital?.contactNumber),
-  }
-}
-
-/** The status tone for a facility badge. */
-function statusTone(status) {
-  if (status === 'Active') return 'active'
-  if (status === 'Suspended') return 'warning'
-  return 'inactive'
-}
-
-/**
- * Hospital facility details — `/hospital/facility` (FR-013).
- *
- * Edits the facility's name and contact number on
- * `hospitals/{hospitalId}` (schema §2.3). Address and coordinates are managed by administrators. The saved pin is on the Hospital Map
- * (`/hospital/map`). Status is shown read-only: suspension is an administrator
- * action. The account's link to the facility comes from `users/{uid}.hospitalId`.
- */
+/** Facility contact editor and the administrator-managed location, kept separate from staff identity. */
 export default function Facility() {
-  const { profile } = useAuth()
-  const hospitalId = profile?.hospitalId ?? ''
-
-  const [source, setSource] = useState(null)
-  const [form, setForm] = useState(EMPTY)
-  const [saved, setSaved] = useState(EMPTY)
-  const [loading, setLoading] = useState(true)
-  const [loadFailed, setLoadFailed] = useState(false)
-  const [errors, setErrors] = useState({})
-  const [message, setMessage] = useState('')
-  const [note, setNote] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [reloadKey, setReloadKey] = useState(0)
-
+  const { profile } = useAuth();
+  const hospitalId = profile?.hospitalId || "";
+  const formRef = useRef(null);
+  const [source, setSource] = useState(null);
+  const [form, setForm] = useState(formFrom(null));
+  const [saved, setSaved] = useState(formFrom(null));
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [errors, setErrors] = useState({});
+  const [message, setMessage] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (!hospitalId) {
-      setLoading(false)
-      return undefined
+      setLoading(false);
+      return;
     }
-    let current = true
-    setLoading(true)
-    setLoadFailed(false)
+    let active = true;
+    setLoading(true);
+    setFailed(false);
     readHospital(hospitalId)
       .then((found) => {
-        if (!current) return
-        const next = formFrom(found)
-        setSource(found)
-        setForm(next)
-        setSaved(next)
+        if (!active) return;
+        if (!found) throw new Error("Missing facility");
+        setSource(found);
+        setForm(formFrom(found));
+        setSaved(formFrom(found));
       })
       .catch(() => {
-        if (current) setLoadFailed(true)
+        if (active) setFailed(true);
       })
       .finally(() => {
-        if (current) setLoading(false)
-      })
+        if (active) setLoading(false);
+      });
     return () => {
-      current = false
-    }
-  }, [hospitalId, reloadKey])
-
-  const dirty = useMemo(() => JSON.stringify(form) !== JSON.stringify(saved), [form, saved])
-
-  const set = (key) => (event) => {
-    const value = key === 'contactNumber' ? phNational(event.target.value) : event.target.value
-    setForm((prev) => ({ ...prev, [key]: value }))
-    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: '' }))
-    setMessage('')
-    setNote('')
+      active = false;
+    };
+  }, [hospitalId, attempt]);
+  const dirty = JSON.stringify(form) !== JSON.stringify(saved);
+  const locked = loading || failed || busy || !source;
+  function set(key, value) {
+    setForm((prev) => ({
+      ...prev,
+      [key]: key === "contactNumber" ? phNational(value) : value,
+    }));
+    setErrors((prev) => ({ ...prev, [key]: "" }));
+    setMessage("");
+    setNote("");
   }
-
-  const submit = async (event) => {
-    event.preventDefault()
-    if (!source || loadFailed || busy) return
-    const found = validateHospital(form)
-    setErrors(found)
-    setMessage('')
-    setNote('')
-    if (Object.keys(found).length) return
-
-    setBusy(true)
+  function discard() {
+    setForm({ ...saved });
+    setErrors({});
+    setMessage("");
+    setNote("");
+  }
+  async function submit(event) {
+    event.preventDefault();
+    if (locked || !dirty) return;
+    const found = validateHospital(form);
+    setErrors(found);
+    setMessage("");
+    setNote("");
+    const first = Object.keys(found)[0];
+    if (first) {
+      formRef.current?.querySelector(`[name="${first}"]`)?.focus();
+      return;
+    }
+    setBusy(true);
+    const next = {
+      name: form.name.trim(),
+      contactNumber: phE164(form.contactNumber),
+    };
     try {
-      const changes = {
-        name: form.name.trim(),
-        contactNumber: phE164(form.contactNumber),
-      }
-      await saveHospital(hospitalId, changes)
-      setSaved(form)
-      setNote('Facility profile saved.')
-      // Refresh the read-only facts (status, geohash) after the write. A stale
-      // dashboard is preferable to reporting a save as failed.
-      readHospital(hospitalId)
-        .then((fresh) => {
-          if (!fresh) return
-          setSource(fresh)
-          setForm(formFrom(fresh))
-          setSaved(formFrom(fresh))
-        })
-        .catch(() => {})
+      await saveHospital(hospitalId, next);
+      const normalized = formFrom(next);
+      setSource((prev) => ({ ...prev, ...next }));
+      setSaved(normalized);
+      setForm(normalized);
+      setNote("Facility details saved.");
     } catch {
-      setMessage('Your facility profile could not be saved. Check your connection and try again.')
+      setMessage(
+        "Your changes couldn’t be saved. Your edits are still here; check your connection and try again.",
+      );
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
-
-  const reset = () => {
-    setForm(saved)
-    setErrors({})
-    setMessage('')
-    setNote('')
-  }
-
   return (
     <HospitalShell facility={source?.name}>
-      <PageHeader tag="Dugo+ hospital" title="Facility details" />
-      <div id="page-body">
-        <div className="hospital-profile">
-          <Card as="form" noValidate onSubmit={submit} aria-busy={busy || loading}>
-            <header>
-              <h2>Facility details</h2>
-              <p className="muted">
-                These details identify your blood bank to donors and appear on its requests.
-              </p>
-            </header>
-
-            {loading && <p className="hospital-state">Loading your facility…</p>}
-
-            {!loading && !hospitalId && (
-              <p className="hospital-state" data-kind="warn" role="status">
-                This account is not linked to a facility yet. Ask an administrator to set your
-                hospital, then reload.
-              </p>
-            )}
-
-            {!loading && hospitalId && loadFailed && (
-              <div role="alert">
-                <p className="hospital-state" data-kind="error">
-                  Your facility could not be loaded, so saving now would overwrite it with what is
-                  on screen. Check your connection and try again.
+      <HospitalPageHeader
+        title="Facility details"
+        eyebrow="Facility / Public details"
+        description="Keep the details donors see clear, current, and easy to reach."
+      />
+      {!hospitalId && (
+        <HospitalNotice tone="attention" title="No facility linked">
+          Ask your administrator to link this account to your hospital.
+        </HospitalNotice>
+      )}
+      {loading && hospitalId && (
+        <p className="hw-loading" role="status">
+          Loading facility details…
+        </p>
+      )}
+      {failed && (
+        <HospitalNotice tone="error" title="Facility details couldn’t load">
+          <p>Editing is paused until your saved details are available.</p>
+          <Btn onClick={() => setAttempt((n) => n + 1)}>Try again</Btn>
+        </HospitalNotice>
+      )}
+      {source && !failed && !loading && (
+        <div className="hw-settings-grid">
+          <form
+            className="card hw-facility-editor"
+            ref={formRef}
+            noValidate
+            onSubmit={submit}
+            aria-busy={busy}
+          >
+            <div className="hw-panel-heading">
+              <div>
+                <p className="hw-eyebrow">The details behind the connection</p>
+                <h2>Facility identity & contact</h2>
+                <p className="hw-panel-description">
+                  These details appear on your facility and its requests.
                 </p>
-                <Btn onClick={() => setReloadKey((key) => key + 1)}>Try again</Btn>
               </div>
-            )}
-
-            {!loading && hospitalId && !loadFailed && !source && (
-              <p className="hospital-state" data-kind="warn" role="status">
-                No facility record was found for this account. Ask an administrator to check the
-                link.
+              <Icon name="grid" size={24} />
+            </div>
+            <fieldset disabled={locked} className="hw-settings-fields">
+              <Field label="Facility name">
+                <Input
+                  name="name"
+                  autoComplete="organization"
+                  value={form.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  aria-invalid={Boolean(errors.name) || undefined}
+                  aria-describedby={
+                    errors.name ? "facility-name-error" : undefined
+                  }
+                />
+                <FieldError id="facility-name-error">{errors.name}</FieldError>
+              </Field>
+              <Field label="Contact number">
+                <Input
+                  name="contactNumber"
+                  type="tel"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  maxLength={20}
+                  value={`+63 ${phDisplay(form.contactNumber)}`}
+                  onChange={(e) => set("contactNumber", e.target.value)}
+                  aria-invalid={Boolean(errors.contactNumber) || undefined}
+                  aria-describedby={
+                    errors.contactNumber
+                      ? "facility-contact-error"
+                      : "facility-phone-help"
+                  }
+                />
+                <FieldError id="facility-contact-error">
+                  {errors.contactNumber}
+                </FieldError>
+                <small id="facility-phone-help" className="hw-field-help">
+                  Use a number donors can reach for collection questions.
+                </small>
+              </Field>
+            </fieldset>
+            {message && <HospitalNotice tone="error">{message}</HospitalNotice>}
+            {note && <HospitalNotice tone="success">{note}</HospitalNotice>}
+            <div className="hw-savebar">
+              <span aria-live="polite">
+                {dirty ? "You have unsaved changes" : "All changes saved"}
+              </span>
+              <div>
+                <Btn onClick={discard} disabled={locked || !dirty}>
+                  Discard
+                </Btn>
+                <Btn
+                  variant="primary"
+                  type="submit"
+                  disabled={locked || !dirty}
+                >
+                  {busy ? "Saving…" : "Save changes"}
+                </Btn>
+              </div>
+            </div>
+          </form>
+          <aside className="hw-settings-aside">
+            <section className="card hw-location-card">
+              <p className="hw-eyebrow">A place to connect</p>
+              <div className="hw-panel-heading">
+                <h2>Facility location</h2>
+                <span className="hw-lock-label">
+                  <Icon name="lock" size={13} />
+                  Admin managed
+                </span>
+              </div>
+              <div className="hw-address">
+                <Icon name="pin" size={22} />
+                <p>{source.address || "No address recorded"}</p>
+              </div>
+              <p className="hw-panel-description">
+                Your saved pin is used for nearby donor matching. Ask your
+                administrator to correct the address or location.
               </p>
-            )}
-
-            {source && (
-              <>
-                <section className="hospital-profile-section">
-                  <h3 className="hospital-profile-h">Identity</h3>
-                  <Field label="Facility name">
-                    <Input
-                      autoComplete="organization"
-                      type="text"
-                      value={form.name}
-                      disabled={busy}
-                      aria-invalid={Boolean(errors.name) || undefined}
-                      aria-describedby={errors.name ? 'hospital-name-error' : undefined}
-                      onChange={set('name')}
-                    />
-                    <FieldError id="hospital-name-error">{errors.name}</FieldError>
-                  </Field>
-
-                  <Field label="Address">
-                    <Input
-                      autoComplete="street-address"
-                      type="text"
-                      value={source.address || ''}
-                      disabled={busy}
-                      aria-invalid={Boolean(errors.address) || undefined}
-                      aria-describedby={errors.address ? 'hospital-address-error' : undefined}
-                      readOnly
-                    />
-                    <FieldError id="hospital-address-error">{errors.address}</FieldError>
-                  </Field>
-
-                  <Field label="Contact number">
-                    <Input
-                      autoComplete="tel"
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={16}
-                      value={`+63 ${phDisplay(form.contactNumber)}`}
-                      disabled={busy}
-                      aria-invalid={Boolean(errors.contactNumber) || undefined}
-                      aria-describedby={
-                        errors.contactNumber ? 'hospital-contact-error' : undefined
-                      }
-                      onChange={set('contactNumber')}
-                    />
-                    <FieldError id="hospital-contact-error">{errors.contactNumber}</FieldError>
-                  </Field>
-                </section>
-
-                <section className="hospital-profile-section">
-                  <div className="hospital-profile-head">
-                    <h3 className="hospital-profile-h">Location</h3>
-                    <p className="hospital-note">
-                      An administrator manages the address and location used for nearby donor matching.
-                    </p>
-                  </div>
-                  <Link
-                    className="hospital-map-preview"
-                    to="/hospital/map"
-                    aria-label="Open the hospital map"
-                  >
-                    <span className="hospital-map-preview-art" aria-hidden="true">
-                      <span className="hospital-map-preview-pin" />
+              <Link to="/hospital/map" className="btn hw-map-link">
+                <Icon name="map" />
+                View hospital map
+                <Icon name="arrow-right" />
+              </Link>
+            </section>
+            <section className="hw-help-panel">
+              <Icon name="shield" size={24} />
+              <h3>Facility record</h3>
+              <dl className="hw-facts">
+                <div>
+                  <dt>Status</dt>
+                  <dd>
+                    <span
+                      className="hw-record-status"
+                      data-active={source.status === "Active"}
+                    >
+                      {source.status || "Not recorded"}
                     </span>
-                    <span className="hospital-map-preview-overlay">
-                      <span className="hospital-map-preview-copy">
-                        <strong>Open hospital map</strong>
-                        <small>View the saved facility pin</small>
-                      </span>
-                      <span className="hospital-map-preview-go">
-                        <Icon name="arrow-right" />
-                      </span>
-                    </span>
-                  </Link>
-                </section>
-
-                <section className="hospital-profile-section">
-                  <h3 className="hospital-profile-h">Record</h3>
-                  <dl className="hospital-facts">
-                    <div>
-                      <dt>Status</dt>
-                      <dd>
-                        <Badge data-status={statusTone(source.status)}>
-                          {source.status || 'Unknown'}
-                        </Badge>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Facility ID</dt>
-                      <dd>
-                        <code>{source.id}</code>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>Geohash</dt>
-                      <dd>{source.geohash || '—'}</dd>
-                    </div>
-                  </dl>
-                </section>
-
-                {message && (
-                  <p className="hospital-state" data-kind="error" role="alert">
-                    {message}
-                  </p>
-                )}
-                {note && (
-                  <p className="hospital-state" role="status">
-                    {note}
-                  </p>
-                )}
-
-                <div className="hospital-form-actions">
-                  <Btn
-                    variant="primary"
-                    type="submit"
-                    disabled={busy || loading || loadFailed || !dirty}
-                  >
-                    {busy ? 'Saving…' : 'Save changes'}
-                  </Btn>
-                  <Btn onClick={reset} disabled={busy || loading || loadFailed || !dirty}>
-                    Discard
-                  </Btn>
-                  <span className="muted" aria-live="polite">
-                    {dirty ? 'Unsaved changes' : 'No changes to save'}
-                  </span>
+                  </dd>
                 </div>
-              </>
-            )}
-          </Card>
+                <div>
+                  <dt>Facility reference</dt>
+                  <dd>
+                    <code>{source.id}</code>
+                  </dd>
+                </div>
+              </dl>
+              <p>
+                Account access and location are managed by your Dugo+
+                administrator.
+              </p>
+            </section>
+          </aside>
         </div>
-      </div>
+      )}
     </HospitalShell>
-  )
+  );
 }
