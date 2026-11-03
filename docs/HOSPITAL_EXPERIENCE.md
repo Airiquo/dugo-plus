@@ -13,7 +13,10 @@ on integration `98ff79e`.
 - Desktop navigation follows Overview → Requests → Inventory → History, then
   facility/map/personal details. New request is a dedicated action. The mobile
   dock exposes Overview, Requests, Inventory and More; all other destinations
-  remain available from More.
+  remain available from More. The sidebar reserves two lines for the facility
+  label even while a page loads, keeps its viewport height consistent and reserves
+  scrollbar space. Shared route scroll resets run before paint with an immediate
+  scroll, avoiding the inherited smooth-scroll animation during navigation.
 - The request composer has native radio choices for blood group and urgency,
   component/quantity inputs and a live pre-post summary. Invalid submission
   focuses the first invalid choice. Posting failure retains entries. Facility
@@ -79,12 +82,14 @@ Worker deployment or Firestore rules/index requirement to the earlier D63 rollou
 - Local sample preview uses isolated Firebase Auth/Firestore emulators and the
   existing Worker harness; it contains fictional data and no production access.
   The app is served at `http://127.0.0.1:5195/hospital/dashboard`.
-- **Current blocker:** local browser access became disabled in Work settings
-  during implementation. Desktop/phone visual review, both-theme inspection,
-  native-dialog interaction, save/reload and export UI verification of this
-  redesign are pending browser access. Previous D63/D65 browser checks verify
-  the baseline only and do not verify this redesign. The request to enable
-  browser access is pending; no answer or visual result is assumed.
+- **Current blocker:** the owner confirmed local browser access was enabled,
+  but the browser tool still reports it disabled after refreshing its session.
+  Desktop/phone visual review, both-theme inspection, native-dialog interaction,
+  save/reload and export UI verification of this redesign remain blocked on the
+  connection. Previous D63/D65 browser checks verify the baseline only. The
+  reported sidebar jitter is addressed in code by stable label/viewport/scrollbar
+  geometry and immediate pre-paint route scrolling; visual reproduction and
+  confirmation remain pending. The owner's answer is recorded, not re-requested.
 - Root `styles/`, `light/` and `dark/` mockups were not edited. Reference-image
   rendering with `tools/screenshots.py` is pending browser access; no stale
   mockup images are presented as this app's preview.

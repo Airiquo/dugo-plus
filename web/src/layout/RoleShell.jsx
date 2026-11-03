@@ -127,9 +127,16 @@ export function RoleShell({
             <span className="app-mark" aria-hidden="true" />
             dugo<span className="plus">+</span>
           </Link>
-          {(facility || area === "admin") && (
-            <span id="sidebar-logo-facility" className="pill">
-              {facility || "Account management"}
+          {(facility || area === "admin" || area === "hospital") && (
+            <span
+              id="sidebar-logo-facility"
+              className="pill"
+              title={facility || undefined}
+            >
+              {facility ||
+                (area === "hospital"
+                  ? "Hospital workspace"
+                  : "Account management")}
             </span>
           )}
         </div>
