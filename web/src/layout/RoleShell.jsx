@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Icon,
   NavigationSheet,
-  ProfileAvatar,
+  AccountIdentity,
   WorkspaceNav,
 } from "../components";
 import { useTheme } from "../hooks/useTheme";
@@ -130,27 +130,21 @@ export function RoleShell({
           {(facility || area === "admin" || area === "hospital") && (
             <span
               id="sidebar-logo-facility"
-              className="pill"
+              className="workspace-facility-name"
               title={facility || undefined}
             >
-              {facility ||
-                (area === "hospital"
-                  ? "Hospital workspace"
-                  : "Account management")}
+              {area === "hospital"
+                ? facility || (
+                    <span
+                      className="workspace-name-loading"
+                      aria-label="Loading hospital name"
+                    />
+                  )
+                : "Administration"}
             </span>
           )}
         </div>
         <div id="sidebar-section-label">{roleLabel(role)}</div>
-        {area === "hospital" && (
-          <Link
-            to="/hospital/requests/new"
-            className="btn hw-sidebar-create"
-            data-primary="true"
-          >
-            <Icon name="plus" size={17} />
-            New request
-          </Link>
-        )}
         <WorkspaceNav
           id="sidebar-nav"
           items={items}
@@ -167,8 +161,11 @@ export function RoleShell({
             to={profileTo}
             aria-label={`Your profile, ${name}`}
           >
-            <ProfileAvatar src={profile?.photoURL} name={name} />
-            <span>Signed in as {name}</span>
+            <AccountIdentity
+              photoURL={profile?.photoURL}
+              name={name}
+              role={area === "hospital" ? "Hospital staff" : "Administrator"}
+            />
           </Link>
           <div className="role-session-actions">
             {themeButton}
@@ -189,7 +186,14 @@ export function RoleShell({
           <span>
             dugo<b>+</b>
             <small>
-              {area === "admin" ? "Admin workspace" : "Hospital workspace"}
+              {area === "admin"
+                ? "Administration"
+                : facility || (
+                    <span
+                      className="workspace-name-loading"
+                      aria-label="Loading hospital name"
+                    />
+                  )}
             </small>
           </span>
         </Link>
@@ -200,7 +204,11 @@ export function RoleShell({
             to={profileTo}
             aria-label={`Your profile, ${name}`}
           >
-            <ProfileAvatar src={profile?.photoURL} name={name} />
+            <AccountIdentity
+              photoURL={profile?.photoURL}
+              name={name}
+              role={area === "hospital" ? "Hospital staff" : "Administrator"}
+            />
           </Link>
           <button
             type="button"
@@ -221,7 +229,7 @@ export function RoleShell({
           </p>
         )}
         {children}
-        <SupportContact />
+        <SupportContact as="footer" />
       </main>
       <WorkspaceNav
         className="staff-bottom-nav"

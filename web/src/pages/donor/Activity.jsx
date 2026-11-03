@@ -1,4 +1,4 @@
-import { RecordFilters } from "../../components/RecordFilters";
+import { DonorFilterBar } from "../../components/DonorFilterBar";
 import { filterRecords } from "../../utils/recordFilters";
 import { DONATION_TYPE_OPTIONS } from "../../utils/recordOptions";
 import { SupportContact } from "../../components/SupportContact";
@@ -10,9 +10,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { listDonorDonations } from "../../services/donations";
 import { readHospitals } from "../../services/hospitals";
 import { eligibilityFor, toDate } from "../../utils/eligibility";
-import { useTableSort } from "../../hooks/useTableSort";
 import { sortRows, sortDate } from "../../utils/sortRows";
-import { SortControls, BloodlineMark, Icon } from "../../components";
+import { Icon } from "../../components";
 import { DonorNav } from "../../layout/DonorNav";
 
 const dateLabel = (value) => {
@@ -28,18 +27,28 @@ const dateLabel = (value) => {
 
 /** Donation history, expandable visit details, and the donor's next step. */
 export default function Activity() {
-  const { sort, setSort } = useTableSort();
-  const [recordFilters, setRecordFilters] = useState({
+  const [order, setOrder] = useState("newest");
+  const [filters, setFilters] = useState({
     search: "",
     from: "",
     to: "",
     hospitalId: "all",
+    donationTypeId: "all",
   });
   const { theme } = useTheme(),
     { user, profile } = useAuth();
-  const [attempt, setAttempt] = useState(0),
-    [search, setSearch] = useState(""),
-    [type, setType] = useState("all");
+  const [attempt, setAttempt] = useState(0);
+  const clearFilters = () =>
+    setFilters({
+      search: "",
+      from: "",
+      to: "",
+      hospitalId: "all",
+      donationTypeId: "all",
+    });
+  const hasFilters = Object.values(filters).some(
+    (value) => value && value !== "all",
+  );
   const [state, setState] = useState({
     status: "loading",
     donations: [],
@@ -77,29 +86,24 @@ export default function Activity() {
       }),
     [profile?.dateOfBirth, profile?.lastDonationAt, latest],
   );
-  const filteredVisits = filterRecords(state.donations, recordFilters, {
+  const filteredVisits = filterRecords(state.donations, filters, {
     date: (row) => row.donationDate,
-  }).filter(
-    (donation) =>
-      (type === "all" || donation.donationTypeId === type) &&
-      `${donation.donationTypeName} ${state.hospitals.get(donation.hospitalId)?.name || ""}`
-        .toLowerCase()
-        .includes(search.trim().toLowerCase()),
-  );
+    search: (row) =>
+      `${row.donationTypeName || row.donationTypeId} ${state.hospitals.get(row.hospitalId)?.name || ""} ${row.bloodType || ""}`,
+  });
   const visible = sortRows(
     filteredVisits,
     {
-      date: (row) => sortDate(row.donationDate),
+      newest: (row) => sortDate(row.donationDate),
+      oldest: (row) => sortDate(row.donationDate),
       hospital: (row) => state.hospitals.get(row.hospitalId)?.name,
-      component: (row) => row.donationTypeName,
-      units: (row) => Number(row.units),
-    }[sort.key],
-    sort.direction,
+    }[order],
+    order === "newest" ? "desc" : "asc",
   );
   const years = new Map();
   for (const donation of visible) {
     const year =
-      sort.key && sort.key !== "date"
+      order === "hospital"
         ? "All donations"
         : toDate(donation.donationDate)?.getFullYear() || "Earlier visits";
     if (!years.has(year)) years.set(year, []);
@@ -121,36 +125,16 @@ export default function Activity() {
   return (
     <div className="pub donor-surface" data-theme={theme}>
       <DonorNav />
-      <main id="top" className="donation-hub donation-story donor-main">
-        <header className="donation-hub-hero">
-          <div>
-            <p className="donation-eyebrow">Every visit means something</p>
-            <h1>
-              A little of you.
-              <br />
-              <em>A lasting difference.</em>
-            </h1>
-            <p>
-              Your confirmed donations, the places you’ve helped,
-              <br className="donation-desktop-break" /> and a clear next step
-              for when you’re ready.
-            </p>
-          </div>
-          <div className="donation-hero-note">
-            <BloodlineMark bloodType={profile?.bloodType} />
-            <div>
-              <strong>
-                Your blood type.
-                <br />
-                Someone’s lifeline.
-              </strong>
-              <p>
-                Every connection begins with someone
-                <br />
-                who chooses to show up.
-              </p>
-            </div>
-          </div>
+      <main
+        id="top"
+        className="donation-hub donation-story donor-main donor-browse donor-activity-browse"
+      >
+        <header className="donor-browse-header">
+          <p className="donation-eyebrow">Every visit means something</p>
+          <h1>Your donation history.</h1>
+          <p>
+            Your confirmed visits, the places you’ve helped, and your next step.
+          </p>
         </header>
         {state.status === "loading" && (
           <div className="donation-state" role="status">
@@ -179,152 +163,88 @@ export default function Activity() {
         )}
         {state.status === "ready" && (
           <>
-            <section className="story-stats" aria-label="Your donation summary">
-              <div>
-                <span className="story-stat-icon">
-                  <Icon name="droplet" size={20} />
-                </span>
-                <div>
-                  <p>Confirmed donations</p>
-                  <strong>{state.donations.length}</strong>
-                  <span>
-                    {state.donations.length === 1
-                      ? "A visit that mattered"
-                      : "Times you showed up"}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <span className="story-stat-icon">
-                  <Icon name="check" size={20} />
-                </span>
-                <div>
-                  <p>Units donated</p>
-                  <strong>{units}</strong>
-                  <span>Recorded by your hospitals</span>
-                </div>
-              </div>
-              <div>
-                <span className="story-stat-icon">
-                  <Icon name="clock" size={20} />
-                </span>
-                <div>
-                  <p>Most recent visit</p>
-                  <strong className="story-stat-date">
-                    {latest?.donationDate
-                      ? dateLabel(latest.donationDate)
-                      : "Your first is ahead"}
-                  </strong>
-                  <span>
-                    {latest?.donationTypeName || "Start with a matched request"}
-                  </span>
-                </div>
-              </div>
-            </section>
             <div className="story-layout">
               <section className="story-history" aria-label="Donation history">
-                <div className="donation-list-heading">
-                  <div>
-                    <p className="donation-eyebrow">
-                      A record of your kindness
-                    </p>
-                    <h2>Your donation history.</h2>
-                  </div>
-                  <span className="donation-count">
-                    {state.donations.length}{" "}
-                    {state.donations.length === 1 ? "visit" : "visits"}
-                  </span>
-                </div>
-                {state.donations.length > 0 && (
-                  <div className="story-filters">
-                    <label className="donation-search">
-                      <Icon name="search" size={18} />
-                      <input
-                        aria-label="Search donation history"
-                        placeholder="Search a hospital or donation type"
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                      />
-                    </label>
-                    <label>
-                      <span className="story-filter-label">Donation type</span>
-                      <span className="app-select">
-                        <select
-                          aria-label="Filter history by donation type"
-                          value={type}
-                          onChange={(event) => setType(event.target.value)}
-                        >
-                          <option value="all">All donation types</option>
-                          {types.map(([id, name]) => (
-                            <option key={id} value={id}>
-                              {name}
-                            </option>
-                          ))}
-                        </select>
-                      </span>
-                    </label>
-                  </div>
-                )}
-                <RecordFilters
-                  name="donation history"
-                  onReset={() => {
-                    setSearch("");
-                    setType("all");
-                  }}
-                  value={recordFilters}
-                  onChange={setRecordFilters}
-                  search={false}
-                  fields={[
+                <DonorFilterBar
+                  name="donor-history"
+                  value={filters}
+                  onChange={setFilters}
+                  placeholder="Search a hospital or donation type"
+                  order={order}
+                  sortLabel="Sort donation history"
+                  onOrderChange={setOrder}
+                  sortOptions={[
+                    { value: "newest", label: "Newest first" },
+                    { value: "oldest", label: "Oldest first" },
+                    { value: "hospital", label: "Hospital (A–Z)" },
+                  ]}
+                  primary={[
+                    {
+                      key: "donationTypeId",
+                      label: "Donation type",
+                      allLabel: "All donation types",
+                      options: types.map(([value, label]) => ({
+                        value,
+                        label,
+                      })),
+                    },
+                  ]}
+                  advanced={[
                     {
                       key: "hospitalId",
                       label: "Hospital",
+                      allLabel: "All hospitals",
                       options: [...state.hospitals.entries()]
                         .filter(([, hospital]) => hospital)
-                        .map(([id, hospital]) => ({
-                          value: id,
-                          label: hospital.name || id,
+                        .map(([value, hospital]) => ({
+                          value,
+                          label: hospital.name || value,
                         })),
                     },
                   ]}
-                  disabled={state.status !== "ready"}
+                  dateLabel="Donation date"
                 />
-                <SortControls
-                  name="donor-history"
-                  sort={sort}
-                  onChange={setSort}
-                  defaultLabel="Newest visits first"
-                  fields={[
-                    { key: "date", label: "Donation date" },
-                    { key: "hospital", label: "Hospital" },
-                    { key: "component", label: "Donation type" },
-                    { key: "units", label: "Units" },
-                  ]}
-                />
-                <TableExport
-                  name="donor-donations"
-                  title="Your donation history"
-                  disabled={state.status !== "ready"}
-                  columns={[
-                    { label: "Donation ID", value: (row) => row.id },
-                    { label: "Date", value: (row) => row.donationDate },
-                    {
-                      label: "Hospital",
-                      value: (row) =>
-                        state.hospitals.get(row.hospitalId)?.name ||
-                        row.hospitalId,
-                    },
-                    { label: "Blood group", value: (row) => row.bloodType },
-                    {
-                      label: "Donation type",
-                      value: (row) =>
-                        row.donationTypeName || row.donationTypeId,
-                    },
-                    { label: "Units", value: (row) => row.units },
-                  ]}
-                  getRows={(scope) =>
-                    scope === "filtered" ? visible : state.donations
-                  }
-                />
+                <div className="donor-browse-result-bar donor-history-result-bar">
+                  <p aria-live="polite" aria-atomic="true">
+                    {visible.length}{" "}
+                    {visible.length === 1 ? "donation" : "donations"}
+                    {hasFilters ? " match your filters" : " recorded"}
+                  </p>
+                  <div>
+                    {hasFilters && (
+                      <button
+                        type="button"
+                        className="donor-clear-filters"
+                        onClick={clearFilters}
+                      >
+                        Clear
+                      </button>
+                    )}
+                    <TableExport
+                      name="donor-donations"
+                      title="Your donation history"
+                      disabled={state.status !== "ready"}
+                      columns={[
+                        { label: "Donation ID", value: (row) => row.id },
+                        { label: "Date", value: (row) => row.donationDate },
+                        {
+                          label: "Hospital",
+                          value: (row) =>
+                            state.hospitals.get(row.hospitalId)?.name ||
+                            row.hospitalId,
+                        },
+                        { label: "Blood group", value: (row) => row.bloodType },
+                        {
+                          label: "Donation type",
+                          value: (row) =>
+                            row.donationTypeName || row.donationTypeId,
+                        },
+                        { label: "Units", value: (row) => row.units },
+                      ]}
+                      getRows={() => visible}
+                    />
+                  </div>
+                </div>
                 {visible.length > 0 ? (
                   <div className="story-timeline">
                     {[...years].map(([year, donations]) => (
@@ -427,7 +347,7 @@ export default function Activity() {
                     ))}
                   </div>
                 ) : (
-                  <div className="donation-state story-empty">
+                  <div className="donation-state story-empty donor-browse-empty">
                     <span className="story-empty-icon">
                       <Icon
                         name={state.donations.length ? "search" : "droplet"}
@@ -448,16 +368,7 @@ export default function Activity() {
                       <button
                         type="button"
                         className="btn"
-                        onClick={() => {
-                          setSearch("");
-                          setType("all");
-                          setRecordFilters({
-                            search: "",
-                            from: "",
-                            to: "",
-                            hospitalId: "all",
-                          });
-                        }}
+                        onClick={clearFilters}
                       >
                         Clear filters
                       </button>
@@ -478,6 +389,39 @@ export default function Activity() {
                 )}
               </section>
               <aside className="story-aside">
+                <section
+                  className="story-stats"
+                  aria-label="Your donation summary"
+                >
+                  <div>
+                    <span className="story-stat-icon">
+                      <Icon name="check" size={20} />
+                    </span>
+                    <div>
+                      <p>Units donated</p>
+                      <strong>{units}</strong>
+                      <span>Recorded by your hospitals</span>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="story-stat-icon">
+                      <Icon name="clock" size={20} />
+                    </span>
+                    <div>
+                      <p>Most recent visit</p>
+                      <strong className="story-stat-date">
+                        {latest?.donationDate
+                          ? dateLabel(latest.donationDate)
+                          : "Your first is ahead"}
+                      </strong>
+                      <span>
+                        {latest?.donationTypeName ||
+                          "Start with a matched request"}
+                      </span>
+                    </div>
+                  </div>
+                </section>
+
                 <section className="story-readiness" data-ready={ready}>
                   <div className="story-readiness-top">
                     <span className="story-readiness-icon">
@@ -568,7 +512,7 @@ export default function Activity() {
             </div>
           </>
         )}
-        <SupportContact />
+        <SupportContact as="footer" />
       </main>
     </div>
   );

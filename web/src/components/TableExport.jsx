@@ -4,7 +4,7 @@ import { tableCsv, tablePrintHtml } from "../utils/tableExport";
 import { Btn } from "./Btn";
 import { TablePrintPreview } from "./TablePrintPreview";
 
-/** Complete filtered/all reports. `filterSummary` names the applied scope in the print document. */
+/** Exports every matching row in current table order. `getRows` receives "filtered"; `filterSummary` describes the current view. */
 export function TableExport({
   name,
   title,
@@ -15,7 +15,7 @@ export function TableExport({
   className,
   ...rest
 }) {
-  const [scope, setScope] = useState("filtered");
+  const scope = "filtered";
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -71,7 +71,7 @@ export function TableExport({
           html: tablePrintHtml(
             title,
             scope === "filtered"
-              ? `Filtered results${filterSummary ? " · " + filterSummary : ""}`
+              ? `Current table${filterSummary ? " · " + filterSummary : ""}`
               : "All table data",
             columns,
             rows,
@@ -99,27 +99,11 @@ export function TableExport({
       {...rest}
     >
       <div className="table-export-actions">
-        <label>
-          <span className="care-sr-only">Export scope for {title}</span>
-          <select
-            aria-label={`Export scope for ${title}`}
-            value={scope}
-            disabled={busy || disabled}
-            onChange={(event) => {
-              setScope(event.target.value);
-              setMessage("");
-              setError("");
-            }}
-          >
-            <option value="filtered">Filtered results</option>
-            <option value="all">All table data</option>
-          </select>
-        </label>
-        <Btn disabled={disabled || busy} onClick={() => run("csv")}>
-          Export CSV
+        <Btn aria-label="Export CSV" title="Export CSV" disabled={disabled || busy} onClick={() => run("csv")}>
+          CSV
         </Btn>
-        <Btn disabled={disabled || busy} onClick={() => run("pdf")}>
-          Print / PDF
+        <Btn aria-label="Print / PDF" title="Print or save as PDF" disabled={disabled || busy} onClick={() => run("pdf")}>
+          Print/PDF
         </Btn>
       </div>
       {message && <p role="status">{message}</p>}

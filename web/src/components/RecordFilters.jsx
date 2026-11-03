@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { cx } from "../utils/cx";
 import { filterDateError } from "../utils/recordFilters";
-import { Btn } from "./Btn";
+import { Icon } from "./Icon";
 
-/** Applied record filters. `fields` is {key,label,options}[]; date bounds are inclusive PHT dates. */
+/** Screen-specific instant filters. Dates use inclusive Philippine days; invalid edits keep the last valid range. */
 export function RecordFilters({
   name,
   value,
@@ -17,69 +17,68 @@ export function RecordFilters({
   className,
   ...rest
 }) {
-  const [draft, setDraft] = useState(value);
-  const [error, setError] = useState("");
-  const key = JSON.stringify(value);
-  const active = Object.entries(value).filter(
-    ([, value]) => value && value !== "all",
+  const id = useId();
+  const [range, setRange] = useState({
+    from: value.from || "",
+    to: value.to || "",
+  });
+  const disclosure = useRef(null);
+  useEffect(
+    () => setRange({ from: value.from || "", to: value.to || "" }),
+    [value.from, value.to],
   );
-  const hasDraftChanges = JSON.stringify(draft) !== key;
-  useEffect(() => {
-    setDraft(JSON.parse(key));
-    setError("");
-  }, [key]);
-  const set = (key, value) => {
-    setDraft((previous) => ({ ...previous, [key]: value }));
-    setError("");
+  const error = filterDateError(range);
+  const active = Object.entries(value).some(
+    ([, next]) => next && next !== "all",
+  );
+  const set = (key, next) => onChange({ ...value, [key]: next });
+  const changeDate = (key, next) => {
+    if (range[key] === next) return;
+    const draft = { ...range, [key]: next };
+    setRange(draft);
+    if (!filterDateError(draft)) onChange({ ...value, ...draft });
   };
   const reset = () => {
-    const empty = {
+    setRange({ from: "", to: "" });
+    if (disclosure.current) disclosure.current.open = false;
+    onChange({
       search: "",
       from: "",
       to: "",
       ...Object.fromEntries(fields.map((field) => [field.key, "all"])),
-    };
-    setDraft(empty);
-    setError("");
-    onChange(empty);
+    });
     onReset?.();
   };
   return (
-    <form
-      className={cx("record-filters", className)}
+    <div
+      className={cx("screen-filter-bar", className)}
       aria-label={`${name} filters`}
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault();
-        const found = filterDateError(draft);
-        setError(found);
-        if (!found) onChange(draft);
-      }}
       {...rest}
     >
       <fieldset disabled={disabled}>
         <legend className="care-sr-only">Filter {name}</legend>
         {search && (
-          <label className="record-search">
-            <span>Search</span>
+          <label className="screen-filter-search">
+            <Icon name="search" size={17} />
+            <span className="care-sr-only">Search {name}</span>
             <input
               type="search"
               aria-label={`Search ${name}`}
               placeholder={searchPlaceholder}
-              value={draft.search || ""}
+              value={value.search || ""}
               onChange={(event) => set("search", event.target.value)}
             />
           </label>
         )}
         {fields.map((field) => (
-          <label key={field.key}>
+          <label className="screen-filter-choice" key={field.key}>
             <span>{field.label}</span>
             <select
               aria-label={`Filter ${name} by ${field.label.toLowerCase()}`}
-              value={draft[field.key] || "all"}
+              value={value[field.key] || "all"}
               onChange={(event) => set(field.key, event.target.value)}
             >
-              <option value="all">All {field.label.toLowerCase()}</option>
+              <option value="all">All</option>
               {field.options.map((option) => (
                 <option
                   key={typeof option === "string" ? option : option.value}
@@ -92,53 +91,58 @@ export function RecordFilters({
           </label>
         ))}
         {dates && (
-          <>
-            <label>
-              <span>From</span>
-              <input
-                type="date"
-                aria-label={`${name} from date`}
-                value={draft.from || ""}
-                onChange={(event) => set("from", event.target.value)}
-              />
-            </label>
-            <label>
-              <span>To</span>
-              <input
-                type="date"
-                aria-label={`${name} to date`}
-                min={draft.from || undefined}
-                value={draft.to || ""}
-                onChange={(event) => set("to", event.target.value)}
-              />
-            </label>
-          </>
+          <details ref={disclosure} className="screen-filter-date-menu">
+            <summary>
+              <Icon name="clock" size={16} />
+              {value.from || value.to ? "Dates selected" : "Date range"}
+              <Icon name="chevron-down" size={14} />
+            </summary>
+            <div className="screen-filter-date-panel">
+              <div>
+                <label>
+                  <span>From</span>
+                  <input
+                    type="date"
+                    aria-label={`${name} from date`}
+                    aria-describedby={`${id}-date-help`}
+                    aria-invalid={Boolean(error)}
+                    value={range.from}
+                    onInput={(event) => changeDate("from", event.target.value)}
+                    onChange={(event) => changeDate("from", event.target.value)}
+                  />
+                </label>
+                <label>
+                  <span>To</span>
+                  <input
+                    type="date"
+                    aria-label={`${name} to date`}
+                    aria-describedby={`${id}-date-help`}
+                    aria-invalid={Boolean(error)}
+                    min={range.from || undefined}
+                    value={range.to}
+                    onInput={(event) => changeDate("to", event.target.value)}
+                    onChange={(event) => changeDate("to", event.target.value)}
+                  />
+                </label>
+              </div>
+              <p id={`${id}-date-help`}>
+                Includes the full day in Philippine time. Valid dates apply
+                immediately.
+              </p>
+              {error && (
+                <p className="record-filter-error" role="alert">
+                  {error} Results keep the last valid range.
+                </p>
+              )}
+            </div>
+          </details>
         )}
-        <div className="record-filter-actions">
-          <Btn type="submit" variant="primary">
-            Apply filters
-          </Btn>
-          <Btn onClick={reset}>Reset</Btn>
-        </div>
+        {active && (
+          <button type="button" className="screen-filter-clear" onClick={reset}>
+            Clear
+          </button>
+        )}
       </fieldset>
-      <div className="record-filter-summary" role="status">
-        <span>
-          {active.length
-            ? `${active.length} filters applied`
-            : "No additional filters applied"}
-        </span>
-        {hasDraftChanges && <strong>Changes ready to apply</strong>}
-      </div>
-      {error && (
-        <p className="record-filter-error" role="alert">
-          {error}
-        </p>
-      )}
-      {dates && (
-        <p className="record-filter-help">
-          Dates include the whole day in Philippine time.
-        </p>
-      )}
-    </form>
+    </div>
   );
 }

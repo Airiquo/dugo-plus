@@ -478,7 +478,7 @@ export default function Profile() {
         </form>
         <CareDonorCard bloodType={form.bloodType} city={form.city} eligibility={eligibility} loaded={profileLoaded && !loadFailed} error={loadFailed} photoURL={profile?.photoURL} name={form.fullName || user.displayName || user.email} />
         </div>
-        <SupportContact />
+        <SupportContact as="footer" />
       </main>
       <dialog
         ref={identityDialog}

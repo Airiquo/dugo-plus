@@ -1,6 +1,5 @@
 import { RecordFilters } from "../../components/RecordFilters";
 import { filterRecords } from "../../utils/recordFilters";
-import { BLOOD_TYPES } from "../../utils/matching";
 import { TableExport } from "../../components/TableExport";
 import {
   accountReportColumns,
@@ -127,12 +126,6 @@ export default function Accounts() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [query, setQuery] = useState("");
-  const [recordFilters, setRecordFilters] = useState({
-    search: "",
-    from: "",
-    to: "",
-    bloodType: "all",
-  });
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -185,7 +178,7 @@ export default function Accounts() {
   }, [query, roleFilter, statusFilter]);
   const filtered = useMemo(
     () =>
-      filterRecords(accounts, recordFilters).filter((account) => {
+      accounts.filter((account) => {
         const term = query.trim().toLowerCase();
         return (
           (roleFilter === "all" || account.role === roleFilter) &&
@@ -200,7 +193,7 @@ export default function Accounts() {
             ].some((value) => value?.toLowerCase().includes(term)))
         );
       }),
-    [accounts, query, roleFilter, statusFilter, recordFilters],
+    [accounts, query, roleFilter, statusFilter],
   );
   const sorted = useMemo(
     () => sortRows(filtered, ACCOUNT_SORT[sort.key], sort.direction),
@@ -209,11 +202,6 @@ export default function Accounts() {
   const pages = Math.max(1, Math.ceil(sorted.length / 10));
   const current = Math.min(page, pages);
   const visible = sorted.slice((current - 1) * 10, current * 10);
-  const counts = accounts.reduce((out, account) => {
-    const status = account.status || "Active";
-    out[status] = (out[status] || 0) + 1;
-    return out;
-  }, {});
   const selected = dialog?.account;
   const action = ACTIONS[dialog?.kind];
 
@@ -456,36 +444,6 @@ export default function Accounts() {
         <p className="aa-intro">
           Manage the people and facilities behind every connection.
         </p>
-        <div
-          className="aa-overview"
-          aria-label="Filter accounts by access status"
-        >
-          {[
-            ["Active", "Connected and ready", "check"],
-            ["Suspended", "Access temporarily paused", "user"],
-            ["Removed", "Access closed", "file"],
-          ].map(([status, text, icon]) => (
-            <button
-              key={status}
-              type="button"
-              aria-pressed={statusFilter === status}
-              onClick={() =>
-                setStatusFilter(statusFilter === status ? "all" : status)
-              }
-            >
-              <span className="aa-metric-icon">
-                <Icon name={icon} />
-              </span>
-              <span>
-                {status}
-                <strong>
-                  {loading && !accounts.length ? "—" : counts[status] || 0}
-                </strong>
-                <small>{text}</small>
-              </span>
-            </button>
-          ))}
-        </div>
         <div className="aa-feedback" aria-live="polite">
           {notice && (
             <p
@@ -515,39 +473,23 @@ export default function Accounts() {
               </h2>
               <p>All roles · {accounts.length} loaded accounts</p>
             </div>
-            <Btn icon="refresh" onClick={load} disabled={loading}>
-              {loading ? "Refreshing…" : "Refresh"}
-            </Btn>
+            <div className="aa-directory-actions">
+              <Btn icon="refresh" onClick={load} disabled={loading}>
+                {loading ? "Refreshing…" : "Refresh"}
+              </Btn>
+              <TableExport
+                name="accounts"
+                title="Accounts"
+                columns={accountReportColumns}
+                disabled={loading || Boolean(error)}
+                getRows={(scope) =>
+                  scope === "filtered"
+                    ? sorted
+                    : sortRows(accounts, ACCOUNT_SORT[sort.key], sort.direction)
+                }
+              />
+            </div>
           </div>
-          <RecordFilters
-            name="account directory"
-            onReset={() => {
-              setQuery("");
-              setRoleFilter("all");
-              setStatusFilter("all");
-            }}
-            value={recordFilters}
-            onChange={(next) => {
-              setRecordFilters(next);
-              setPage(1);
-            }}
-            search={false}
-            fields={[
-              { key: "bloodType", label: "Blood group", options: BLOOD_TYPES },
-            ]}
-            disabled={loading || Boolean(error)}
-          />
-          <TableExport
-            name="accounts"
-            title="Accounts"
-            columns={accountReportColumns}
-            disabled={loading || Boolean(error)}
-            getRows={(scope) =>
-              scope === "filtered"
-                ? sorted
-                : sortRows(accounts, ACCOUNT_SORT[sort.key], sort.direction)
-            }
-          />
           <div className="aa-filters">
             <Field label="Search accounts">
               <Input
@@ -621,12 +563,6 @@ export default function Accounts() {
                       setQuery("");
                       setRoleFilter("all");
                       setStatusFilter("all");
-                      setRecordFilters({
-                        search: "",
-                        from: "",
-                        to: "",
-                        bloodType: "all",
-                      });
                     }}
                   >
                     Clear filters
@@ -1071,14 +1007,14 @@ export default function Accounts() {
                 disabled={history.loading}
                 onChange={(next) => {
                   setHistoryFilters(next);
-                  loadHistory(
-                    selected.id,
-                    null,
-                    false,
+                  if (
+                    history.nextBefore &&
                     Object.values(next).some(
                       (value) => value && value !== "all",
-                    ),
-                  );
+                    )
+                  ) {
+                    loadHistory(selected.id, null, false, true);
+                  }
                 }}
                 fields={[
                   {
