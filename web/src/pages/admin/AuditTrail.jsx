@@ -97,7 +97,7 @@ export default function AuditTrail() {
   const [verifying, setVerifying] = useState(false);
   const [verification, setVerification] = useState(null);
   const [verifyError, setVerifyError] = useState("");
-  const { sort, toggleSort } = useTableSort();
+  const { sort, toggleSort, setSort } = useTableSort();
 
   useEffect(() => {
     let active = true;
@@ -382,71 +382,84 @@ export default function AuditTrail() {
             </div>
             <span className="pill">Admin access</span>
           </div>
-          <form className="audit-filters" onSubmit={apply}>
-            {identityField("account", "Affected account", accounts)}
-            {identityField(
-              "actor",
-              "Administrator",
-              accounts.filter((row) => row.role === "admin"),
-            )}
-            <label className="audit-field">
-              Event
-              <select
-                name="event"
-                value={draft.event}
-                onChange={(e) => setDraft({ ...draft, event: e.target.value })}
-              >
-                <option value="">All events</option>
-                {eventOptions.map((value) => (
-                  <option key={value} value={value}>
-                    {title(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="audit-field">
-              From
-              <input
-                type="date"
-                name="from"
-                value={draft.from}
-                onInput={(e) =>
-                  setDraft((current) => ({ ...current, from: e.target.value }))
-                }
-                onChange={(e) =>
-                  setDraft((current) => ({ ...current, from: e.target.value }))
-                }
-              />
-            </label>
-            <label className="audit-field">
-              Through
-              <input
-                type="date"
-                name="to"
-                value={draft.to}
-                onInput={(e) =>
-                  setDraft((current) => ({ ...current, to: e.target.value }))
-                }
-                onChange={(e) =>
-                  setDraft((current) => ({ ...current, to: e.target.value }))
-                }
-              />
-            </label>
-            <div className="audit-filter-actions">
-              <Btn type="submit" variant="primary">
-                Apply filters
-              </Btn>
-              <Btn onClick={clear}>Clear</Btn>
-            </div>
-            {(filterError || directoryError) && (
-              <p
-                className="audit-filter-message"
-                role={filterError ? "alert" : "status"}
-              >
-                {filterError || directoryError}
-              </p>
-            )}
-          </form>
+          <details className="audit-search-disclosure">
+            <summary>
+              Search activity history <Icon name="chevron-down" size={16} />
+            </summary>
+            <form className="audit-filters" onSubmit={apply}>
+              {identityField("account", "Affected account", accounts)}
+              {identityField(
+                "actor",
+                "Administrator",
+                accounts.filter((row) => row.role === "admin"),
+              )}
+              <label className="audit-field">
+                Event
+                <select
+                  name="event"
+                  value={draft.event}
+                  onChange={(e) =>
+                    setDraft({ ...draft, event: e.target.value })
+                  }
+                >
+                  <option value="">All events</option>
+                  {eventOptions.map((value) => (
+                    <option key={value} value={value}>
+                      {title(value)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="audit-field">
+                From
+                <input
+                  type="date"
+                  name="from"
+                  value={draft.from}
+                  onInput={(e) =>
+                    setDraft((current) => ({
+                      ...current,
+                      from: e.target.value,
+                    }))
+                  }
+                  onChange={(e) =>
+                    setDraft((current) => ({
+                      ...current,
+                      from: e.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className="audit-field">
+                Through
+                <input
+                  type="date"
+                  name="to"
+                  value={draft.to}
+                  onInput={(e) =>
+                    setDraft((current) => ({ ...current, to: e.target.value }))
+                  }
+                  onChange={(e) =>
+                    setDraft((current) => ({ ...current, to: e.target.value }))
+                  }
+                />
+              </label>
+              <div className="audit-filter-actions">
+                <Btn type="submit" variant="primary">
+                  Search history
+                </Btn>
+                <Btn onClick={clear}>Clear</Btn>
+              </div>
+              {(filterError || directoryError) && (
+                <p
+                  className="audit-filter-message"
+                  role={filterError ? "alert" : "status"}
+                >
+                  {filterError || directoryError}
+                </p>
+              )}
+            </form>
+          </details>
           <div className="audit-results-toolbar">
             <label className="audit-search">
               <Icon name="search" />
@@ -510,6 +523,7 @@ export default function AuditTrail() {
               rowKey={(row) => row.id}
               sort={sort}
               onSort={toggleSort}
+              onSortChange={setSort}
             />
           ) : (
             <div className="audit-state">

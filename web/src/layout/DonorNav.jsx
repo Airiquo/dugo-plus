@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   PubThemeToggle,
-  ProfileAvatar,
+  AccountIdentity,
   WorkspaceNav,
   Icon,
 } from "../components";
@@ -23,7 +23,7 @@ export function DonorNav() {
   useRouteScroll();
   const { user, profile, signOut } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
-  const name = userName(user);
+  const name = profile?.fullName?.trim() || userName(user);
 
   useEffect(() => {
     setUnreadCount(0);
@@ -63,11 +63,15 @@ export function DonorNav() {
         <div className="pub-nav-end">
           <PubThemeToggle />
           <Link
-            className="care-avatar"
+            className="donor-account-link"
             to="/home"
             aria-label={`Your profile, ${name}`}
           >
-            <ProfileAvatar src={profile?.photoURL} name={name} />
+            <AccountIdentity
+              photoURL={profile?.photoURL}
+              name={name}
+              role="Donor"
+            />
           </Link>
           <button
             className="care-signout"

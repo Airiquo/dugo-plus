@@ -424,7 +424,7 @@ export default function Requests() {
       <HospitalPageHeader
         className="hreq-header"
         eyebrow="Requests / Facility queue"
-        description="Know what’s needed and act on what’s urgent. Open a request to view donor responses and consented contact details."
+        description="Track blood needs, donor responses and request status."
         title="Blood requests"
         actions={
           <>
@@ -581,56 +581,6 @@ export default function Requests() {
             </label>
           </div>
         </header>
-        <RecordFilters
-          name="hospital requests"
-          onReset={resetSearch}
-          value={{ ...recordFilters, priority }}
-          onChange={(next) => {
-            const { priority: nextPriority, ...rest } = next;
-            setRecordFilters(rest);
-            setParams(
-              (previous) => {
-                const params = new URLSearchParams(previous);
-                if (nextPriority && nextPriority !== "all")
-                  params.set("priority", nextPriority);
-                else params.delete("priority");
-                return params;
-              },
-              { replace: true },
-            );
-            setPage(1);
-          }}
-          disabled={loading || Boolean(busyId)}
-          fields={[
-            { key: "bloodType", label: "Blood group", options: BLOOD_TYPES },
-            {
-              key: "priority",
-              label: "Priority",
-              options: [
-                { value: "time-sensitive", label: "Urgent & stat" },
-                ...PRIORITY_OPTIONS,
-              ],
-            },
-          ]}
-          search={false}
-        />
-        <TableExport
-          name="hospital-requests"
-          title="Blood requests"
-          columns={requestReportColumns}
-          disabled={!hospitalId || loading || Boolean(error)}
-          getRows={async (scope) =>
-            scope === "filtered"
-              ? visible
-              : sortRows(
-                  sortRequestsByUrgency(
-                    await listHospitalRequests(hospitalId, []),
-                  ),
-                  REQUEST_SORT[sort.key],
-                  sort.direction,
-                )
-          }
-        />
         <div id="hreq-view" aria-busy={loading}>
           <div className="hreq-toolbar">
             <label className="hreq-search">
@@ -679,24 +629,63 @@ export default function Requests() {
                 ))}
               </select>
             </label>
-            <span className="hreq-sort">
-              <Icon name="list" size={15} />
-              {sort.key
-                ? `${columns.find((column) => column.key === sort.key)?.header}: ${sort.direction === "asc" ? "ascending" : "descending"}`
-                : "Priority order"}
-              {sort.key && (
-                <button
-                  type="button"
-                  className="donation-text-link"
-                  onClick={() => {
-                    setSort({ key: null, direction: "asc" });
-                    setPage(1);
-                  }}
-                >
-                  Reset order
-                </button>
-              )}
-            </span>
+            <details className="screen-extra-filters">
+              <summary>More filters <Icon name="chevron-down" size={14} /></summary>
+            <RecordFilters
+              name="hospital requests"
+              onReset={resetSearch}
+              value={{ ...recordFilters, priority }}
+              onChange={(next) => {
+                const { priority: nextPriority, ...rest } = next;
+                setRecordFilters(rest);
+                setParams(
+                  (previous) => {
+                    const params = new URLSearchParams(previous);
+                    if (nextPriority && nextPriority !== "all")
+                      params.set("priority", nextPriority);
+                    else params.delete("priority");
+                    return params;
+                  },
+                  { replace: true },
+                );
+                setPage(1);
+              }}
+              disabled={loading || Boolean(busyId)}
+              fields={[
+                {
+                  key: "bloodType",
+                  label: "Blood group",
+                  options: BLOOD_TYPES,
+                },
+                {
+                  key: "priority",
+                  label: "Priority",
+                  options: [
+                    { value: "time-sensitive", label: "Urgent & stat" },
+                    ...PRIORITY_OPTIONS,
+                  ],
+                },
+              ]}
+              search={false}
+            />
+            </details>
+            <TableExport
+              name="hospital-requests"
+              title="Blood requests"
+              columns={requestReportColumns}
+              disabled={!hospitalId || loading || Boolean(error)}
+              getRows={async (scope) =>
+                scope === "filtered"
+                  ? visible
+                  : sortRows(
+                      sortRequestsByUrgency(
+                        await listHospitalRequests(hospitalId, []),
+                      ),
+                      REQUEST_SORT[sort.key],
+                      sort.direction,
+                    )
+              }
+            />
           </div>
           {!hospitalId ? (
             <div className="hreq-empty" role="status">
@@ -789,6 +778,7 @@ export default function Requests() {
                 aria-label="Facility blood requests"
                 columns={columns}
                 sort={sort}
+                mobileSort={false}
                 onSort={(key) => {
                   toggleSort(key);
                   setPage(1);

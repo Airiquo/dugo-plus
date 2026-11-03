@@ -1,5 +1,3 @@
-import { RecordFilters } from "../../components/RecordFilters";
-import { filterRecords } from "../../utils/recordFilters";
 import { TableExport } from "../../components/TableExport";
 import { privacyReportColumns } from "../../utils/reportColumns";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -56,7 +54,7 @@ function dateLabel(value) {
 const STATUS_OPTIONS = ["Pending", "InProgress", "Completed", "Rejected"];
 
 export default function DataRequests() {
-  const { sort, toggleSort } = useTableSort();
+  const { sort, toggleSort, setSort } = useTableSort();
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -74,11 +72,6 @@ export default function DataRequests() {
   });
   const [confirmErase, setConfirmErase] = useState(false);
   const [query, setQuery] = useState("");
-  const [recordFilters, setRecordFilters] = useState({
-    search: "",
-    from: "",
-    to: "",
-  });
   const [statusFilter, setStatusFilter] = useState("open");
   const [typeFilter, setTypeFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -131,7 +124,7 @@ export default function DataRequests() {
     return map;
   }, [accounts]);
 
-  const filtered = filterRecords(requests, recordFilters).filter((row) => {
+  const filtered = requests.filter((row) => {
     const person = byId.get(row.userId);
     return (
       (statusFilter === "all" ||
@@ -419,7 +412,6 @@ export default function DataRequests() {
                 setStatusFilter(key);
                 setQuery("");
                 setTypeFilter("all");
-                setRecordFilters({ search: "", from: "", to: "" });
                 setPage(1);
               }}
             >
@@ -499,21 +491,6 @@ export default function DataRequests() {
               {directoryError}
             </p>
           )}
-          <RecordFilters
-            name="privacy queue"
-            onReset={() => {
-              setQuery("");
-              setStatusFilter("open");
-              setTypeFilter("all");
-            }}
-            value={recordFilters}
-            onChange={(next) => {
-              setRecordFilters(next);
-              setPage(1);
-            }}
-            search={false}
-            disabled={loading || Boolean(error)}
-          />
           <TableExport
             name="data-requests"
             title="Privacy requests"
@@ -541,6 +518,7 @@ export default function DataRequests() {
               rows={rows}
               sort={sort}
               onSort={toggleSort}
+              onSortChange={setSort}
               rowKey={(row) => row.id}
             />
           ) : (
@@ -562,7 +540,6 @@ export default function DataRequests() {
                     setQuery("");
                     setStatusFilter("all");
                     setTypeFilter("all");
-                    setRecordFilters({ search: "", from: "", to: "" });
                   }}
                 >
                   Clear filters

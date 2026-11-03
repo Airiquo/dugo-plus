@@ -1,4 +1,4 @@
-import { RecordFilters } from "../../components/RecordFilters";
+import { DonorFilterBar } from "../../components/DonorFilterBar";
 import { filterRecords } from "../../utils/recordFilters";
 import { COMPONENTS } from "../../services/requests";
 import {
@@ -6,7 +6,6 @@ import {
   REQUEST_STATUS_OPTIONS,
 } from "../../utils/recordOptions";
 import { SupportContact } from "../../components/SupportContact";
-import { TableExport } from "../../components/TableExport";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
@@ -14,15 +13,8 @@ import { useTheme } from "../../hooks/useTheme";
 import { useDonorRequests } from "../../hooks/useDonorRequests";
 import { useDonorLocation } from "../../hooks/useDonorLocation";
 import { DonorNav } from "../../layout/DonorNav";
-import {
-  Icon,
-  DonorRequestMap,
-  DonorRequestDetails,
-  BloodlineMark,
-} from "../../components";
-import { useTableSort } from "../../hooks/useTableSort";
+import { Icon, DonorRequestMap, DonorRequestDetails } from "../../components";
 import { sortRows, sortDate } from "../../utils/sortRows";
-import { SortControls } from "../../components/SortControls";
 import { respondToMatch } from "../../services/matches";
 import { isMatchingConfigured } from "../../services/matching";
 import { listDonationTypes } from "../../services/donationTypes";
@@ -40,26 +32,47 @@ import {
 
 /** Donor request discovery, one active commitment, and informed responses. */
 export default function Requests() {
-  const { sort, setSort } = useTableSort();
+  const [order, setOrder] = useState("nearest");
   const { user, profile } = useAuth(),
     { theme } = useTheme();
   const feed = useDonorRequests(user?.uid),
     position = useDonorLocation(profile);
   const [params, setParams] = useSearchParams(),
     [selectedId, setSelectedId] = useState(null);
-  const [recordFilters, setRecordFilters] = useState({
+  const [filters, setFilters] = useState({
     search: "",
     from: "",
     to: "",
     priority: "all",
     status: "all",
     response: "all",
+    component: "all",
+    radius: "25",
   });
   const [mobileView, setMobileView] = useState("list");
-  const [tab, setTab] = useState("available"),
-    [search, setSearch] = useState(""),
-    [component, setComponent] = useState("all"),
-    [radius, setRadius] = useState("25");
+  const [tab, setTab] = useState("available");
+  const { search, component, radius, ...recordFilters } = filters;
+  const clearFilters = () =>
+    setFilters({
+      search: "",
+      from: "",
+      to: "",
+      priority: "all",
+      status: "all",
+      response: "all",
+      component: "all",
+      radius: "25",
+    });
+  const hasRefinements = Boolean(
+    search.trim() ||
+      component !== "all" ||
+      recordFilters.priority !== "all" ||
+      recordFilters.status !== "all" ||
+      recordFilters.response !== "all" ||
+      recordFilters.from ||
+      recordFilters.to,
+  );
+  const hasFilters = hasRefinements || radius !== "25";
   const [types, setTypes] = useState(new Map()),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -123,18 +136,17 @@ export default function Requests() {
         item.distance <= Number(radius)) &&
       `${item.hospital?.name || item.request.hospitalName} ${componentName(item.request.component)} ${item.request.bloodType} ${item.hospital?.address || ""}`
         .toLowerCase()
-        .includes(search.toLowerCase()),
+        .includes(search.trim().toLowerCase()),
   );
   const visible = sortRows(
     filteredRequests,
     {
-      hospital: (item) => item.hospital?.name || item.request.hospitalName,
-      distance: (item) => item.distance,
-      requested: (item) => sortDate(item.request.createdAt),
-      units: (item) => Number(item.request.quantity),
-      component: (item) => componentName(item.request.component),
-    }[sort.key],
-    sort.direction,
+      nearest: (item) => item.distance,
+      urgent: (item) =>
+        ({ stat: 0, urgent: 1, routine: 2 })[item.request.urgencyLevel] ?? 3,
+      newest: (item) => sortDate(item.request.createdAt),
+    }[order],
+    order === "newest" ? "desc" : "asc",
   );
   const selected = items.find((item) => item.match.id === selectedId);
   useEffect(() => {
@@ -207,32 +219,17 @@ export default function Requests() {
   return (
     <div className="pub donor-surface" data-theme={theme}>
       <DonorNav />
-      <main id="top" className="donation-hub donor-main">
-        <header className="donation-hub-hero">
-          <div>
-            <p className="donation-eyebrow">Good things start with you</p>
-            <h1>
-              Your next chance
-              <br />
-              to <em>make a difference.</em>
-            </h1>
-            <p>
-              Find a request close to you. Know what’s needed.
-              <br className="donation-desktop-break" /> Choose one donation you
-              can show up for.
-            </p>
-          </div>
-          <div className="donation-hero-note">
-            <BloodlineMark bloodType={profile?.bloodType} />
-            <div>
-              <strong>Your blood type. Someone’s lifeline.</strong>
-              <p>
-                Requests are matched to your blood type.
-                <br />
-                You choose when you’re ready.
-              </p>
-            </div>
-          </div>
+      <main
+        id="top"
+        className="donation-hub donor-main donor-browse donor-request-browse"
+      >
+        <header className="donor-browse-header">
+          <p className="donation-eyebrow">A connection worth making</p>
+          <h1>Find where you can help.</h1>
+          <p>
+            Requests matched to your blood type. Choose a donation that works
+            for you.
+          </p>
         </header>
         {notice && (
           <div className="donation-success" role="status">
@@ -339,215 +336,162 @@ export default function Requests() {
                 </div>
               </section>
             )}
-            <div
-              className="donation-mobile-view"
-              role="group"
-              aria-label="Request display"
-            >
-              <button
-                type="button"
-                aria-pressed={mobileView === "list"}
-                onClick={() => setMobileView("list")}
+            <div className="donor-browse-controls">
+              <div
+                className="donation-tabs"
+                role="group"
+                aria-label="Request view"
               >
-                <Icon name="list" size={16} />
-                Request list
-              </button>
-              <button
-                type="button"
-                aria-pressed={mobileView === "map"}
-                onClick={() => setMobileView("map")}
-              >
-                <Icon name="compass" size={16} />
-                Nearby map
-              </button>
+                <button
+                  type="button"
+                  aria-pressed={tab === "available"}
+                  onClick={() => setTab("available")}
+                >
+                  Available requests<span>{available.length}</span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={tab === "past"}
+                  onClick={() => setTab("past")}
+                >
+                  Past responses<span>{past.length}</span>
+                </button>
+              </div>
+              <DonorFilterBar
+                name="donor-requests"
+                sortLabel="Sort requests"
+                value={filters}
+                onChange={setFilters}
+                placeholder="Search hospitals or blood components"
+                order={order}
+                onOrderChange={setOrder}
+                sortOptions={[
+                  { value: "nearest", label: "Nearest first" },
+                  { value: "urgent", label: "Most urgent" },
+                  { value: "newest", label: "Newest first" },
+                ]}
+                primary={[
+                  {
+                    key: "radius",
+                    label: "Distance",
+                    disabled: !position,
+                    options: [
+                      ...[5, 10, 15, 20, 25, 50].map((km) => ({
+                        value: String(km),
+                        label: `${km} km`,
+                      })),
+                      { value: "all", label: "Any distance" },
+                    ],
+                  },
+                  {
+                    key: "component",
+                    label: "Donation type",
+                    allLabel: "All types",
+                    options: Array.from(
+                      new Set([
+                        ...COMPONENTS.map((option) => option.value),
+                        ...items
+                          .map((item) => item.request.component)
+                          .filter(Boolean),
+                      ]),
+                    ).map((value) => ({ value, label: componentName(value) })),
+                  },
+                  {
+                    key: "priority",
+                    label: "Urgency",
+                    allLabel: "Any need",
+                    options: PRIORITY_OPTIONS.map((option) => ({
+                      ...option,
+                      label:
+                        option.value === "stat"
+                          ? "Immediate need"
+                          : option.label,
+                    })),
+                  },
+                ]}
+                advanced={[
+                  {
+                    key: "status",
+                    label: "Request status",
+                    allLabel: "All statuses",
+                    options: REQUEST_STATUS_OPTIONS,
+                  },
+                  {
+                    key: "response",
+                    label: "Your response",
+                    allLabel: "All responses",
+                    options: ["Pending", "Accepted", "Declined", "Expired"].map(
+                      (value) => ({ value, label: value }),
+                    ),
+                  },
+                ]}
+                dateLabel="Request posted"
+              />
             </div>
+            <div className="donor-browse-result-bar">
+              <p aria-live="polite" aria-atomic="true">
+                {visible.length}{" "}
+                {tab === "past"
+                  ? visible.length === 1
+                    ? "past response"
+                    : "past responses"
+                  : visible.length === 1
+                    ? "request"
+                    : "requests"}
+                {tab === "available" &&
+                  (position &&
+                  !visible.some((item) => !Number.isFinite(item.distance))
+                    ? radius === "all"
+                      ? " at any distance"
+                      : ` within ${radius} km`
+                    : " · distance unavailable")}
+              </p>
+              <div>
+                {hasFilters && (
+                  <button
+                    type="button"
+                    className="donor-clear-filters"
+                    onClick={clearFilters}
+                  >
+                    Clear
+                  </button>
+                )}
+                <div
+                  className="donor-browse-mobile-view"
+                  role="group"
+                  aria-label="Request display"
+                >
+                  <button
+                    type="button"
+                    aria-pressed={mobileView === "list"}
+                    onClick={() => setMobileView("list")}
+                  >
+                    <Icon name="list" size={16} />
+                    List
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={mobileView === "map"}
+                    onClick={() => setMobileView("map")}
+                  >
+                    <Icon name="compass" size={16} />
+                    Map
+                  </button>
+                </div>
+              </div>
+            </div>
+            {!position && (
+              <p className="donor-browse-location-note">
+                <Icon name="pin" size={14} />
+                <Link to="/home">Add a location</Link> to see how far away each
+                hospital is.
+              </p>
+            )}
             <div className="donation-workspace" data-mobile-view={mobileView}>
               <section
                 className="donation-discovery"
                 aria-label="Browse requests"
               >
-                <div className="donation-list-heading">
-                  <div>
-                    <p className="donation-eyebrow">
-                      A connection worth making
-                    </p>
-                    <h2>Find where you can help.</h2>
-                  </div>
-                  <span className="donation-count">
-                    {available.length} matched
-                  </span>
-                </div>
-                <div
-                  className="donation-tabs"
-                  role="group"
-                  aria-label="Request view"
-                >
-                  <button
-                    type="button"
-                    aria-pressed={tab === "available"}
-                    onClick={() => setTab("available")}
-                  >
-                    Available requests<span>{available.length}</span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={tab === "past"}
-                    onClick={() => setTab("past")}
-                  >
-                    Past responses<span>{past.length}</span>
-                  </button>
-                </div>
-                <RecordFilters
-                  name="donor requests"
-                  onReset={() => {
-                    setSearch("");
-                    setComponent("all");
-                    setRadius("25");
-                  }}
-                  value={recordFilters}
-                  onChange={setRecordFilters}
-                  fields={[
-                    {
-                      key: "priority",
-                      label: "Priority",
-                      options: PRIORITY_OPTIONS,
-                    },
-                    {
-                      key: "status",
-                      label: "Request status",
-                      options: REQUEST_STATUS_OPTIONS,
-                    },
-                    {
-                      key: "response",
-                      label: "Your response",
-                      options: ["Pending", "Accepted", "Declined", "Expired"],
-                    },
-                  ]}
-                  disabled={feed.status !== "ready"}
-                  search={false}
-                />
-                <SortControls
-                  name="donor-requests"
-                  sort={sort}
-                  onChange={setSort}
-                  defaultLabel="Urgency, then distance"
-                  fields={[
-                    { key: "hospital", label: "Hospital" },
-                    { key: "distance", label: "Distance" },
-                    { key: "requested", label: "Requested date" },
-                    { key: "units", label: "Units" },
-                    { key: "component", label: "Donation type" },
-                  ]}
-                />
-                <TableExport
-                  name="donor-requests"
-                  title="Your blood requests"
-                  disabled={feed.status !== "ready"}
-                  columns={[
-                    { label: "Request ID", value: (item) => item.request.id },
-                    {
-                      label: "Hospital",
-                      value: (item) =>
-                        item.hospital?.name || item.request.hospitalName,
-                    },
-                    {
-                      label: "Requested",
-                      value: (item) => item.request.createdAt,
-                    },
-                    {
-                      label: "Blood group",
-                      value: (item) => item.request.bloodType,
-                    },
-                    {
-                      label: "Component",
-                      value: (item) => componentName(item.request.component),
-                    },
-                    { label: "Units", value: (item) => item.request.quantity },
-                    {
-                      label: "Priority",
-                      value: (item) => item.request.urgencyLevel,
-                    },
-                    {
-                      label: "Request status",
-                      value: (item) => item.request.status,
-                    },
-                    {
-                      label: "Your response",
-                      value: (item) => item.match.responseStatus,
-                    },
-                    {
-                      label: "Screening",
-                      value: (item) => item.match.screeningStatus,
-                    },
-                    {
-                      label: "Donation confirmed",
-                      value: (item) => item.donated,
-                    },
-                  ]}
-                  getRows={(scope) => (scope === "filtered" ? visible : items)}
-                />
-                <div className="donation-filters">
-                  <label className="donation-search">
-                    <Icon name="search" size={18} />
-                    <input
-                      aria-label="Search hospitals or blood components"
-                      placeholder="Search hospitals or blood components"
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                    />
-                  </label>
-                  <div>
-                    <label>
-                      <span>Donation type</span>
-                      <span className="app-select">
-                        <select
-                          value={component}
-                          onChange={(event) => setComponent(event.target.value)}
-                        >
-                          <option value="all">All types</option>
-                          {Array.from(
-                            new Set([
-                              ...COMPONENTS.map((option) => option.value),
-                              ...items
-                                .map((item) => item.request.component)
-                                .filter(Boolean),
-                            ]),
-                          ).map((type) => (
-                            <option key={type} value={type}>
-                              {componentName(type)}
-                            </option>
-                          ))}
-                        </select>
-                      </span>
-                    </label>
-                    <label>
-                      <span>Distance</span>
-                      <span className="app-select">
-                        <select
-                          value={radius}
-                          onChange={(event) => setRadius(event.target.value)}
-                        >
-                          {[5, 10, 15, 20, 25].map((km) => (
-                            <option key={km} value={km}>
-                              Within {km} km
-                            </option>
-                          ))}
-                          <option value="all">Any distance</option>
-                        </select>
-                      </span>
-                    </label>
-                  </div>
-                </div>
-                <p className="donation-result-count" aria-live="polite">
-                  {visible.length}{" "}
-                  {visible.length === 1 ? "request" : "requests"}{" "}
-                  {tab === "available"
-                    ? "you can explore"
-                    : "in your past responses"}
-                  {active && tab === "available"
-                    ? " · Your next acceptance unlocks after your current donation."
-                    : ""}
-                </p>
                 {visible.length ? (
                   <div className="donation-request-list">
                     {visible.map((item) => (
@@ -634,31 +578,90 @@ export default function Requests() {
                     ))}
                   </div>
                 ) : (
-                  <div className="donation-state donation-empty">
-                    <Icon name="search" size={30} />
-                    <h3>
-                      {available.length && tab === "available"
-                        ? "No requests match these filters."
-                        : tab === "past"
-                          ? "Your story is just beginning."
-                          : "You’re all caught up."}
-                    </h3>
+                  <div className="donation-state donation-empty donor-browse-empty">
+                    <span className="donor-empty-mark" aria-hidden="true">
+                      <Icon
+                        name={tab === "past" ? "clock" : "compass"}
+                        size={28}
+                      />
+                    </span>
+                    <h2>
+                      {tab === "past"
+                        ? hasFilters
+                          ? "No responses match your filters."
+                          : "No past responses yet."
+                        : hasRefinements
+                          ? "No requests match your filters."
+                          : position && radius !== "all"
+                            ? `No requests within ${radius} km right now.`
+                            : "No matched requests right now."}
+                    </h2>
                     <p>
                       {tab === "past"
-                        ? "Your responses and completed requests will appear here."
-                        : "Try a wider distance, or check back when a new request matches you."}
+                        ? "Your earlier responses and completed donations will appear here."
+                        : "New matches appear here automatically. Widen your view or check your alerts."}
                     </p>
-                    <button
-                      className="btn"
-                      type="button"
-                      onClick={() => {
-                        setSearch("");
-                        setComponent("all");
-                        setRadius("all");
-                      }}
-                    >
-                      Reset filters
-                    </button>
+                    <div className="donor-empty-actions">
+                      {hasRefinements ? (
+                        <button
+                          className="btn"
+                          data-primary
+                          type="button"
+                          onClick={clearFilters}
+                        >
+                          Clear filters
+                        </button>
+                      ) : tab === "available" &&
+                        position &&
+                        radius !== "all" &&
+                        Number(radius) < 50 ? (
+                        <button
+                          className="btn"
+                          data-primary
+                          type="button"
+                          onClick={() =>
+                            setFilters((previous) => ({
+                              ...previous,
+                              radius: "50",
+                            }))
+                          }
+                        >
+                          Widen to 50 km
+                          <Icon name="arrow-right" size={16} />
+                        </button>
+                      ) : tab === "past" ? (
+                        <button
+                          className="btn"
+                          data-primary
+                          type="button"
+                          onClick={() => setTab("available")}
+                        >
+                          Explore requests
+                          <Icon name="arrow-right" size={16} />
+                        </button>
+                      ) : (
+                        <button
+                          className="btn"
+                          data-primary
+                          type="button"
+                          onClick={feed.retry}
+                        >
+                          <Icon name="refresh" size={16} />
+                          Check again
+                        </button>
+                      )}
+                      {tab === "available" && (
+                        <Link className="btn" to="/donor/alerts">
+                          View alerts
+                        </Link>
+                      )}
+                    </div>
+                    {tab === "available" && position && (
+                      <small>
+                        Distance filters apply to requests already matched to
+                        you.
+                      </small>
+                    )}
                   </div>
                 )}
               </section>
@@ -667,6 +670,9 @@ export default function Requests() {
                   items={[...(active ? [active] : []), ...visible]}
                   position={position}
                   activeItem={active}
+                  radiusKm={
+                    position && radius !== "all" ? Number(radius) : null
+                  }
                   onSelect={select}
                 />
                 <section className="donation-help-card">
@@ -739,7 +745,7 @@ export default function Requests() {
             </Link>
           </div>
         </dialog>
-        <SupportContact />
+        <SupportContact as="footer" />
       </main>
     </div>
   );

@@ -1,16 +1,12 @@
-import { RecordFilters } from "../../components/RecordFilters";
-import { filterRecords } from "../../utils/recordFilters";
 import { SupportContact } from "../../components/SupportContact";
-import { TableExport } from "../../components/TableExport";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "../../hooks/useTheme";
 import { useDonorRequests } from "../../hooks/useDonorRequests";
 import { DonorNav } from "../../layout/DonorNav";
-import { useTableSort } from "../../hooks/useTableSort";
 import { sortRows, sortDate } from "../../utils/sortRows";
-import { SortControls, Icon } from "../../components";
+import { Icon } from "../../components";
 import { listenDonorAlerts, markAlertsRead } from "../../services/alerts";
 import {
   componentName,
@@ -31,7 +27,7 @@ function alertTime(value) {
 }
 /** Actionable donor inbox with request context, unread state, and request deep links. */
 export default function Alerts() {
-  const { sort, setSort } = useTableSort();
+  const [order, setOrder] = useState("newest");
   const { user } = useAuth(),
     { theme } = useTheme(),
     navigate = useNavigate();
@@ -43,7 +39,6 @@ export default function Alerts() {
     readStatus: "all",
   });
   const [state, setState] = useState({ status: "loading", items: [] }),
-    [filter, setFilter] = useState("all"),
     [attempt, setAttempt] = useState(0),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -56,30 +51,18 @@ export default function Alerts() {
       () => setState((previous) => ({ ...previous, status: "error" })),
     );
   }, [user?.uid, attempt]);
-  const unread = state.items.filter((item) => !item.readAt),
-    filteredAlerts = filter === "unread" ? unread : state.items;
+  const unread = state.items.filter((item) => !item.readAt);
+  const newest = sortRows(
+    state.items,
+    (row) => sortDate(row.createdAt || row.sentAt),
+    "desc",
+  );
   const visible = sortRows(
-    filterRecords(filteredAlerts, recordFilters, {
-      date: (row) => row.createdAt || row.sentAt,
-      search: (row) => {
-        const item = feed.items.find(
-          (item) => item.request.id === row.requestId,
-        );
-        return `${row.title || ""} ${row.message || ""} ${row.body || ""} ${item?.hospital?.name || item?.request.hospitalName || ""}`;
-      },
-      fields: { readStatus: (row) => (row.readAt ? "read" : "unread") },
-    }),
-    {
-      date: (row) => sortDate(row.createdAt || row.sentAt),
-      hospital: (row) => {
-        const item = feed.items.find(
-          (item) => item.request.id === row.requestId,
-        );
-        return item?.hospital?.name || item?.request.hospitalName;
-      },
-      read: (row) => (row.readAt ? "Read" : "Unread"),
-    }[sort.key],
-    sort.direction,
+    newest,
+    order === "unread"
+      ? (row) => (row.readAt ? 1 : 0)
+      : (row) => sortDate(row.createdAt || row.sentAt),
+    order === "newest" ? "desc" : "asc",
   );
   const active = feed.items.find(isActiveCommitment);
   const readAll = async () => {
@@ -102,133 +85,48 @@ export default function Alerts() {
   return (
     <div className="pub donor-surface" data-theme={theme}>
       <DonorNav />
-      <main id="top" className="donation-hub donation-inbox donor-main">
-        <header className="donation-hub-hero">
-          <div>
-            <p className="donation-eyebrow">Every connection matters</p>
-            <h1>
-              A little nudge.
-              <br />
-              <em>A chance to help.</em>
-            </h1>
-            <p>
-              Your matches and donation updates, all in one place.
-              <br />
-              Open a request when you’re ready to take the next step.
-            </p>
-          </div>
+      <main
+        id="top"
+        className="donation-hub donation-inbox donor-main donor-browse donor-alert-browse"
+      >
+        <header className="donor-browse-header">
+          <p className="donation-eyebrow">Every connection matters</p>
+          <h1>Your alerts.</h1>
+          <p>Your matches and donation updates, all in one place.</p>
         </header>
         <div className="donation-inbox-layout">
           <section
             className="donation-inbox-panel"
             aria-label="Donation updates"
           >
-            <RecordFilters
-              name="donation updates"
-              onReset={() => setFilter("all")}
-              value={recordFilters}
-              onChange={(next) => {
-                setRecordFilters(next);
-                if (next.readStatus !== "all") setFilter("all");
-              }}
-              fields={[
-                {
-                  key: "readStatus",
-                  label: "Read status",
-                  options: [
-                    { value: "read", label: "Read" },
-                    { value: "unread", label: "Unread" },
-                  ],
-                },
-              ]}
-              disabled={state.status !== "ready"}
-            />
-            <SortControls
-              name="donor-alerts"
-              sort={sort}
-              onChange={setSort}
-              defaultLabel="Newest updates first"
-              fields={[
-                { key: "date", label: "Received date" },
-                { key: "hospital", label: "Hospital" },
-                { key: "read", label: "Read status" },
-              ]}
-            />
-            <TableExport
-              name="donor-alerts"
-              title="Your donation updates"
-              disabled={state.status !== "ready"}
-              columns={[
-                { label: "Alert ID", value: (row) => row.id },
-                { label: "Request ID", value: (row) => row.requestId },
-                {
-                  label: "Hospital",
-                  value: (row) => {
-                    const item = feed.items.find(
-                      (item) => item.request.id === row.requestId,
-                    );
-                    return (
-                      item?.hospital?.name || item?.request.hospitalName || ""
-                    );
-                  },
-                },
-                {
-                  label: "Received",
-                  value: (row) => row.createdAt || row.sentAt,
-                },
-                { label: "Delivery", value: (row) => row.deliveryStatus },
-                { label: "Read", value: (row) => Boolean(row.readAt) },
-                { label: "Read at", value: (row) => row.readAt },
-              ]}
-              getRows={(scope) =>
-                scope === "filtered" ? visible : state.items
-              }
-            />
-            <div className="donation-list-heading">
-              <div>
-                <p className="donation-eyebrow">Your inbox</p>
-                <h2>Stay connected.</h2>
-              </div>
+            <div className="donor-alert-toolbar">
+              <label className="donor-filter-choice">
+                <span className="care-sr-only">Sort alerts</span>
+                <span className="app-select">
+                  <select
+                    aria-label="Sort alerts"
+                    value={order}
+                    onChange={(event) => setOrder(event.target.value)}
+                  >
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                    <option value="unread">Unread first</option>
+                  </select>
+                </span>
+              </label>
               <button
                 className="donation-text-link"
                 type="button"
                 onClick={readAll}
-                disabled={busy || !unread.length}
+                disabled={
+                  busy ||
+                  !unread.length ||
+                  state.status !== "ready" ||
+                  feed.status !== "ready"
+                }
               >
                 {busy ? "Marking as read…" : "Mark all as read"}
                 <Icon name="check" size={16} />
-              </button>
-            </div>
-            <div
-              className="donation-tabs"
-              role="group"
-              aria-label="Alert filter"
-            >
-              <button
-                type="button"
-                aria-pressed={filter === "all"}
-                onClick={() => {
-                  setFilter("all");
-                  setRecordFilters((previous) => ({
-                    ...previous,
-                    readStatus: "all",
-                  }));
-                }}
-              >
-                All updates<span>{state.items.length}</span>
-              </button>
-              <button
-                type="button"
-                aria-pressed={filter === "unread"}
-                onClick={() => {
-                  setFilter("unread");
-                  setRecordFilters((previous) => ({
-                    ...previous,
-                    readStatus: "unread",
-                  }));
-                }}
-              >
-                Unread<span>{unread.length}</span>
               </button>
             </div>
             {error && (
@@ -346,20 +244,12 @@ export default function Alerts() {
                   })}
                 </div>
               ) : (
-                <div className="donation-state donation-empty">
-                  <Icon
-                    name={filter === "unread" ? "check" : "bell"}
-                    size={32}
-                  />
-                  <h3>
-                    {filter === "unread"
-                      ? "All caught up."
-                      : "Your next connection is on its way."}
-                  </h3>
+                <div className="donation-state donation-empty donor-browse-empty">
+                  <Icon name="bell" size={30} />
+                  <h2>No alerts yet.</h2>
                   <p>
-                    {filter === "unread"
-                      ? "You’ve seen all your updates. We’ll keep new matches here."
-                      : "When a request matches your blood type, you’ll find it here."}
+                    New matches and donation updates will appear here. You can
+                    explore your requests while you wait.
                   </p>
                   <Link className="btn" to="/donor/requests">
                     Explore requests
@@ -401,7 +291,7 @@ export default function Alerts() {
             </div>
           </aside>
         </div>
-        <SupportContact />
+        <SupportContact as="footer" />
       </main>
     </div>
   );

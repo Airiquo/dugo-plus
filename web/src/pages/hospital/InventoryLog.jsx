@@ -478,6 +478,7 @@ export default function InventoryLog() {
                     rowKey={(row) => row.id}
                     scroll={false}
                     sort={sort}
+                    mobileSort={false}
                     onSort={(key) => {
                       toggleSort(key);
                       setPage(1);

@@ -339,7 +339,7 @@ export default function Privacy() {
             )}
           </section>
         </div>
-        <SupportContact />
+        <SupportContact as="footer" />
       </main>
     </div>
   );

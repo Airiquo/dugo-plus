@@ -28,7 +28,7 @@ const hospitalIcon = L.divIcon({
   iconSize: [32, 36],
   iconAnchor: [16, 34],
 });
-function MapControls({ position, pins, expanded, onExpand }) {
+function MapControls({ position, pins, expanded, onExpand, radiusKm }) {
   const map = useMap();
   const [zoom, setZoom] = useState(() => ({
     level: map.getZoom(),
@@ -56,7 +56,12 @@ function MapControls({ position, pins, expanded, onExpand }) {
       fitted = true;
       const points = pins.map((pin) => [pin.facility.lat, pin.facility.lng]);
       if (position) points.push([position.lat, position.lng]);
-      if (points.length === 1) map.setView(points[0], 14);
+      if (points.length === 1 && position && radiusKm)
+        map.fitBounds(
+          L.latLng(position.lat, position.lng).toBounds(radiusKm * 2000),
+          { padding: [20, 20] },
+        );
+      else if (points.length === 1) map.setView(points[0], 14);
       else if (points.length)
         map.fitBounds(points, { padding: [48, 48], maxZoom: 14 });
     };
@@ -64,7 +69,7 @@ function MapControls({ position, pins, expanded, onExpand }) {
     observer.observe(map.getContainer());
     resize();
     return () => observer.disconnect();
-  }, [map, signature]);
+  }, [map, signature, radiusKm]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => map.invalidateSize());
     return () => cancelAnimationFrame(frame);
@@ -125,12 +130,13 @@ function MapControls({ position, pins, expanded, onExpand }) {
     </div>
   );
 }
-/** `items` carries resolved facilities; `onSelect` opens the request behind a pin. */
+/** `items` carries resolved facilities; `radiusKm` draws the selected search distance; `onSelect` opens a request. */
 export function DonorRequestMap({
   items,
   position,
   activeItem,
   onSelect,
+  radiusKm = null,
   className,
   ...rest
 }) {
@@ -196,12 +202,15 @@ export function DonorRequestMap({
     >
       <div className="donation-map-heading">
         <div>
-          <p className="donation-eyebrow">A little closer</p>
-          <h2>Care, around you.</h2>
+          <h2>Nearby requests</h2>
+          <p>
+            {position
+              ? radiusKm
+                ? `Your location · ${radiusKm} km view`
+                : "Your location · any distance"
+              : "Hospital locations"}
+          </p>
         </div>
-        <span className="donation-count">
-          {pins.length} {pins.length === 1 ? "hospital" : "hospitals"}
-        </span>
       </div>
       <div className="donation-map-canvas">
         <MapContainer
@@ -220,7 +229,15 @@ export function DonorRequestMap({
             pins={pins}
             expanded={expanded}
             onExpand={() => setExpanded((value) => !value)}
+            radiusKm={radiusKm}
           />
+          {position && radiusKm && (
+            <Circle
+              center={[position.lat, position.lng]}
+              radius={radiusKm * 1000}
+              pathOptions={{ className: "donation-map-radius" }}
+            />
+          )}
           {position && (
             <Marker position={[position.lat, position.lng]} icon={donorIcon}>
               <Popup>

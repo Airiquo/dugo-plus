@@ -32,6 +32,7 @@ export { NewsCard as CareNewsCard, NewsSection as CareNewsSection, NewsArticle a
 
 export { RequestStatusDialog } from './RequestStatusDialog'
 export { ProfileAvatar } from './ProfileAvatar'
+export { AccountIdentity } from './AccountIdentity'
 export { ProfilePhotoEditor } from './ProfilePhotoEditor'
 export { DonorRequestMap } from './DonorRequestMap'
 export { DonorRequestDetails } from './DonorRequestDetails'
@@ -54,4 +55,5 @@ export { HospitalDonationCalendar } from './HospitalDonationCalendar'
 export { HospitalTrendChart } from './HospitalTrendChart'
 export { HospitalStockChart } from './HospitalStockChart'
 export { RecordFilters } from './RecordFilters'
+export { DonorFilterBar } from './DonorFilterBar'
 export { TablePrintPreview } from './TablePrintPreview'

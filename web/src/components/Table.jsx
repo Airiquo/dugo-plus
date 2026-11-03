@@ -14,6 +14,7 @@ import { useId } from "react";
  * @param {boolean} [scroll] - wrap the table in `.table-scroll` (default true).
  * @param {(row: object, i: number) => object} [rowProps] - attributes for each `<tr>`.
  * `sort` / `onSort` render controlled headers; parents sort the full filtered data before pagination.
+ * `onSortChange` accepts the complete dropdown order; `mobileSort=false` hides a duplicate page-level sort control.
  * `mobileCards` uses labeled, single-DOM rows on phones; `columns[].mobileWide` spans the card.
  * Set `columns[].sortable = false` for action columns.
  */
@@ -26,6 +27,8 @@ export function Table({
   rowProps,
   sort,
   onSort,
+  onSortChange,
+  mobileSort = true,
   mobileCards = false,
   ...rest
 }) {
@@ -88,7 +91,7 @@ export function Table({
   );
   return (
     <>
-      {onSort && (
+      {onSort && mobileSort && (
         <SortControls
           className="table-sort-mobile"
           name={`table-${sortName}`}
@@ -97,7 +100,13 @@ export function Table({
             .filter((column) => column.sortable !== false)
             .map((column) => ({ key: column.key, label: column.header }))}
           defaultLabel="Default order"
-          onChange={(next) => onSort(next.key)}
+          onChange={(next) => {
+            if (onSortChange) return onSortChange(next);
+            if (next.key !== sort.key) {
+              onSort(next.key);
+              if (next.direction === 'desc') onSort(next.key);
+            } else if (next.direction !== sort.direction) onSort(next.key);
+          }}
         />
       )}
       {scroll ? <div className="table-scroll">{table}</div> : table}
