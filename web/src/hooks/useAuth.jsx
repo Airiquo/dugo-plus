@@ -181,7 +181,7 @@ export function AuthProvider({ children }) {
    * person accept. It is written onto the profile with the acceptance time.
    */
   const signUp = useCallback(
-    async (name, email, password, consentVersion) => {
+    async (name, email, password, consentVersion, identity = {}) => {
       // Hold the acceptance for the auto-provision branch, which can win the
       // race against the profile write below; both writes then record it.
       pendingConsent.current = consentVersion ?? null
@@ -203,6 +203,9 @@ export function AuthProvider({ children }) {
         role: DEFAULT_ROLE,
         fullName: name ?? '',
         email: next.email ?? '',
+        bloodType: identity.bloodType || '',
+        dateOfBirth: identity.dateOfBirth ? new Date(identity.dateOfBirth + 'T00:00:00Z') : null,
+        gender: identity.gender || '',
       }
       try {
         const { created, profile: stored } = await ensureProfile(next.uid, data, consentVersion)
@@ -249,6 +252,13 @@ export function AuthProvider({ children }) {
     return snapshot(fresh)
   }, [])
 
+  const refreshProfile = useCallback(async () => {
+    const uid = sessionUid.current
+    if (!uid) return
+    const next = await readProfile(uid, { fresh: true })
+    if (sessionUid.current === uid && next) setProfile(next)
+  }, [])
+
   const resendVerification = useCallback(() => sendVerificationEmail(), [])
 
   /** Persist the current account's picture and refresh navigation immediately. */
@@ -283,6 +293,7 @@ export function AuthProvider({ children }) {
       reloadUser,
       resendVerification,
       updateProfilePhoto,
+      refreshProfile,
     }),
     [
       user,
@@ -296,6 +307,7 @@ export function AuthProvider({ children }) {
       reloadUser,
       resendVerification,
       updateProfilePhoto,
+      refreshProfile,
     ],
   )
 

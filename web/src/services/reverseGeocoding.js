@@ -9,3 +9,8 @@ export async function cityFromCoordinates({ lat, lng }) {
   )
   return result.city
 }
+
+export async function searchCities(query, options) {
+  const result = await callDonorService('geocode/cities', { query }, 'City lookup unavailable. Enter your city manually.', options)
+  return result.cities || []
+}

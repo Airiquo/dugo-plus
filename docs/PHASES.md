@@ -349,6 +349,9 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Registration identity and donor location (2026-11-04, D89):** Owner confirms required DOB, gender and blood group plus password confirmation and one-time review at email registration; Google accounts land on /home with completion prompts. Staff demographic displays derive age from DOB. Gender is a new erasable profile field and is not a matching criterion. Donors can pin or enter coordinates and use authenticated city suggestions. Notice version is 2026-11-04; legacy consent is preserved. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
+
+
 - **Route loading and session reads (2026-11-04, D88):** Owner requests lazy routes with eager landing/login/register, code prefetch on navigation intent, an announced skeleton, native View Transitions with fade fallback, and short-lived memory-only profile/facility/stock reads. Writes invalidate cache and sign-out/session changes clear it. Firebase SDK reads detach aborted consumers; its transport cannot be cancelled. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
 
 

@@ -304,3 +304,14 @@ client permissions or data writes. Current visit-specific consent and active,
 unerased donor profiles gate batched identity reads in the Worker. Historical
 confirmed and canonical Completed donations share the read mapping; no stock is
 replayed. Verification/rollout limits: `docs/HOSPITAL_DONORS_DIRECTORY.md`.
+
+## 2026-11-04 — Donor identity (D89)
+
+Add optional `users.gender` with Female/Male/Other/Prefer not to say choices.
+Email/password registration collects gender, birth date and blood group before
+creating the profile; existing and Google accounts complete missing fields later.
+Gender remains editable. Blood group/birth date retain their existing owner lock.
+Age is computed from birth date for staff displays and is never persisted or
+introduced to the matcher contract. Current consent-gated response/directory
+shapes include gender and birth date; erased profiles clear gender. No index or
+new collection. Legacy profiles need no backfill.

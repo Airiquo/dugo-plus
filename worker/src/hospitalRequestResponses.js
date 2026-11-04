@@ -60,6 +60,8 @@ export function createHospitalRequestResponses(store, referenceName) {
           const record = profiles.get(data.donorId)
           if (active(record) && record.data.role === 'donor' && !record.data.personalDataErased) {
             donor = Object.fromEntries(['fullName', 'email', 'phoneNumber', 'bloodType', 'city'].map(key => [key, text(record.data[key])]))
+            donor.gender = text(record.data.gender)
+            donor.dateOfBirth = date(record.data.dateOfBirth)
             privacy = null
           } else privacy = 'profile-unavailable'
         }

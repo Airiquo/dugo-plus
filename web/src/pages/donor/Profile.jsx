@@ -3,13 +3,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useTheme } from '../../hooks/useTheme'
 import { useAuth } from '../../hooks/useAuth'
-import { readProfile, saveProfile, BLOOD_TYPES, roleLabel } from '../../services/users'
+import { readProfile, saveProfile, BLOOD_TYPES, GENDERS, roleLabel } from '../../services/users'
 import { saveDonorLocation } from '../../services/donorLocations'
 import { cityFromCoordinates } from '../../services/reverseGeocoding'
 import { latestDonorDonation } from '../../services/donations'
 import { eligibilityFor, toDate } from '../../utils/eligibility'
+import { phNational, phE164 } from '../../utils/phone'
+import { asPoint } from '../../utils/geo'
 import { validateProfile } from '../../utils/validate'
-import { SignOutButton, FieldError, Icon, CarePageHeader, CareDonorCard, ProfilePhotoEditor } from '../../components'
+import { ProfileCompletionBanner, CityAutocomplete, HospitalLocationMap, SignOutButton, FieldError, Icon, CarePageHeader, CareDonorCard, ProfilePhotoEditor } from '../../components'
 import { DonorNav } from '../../layout/DonorNav'
 
 /** `2026-10-20` from a Date, for an `<input type="date">`. */
@@ -27,10 +29,13 @@ function formFrom(profile) {
     fullName: profile?.fullName ?? '',
     bloodType: profile?.bloodType ?? '',
     dateOfBirth: dateInputValue(profile?.dateOfBirth),
-    phoneNumber: profile?.phoneNumber ?? '',
+    gender: profile?.gender ?? '',
+    phoneNumber: phNational(profile?.phoneNumber),
+    latitude: profile?.geohash ? String(profile.latitude) : '',
+    longitude: profile?.geohash ? String(profile.longitude) : '',
     city: profile?.city ?? '',
     coordinates:
-      profile?.latitude && profile?.longitude
+      profile?.geohash
         ? { lat: profile.latitude, lng: profile.longitude }
         : null,
     lastDonationAt: profile?.lastDonationAt ?? null,
@@ -54,7 +59,7 @@ function formFrom(profile) {
 export default function Profile({ embedded = false }) {
   const Main = embedded ? "div" : "main";
   const { theme } = useTheme()
-  const { user, profile, loading, role, roleLoading } = useAuth()
+  const { user, profile, loading, role, roleLoading, refreshProfile } = useAuth()
 
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [loadFailed, setLoadFailed] = useState(false)
@@ -146,7 +151,7 @@ export default function Profile({ embedded = false }) {
   if (!role) return <Navigate to="/" replace />
 
   const set = (key) => (event) => {
-    const value = event.target.value
+    const value = key === 'phoneNumber' ? phNational(event.target.value) : event.target.value
     setForm((prev) => ({ ...prev, [key]: value }))
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: '' }))
     setMessage('')
@@ -154,8 +159,8 @@ export default function Profile({ embedded = false }) {
   }
 
   const clearCoordinates = () => {
-    setForm((prev) => ({ ...prev, coordinates: null }))
-    setNote('Location removed. Your city is still saved.')
+    setForm((prev) => ({ ...prev, coordinates: null, latitude: '', longitude: '' }))
+    setNote('Pin removed from your draft. Save your profile to keep this change.')
   }
 
   const useMyLocation = () => {
@@ -173,7 +178,7 @@ export default function Profile({ embedded = false }) {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         }
-        setForm((prev) => ({ ...prev, coordinates }))
+        setForm((prev) => ({ ...prev, coordinates, latitude: String(coordinates.lat), longitude: String(coordinates.lng) }))
         setNote('Location captured. Finding your city…')
         try {
           const city = await cityFromCoordinates(coordinates)
@@ -214,7 +219,8 @@ export default function Profile({ embedded = false }) {
         fullName: draft.fullName,
         bloodType: draft.bloodType,
         dateOfBirth: draft.dateOfBirth ? new Date(draft.dateOfBirth) : null,
-        phoneNumber: draft.phoneNumber,
+        gender: draft.gender,
+        phoneNumber: phE164(draft.phoneNumber),
         // Sent only when the donor changed location details, so a save that
         // touches nothing else never rewrites the stored coordinates.
         ...(locChanged(draft, saved)
@@ -240,6 +246,7 @@ export default function Profile({ embedded = false }) {
       }
       setForm(draft)
       setSaved(draft)
+      await refreshProfile?.().catch(() => {})
       setNote('Profile saved.')
     } catch {
       setMessage('Your profile could not be saved. Check your connection and try again.')
@@ -252,9 +259,10 @@ export default function Profile({ embedded = false }) {
     event.preventDefault()
     if (!profileLoaded || loadFailed) return
     const found = validateProfile(form)
+    if ((form.latitude || form.longitude) && !asPoint(form.latitude, form.longitude)) found.coordinates = "Enter both coordinates: latitude −90 to 90 and longitude −180 to 180."
     setErrors(found)
     if (Object.keys(found).length) {
-      setMessage('')
+      setMessage('Check the highlighted details before saving.')
       return
     }
     setMessage('')
@@ -297,6 +305,7 @@ export default function Profile({ embedded = false }) {
 
       <Main id={embedded ? undefined : "top"} className={embedded ? "settings-profile-content" : "profile-main donor-main"}>
         {!embedded && <CarePageHeader kicker="Your donor space" title={<>{form.fullName ? `Hello, ${form.fullName.trim().split(' ')[0]}.` : 'A little of you.'}<br /><em>A lot of possibility.</em></>} description="A connection starts with knowing you. Keep your details ready for the next person who needs a donor." />}
+        {profileLoaded && !loadFailed && <ProfileCompletionBanner profile={saved} />}
         <div className="donor-profile-layout">
         <form className="pub-card pub-form profile-card" noValidate onSubmit={submit}>
           <p className="pub-kicker">Your profile</p>
@@ -344,10 +353,11 @@ export default function Profile({ embedded = false }) {
           {/* Donor details ------------------------------------------- */}
           <div className="profile-section">
             <h4 className="profile-section-h">Donor details</h4>
+            <label><span>Gender</span><span className="app-select"><select aria-label="Gender" value={form.gender} onChange={set('gender')} disabled={busy}><option value="">Not set</option>{GENDERS.map(gender => <option key={gender}>{gender}</option>)}</select></span></label>
             <label>
               <span>Blood type</span>
               <span className="app-select"><select
-                value={form.bloodType}
+                aria-label="Blood type" value={form.bloodType}
                 disabled={!profileLoaded || busy || lockedIdentity.bloodType}
                 aria-invalid={Boolean(errors.bloodType) || undefined}
                 aria-describedby={errors.bloodType ? 'profile-blood-error' : undefined}
@@ -366,7 +376,7 @@ export default function Profile({ embedded = false }) {
             <label>
               <span>Date of birth</span>
               <input
-                type="date"
+                aria-label="Date of birth" type="date"
                 max={dateInputValue(new Date())}
                 value={form.dateOfBirth}
                 disabled={!profileLoaded || busy || lockedIdentity.dateOfBirth}
@@ -388,13 +398,13 @@ export default function Profile({ embedded = false }) {
               <input
                 autoComplete="tel"
                 placeholder="0917 000 0000"
-                type="tel"
+                aria-label="Phone" type="tel" inputMode="numeric"
                 value={form.phoneNumber}
                 aria-invalid={Boolean(errors.phoneNumber) || undefined}
                 aria-describedby={errors.phoneNumber ? 'profile-phone-error' : undefined}
                 onChange={set('phoneNumber')}
               />
-              <FieldError id="profile-phone-error">{errors.phoneNumber}</FieldError>
+              <FieldError id="profile-phone-error">{errors.phoneNumber || (form.phoneNumber && form.phoneNumber.length !== 10 ? "Enter all 10 digits after +63." : "")}</FieldError>
             </label>
           </div>
 
@@ -402,8 +412,8 @@ export default function Profile({ embedded = false }) {
           <div className="profile-section">
             <h4 className="profile-section-h">Location</h4>
             <p className="pub-fine">
-              Used to match you to nearby requests. When you tap Use my location,
-              an approximate point is sent to OpenStreetMap to suggest your city.
+              Place a pin, enter coordinates or use your location. When you tap Use my location,
+              an approximate point is sent to OpenStreetMap to suggest your city. City search text is sent through our service to Photon.
               Check the suggestion before saving.
             </p>
             <p className="profile-location-attribution">
@@ -411,7 +421,7 @@ export default function Profile({ embedded = false }) {
             </p>
             <label>
               <span>City</span>
-              <input
+              <CityAutocomplete aria-label="City"
                 autoComplete="address-level2"
                 placeholder="Malolos, Bulacan"
                 type="text"
@@ -423,6 +433,9 @@ export default function Profile({ embedded = false }) {
               <FieldError id="profile-city-error">{errors.city}</FieldError>
             </label>
 
+            <HospitalLocationMap position={form.coordinates} editable disabled={busy || !profileLoaded} label="Your donor location" onChange={point => { setForm(previous => ({ ...previous, coordinates: point, latitude: String(point.lat), longitude: String(point.lng) })); setErrors(previous => ({ ...previous, coordinates: '' })); setMessage(''); setNote('Pin updated. Save your profile to keep it.') }} />
+            <div className="profile-coordinate-fields">{[['latitude', 'Latitude'], ['longitude', 'Longitude']].map(([key,label]) => <label key={key}><span>{label}</span><input type="number" step="any" min={key === 'latitude' ? -90 : -180} max={key === 'latitude' ? 90 : 180} value={form[key]} disabled={busy} aria-invalid={Boolean(errors.coordinates)} aria-describedby="profile-coordinate-error" onChange={event => { const value = event.target.value; setForm(previous => { const next = { ...previous, [key]: value }; return { ...next, coordinates: asPoint(next.latitude, next.longitude) } }); setErrors(previous => ({ ...previous, coordinates: '' })); setMessage('') }} /></label>)}</div>
+            <FieldError id="profile-coordinate-error">{errors.coordinates}</FieldError>
             <div className="profile-coords">
               <span className="profile-coords-state" data-state={form.coordinates ? 'set' : 'unset'}>
                 <Icon name={form.coordinates ? 'target' : 'alert'} size={14} />
@@ -486,8 +499,7 @@ export default function Profile({ embedded = false }) {
           setIdentityDraft(null)
         }}
       >
-        <div className="profile-confirm-mark"><Icon name="shield" size={22} /></div>
-        <p className="pub-kicker">One-time details</p>
+        <p className="pub-kicker profile-confirm-kicker"><Icon name="shield" size={22} />One-time details</p>
         <h2 id="profile-confirm-title">Are these details correct?</h2>
         <p>After saving, you won’t be able to change your blood type or date of birth. Please check them carefully.</p>
         <dl className="profile-confirm-values">

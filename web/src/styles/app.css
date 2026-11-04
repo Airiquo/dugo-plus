@@ -10610,3 +10610,16 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .route-skeleton i:first-child { height: 48px; width: 55%; }
 .route-surface main { animation: care-panel-enter .18s ease; }
 @media (prefers-reduced-motion: reduce) { .route-surface main { animation: none; } ::view-transition-group(*) { animation-duration: 0s; } }
+
+/* Intentional profile/map controls and completion prompt. */
+.profile-confirm-kicker { display: flex; align-items: center; gap: 8px; }
+.profile-coordinate-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+.city-autocomplete { display: grid; gap: 6px; }
+.city-autocomplete > small { color: var(--d-muted); font-size: 11px; }
+.donor-demographics { display: block; color: var(--d-muted); font-size: 11px; line-height: 1.7; }
+.profile-completion-banner { display: flex; align-items: flex-start; gap: 16px; border: 1px solid var(--d-line); border-left: 3px solid var(--d-blue); background: var(--d-panel); border-radius: 12px; padding: 20px 24px; margin: 0 0 24px; color: var(--d-ink); }
+.profile-completion-banner p { margin: 6px 0; color: var(--d-muted); }
+.profile-completion-banner a { color: var(--d-blue); text-decoration: underline; }
+.profile-signout { border-top: 1px solid var(--d-line); padding-top: 12px; width: 100%; }
+.profile-coordinate-fields input { min-width: 0; }
+@media (max-width: 575px) { .profile-coordinate-fields { grid-template-columns: minmax(0,1fr); } }

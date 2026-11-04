@@ -22,6 +22,7 @@ import { getAccountHistory } from './accountHistory.js'
 import { getAuditActivity } from './auditActivity.js'
 import { processRequest, runMatchingCycle } from './matcher.js'
 import { notifyNewMatches, retryNotifications } from './notify.js'
+import { searchCities } from './citySearch.js'
 import { reverseGeocodeCity } from './reverseGeocoding.js'
 import {
   getAllAuditBlocks,
@@ -112,6 +113,13 @@ async function route(request, env) {
     let input
     try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
     return json(await createDonorAlertReader(transactionStore(env))(user.uid, input?.ids), 200, cors)
+  }
+
+  if (request.method === 'POST' && url.pathname === '/donor/geocode/cities') {
+    await verifyIdToken(env, bearerToken(request))
+    let input
+    try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
+    return json(await searchCities(input, { endpoint: env.CITY_GEOCODER_URL || undefined }), 200, cors)
   }
 
   if (request.method === 'POST' && url.pathname === '/donor/geocode/reverse') {

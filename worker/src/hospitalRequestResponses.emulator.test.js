@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { generateKeyPairSync } from 'node:crypto'
+import { generateKeyPairSync, randomUUID } from 'node:crypto'
 import { transactionStore, documentName } from './firestore.js'
 import { createHospitalRequestResponses } from './hospitalRequestResponses.js'
 import worker from './index.js'
@@ -25,9 +25,10 @@ globalThis.fetch = async (url, init = {}) => {
 }
 const store = transactionStore(env)
 const read = createHospitalRequestResponses(store, path => documentName(env, path))
+const runId = randomUUID().slice(0,8)
 let sequence = 0
 async function setup(count = 3) {
-  const prefix = 'case-' + (++sequence), hospitalId = prefix + '-h', uid = prefix + '-staff', requestId = prefix + '-request'
+  const prefix = 'case-' + runId + '-' + (++sequence), hospitalId = prefix + '-h', uid = prefix + '-staff', requestId = prefix + '-request'
   const actor = { uid, claims: { role: 'staff', hospitalId } }
   await store.transact(async tx => {
     tx.create('users/' + uid, { role: 'hospital', hospitalId, status: 'Active' })
@@ -35,7 +36,7 @@ async function setup(count = 3) {
     tx.create('bloodRequests/' + requestId, { hospitalId, status: 'collecting' })
     for (let i = 0; i < count; i++) {
       const donorId = prefix + '-donor-' + i, matchId = requestId + '_' + String(i).padStart(3, '0')
-      tx.create('users/' + donorId, { role: 'donor', status: 'Active', fullName: 'Fictional donor ' + i, email: `donor${i}@example.test`, phoneNumber: '09171234567', bloodType: 'O-', city: 'Fixture city', dateOfBirth: new Date('1990-01-01'), latitude: 14.5, statusReason: 'private' })
+      tx.create('users/' + donorId, { role: 'donor', status: 'Active', fullName: 'Fictional donor ' + i, email: `donor${i}@example.test`, phoneNumber: '09171234567', bloodType: 'O-', city: 'Fixture city', gender: 'Female', dateOfBirth: new Date('1990-01-01'), latitude: 14.5, statusReason: 'private' })
       tx.create('donorMatches/' + matchId, { donorId, requestId, responseStatus: ['Accepted', 'Declined', 'Pending'][i % 3], matchedAt: new Date('2026-11-03'), screeningStatus: i === 0 ? 'Cleared' : null })
       tx.create('donorConsents/' + matchId + '_data-sharing', { donorId, matchId, consentType: 'Data Sharing', grantedAt: new Date(), revokedAt: null })
     }
@@ -46,7 +47,10 @@ async function setup(count = 3) {
 test('contacts require accepted response and active match-specific consent; fields are allowlisted', async () => {
   const f = await setup(), result = await read(f.actor, { requestId: f.requestId })
   assert.equal(result.rows.length, 3)
-  assert.deepEqual(Object.keys(result.rows[0].donor).sort(), ['bloodType', 'city', 'email', 'fullName', 'phoneNumber'])
+  assert.deepEqual(Object.keys(result.rows[0].donor).sort(), ['bloodType', 'city', 'dateOfBirth', 'email', 'fullName', 'gender', 'phoneNumber'])
+  assert.equal(result.rows[0].donor.gender, 'Female')
+  assert.equal(result.rows[0].donor.dateOfBirth, '1990-01-01T00:00:00.000Z')
+  assert.equal('age' in result.rows[0].donor, false)
   assert.equal(result.rows[0].screeningStatus, 'Cleared')
   assert.equal(result.rows[0].matchedAt, '2026-11-03T00:00:00.000Z')
   assert.equal(result.rows[1].donor, null)

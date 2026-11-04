@@ -1,3 +1,4 @@
+import { phNational, phE164 } from '../../utils/phone'
 import { TableExport } from "../../components/TableExport";
 import { privacyReportColumns } from "../../utils/reportColumns";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -165,7 +166,7 @@ export default function DataRequests() {
     setRejectionReason(request.rejectionReason || "");
     setCorrection({
       fullName: byId.get(request.userId)?.fullName || "",
-      phoneNumber: byId.get(request.userId)?.phoneNumber || "",
+      phoneNumber: phNational(byId.get(request.userId)?.phoneNumber),
       city: byId.get(request.userId)?.city || "",
     });
     setConfirmErase(false);
@@ -255,7 +256,7 @@ export default function DataRequests() {
     try {
       await correctUserProfile(active.userId, {
         fullName: correction.fullName,
-        phoneNumber: correction.phoneNumber,
+        phoneNumber: phE164(correction.phoneNumber),
         city: correction.city,
       });
       setResolution("Correction");
@@ -698,12 +699,12 @@ export default function DataRequests() {
                       <div className="aw-form-grid">
                         <Field label="Phone">
                           <Input
-                            type="tel"
+                            type="tel" inputMode="numeric"
                             value={correction.phoneNumber}
                             onChange={(e) =>
                               setCorrection((p) => ({
                                 ...p,
-                                phoneNumber: e.target.value,
+                                phoneNumber: phNational(e.target.value),
                               }))
                             }
                           />

@@ -1,4 +1,5 @@
 export const routeLoaders = {
+  DonorRegistry: () => import('../pages/admin/DonorRegistry.jsx'),
   Partner: () => import('../pages/public/Partner.jsx'),
   ForgotPassword: () => import('../pages/public/ForgotPassword.jsx'),
   VerifyEmail: () => import('../pages/public/VerifyEmail.jsx'),

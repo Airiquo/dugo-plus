@@ -51,6 +51,7 @@ const VerifyEmail = lazy(routeLoaders.VerifyEmail)
 const PrivacyPolicy = lazy(routeLoaders.PrivacyPolicy)
 const NotFound = lazy(routeLoaders.NotFound)
 const Welcome = lazy(routeLoaders.Welcome)
+const DonorRegistry = lazy(routeLoaders.DonorRegistry)
 const Dashboard = lazy(routeLoaders.Dashboard)
 const BloodRequests = lazy(routeLoaders.BloodRequests)
 const AuditTrail = lazy(routeLoaders.AuditTrail)
@@ -78,6 +79,7 @@ const ScreenStub = lazy(routeLoaders.ScreenStub)
 
 /** Slugs that have a real page; every other admin screen renders `ScreenStub`. */
 const TRANSLATED = new Set([
+  'donor-registry',
   'dashboard',
   'blood-requests',
   'audit-trail',
@@ -235,6 +237,7 @@ export default function App() {
             <Route path="/admin/blood-requests" element={<BloodRequests />} />
             <Route path="/admin/audit-trail" element={<AuditTrail />} />
             <Route path="/admin/profile" element={<Navigate to="/admin/settings" replace />} />
+            <Route path="/admin/donor-registry" element={<DonorRegistry />} />
             <Route path="/admin/accounts" element={<AdminAccounts />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/admin/data-requests" element={<AdminDataRequests />} />

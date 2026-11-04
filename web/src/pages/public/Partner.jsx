@@ -1,3 +1,4 @@
+import { phNational, phE164 } from '../../utils/phone'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { validatePartner } from '../../utils/validate'
@@ -67,7 +68,7 @@ export default function Partner() {
           facility: facility.trim(),
           contactPerson: contactPerson.trim(),
           email: email.trim(),
-          phone: phone.trim(),
+          phone: phE164(phone),
           partnershipType,
           message: message.trim(),
         }),
@@ -168,16 +169,16 @@ export default function Partner() {
             <input
               autoComplete="tel"
               placeholder="044 791 0000"
-              type="tel"
+              type="tel" inputMode="numeric"
               value={phone}
               aria-invalid={Boolean(errors.phone) || undefined}
               aria-describedby={errors.phone ? 'partner-phone-error' : undefined}
               onChange={(event) => {
-                setPhone(event.target.value)
+                setPhone(phNational(event.target.value))
                 if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }))
               }}
             />
-            <FieldError id="partner-phone-error">{errors.phone}</FieldError>
+            <FieldError id="partner-phone-error">{errors.phone || (phone && phone.length !== 10 ? "Enter all 10 digits after +63." : "")}</FieldError>
           </label>
           <label>
             <span>Partnership type</span>

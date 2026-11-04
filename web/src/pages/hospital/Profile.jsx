@@ -22,10 +22,11 @@ export default function Profile({ embedded = false }) {
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (roleLoading) return;
+    const controller = new AbortController();
     let active = true;
     setLoading(true);
     setError(false);
-    fetchHospital(profile?.hospitalId)
+    fetchHospital(profile?.hospitalId, { signal: controller.signal })
       .then((found) => {
         if (active) {
           setFacility(found);
@@ -40,6 +41,7 @@ export default function Profile({ embedded = false }) {
       });
     return () => {
       active = false;
+      controller.abort();
     };
   }, [profile?.hospitalId, roleLoading, attempt]);
   const name = profile?.fullName || user?.displayName || "Hospital staff";

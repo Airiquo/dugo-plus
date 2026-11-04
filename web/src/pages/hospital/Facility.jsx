@@ -174,9 +174,9 @@ export default function Facility({ embedded = false }) {
                   name="contactNumber"
                   type="tel"
                   autoComplete="tel"
-                  inputMode="tel"
+                  inputMode="numeric"
                   maxLength={20}
-                  value={`+63 ${phDisplay(form.contactNumber)}`}
+                  value={form.contactNumber}
                   onChange={(e) => set("contactNumber", e.target.value)}
                   aria-invalid={Boolean(errors.contactNumber) || undefined}
                   aria-describedby={
@@ -186,7 +186,7 @@ export default function Facility({ embedded = false }) {
                   }
                 />
                 <FieldError id="facility-contact-error">
-                  {errors.contactNumber}
+                  {errors.contactNumber || (form.contactNumber && ![9,10].includes(form.contactNumber.length) ? "Enter 9–10 digits after +63." : "")}
                 </FieldError>
                 <small id="facility-phone-help" className="hw-field-help">
                   Use a number donors can reach for collection questions.

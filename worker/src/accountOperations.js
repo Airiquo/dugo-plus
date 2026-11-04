@@ -405,6 +405,7 @@ export function createAccountManager({
               longitude: 0,
               bloodType: '',
               dateOfBirth: null,
+              gender: '',
               personalDataErased: true,
             }
           : {}),

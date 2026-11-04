@@ -5,7 +5,7 @@ import { geohash, isCoordinate } from '../../web/src/utils/geohash.js'
 const BLOOD_TYPES = ['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+']
 export const PROFILE_FIELD_LABELS = {
   fullName: 'Name', phoneNumber: 'Account phone', city: 'City',
-  bloodType: 'Blood type', dateOfBirth: 'Date of birth',
+  gender: 'Gender', bloodType: 'Blood type', dateOfBirth: 'Date of birth',
   latitude: 'Latitude', longitude: 'Longitude',
   name: 'Facility name', address: 'Facility address', contactNumber: 'Facility phone',
 }
@@ -33,7 +33,7 @@ export function accountProfileSnapshot(profile, hospital) {
     profile: {
       fullName: data.fullName || '', phoneNumber: data.phoneNumber || '',
       ...(data.role === 'donor' ? {
-        city: data.city || '', bloodType: data.bloodType || '',
+        city: data.city || '', gender: data.gender || '', bloodType: data.bloodType || '',
         dateOfBirth: dateValue(data.dateOfBirth), ...point(data),
       } : {}),
     },
@@ -72,7 +72,7 @@ function location(value) {
 export function normalizeAccountProfile(input, role, now) {
   const base = ['fullName', 'phoneNumber']
   allowed(input.profile, role === 'donor'
-    ? [...base, 'city', 'bloodType', 'dateOfBirth', 'latitude', 'longitude'] : base, 'Profile')
+    ? [...base, 'city', 'gender', 'bloodType', 'dateOfBirth', 'latitude', 'longitude'] : base, 'Profile')
   const profile = {
     fullName: text(input.profile.fullName, 'Name', 120, true),
     phoneNumber: text(input.profile.phoneNumber, 'Account phone', 40),
@@ -81,6 +81,8 @@ export function normalizeAccountProfile(input, role, now) {
     if (input.facility != null) throw new HttpError(400, 'Donors cannot edit facility details.')
     const bloodType = text(input.profile.bloodType, 'Blood type', 3)
     if (bloodType && !BLOOD_TYPES.includes(bloodType)) throw new HttpError(400, 'Choose a valid blood type.')
+    const gender = text(input.profile.gender ?? '', 'Gender', 30)
+    if (gender && !['Female','Male','Other','Prefer not to say'].includes(gender)) throw new HttpError(400, 'Choose a valid gender.')
     const date = input.profile.dateOfBirth
     let dateOfBirth = null
     if (date !== '') {
@@ -92,7 +94,7 @@ export function normalizeAccountProfile(input, role, now) {
     }
     return { profile: {
       ...profile, city: text(input.profile.city, 'City', 120),
-      bloodType, dateOfBirth, ...location(input.profile),
+      bloodType, dateOfBirth, gender, ...location(input.profile),
     }, facility: null }
   }
   allowed(input.facility, ['name', 'address', 'contactNumber', 'city', 'latitude', 'longitude'], 'Facility')

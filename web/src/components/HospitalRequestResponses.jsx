@@ -1,3 +1,4 @@
+import { DonorDemographics } from './DonorDemographics'
 import { lockDialogScroll } from '../utils/dialogScrollLock'
 import { useEffect, useRef, useState } from 'react'
 import { cx } from '../utils/cx'
@@ -105,7 +106,7 @@ export function HospitalRequestResponses({ name = 'hospital-responses', request,
         : result.rows.length === 0 ? <div className="hresponses-state" role="status"><Icon name="user" size={28} /><h3>{status ? `No ${status.toLowerCase()} donors on this page` : 'No donors matched yet'}</h3><p>{status ? 'Choose another response filter or refresh for updates.' : 'Donors will appear here when matching connects them to this request.'}</p></div>
         : <ul className="hresponses-list">{result.rows.map((row, index) => <li key={row.id}>
           <div className="hresponses-person"><span className="hresponses-avatar" aria-hidden="true">{row.donor?.fullName ? row.donor.fullName.split(/\s+/).slice(0, 2).map(word => word[0]).join('') : <Icon name="user" size={20} />}</span>
-            <div><h3>{row.donor?.fullName || (row.donor ? 'Donor name not recorded' : 'Private donor')}</h3><p>{row.donor ? [row.donor.bloodType, row.donor.city].filter(Boolean).join(' · ') || 'Profile details not recorded' : row.privacy === 'profile-unavailable' ? 'Donor profile is unavailable.' : 'Contact details are not shared.'}</p></div>
+            <div><h3>{row.donor?.fullName || (row.donor ? 'Donor name not recorded' : 'Private donor')}</h3><p>{row.donor ? [row.donor.bloodType, row.donor.city].filter(Boolean).join(' · ') || 'Profile details not recorded' : row.privacy === 'profile-unavailable' ? 'Donor profile is unavailable.' : 'Contact details are not shared.'}</p>{row.donor && <DonorDemographics profile={row.donor} />}</div>
             <span className="response-stage-pill" data-stage={row.donationStage}>{row.responseStatus === 'Pending' ? 'Awaiting response' : row.responseStatus !== 'Accepted' ? row.responseLabel : row.donationStage === 'Responded' ? 'Awaiting screening' : row.donationStage}</span>
           </div>
           <div className="hresponses-contact">{row.donor ? <>

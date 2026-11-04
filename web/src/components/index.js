@@ -72,3 +72,6 @@ export { DonationStageTrack } from './DonationStageTrack'
 
 export { DonationProgress } from './DonationProgress'
 export { SignOutButton } from './SignOutButton'
+export { ProfileCompletionBanner } from './ProfileCompletionBanner'
+export { CityAutocomplete } from './CityAutocomplete'
+export { DonorDemographics } from './DonorDemographics'

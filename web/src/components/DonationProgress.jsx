@@ -1,3 +1,4 @@
+import { DonorDemographics } from './DonorDemographics'
 import { useEffect, useRef, useState } from 'react'
 import { cx } from '../utils/cx'
 import { nextDonationStage, validCollectedUnits, canDeferDonation } from '../utils/donationProgress'
@@ -17,7 +18,7 @@ export function DonationProgress({ name, row, request, busy, notice, error, unit
   const events = stages.slice(0,index + 1).map((stage,i) => ({stage: i === 0 ? 'Matched' : stage,date:row[['matchedAt','screenedAt','processingAt','completedAt'][i]]})).reverse()
   return <section className={cx('donation-progress-flow',className)} {...rest}>
     <button ref={backButton} type="button" className="btn response-flow-back" disabled={busy} onClick={onBack}>All donor responses</button>
-    <div className="hresponses-person"><span className="hresponses-avatar" aria-hidden="true">{row.donor?.fullName?.split(/\s+/).slice(0,2).map(word=>word[0]).join('') || <Icon name="user"/>}</span><div><h3>{row.donor?.fullName || 'Private donor'}</h3><p>{row.donor ? [row.donor.bloodType,row.donor.city].filter(Boolean).join(' · ') : 'Current data-sharing consent is required.'}</p></div><span className="response-stage-pill" data-stage={row.donationStage}>{row.donationStage === 'Responded' ? 'Awaiting screening' : row.donationStage}</span></div>
+    <div className="hresponses-person"><span className="hresponses-avatar" aria-hidden="true">{row.donor?.fullName?.split(/\s+/).slice(0,2).map(word=>word[0]).join('') || <Icon name="user"/>}</span><div><h3>{row.donor?.fullName || 'Private donor'}</h3><p>{row.donor ? [row.donor.bloodType,row.donor.city].filter(Boolean).join(' · ') : 'Current data-sharing consent is required.'}</p>{row.donor && <DonorDemographics profile={row.donor} />}</div><span className="response-stage-pill" data-stage={row.donationStage}>{row.donationStage === 'Responded' ? 'Awaiting screening' : row.donationStage}</span></div>
     <div className="hresponses-contact">{row.donor?.phoneNumber && <a href={`tel:${row.donor.phoneNumber.replace(/[^+0-9]/g,'')}`}><Icon name="phone" size={15}/>{row.donor.phoneNumber}</a>}{row.donor?.email && <a href={`mailto:${row.donor.email}`}>{row.donor.email}</a>}</div>
     <button type="button" className="btn response-flow-view" disabled={busy} onClick={onResponse}>View donor / response</button>
     {details}

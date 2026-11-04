@@ -35,3 +35,29 @@ Firestore's getDoc/getDocs API cannot abort the underlying transport. No profile
 or health data is added to browser storage. Cache regressions pass (3 tests).
 Configured live sign-in/save/reload/verification smoke remains to be run with
 local emulator credentials; fixture checks are recorded separately.
+
+## Identity (D89)
+
+Email registration requires confirm password, DOB, gender and blood type, followed
+by a review before account creation. Google still provisions after provider sign-in
+and goes to /home; persistent completion prompts appear there and on Requests.
+Existing acceptance validation stays. Admin hospital creation adds confirm password
+without gender. Staff Accounts/Donor Registry, response cards/progress and the
+account editor show gender and age derived with ageOn. No matcher contract change.
+
+Donor location reuses HospitalLocationMap click/drag/keyboard placement and manual
+coordinate fields, with validation/status feedback. City search goes through an
+authenticated Worker endpoint to Photon (PH filter, 8 results, debounce/cache);
+manual entry remains available. Phone input/paste is normalized with phNational
+and saves use phE164. Birth date/blood group retain their existing first-save locks.
+Gender is exported and erased with the profile; privacy notice/rules/schema move
+together. Updated Worker and rules need coordinated deployment after review.
+
+Verified locally on 2026-11-04: 264 rules assertions pass; 21 account and
+consent-gated response/directory REST emulator checks pass. The actual App,
+auth hook and data services (only Firebase initialization redirected to isolated
+Auth/Firestore emulators) pass all four required smoke checks, plus reviewed
+registration/identity locks, numeric paste, manual pin persistence, invalid
+coordinate errors and missing-configuration behavior. Harness/results are in
+`/private/tmp/dugo-owner-auth-smoke/` and `/private/tmp/dugo-owner-*-rest.txt`.
+Live Google provider, production deployment and physical-device checks remain.

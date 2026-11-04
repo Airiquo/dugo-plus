@@ -1,3 +1,4 @@
+import { phNational, phE164 } from '../../utils/phone'
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "../../layout/AppShell";
@@ -15,7 +16,7 @@ import {
 } from "../../components";
 const formFrom = (profile) => ({
   fullName: profile?.fullName || "",
-  phoneNumber: profile?.phoneNumber || "",
+  phoneNumber: phNational(profile?.phoneNumber),
 });
 function dateLabel(value) {
   const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
@@ -77,7 +78,7 @@ export default function Profile({ embedded = false }) {
   const locked = loading || loadFailed || busy;
   function set(key) {
     return (event) => {
-      const value = event.target.value;
+      const value = key === "phoneNumber" ? phNational(event.target.value) : event.target.value;
       setForm((prev) => ({ ...prev, [key]: value }));
       setErrors((prev) => ({ ...prev, [key]: "" }));
       setNote("");
@@ -98,13 +99,14 @@ export default function Profile({ embedded = false }) {
       nameInput.current?.focus();
       return;
     }
+    if (form.phoneNumber && phNational(form.phoneNumber).length !== 10) { setErrors({ phoneNumber: "Enter all 10 digits after +63." }); return; }
     setErrors({});
     setMessage("");
     setNote("");
     setBusy(true);
     const next = {
       fullName: form.fullName.trim(),
-      phoneNumber: form.phoneNumber.trim(),
+      phoneNumber: phE164(form.phoneNumber),
     };
     try {
       await saveProfile(user.uid, next);
@@ -266,7 +268,7 @@ export default function Profile({ embedded = false }) {
                   )}
                   <Field label="Phone number">
                     <Input
-                      type="tel"
+                      type="tel" inputMode="numeric"
                       autoComplete="tel"
                       maxLength={40}
                       value={form.phoneNumber}

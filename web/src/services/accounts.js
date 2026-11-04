@@ -69,12 +69,12 @@ export function createHospitalAccount(input) {
 }
 
 /** Fresh admin-only details; the revision prevents overwriting a concurrent edit. */
-export async function getAccountProfile(uid) {
+export async function getAccountProfile(uid, { signal } = {}) {
   if (!SERVICE_URL) throw serviceError('functions/unavailable', NOT_DEPLOYED)
   if (!auth?.currentUser) throw serviceError('functions/unauthenticated', 'Sign in again.')
   const token = await auth.currentUser.getIdToken()
   const response = await fetch(`${SERVICE_URL.replace(/\/$/, '')}/profile?uid=${encodeURIComponent(uid)}`, {
-    headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20000),
+    headers: { Authorization: `Bearer ${token}` }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000),
   })
   const data = await response.json().catch(() => ({}))
   if (!response.ok || !data.revision)

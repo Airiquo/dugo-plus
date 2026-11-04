@@ -34,6 +34,8 @@ export const ROLES = ["donor", "hospital", "admin"];
 export const STATUSES = ["Active", "Suspended", "Removed"];
 
 /** The eight blood types, in the order a picker should read them. */
+export const GENDERS = ["Female", "Male", "Other", "Prefer not to say"];
+
 export const BLOOD_TYPES = ["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"];
 
 /** geohash precision stored with a location. ~150 m, enough for a donor radius. */
@@ -170,16 +172,20 @@ export async function ensureProfile(uid, profile, consentVersion) {
     status: "Active",
     createdAt: serverTimestamp(),
   };
+  for (const key of ["bloodType", "dateOfBirth", "gender"])
+    if (profile[key] != null) data[key] = profile[key];
   if (consentVersion) {
     data.privacyConsentAt = serverTimestamp();
     data.privacyNoticeVersion = consentVersion;
   }
-  return runTransaction(db, async (transaction) => {
+  const result = await runTransaction(db, async (transaction) => {
     const found = await transaction.get(ref);
     if (found.exists()) return { created: false, profile: found.data() };
     transaction.set(ref, data);
     return { created: true, profile: data };
   });
+  invalidateSessionReads(`profile:${uid}`);
+  return result;
 }
 
 /**
@@ -214,6 +220,10 @@ export async function saveProfile(uid, changes) {
     data.bloodType = type;
   }
 
+  if ("gender" in changes) {
+    if (changes.gender && !GENDERS.includes(changes.gender)) throw new Error("Choose a valid gender.");
+    data.gender = text(changes.gender);
+  }
   if ("dateOfBirth" in changes) data.dateOfBirth = changes.dateOfBirth || null;
   if ("lastDonationAt" in changes)
     data.lastDonationAt = changes.lastDonationAt || null;
@@ -313,6 +323,7 @@ async function loadProfile(uid) {
     email: text(data.email),
     phoneNumber: text(data.phoneNumber),
     bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : "",
+    gender: GENDERS.includes(data.gender) ? data.gender : "",
     dateOfBirth: asDate(data.dateOfBirth),
     lastDonationAt: asDate(data.lastDonationAt),
     latitude: isCoordinate(latitude, longitude) ? latitude : 0,
@@ -352,7 +363,8 @@ export async function listUsers() {
       email: text(data.email),
       phoneNumber: text(data.phoneNumber),
       bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : "",
-      dateOfBirth: asDate(data.dateOfBirth),
+      gender: GENDERS.includes(data.gender) ? data.gender : "",
+    dateOfBirth: asDate(data.dateOfBirth),
       lastDonationAt: asDate(data.lastDonationAt),
       latitude: isCoordinate(latitude, longitude) ? latitude : 0,
       longitude: isCoordinate(latitude, longitude) ? longitude : 0,
