@@ -65,3 +65,5 @@ export { AccountSettings } from './AccountSettings'
 export { AccountMenu } from './AccountMenu'
 
 export { ControlPopover } from './ControlPopover'
+
+export { CopyId } from './CopyId'

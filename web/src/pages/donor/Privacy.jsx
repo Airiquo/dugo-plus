@@ -16,7 +16,7 @@ import {
   requestStatusLabel,
   requestTypeLabel,
 } from "../../services/dataRequests";
-import { AdminDialog, Badge, Btn, FieldError, Icon, CarePageHeader } from "../../components";
+import { AdminDialog, Badge, Btn, CopyId, FieldError, Icon, CarePageHeader } from "../../components";
 import { DonorNav } from "../../layout/DonorNav";
 
 /** Donor data-request submission, history and read-only responses (FR-039/NFR-19). */
@@ -332,7 +332,7 @@ export default function Privacy() {
           open={!!active}
           onClose={() => setActive(null)}
           title={active ? requestTypeLabel(active.requestType) : "Your request"}
-          eyebrow="Your privacy request"
+          eyebrow="Data request"
         >
           {active && (
             <>
@@ -344,15 +344,15 @@ export default function Privacy() {
               <dl className="privacy-detail-meta">
                 <div><dt>Sent</dt><dd>{dateLabel(active.createdAt)}</dd></div>
                 <div><dt>Answered</dt><dd>{active.resolvedAt ? dateLabel(active.resolvedAt) : "Not answered yet"}</dd></div>
-                <div><dt>Request ID</dt><dd className="aw-record-id">{active.id}</dd></div>
+                <div><dt>Request ID</dt><dd><CopyId value={active.id} label="request ID" /></dd></div>
               </dl>
               <section className="privacy-detail-section"><h3>What you asked</h3><p className="privacy-original-text">{active.details || "No additional details were recorded."}</p></section>
               <section className="privacy-detail-section"><h3>Dugo+ replied</h3><p className="privacy-reply-text">{active.adminNote || (["Pending", "InProgress"].includes(active.status) ? "The team has not added a response yet. Your request is awaiting review." : "No written response was recorded for this request.")}</p></section>
               <dl className="privacy-detail-meta">
                 {active.status === "Rejected" && <div><dt>Rejection reason</dt><dd>{rejectionReasonLabel(active.rejectionReason)}</dd></div>}
-                {active.resolutionAction && <div><dt>Action recorded</dt><dd>{active.resolutionAction}</dd></div>}
+                <div><dt>Action recorded</dt><dd>{active.resolutionAction || "Not recorded"}</dd></div>
               </dl>
-              <Btn onClick={() => setActive(null)}>Close request</Btn>
+              <Btn onClick={() => setActive(null)}>Close</Btn>
             </>
           )}
         </AdminDialog>

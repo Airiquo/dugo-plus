@@ -30,6 +30,14 @@ action. Existing record details, sort/filter/export callbacks and eligibility
 logic remain. Browser layout checks cover 1440/390/320 light/dark and the empty
 state; compiled output/build/docs/whitespace checks pass.
 
+## Screen 04 — Request detail drawer
+
+The existing right-side native drawer retains outcome, dates, original details,
+reply, rejection reason and action. Request ID has a full-value Copy action with
+visible failure feedback and truncation; missing actions read Not recorded. No
+claim that no data was shared is inferred. The page-level privacy composition
+remains unchanged pending the owner answer.
+
 ## Pending owner answers
 
 - Privacy: prior form/history composition versus full-width history in the pack.

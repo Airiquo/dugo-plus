@@ -10436,3 +10436,11 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
  .donor-activity-browse .story-empty>:not(.story-empty-icon) { grid-column: 1; }
  .donor-activity-browse .story-empty .btn { min-width: 0; width: 100%; }
 }
+
+/* Intentional record references truncate visually while retaining full text for copying. */
+.copy-id { display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 100%; flex-wrap: wrap; }
+.copy-id>code { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; font: 11px/1.6 var(--d-font-mono); user-select: all; }
+.copy-id>button { flex: none; min-height: 44px; padding: 4px 0; border: 0; background: none; color: var(--d-red-ink); font: 500 12px var(--d-font-sans); cursor: pointer; }
+.copy-id>button:focus-visible { outline: 2px solid var(--d-blue); outline-offset: 3px; }
+.copy-id-feedback { flex-basis: 100%; font: 11px/1.6 var(--d-font-sans); color: var(--d-muted); }
+.privacy-detail-meta .copy-id>code { max-width: min(220px,100%); }
