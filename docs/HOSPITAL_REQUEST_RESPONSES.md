@@ -68,3 +68,19 @@ Deploy the updated Worker before serving this frontend in production. Keep
 claims and deployed request/match indexes. An older Worker returns a clear
 service-update message. No deployment is performed in this task; production
 consent/access smoke remains pending. No product question is open for this scope.
+
+## Response-dialog border correction — 2026-11-04
+
+The dialog owns the outer outline. Its direct content section overrides the shared
+modal-section border and radius; donor rows have no enclosing border or radius.
+Adjacent donors use a single separator, with content aligned to the dialog gutters.
+Shared design-system files and data/permission contracts are unchanged.
+
+The production Vite build and documentation validator pass. The compiled stylesheet
+contains the scoped border reset and row separators. Browser fixtures using the real
+dialog pass light/dark checks at 360, 390, 768 and 1280 pixels: the outer border is
+1px, content and first-row borders/radii are zero, adjacent rows have one separator,
+and the dialog has no horizontal overflow. Empty, error/retry and loading states,
+Escape dismissal and trigger-focus restoration pass. Desktop light and phone dark
+screenshots were visually inspected. Fixture assets/results are in
+`/private/tmp/dugo-responses-border-qa/`; no production deployment is performed.
