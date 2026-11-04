@@ -161,7 +161,7 @@ export default function PrivacyPolicy() {
             <p className="pub-kicker">Dugo+ · privacy</p>
             <h3>Privacy &amp; consent notice</h3>
             <p className="pub-muted">
-              Last updated 1 November 2026 (version {PRIVACY_NOTICE_VERSION}). This notice covers
+              Last updated {PRIVACY_NOTICE_VERSION}. This notice covers
               the Dugo+ web app and its donor, hospital and administrator accounts.
             </p>
           </header>

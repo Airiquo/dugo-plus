@@ -349,6 +349,9 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Owner polish production rollout (2026-11-04, D91–D95):** Worker and clean-project rules deployed; both Hosting entry points match the clean integration release. Live public browser/asset checks pass. Final notice date is derived from the version. Authenticated production donor/hospital and Google provider smoke remain unverified; no phase count/status changes. Evidence is in `docs/OWNER_POLISH_VERIFICATION.md`.
+
+
 - **Owner polish deployment (2026-11-04, D91–D95):** owner authorizes Worker, rules and both Hosting entry points from merged integration. The source-stamp verifier now supports lazy logging chunks and checks all JS/CSS assets. No phase-count change; rollout evidence is recorded in `docs/OWNER_POLISH_VERIFICATION.md`.
 
 
