@@ -71,7 +71,7 @@ function DonorRecords({ hospitalId, selected, onView }) {
     { key: 'bloodType', header: 'Blood group', render: row => <Badge>{row.bloodType || 'Not recorded'}</Badge> },
     { key: 'component', header: 'Component', render: row => componentLabel(row.component) || 'Not recorded' },
     { key: 'units', header: 'Actual units', render: row => row.units ?? 'Not recorded' },
-    { key: 'reference', header: 'References', sortable: false, render: row => <div className="hospital-donors-reference"><span>Donation: {row.id}</span><span>Request: {row.requestId || 'Not recorded'}</span>{row.legacy && <span className="muted">Legacy confirmed record</span>}</div> },
+    { key: 'reference', header: 'References', sortable: false, render: row => <div className="hospital-donors-reference"><span>Donation <CopyId value={row.id} label="donation ID" /></span><span>Request <CopyId value={row.requestId} label="request ID" /></span>{row.legacy && <span className="muted">Legacy confirmed record</span>}</div> },
   ] : [
     { key: 'donor', header: 'Donor', render: row => <div className="hospital-donors-reference"><strong>{row.donor?.fullName || 'Profile private'}</strong><CopyId value={row.id} label="donor ID" /></div> },
     { key: 'bloodType', header: 'Blood group', render: row => <Badge>{row.donor?.bloodType || 'Private'}</Badge> },
@@ -85,7 +85,7 @@ function DonorRecords({ hospitalId, selected, onView }) {
   }
   return <div className="hospital-donors">
     <aside className="hospital-donors-context">
-      <div><p className="hw-eyebrow">{history ? 'One donor · This facility' : 'Completed visits only'}</p><h2>{history ? selected.id : 'A history of showing up.'}</h2></div>
+      <div><p className="hw-eyebrow">{history ? 'One donor · This facility' : 'Completed visits only'}</p><h2>{history ? selected.donor?.fullName || 'Donor profile unavailable' : 'A history of showing up.'}</h2>{history && <div className="hospital-donor-identity-ref"><span>Donor ID</span><CopyId value={selected.id} label="donor ID" /></div>}</div>
       <p>{history ? 'History includes legacy confirmed donations. These records do not create or change stock.' : 'Accepted and deferred matches are excluded. Names and contacts appear only with current consent for the directory’s completed visit.'}</p>
     </aside>
     <Card className="hospital-inventory-table">

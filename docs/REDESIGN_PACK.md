@@ -72,3 +72,11 @@ pill; the subtitle states page-local search/filter/sort scope, while Export keep
 complete traversal or the selected current-page scope. Sort is explicitly labeled
 Sort (this page); donor references use the shared full-ID Copy action. Pagination
 uses singular/plural grammar. No authorized identity or read contract changes.
+
+## Screen 08 — Facility donor history
+
+The banner uses the already-authorized selected donor name as its title, with a
+separate copyable donor ID and existing legacy-record note. Completed donation
+references include labeled full-ID Copy actions for donation/request IDs. Existing
+blood/component/date/search/sort, export scopes, facility/donor bounds and cursor
+pagination remain. Missing identity is explicitly unavailable, never inferred.

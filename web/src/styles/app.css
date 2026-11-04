@@ -10472,3 +10472,6 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .hospital-donors-toolbar .record-sort-controls>label { color: var(--d-muted); font: 11px/1.4 var(--d-font-sans); }
 .hospital-donors-reference .copy-id { width: 100%; }
 .hospital-donors-reference .copy-id>code { max-width: calc(100% - 45px); }
+.hospital-donor-identity-ref { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px; color: var(--d-muted); font: 11px var(--d-font-sans); }
+.hospital-donor-identity-ref .copy-id { max-width: 330px; }
+.hospital-donors-reference>span:has(.copy-id) { display: grid; gap: 0; }
