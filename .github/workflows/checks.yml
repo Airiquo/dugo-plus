@@ -87,3 +87,9 @@ jobs:
 
       - name: Hospital inventory Worker transaction suite
         run: npm run test:inventory:emulator
+
+      - name: Completed donation history and request response suite
+        run: npm run test:completion:emulator
+
+      - name: Hospital donor directory isolation suite
+        run: firebase emulators:exec --only firestore --project demo-dugo "node --test worker/src/hospitalDonors.emulator.test.js"

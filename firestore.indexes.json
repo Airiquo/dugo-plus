@@ -327,14 +327,6 @@
       "queryScope": "COLLECTION",
       "fields": [
         {"fieldPath": "hospitalId", "order": "ASCENDING"},
-        {"fieldPath": "donorId", "order": "ASCENDING"}
-      ]
-    },
-    {
-      "collectionGroup": "donations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {"fieldPath": "hospitalId", "order": "ASCENDING"},
         {"fieldPath": "requestId", "order": "ASCENDING"}
       ]
     },
