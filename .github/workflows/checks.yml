@@ -48,6 +48,9 @@ jobs:
       - name: Account, audit, and matching regression tests
         run: npm run test:matching
 
+      - name: Data-request service and closed-history regression tests
+        run: npm run test:data-requests
+
       - name: Build
         working-directory: web
         run: npm run build

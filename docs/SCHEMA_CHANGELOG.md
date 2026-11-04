@@ -278,3 +278,9 @@ Owner chooses existing Cloudflare Worker transactions, administrator-only facili
 - Deny browser stock/log/donation/screening/clock writes; retain the prior admin-only subscription boundary and stored records while removing its self-service UI.
 
 No automatic data migration or production deployment occurs in this task. See `HOSPITAL_WORKER_RECONCILIATION.md` for local evidence and rollout.
+
+## 2026-11-04 — data-request Other and rejection retention
+
+**Origin:** build → schema. **Refs:** D80, F9 (FR-039/NFR-19).
+
+`dataSubjectRequests.requestType` adds `Other`; `details` must contain non-whitespace text and remain ≤2000 characters. Optional `rejectionReason` adds `InsufficientDetails | Duplicate | OutsideScope | Other` (empty while not rejected); new rejections require the category and a nonblank `adminNote` ≤2000 characters. `resolutionAction` adds `Response` for written Other answers. Completed requests require a nonblank response and recorded action. Closed records cannot be updated/deleted by clients. Historical rejected records without the new field remain readable, with original details/responses/timestamps retained. No migration, collection, index, Worker endpoint or notification behavior change.

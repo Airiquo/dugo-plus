@@ -356,6 +356,51 @@ await ok('admin claim processes a request', updateDoc(doc(db(admin()), 'dataSubj
 await ok('admin claim moves a request to InProgress', updateDoc(doc(db(admin()), 'dataSubjectRequests/dsr2'), { status: 'InProgress', processedBy: 'admin1', adminNote: 'Working on it.', resolutionAction: 'Deletion', resolvedAt: null }));
 await no('data-subject requests are never deleted', deleteDoc(doc(db(admin()), 'dataSubjectRequests/dsr1')));
 
+const otherRequest = {
+  userId: 'alice', requestType: 'Other', status: 'Pending',
+  details: 'Please explain\nhow my consent is retained.', adminNote: '',
+  rejectionReason: '', resolutionAction: '', processedBy: null,
+  createdAt: serverTimestamp(), resolvedAt: null,
+};
+await ok('Other is a supported request with written details', setDoc(doc(db(as('alice')), 'dataSubjectRequests/other-valid'), otherRequest));
+for (const [name, details] of [['empty', ''], ['whitespace', ' \t\r\n '], ['invalid', 42], ['oversize', 'x'.repeat(2001)]]) {
+  await no(`Other rejects ${name} details`, setDoc(doc(db(as('alice')), `dataSubjectRequests/other-${name}`), { ...otherRequest, details }));
+}
+await no('Other stays scoped to its owner', setDoc(doc(db(as('bob')), 'dataSubjectRequests/other-for-alice'), otherRequest));
+await no('a removed account cannot submit Other', setDoc(doc(db(as('henry')), 'dataSubjectRequests/other-removed'), { ...otherRequest, userId: 'henry' }));
+await no('a requester cannot preseed a rejection reason', setDoc(doc(db(as('alice')), 'dataSubjectRequests/other-preseed'), { ...otherRequest, rejectionReason: 'Other' }));
+const rejection = { status: 'Rejected', processedBy: 'admin1', adminNote: 'This request needs a verified delivery address.', rejectionReason: 'Other', resolutionAction: '', resolvedAt: serverTimestamp() };
+for (const [name, change] of [
+  ['missing reason', { rejectionReason: '' }],
+  ['invalid reason', { rejectionReason: 'Unknown' }],
+  ['empty explanation', { adminNote: '' }],
+  ['whitespace explanation', { adminNote: ' \n\t ' }],
+  ['invalid explanation', { adminNote: [] }],
+  ['oversize explanation', { adminNote: 'x'.repeat(2001) }],
+  ['forged reviewer', { processedBy: 'alice' }],
+  ['rewritten details', { details: 'Changed request' }],
+]) {
+  await no(`rejection denies ${name}`, updateDoc(doc(db(admin()), 'dataSubjectRequests/other-valid'), { ...rejection, ...change }));
+}
+await no('a donor cannot reject a request', updateDoc(doc(db(as('alice')), 'dataSubjectRequests/other-valid'), { ...rejection, processedBy: 'alice' }));
+await no('staff cannot reject a request', updateDoc(doc(db(staff1()), 'dataSubjectRequests/other-valid'), { ...rejection, processedBy: 'staff1' }));
+await ok('admin records Other with a written explanation', updateDoc(doc(db(admin()), 'dataSubjectRequests/other-valid'), rejection));
+await ok('owner can read the retained rejected response', readDoc(as('alice'), 'dataSubjectRequests/other-valid'));
+await no('another donor cannot read the response', readDoc(as('bob'), 'dataSubjectRequests/other-valid'));
+await no('staff cannot read the privacy response', readDoc(staff1(), 'dataSubjectRequests/other-valid'));
+await no('rejected requests cannot be deleted', deleteDoc(doc(db(admin()), 'dataSubjectRequests/other-valid')));
+await no('rejected requests cannot be reopened or overwritten', updateDoc(doc(db(admin()), 'dataSubjectRequests/other-valid'), { status: 'InProgress', resolvedAt: null, rejectionReason: '' }));
+await no('completed requests cannot be reopened', updateDoc(doc(db(admin()), 'dataSubjectRequests/dsr1'), { status: 'Pending', resolvedAt: null }));
+await ok('another Other request can be opened', setDoc(doc(db(as('alice')), 'dataSubjectRequests/other-response'), otherRequest));
+await no('completion needs a written response', updateDoc(doc(db(admin()), 'dataSubjectRequests/other-response'), { ...rejection, status: 'Completed', rejectionReason: '', resolutionAction: 'Response', adminNote: '  ' }));
+await no('completion needs an action', updateDoc(doc(db(admin()), 'dataSubjectRequests/other-response'), { ...rejection, status: 'Completed', rejectionReason: '', resolutionAction: '' }));
+await ok('Other completes with a written response', updateDoc(doc(db(admin()), 'dataSubjectRequests/other-response'), { ...rejection, status: 'Completed', rejectionReason: '', resolutionAction: 'Response', adminNote: 'Consent records retain the date and notice version.' }));
+await env.withSecurityRulesDisabled(async (ctx) => {
+  await setDoc(doc(db(ctx), 'dataSubjectRequests/legacy-rejected'), { userId: 'alice', requestType: 'Access', status: 'Rejected', details: 'Historical request', adminNote: 'Historical response', createdAt: new Date(), resolvedAt: new Date(), processedBy: 'admin1' });
+});
+await ok('historical rejected records without new fields remain readable', readDoc(as('alice'), 'dataSubjectRequests/legacy-rejected'));
+await no('historical rejected records remain immutable', updateDoc(doc(db(admin()), 'dataSubjectRequests/legacy-rejected'), rejection));
+
 // ---- auditBlocks + server-only + catch-all -------------------------------
 console.log('auditBlocks / server-only / catch-all');
 await ok('admin claim reads the audit chain', readDoc(admin(), 'auditBlocks/b1'));
