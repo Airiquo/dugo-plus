@@ -138,3 +138,8 @@ lasting-action confirmations, icon-only mobile staff navigation and 25/50 km
 discovery. The existing D86–D90 decisions keep their identifiers; this work uses
 D91–D95. Donor profile logout now honors cancellation. The session-navigation
 harness follows /home and the nested Privacy URL and covers profile logout cancel.
+
+GitHub integration verification passes on reconciled commit `901f4ac`: both
+required jobs (`checks` and `rules`) succeeded, including the complete security
+and transaction suites. The merged local regression count is 162; the complete
+session-navigation browser harness passes with the new /home/profile route.
