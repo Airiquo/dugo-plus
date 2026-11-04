@@ -69,3 +69,5 @@ export { ControlPopover } from './ControlPopover'
 export { CopyId } from './CopyId'
 
 export { DonationStageTrack } from './DonationStageTrack'
+
+export { DonationProgress } from './DonationProgress'

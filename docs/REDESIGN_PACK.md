@@ -90,3 +90,29 @@ Both pagination controls and the completed-donation list remain. Collected units
 are explicitly summed only for the displayed completion page: the existing API
 returns bounded pages and no request-wide aggregate. No extra background reads,
 API change or invented total is introduced (`TODO(design)` in the component).
+
+## Screen 10 — Focused donation flow
+
+Manage donation opens one attempt with the constant request/donor context, green
+completed steps and one next actionable stage. Screened → Processing → Completed
+uses the existing operations and accepted/consent/version constraints. Successful
+stages stay in the flow with feedback. Defer donor opens a required reason form
+above the main action; blank/oversized text cannot submit. Cancel returns to the
+active flow. Completed requires valid positive safe integer units and displays the
+returned actual units only after the existing completion operation succeeds.
+Completed/Deferred/Rejected are final. Existing detail/pagination/refresh controls
+remain. Unit tests cover sequence gating, private/unaccepted/final attempts, required
+deferral text and invalid actual units.
+
+`TODO(design)`: the response API omits screened/processing/completed timestamps.
+Steps/logs show Date unavailable where the API provides no date; match dates are
+never reused and browser times are never invented as recorded stage timestamps.
+The response API and data model remain unchanged. The completion list is inside
+the overlay's scrollable content so it stays reachable after the response list.
+
+Screen 10: the five reference states were compared at desktop width using the
+existing fonts/tokens. Isolated browser checks pass next-stage gating, valid units,
+completed feedback/list return, required deferral/cancel from every active stage,
+save-failure retention and empty/error states. Phone checks pass at 390/320 in both
+themes. Opening/returning the flow moves focus to its active context.
+Artifacts: `/private/tmp/dugo-settings-layout-qa/pack-10-*`.

@@ -10516,3 +10516,35 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
  .response-stage-pill { font-size: 11px; }
  .donation-stage-track>li { font-size: 10px; }
 }
+
+/* Intentional stage flow exposes one next action and a reason-gated deferral form. */
+.response-card-actions .btn:not([data-primary]),.response-flow-back.btn,.response-flow-view.btn { background: var(--d-panel); color: var(--d-ink); border: 1px solid var(--d-line); box-shadow: none; }
+.donation-progress-flow { padding: 8px 28px 28px; }
+.donation-progress-flow .response-flow-back { margin: 0 0 24px; min-height: 44px; }
+.donation-progress-flow .response-flow-view { margin-top: 0; min-height: 44px; }
+.donation-progress-flow .hresponses-contact { display: flex; flex-wrap: wrap; gap: 10px; padding: 0; margin: 18px 0; }
+.donation-next-action { display: grid; gap: 14px; padding: 24px; border: 1px solid var(--d-line); border-radius: 18px; background: var(--d-field); margin-top: 22px; }
+.donation-next-action .care-kicker { margin: 0; color: var(--d-red-ink); font-size: 11px; }
+.donation-next-action h4 { margin: 0; color: var(--d-ink); font: 500 21px/1.4 var(--d-font-sans); letter-spacing: -.025em; }
+.donation-next-action p { font: 13px/1.8 var(--d-font-sans); color: var(--d-muted); margin: 0; }
+.donation-next-action .field { padding: 0; margin: 4px 0 0; border: 0; background: none; }
+.donation-next-action .field>label { display: grid; gap: 10px; color: var(--d-ink); font: 12px/1.5 var(--d-font-sans); }
+.donation-next-action input,.donation-next-action textarea { width: 100%; min-width: 0; box-sizing: border-box; background: var(--d-panel); }
+.donation-next-action textarea { resize: vertical; min-height: 110px; }
+.donation-next-action>.btn { justify-content: center; min-height: 48px; border-radius: 12px; }
+.donation-next-action>.donation-defer.btn { background: var(--d-panel); color: var(--d-red-ink); border: 1px solid var(--d-chip-red-bg); box-shadow: none; }
+.donation-next-action.donation-deferral-form { background: var(--d-panel); border-color: var(--d-chip-red-bg); }
+.donation-deferral-cancel { min-height: 44px; padding: 8px 0; border: 0; background: none; color: var(--d-muted); font: 12px var(--d-font-sans); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.donation-flow-notice,.donation-flow-error { display: flex; align-items: center; gap: 10px; border-radius: 12px; padding: 14px 16px; font: 13px/1.7 var(--d-font-sans); }
+.donation-flow-notice { color: var(--d-chip-green-fg); background: var(--d-chip-green-bg); }
+.donation-flow-error { color: var(--d-chip-red-fg); background: var(--d-chip-red-bg); }
+.donation-flow-completed { display: flex; align-items: flex-start; gap: 16px; padding: 24px; border-radius: 18px; color: var(--d-chip-green-fg); background: var(--d-chip-green-bg); margin-bottom: 18px; }
+.donation-flow-completed>svg { flex: none; margin-top: 3px; }
+.donation-flow-completed h4 { font: 500 20px/1.4 var(--d-font-sans); margin: 0 0 8px; }
+.donation-flow-completed p { margin: 0; font: 13px/1.8 var(--d-font-sans); }
+.donation-flow-ended { padding: 22px; background: var(--d-field); border-radius: 14px; font: 13px/1.8 var(--d-font-sans); }
+.donation-stage-log { list-style: none; margin: 26px 0 0; padding: 18px 0 0; border-top: 1px solid var(--d-line); }
+.donation-stage-log li { display: flex; flex-wrap: wrap; gap: 10px; margin: 9px 0; font: 11px/1.7 var(--d-font-sans); color: var(--d-muted); }
+.donation-stage-log time { color: var(--d-ink); }
+.hresponses-content>.response-readonly { margin: 0 28px 24px; }
+@media(max-width:540px) { .donation-progress-flow { padding: 8px 18px 22px; } .donation-next-action { padding: 18px; } .hresponses-content>.response-readonly { margin-inline: 18px; } }
