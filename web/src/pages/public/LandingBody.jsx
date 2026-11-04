@@ -1,3 +1,4 @@
+import { PubThemeToggle } from '../../components/PubThemeToggle'
 import { SupportContact } from '../../components/SupportContact'
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { LOGIN_URL, PARTNER_URL, partners, steps, values, faqs, bloodTypes, redCellRecipients, impactMetrics, reviews, perspectives } from '../../utils/landingContent.js'
@@ -5,7 +6,7 @@ import DonationMark from '../../components/CareDonationMark.jsx'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { NewsSection, NewsArticle } from '../../components/CareNews.jsx'
 import { photoCredits } from '../../utils/landingNews.js'
-import { CountUp, MotionProvider, MotionSection, useMotion, useVisibility } from '../../components/CareMotion.jsx'
+import { CountUp, MotionCard, MotionProvider, MotionSection, useMotion, useVisibility } from '../../components/CareMotion.jsx'
 
 function Icon({ name = 'arrow', size = 24, className = '' }) {
   const paths = {
@@ -39,6 +40,7 @@ function Pill({ href, children, outline = false }) {
 }
 
 function Header() {
+  const { paused, reduced, toggle } = useMotion()
   const [open, setOpen] = useState(false)
   const trigger = useRef(null)
   const links = [['News', '/#news'], ['Our impact', '/#impact'], ['Platform', '/#platform'], ['Partners', '/#partners']]
@@ -50,7 +52,7 @@ function Header() {
   }, [open])
   return <header className="site-header"><div className="header-inner flex items-center justify-between">
     <Brand /><nav className="desktop-nav" aria-label="Main navigation">{links.map(([name, href]) => <a key={name} href={href}>{name}</a>)}<a className="nav-signin" href={LOGIN_URL}>Sign In<span className="tiny-dot" /></a></nav>
-    <div className="header-controls"><button className="menu-toggle" ref={trigger} onClick={() => setOpen(!open)} aria-label={open ? 'Close navigation' : 'Open navigation'} aria-expanded={open} aria-controls="mobile-navigation"><Icon name={open ? 'close' : 'menu'} /></button></div>
+    <div className="header-controls"><button type="button" className="motion-control compact" onClick={toggle} disabled={reduced} aria-pressed={paused} aria-label={paused ? "Resume animations" : "Pause animations"}><Icon name={paused ? "play" : "pause"} size={18} /></button><PubThemeToggle /><button className="menu-toggle" ref={trigger} onClick={() => setOpen(!open)} aria-label={open ? 'Close navigation' : 'Open navigation'} aria-expanded={open} aria-controls="mobile-navigation"><Icon name={open ? 'close' : 'menu'} /></button></div>
   </div>{open && <nav id="mobile-navigation" className="mobile-nav" aria-label="Mobile navigation">{[...links, ['How it works', '/#how-it-works'], ['About', '/#about'], ['Sign In', LOGIN_URL], ['Become a Partner', PARTNER_URL]].map(([name, href]) => <a href={href} key={name} onClick={() => setOpen(false)}>{name}<Icon size={17} /></a>)}</nav>}</header>
 }
 
@@ -63,34 +65,52 @@ function Hero() {
 }
 
 function Impact() {
-  return <MotionSection id="impact" className="impact-section page-container" aria-labelledby="impact-title"><div className="impact-heading"><div><p className="eyebrow">Our community, in numbers</p><h2 id="impact-title">Every connection <em>counts.</em></h2></div><p className="data-label"><span className="tiny-dot" /> Sample data · design preview</p></div><div className="metric-grid grid grid-cols-1 min-[576px]:grid-cols-3">{impactMetrics.map((metric, index) => <article className="metric" key={metric.label}><div className="metric-top"><span>0{index + 1}</span><Icon name={metric.icon} size={24} /></div><strong><CountUp value={metric.value} /></strong><h3>{metric.label}</h3><p>{metric.detail}</p><span className="metric-line" aria-hidden="true"><i data-loop style={{ animationDelay: `${index * .6}s` }} /></span></article>)}</div></MotionSection>
+  return <MotionSection id="impact" className="impact-section page-container" aria-labelledby="impact-title"><div className="impact-heading"><div><p className="eyebrow">Our community, in numbers</p><h2 id="impact-title">Every connection <em>counts.</em></h2></div><p className="data-label"><span className="tiny-dot" /> Sample data · design preview</p></div><div className="metric-grid grid grid-cols-1 min-[576px]:grid-cols-3">{impactMetrics.map((metric, index) => <MotionCard className="metric" label={metric.label} key={metric.label}><div className="metric-top"><span>0{index + 1}</span><Icon name={metric.icon} size={24} /></div><strong><CountUp value={metric.value} /></strong><h3>{metric.label}</h3><p>{metric.detail}</p><span className="metric-line" aria-hidden="true"><i data-loop style={{ animationDelay: `${index * .6}s` }} /></span></MotionCard>)}</div></MotionSection>
 }
+
+const ribbonPositions = new Map()
 
 function AutoRibbon({ name, children, reverse = false }) {
   const { paused, reduced } = useMotion()
   const { ref: zone, visible } = useVisibility()
-  const viewport = useRef(null)
   const track = useRef(null)
   const group = useRef(null)
-  const [manual, setManual] = useState(null)
-  const activePause = paused || manual !== null || !visible
+  const position = useRef(ribbonPositions.get(name) ?? .35)
+  const period = useRef(1)
+  const [manual, setManual] = useState(false)
+  const paint = () => {
+    if (track.current) track.current.style.transform = `translateX(${-position.current * period.current}px)`
+    ribbonPositions.set(name, position.current)
+  }
   useLayoutEffect(() => {
-    if (!viewport.current) return
-    viewport.current.scrollLeft = manual ?? 0
-  }, [manual])
+    const measure = () => { period.current = group.current?.getBoundingClientRect().width || 1; paint() }
+    measure()
+    const observer = new ResizeObserver(measure)
+    if (group.current) observer.observe(group.current)
+    return () => observer.disconnect()
+  }, [name])
+  useEffect(() => {
+    if (paused || reduced || manual || !visible) return
+    let frame, previous
+    const tick = time => {
+      if (previous !== undefined) position.current = (position.current + (reverse ? -1 : 1) * Math.min(time - previous, 50) * .035 / period.current + 1) % 1
+      previous = time
+      paint()
+      frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [paused, reduced, manual, visible, reverse, name])
   const move = direction => {
-    const period = group.current?.getBoundingClientRect().width || 1
     const card = group.current?.firstElementChild
     const gap = parseFloat(getComputedStyle(group.current).columnGap) || 0
-    const step = (card?.getBoundingClientRect().width || 320) + gap
-    const transform = getComputedStyle(track.current).transform
-    const current = manual ?? (transform === 'none' ? 0 : Math.abs(new DOMMatrixReadOnly(transform).m41))
-    setManual((current + direction * step + period) % period)
+    position.current = (position.current + direction * ((card?.getBoundingClientRect().width || 320) + gap) / period.current + 1) % 1
+    paint()
   }
-  return <div onMouseLeave={() => setManual(null)} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setManual(null) }} ref={zone} className={`ribbon ${reverse ? 'ribbon-reverse' : ''} ${manual !== null || reduced ? 'ribbon-manual' : ''}`} data-paused={activePause}>
-    <div ref={viewport} className="ribbon-viewport" role="region" aria-label={name} tabIndex={0} onKeyDown={event => { if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') { event.preventDefault(); move(event.key === 'ArrowRight' ? 1 : -1) } }}>
-      <div className="ribbon-track" ref={track} data-loop><div className="ribbon-group" ref={group}>{children}</div><div className="ribbon-group ribbon-copy" aria-hidden="true" inert>{children}</div></div>
-    </div><div className="ribbon-controls page-container"><p>{reduced ? 'Browse with the arrows' : 'Auto-scrolling · hover to pause'}</p><div className="ribbon-buttons"><button onClick={() => move(-1)} aria-label={`Previous ${name}`} className="round-button"><Icon className="rotate-180" size={18} /></button><button onClick={() => move(1)} aria-label={`Next ${name}`} className="round-button"><Icon size={18} /></button></div></div>
+  return <div ref={zone} className="ribbon ribbon-persistent" data-paused={paused || reduced || manual || !visible}>
+    <div className="ribbon-viewport" role="region" aria-label={name} tabIndex={0} onKeyDown={event => { if (['ArrowRight', 'ArrowLeft'].includes(event.key)) { event.preventDefault(); move(event.key === 'ArrowRight' ? 1 : -1) } }}>
+      <div className="ribbon-track" ref={track}><div className="ribbon-group" ref={group}>{children}</div><div className="ribbon-group ribbon-copy" aria-hidden="true" inert>{children}</div></div>
+    </div><div className="ribbon-controls page-container"><p>Browse with the arrows</p><div className="ribbon-buttons"><button onClick={() => setManual(value => !value)} aria-pressed={manual} aria-label={`${manual ? 'Resume' : 'Pause'} ${name}`} className="round-button"><Icon name={manual ? 'play' : 'pause'} size={18} /></button><button onClick={() => move(-1)} aria-label={`Previous ${name}`} className="round-button"><Icon className="rotate-180" size={18} /></button><button onClick={() => move(1)} aria-label={`Next ${name}`} className="round-button"><Icon size={18} /></button></div></div>
   </div>
 }
 
@@ -109,43 +129,10 @@ function MatchingDiagram({ step = 0, feature = false }) {
 
 function HowItWorks() {
   const [active, setActive] = useState(0)
-  const phaseRefs = useRef([])
-  const { reduced } = useMotion()
-  const activationLine = () => window.innerHeight * (window.innerWidth < 992 ? .72 : .52)
-  useEffect(() => {
-    let frame = 0
-    const update = () => {
-      frame = 0
-      const phases = phaseRefs.current.filter(Boolean)
-      const section = phases[0]?.closest('section')
-      if (!section) return
-      const line = activationLine()
-      const bounds = section.getBoundingClientRect()
-      if (bounds.top > line || bounds.bottom < line) return
-      let nearest = 0
-      let distance = Infinity
-      phases.forEach((phase, index) => {
-        const rect = phase.getBoundingClientRect()
-        const delta = Math.abs(rect.top + rect.height / 2 - line)
-        if (delta < distance) { nearest = index; distance = delta }
-      })
-      setActive(nearest)
-    }
-    const schedule = () => { if (!frame) frame = requestAnimationFrame(update) }
-    update()
-    window.addEventListener('scroll', schedule, { passive: true })
-    window.addEventListener('resize', schedule)
-    return () => { window.removeEventListener('scroll', schedule); window.removeEventListener('resize', schedule); cancelAnimationFrame(frame) }
-  }, [])
-  const choosePhase = index => {
-    setActive(index)
-    const rect = phaseRefs.current[index]?.getBoundingClientRect()
-    if (rect) window.scrollTo({ top: window.scrollY + rect.top + rect.height / 2 - activationLine(), behavior: reduced ? 'instant' : 'smooth' })
-  }
-  return <MotionSection id="how-it-works" className="journey-section scroll-journey page-container" aria-labelledby="journey-title">
-    <div className="journey-heading"><p className="eyebrow">A clear path to giving</p><h2 className="section-title" id="journey-title">From a request.<br /><em>To a donation.</em></h2><p className="section-description">The right people, connected at the right moment.</p><p className="journey-scroll-hint">Scroll to follow the connection <Icon name="chevron" size={16} /></p></div>
-    <div className="journey-visual"><MatchingDiagram step={active} /><div className="journey-phase-status"><span>0{active + 1} <i>/ 03</i></span><p>{steps[active].title}</p><div className="journey-phase-dots" aria-hidden="true">{steps.map((step,index) => <span key={step.title} className={index === active ? 'active' : ''} />)}</div></div></div>
-    <div className="journey-steps" aria-label="Explore the matching process">{steps.map((step, index) => <button ref={node => { phaseRefs.current[index] = node }} key={step.title} aria-pressed={active === index} aria-current={active === index ? 'step' : undefined} onClick={() => choosePhase(index)} onFocus={() => setActive(index)}><span className="step-number">0{index + 1}</span><span><strong>{step.title}</strong><span className="step-detail">{step.text}</span></span><Icon name="arrow" size={18} /></button>)}</div>
+  return <MotionSection id="how-it-works" className="journey-section card-journey page-container" aria-labelledby="journey-title">
+    <div className="journey-heading"><p className="eyebrow">A clear path to giving</p><h2 className="section-title" id="journey-title">From a request.<br /><em>To a donation.</em></h2><p className="section-description">Choose a step to explore the connection.</p></div>
+    <MotionCard className="journey-visual" label="matching process"><MatchingDiagram step={active} /><p className="journey-phase-status" aria-live="polite">{steps[active].title}</p></MotionCard>
+    <div className="journey-steps" role="group" aria-label="Explore the matching process">{steps.map((step, index) => <button key={step.title} aria-pressed={active === index} onClick={() => setActive(index)}><span className="step-number">0{index + 1}</span><span><strong>{step.title}</strong><span className="step-detail">{step.text}</span></span><Icon name="arrow" size={18} /></button>)}</div>
   </MotionSection>
 }
 
@@ -173,11 +160,11 @@ function Platform() {
         <p className="section-description">A donor-first platform that connects the right people, at the right time, from request to donation.</p>
       </div>
       <div className="grid grid-cols-1 gap-6 min-[992px]:grid-cols-3 feature-grid">
-        {cards.map(card => <article className="feature-card group relative overflow-hidden" key={card.title}>
+        {cards.map(card => <MotionCard className="feature-card group relative overflow-hidden" label={card.title} key={card.title}>
           <img src={`/care/${card.image}`} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
           <span className="feature-icon"><Icon name={card.icon} size={30} /></span>
           <div className="feature-content"><h3>{card.title}</h3><p>{card.text}</p><a href="/#how-it-works">How it works<Icon size={17} /></a></div>
-        </article>)}
+        </MotionCard>)}
       </div>
       <div className="perspective-section grid grid-cols-1 gap-12 min-[992px]:grid-cols-2">
         <div>
@@ -187,7 +174,7 @@ function Platform() {
           </div>
           <div className="perspective-copy" aria-live="polite" key={perspective}><h3>{content.title}</h3><p>{content.text}</p></div>
         </div>
-        <ul className="check-list">{content.checks.map(check => <li key={check}><Icon name="check" size={23} /><span>{check}</span></li>)}</ul>
+        <ul className="check-list" key={perspective}>{content.checks.map(check => <li key={check}><Icon name="check" size={23} /><span>{check}</span></li>)}</ul>
       </div>
     </div>
   </MotionSection>
@@ -241,5 +228,5 @@ export function LandingBody({ theme }) {
     navigate(url.pathname + url.search + url.hash)
   }
   const match = location.pathname.match(/^\/news\/([^/]+)\/?$/)
-  return <MotionProvider theme={theme} onClick={navigateLocally}><a href="#main-content" className="skip-link">Skip to content</a><Header />{match ? <NewsArticle slug={match[1]} /> : <main id="main-content"><Hero /><NewsSection Ribbon={AutoRibbon} /><Impact /><Reviews /><ConnectedByCare /><Platform /><Transparency /><HowItWorks /><Partners /><Compatibility /><Community /><Faqs /><Contact /></main>}<Footer /></MotionProvider>
+  return <MotionProvider theme={theme} onClick={navigateLocally}><a href="#main-content" className="skip-link">Skip to content</a><Header />{match ? <NewsArticle slug={match[1]} /> : <main id="main-content"><Hero /><NewsSection Ribbon={AutoRibbon} /><Partners /><Impact /><Reviews /><ConnectedByCare /><HowItWorks /><Platform /><Transparency /><Compatibility /><Community /><Faqs /><Contact /></main>}<Footer /></MotionProvider>
 }
