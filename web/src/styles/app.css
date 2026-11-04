@@ -10397,3 +10397,25 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .account-menu .account-identity-copy strong { white-space: normal; overflow-wrap: anywhere; }
 .overview-main-grid:has(>.aw-panel:only-child) { grid-template-columns: minmax(0,1fr); }
 .control-popover[data-active=true]>.btn { border-color: var(--d-ink); }
+
+/* Intentional request composition keeps the map and empty-state actions aligned below one toolbar. */
+.donor-request-browse .donation-tabs button[aria-pressed=true] { border-bottom-color: var(--d-red); }
+.donor-request-browse .donor-filter-main { flex-wrap: nowrap; }
+.donor-request-browse .donor-filter-primary { flex: 0 1 auto; }
+.donor-request-browse .donor-filter-search { flex-basis: 260px; }
+.donor-request-browse .donor-browse-empty { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; border-style: dashed; min-height: 380px; padding: 32px; text-align: start; }
+.donor-request-browse .donor-browse-empty h2 { font-size: clamp(23px,2.4vw,30px); line-height: 1.3; }
+.donor-request-browse .donor-browse-empty p { max-width: 460px; }
+.donor-request-browse .donation-map-panel { overflow: hidden; }
+.donor-request-browse .donation-map-canvas { min-height: 380px; }
+@media(max-width:1000px) {
+ .donor-request-browse .donor-filter-main { flex-wrap: wrap; }
+ .donor-request-browse .donor-filter-search { flex-basis: 100%; }
+}
+@media(max-width:600px) {
+ .donor-request-browse .donor-browse-empty { min-height: 280px; padding: 24px; }
+ .donor-request-browse .donation-map-canvas { min-height: 280px; }
+}
+.donor-request-browse .donor-browse-header { position: relative; padding-inline-end: 120px; }
+.donor-header-count { position: absolute; inset-inline-end: 0; top: 0; color: var(--d-muted); }
+@media(max-width:600px) { .donor-request-browse .donor-browse-header { padding-inline-end: 0; } .donor-header-count { position: static; margin-top: 12px; } }

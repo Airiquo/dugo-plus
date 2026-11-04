@@ -349,6 +349,8 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Redesign pack (2026-11-04, D84):** owner supplies `files(3).zip` and directs implementation of its Markdown without screenshot emojis. Current pending clarification: keep the prior form/history privacy composition or use full-width history; retain existing export scopes or add This page only; keep Print CSV/Print PDF labels or use the pack labels. Only the dependent privacy/export changes wait; independent screen work continues. No route/backend/schema change or status/count change. Screens and evidence are tracked in `docs/REDESIGN_PACK.md`.
+
 - **Settings and record-control layouts (2026-11-04, D83):** owner requests Profile/Appearance tabs for all roles, then specifies Settings/Sign out in profile-head menus (beside desktop sidebars), date overlays everywhere, the existing privacy form/history composition with cleaner history cards, a single Export dropdown, and removal of the admin notification retry screen plus Overview card. These are answered instructions, not unresolved questions. Existing profile/service/consent/filter/export contracts remain; legacy profile URLs redirect. No requirement status or phase-count changes. `docs/SETTINGS_AND_TOOLBAR_LAYOUTS.md` records local verification and remaining live-account/physical-device checks.
 
 - **November 4 coordinated release (D79–D82):** owner authorizes merging the four current feature sessions into integration and redeploying. Combined verification, backend/Hosting order and remaining live-auth/device limits are recorded in `docs/NOV04_WORKFLOW_RELEASE.md`. No new product question or phase-count/status change. Older unmerged collected/stocked workstreams remain outside this release.
