@@ -143,3 +143,6 @@ GitHub integration verification passes on reconciled commit `901f4ac`: both
 required jobs (`checks` and `rules`) succeeded, including the complete security
 and transaction suites. The merged local regression count is 162; the complete
 session-navigation browser harness passes with the new /home/profile route.
+
+Also retains integration `c93e853` (PR #61), which landed during CI: donor
+response outlines remain on the dialog, with its accompanying documentation.

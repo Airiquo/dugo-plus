@@ -365,6 +365,7 @@ route renders `pages/shared/NotConfigured`.
 
 
 - **Landing interactions (2026-11-04, D91):** Counters retain their elapsed progress across global/local pauses; destination and compatibility cards also have local controls. Owner restores global pause and theme access; cards pause independently, matching steps use clicks, partner content appears before impact/features, and ribbon position survives visibility, resize and remount. Aggregate rating and review content are unchanged. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
+- **Response-dialog border fix (2026-11-04):** owner requests the outline around the full dialog rather than the Private donor row. Nested rounded borders are removed; multiple donor rows retain simple separators. No product question or phase-count change. Light/dark responsive and state verification is recorded in `docs/HOSPITAL_REQUEST_RESPONSES.md`.
 
 - **Immediate matching radius (2026-11-04, D89):** owner clarifies that all donors within 25 km must be considered from the first search, including donors closer than 5 km. Production configuration now has a single 25 km tier; staged expansion is superseded. No product question or phase-count change. Live verification is recorded in `docs/MATCHING_FULL_RADIUS.md`. Owner also confirms D90: explicit 50 km search exposes additional compatible requests without sending emails outside 25 km.
 

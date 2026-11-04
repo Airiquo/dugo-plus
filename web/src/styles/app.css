@@ -10451,7 +10451,10 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .hospital-donors-reference>span:has(.copy-id) { display: grid; gap: 0; }
 
 /* Intentional response-card composition separates consent-gated details from donation management. */
-.hresponses-list>li { border: 1px solid var(--d-line); border-radius: 18px; padding: 24px; margin-block: 0 18px; }
+/* Intentional override: the dialog owns the outline; donor rows use separators. */
+dialog.hresponses[id$=-modal]>.hresponses-content { border: 0; border-radius: 0; }
+.hresponses-list>li { border: 0; border-radius: 0; padding: 24px 0; margin: 0; }
+.hresponses-list>li+li { border-top: 1px solid var(--d-line); }
 .hresponses-list .hresponses-contact { padding-inline-start: 0; display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
 .hresponses-contact>a { display: inline-flex; gap: 8px; align-items: center; padding: 8px 12px; min-height: 38px; border: 1px solid var(--d-line); border-radius: 10px; text-decoration: none; }
 .response-stage-pill { flex: none; border-radius: 999px; padding: 6px 12px; color: var(--d-chip-blue-fg); background: var(--d-chip-blue-bg); font: 12px/1.5 var(--d-font-sans); }
@@ -10484,7 +10487,7 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .completion-section-heading>span { color: var(--d-muted); font: 12px/1.6 var(--d-font-sans); }
 .completion-empty { border: 1px dashed var(--d-line); border-radius: 14px; padding: 24px; color: var(--d-muted); font-size: 13px; line-height: 1.7; }
 @media(max-width:600px) {
- .hresponses-list>li { padding: 18px; }
+ .hresponses-list>li { padding: 18px 0; }
  .response-card-actions { grid-template-columns: 1fr; }
  .hresponses-person>.response-stage-pill { margin-inline-start: 0; }
  .response-stage-pill { font-size: 11px; }
