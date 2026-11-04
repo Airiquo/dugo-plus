@@ -20,6 +20,8 @@ import AuditTrail from './pages/admin/AuditTrail'
 import AdminAccounts from './pages/admin/Accounts'
 import AdminSettings from './pages/admin/Settings'
 import AdminDataRequests from './pages/admin/DataRequests'
+import Profile from './pages/donor/Profile'
+import HospitalProfile from './pages/hospital/Profile'
 import DonorSettings from './pages/donor/Settings'
 import Activity from './pages/donor/Activity'
 import DonorPrivacy from './pages/donor/Privacy'
@@ -153,8 +155,8 @@ export default function App() {
               </RequireAuth>
             }
           />
-          <Route path="/home" element={<Navigate to="/donor/settings" replace />} />
-          <Route path="/donor/profile" element={<Navigate to="/donor/settings" replace />} />
+          <Route path="/home" element={<RequireAuth><RequireVerified><RequireRole roles={['donor']}><Profile /></RequireRole></RequireVerified></RequireAuth>} />
+          <Route path="/donor/profile" element={<Navigate to="/home" replace />} />
           {/* Donor blood requests (FR-005/006/022/023/028/029/030/038). */}
           <Route
             path="/donor/requests"
@@ -217,7 +219,7 @@ export default function App() {
               <RequireAuth>
                 <RequireVerified>
                   <RequireRole roles={['donor']}>
-                    <DonorPrivacy />
+                    <Navigate to="/donor/settings?tab=privacy" replace />
                   </RequireRole>
                 </RequireVerified>
               </RequireAuth>
@@ -243,8 +245,8 @@ export default function App() {
             <Route path="/hospital/donors" element={<HospitalDonors />} />
             <Route path="/hospital/map" element={<HospitalMap />} />
             <Route path="/hospital/settings" element={<HospitalSettings />} />
-            <Route path="/hospital/profile" element={<Navigate to="/hospital/settings" replace />} />
-            <Route path="/hospital/facility" element={<HospitalFacility />} />
+            <Route path="/hospital/profile" element={<HospitalProfile />} />
+            <Route path="/hospital/facility" element={<Navigate to="/hospital/settings?tab=facility" replace />} />
           </Route>
           <Route path="/gallery" element={<Gallery />} />
           <Route path="*" element={<NotFound />} />

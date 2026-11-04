@@ -9,7 +9,7 @@ import { cityFromCoordinates } from '../../services/reverseGeocoding'
 import { latestDonorDonation } from '../../services/donations'
 import { eligibilityFor, toDate } from '../../utils/eligibility'
 import { validateProfile } from '../../utils/validate'
-import { FieldError, Icon, CarePageHeader, CareDonorCard, ProfilePhotoEditor } from '../../components'
+import { SignOutButton, FieldError, Icon, CarePageHeader, CareDonorCard, ProfilePhotoEditor } from '../../components'
 import { DonorNav } from '../../layout/DonorNav'
 
 /** `2026-10-20` from a Date, for an `<input type="date">`. */
@@ -467,6 +467,7 @@ export default function Profile({ embedded = false }) {
               {loadFailed ? 'Profile unavailable' : busy ? 'Saving…' : !profileLoaded ? 'Loading…' : dirty ? 'Save profile' : 'Saved'}
               {!busy && dirty && <Icon name="arrow-right" size={14} />}
             </button>
+            <SignOutButton />
 
           </div>
         </form>

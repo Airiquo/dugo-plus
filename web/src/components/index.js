@@ -71,3 +71,4 @@ export { CopyId } from './CopyId'
 export { DonationStageTrack } from './DonationStageTrack'
 
 export { DonationProgress } from './DonationProgress'
+export { SignOutButton } from './SignOutButton'

@@ -21,7 +21,8 @@ const formFrom = (hospital) => ({
 });
 
 /** Facility contact editor and the administrator-managed location, kept separate from staff identity. */
-export default function Facility() {
+export default function Facility({ embedded = false }) {
+  const Shell = embedded ? "div" : HospitalShell;
   const { profile } = useAuth();
   const hospitalId = profile?.hospitalId || "";
   const formRef = useRef(null);
@@ -111,7 +112,7 @@ export default function Facility() {
     }
   }
   return (
-    <HospitalShell facility={source?.name}>
+    <Shell {...(embedded ? {} : { facility: source?.name })}>
       <HospitalPageHeader
         title="Facility details"
         eyebrow="Facility / Public details"
@@ -264,6 +265,6 @@ export default function Facility() {
           </aside>
         </div>
       )}
-    </HospitalShell>
+    </Shell>
   );
 }

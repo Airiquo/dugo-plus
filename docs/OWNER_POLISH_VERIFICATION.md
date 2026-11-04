@@ -15,3 +15,11 @@ on resize; arrows continue from the current offset. No rating/review copy change
 
 Vite production build passes. Chrome fixtures pass at 390/1440px in both themes: global pause, click-driven steps, ribbon offset retention and no page overflow. Reference screenshot regeneration was attempted; Pillow is unavailable.
 No phase counts change; broader usability/device acceptance stays open.
+
+## Navigation (D87)
+
+My profile is separate from Settings for donors/hospitals. Settings contains
+Appearance and Privacy/Facility details respectively; visited panels retain drafts.
+Legacy privacy/facility URLs redirect into the selected tab. Existing hospital
+donor-directory route is retained. Sign out is separated by a divider and danger
+text in shared account menus and donor profile actions. Admin navigation stays.

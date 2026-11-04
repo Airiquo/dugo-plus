@@ -9,11 +9,11 @@ import { useAuth, userName } from "../hooks/useAuth";
 import { listenDonorAlerts } from "../services/alerts";
 
 export const DONOR_NAV = [
-  { to: "/donor/settings", label: "Settings", icon: "settings" },
+  { to: "/home", label: "My profile", icon: "user" },
   { to: "/donor/requests", label: "Requests", icon: "request" },
   { to: "/donor/activity", label: "Activity", icon: "chart" },
   { to: "/donor/alerts", label: "Alerts", icon: "bell" },
-  { to: "/donor/privacy", label: "Privacy", icon: "shield" },
+  { to: "/donor/settings", label: "Settings", icon: "settings" },
 ];
 
 /** Donor navigation becomes a bottom bar on small screens. */

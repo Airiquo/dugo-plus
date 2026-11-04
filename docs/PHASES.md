@@ -349,6 +349,9 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Role navigation and Settings tabs (2026-11-04, D87):** Owner restores dedicated donor/hospital profile pages, places Settings last, nests donor privacy/history and facility details in Settings, preserves old URLs as redirects, and separates danger-colored sign-out actions. Admin navigation is unchanged. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
+
+
 - **Landing interactions (2026-11-04, D86):** Owner restores global pause and theme access; cards pause independently, matching steps use clicks, partner content appears before impact/features, and ribbon position survives visibility, resize and remount. Aggregate rating and review content are unchanged. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
 
 
