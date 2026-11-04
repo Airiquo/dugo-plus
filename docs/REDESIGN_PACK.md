@@ -21,6 +21,15 @@ Screen 01: build/docs/whitespace checks pass. Browser fixtures checked at
 1440/390/320 in light/dark with no page overflow or errors; 1440 screenshot
 compared with reference 01. Artifacts: `/private/tmp/dugo-settings-layout-qa/pack-01-*`.
 
+## Screen 02 — Donation history
+
+The toolbar and history span the content width, with the existing readiness and
+summary panels retained below rather than reducing search/export space. The empty
+state groups an SVG blood-drop tile, heading, explanation and matched-request
+action. Existing record details, sort/filter/export callbacks and eligibility
+logic remain. Browser layout checks cover 1440/390/320 light/dark and the empty
+state; compiled output/build/docs/whitespace checks pass.
+
 ## Pending owner answers
 
 - Privacy: prior form/history composition versus full-width history in the pack.

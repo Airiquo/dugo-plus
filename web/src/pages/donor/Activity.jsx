@@ -241,7 +241,7 @@ export default function Activity() {
                         className="donor-clear-filters"
                         onClick={clearFilters}
                       >
-                        Clear
+                        Clear filters
                       </button>
                     )}
 
