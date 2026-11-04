@@ -1,3 +1,4 @@
+import { useConfirmation } from '../../hooks/useConfirmation'
 import { HospitalDonationDetails } from '../../components/HospitalDonationDetails';
 import { donationStage } from '../../utils/donationCompletion';
 import {
@@ -157,6 +158,7 @@ function shortId(value) {
  * picked `hospitalId`, which the server accepts for its claim only.
  */
 export default function Inventory() {
+  const confirm = useConfirmation()
   const workspaceRef = useRef(null);
   const stockRef = useRef(null);
   const [stockFilter, setStockFilter] = useState({
@@ -255,6 +257,17 @@ export default function Inventory() {
       setScreeningError("Choose a screening result before saving.");
       return;
     }
+    if (screeningStatus === 'Deferred' && !screeningReason.trim()) {
+      setScreeningError('Add a reason for deferral.');
+      return;
+    }
+    if (!await confirm({
+      title: `Record ${screeningStatus.toLowerCase()}?`,
+      description: screeningStatus === 'Deferred'
+        ? `This ends the donor’s attempt without adding stock. Reason: ${screeningReason.trim()}`
+        : `Record ${screeningStatus.toLowerCase()} for donor ${shortId(screeningRow.donorId)}.`,
+      confirmLabel: 'Confirm result',
+    })) return;
     setScreeningSaving(true);
     setScreeningError("");
     try {
@@ -587,6 +600,21 @@ export default function Inventory() {
     event.preventDefault();
     if (!form || !hospitalId || saving) return;
 
+    const amount = Number(form.kind === 'transfusion' ? form.units : form.delta);
+    if (!BLOOD_TYPES.includes(form.bloodType) || !Number.isInteger(amount) ||
+        (form.kind === 'transfusion' ? amount < 1 : amount === 0)) {
+      setFormError('Choose a blood type and enter a valid whole number of units.');
+      return;
+    }
+    if (form.kind !== 'transfusion' && !form.reason.trim()) {
+      setFormError('Add a reason for the stock adjustment.');
+      return;
+    }
+    if (!await confirm({
+      title: form.kind === 'transfusion' ? 'Record this transfusion?' : 'Apply this stock adjustment?',
+      description: `${form.kind === 'transfusion' ? 'Issue' : amount > 0 ? 'Add' : 'Remove'} ${Math.abs(amount)} units of ${form.bloodType} ${componentLabel(stockComponent)}. This updates the stock balance and movement history.`,
+      confirmLabel: form.kind === 'transfusion' ? 'Confirm transfusion' : 'Confirm adjustment',
+    })) return;
     setSaving(true);
     setFormError("");
     try {

@@ -11,6 +11,7 @@ import {
 } from '../services/auth'
 import { ensureProfile, readProfile, saveProfilePhoto } from '../services/users'
 import { logError } from '../services/log'
+import { useConfirmation, useDismissConfirmation } from './useConfirmation'
 
 // No picker screen: self-registration is donor-only (D20), so a session with
 // no profile document is provisioned as a donor. Hospital and admin accounts
@@ -54,10 +55,14 @@ const AuthContext = createContext(null)
  * read or write is still settling.
  */
 export function AuthProvider({ children }) {
+  const confirm = useConfirmation()
+  const dismissConfirmation = useDismissConfirmation()
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState(null)
   const [roleLoading, setRoleLoading] = useState(false)
+
+  useEffect(() => { dismissConfirmation() }, [user?.uid, dismissConfirmation])
 
   /**
    * Monotonic id for profile reads. A read captures the id it started under and
@@ -237,7 +242,20 @@ export function AuthProvider({ children }) {
       throw error
     }
   }, [])
-  const signOut = useCallback(() => signOutOfFirebase(), [])
+  /** `confirmed` skips the prompt when logout was already confirmed by the history guard. */
+  const signOut = useCallback(async (options) => {
+    if (options?.confirmed === true) {
+      await signOutOfFirebase()
+      return true
+    }
+    return confirm({
+      title: 'Log out of Dugo+?',
+      description: 'You will need to sign in again to access your account.',
+      confirmLabel: 'Confirm log out',
+      action: signOutOfFirebase,
+      errorMessage: 'Log out failed. Check your connection and try again.',
+    })
+  }, [confirm])
 
   /**
    * Re-read the user from Firebase (refreshing `emailVerified`) and publish it,

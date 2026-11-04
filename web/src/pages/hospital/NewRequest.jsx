@@ -1,3 +1,4 @@
+import { useConfirmation } from '../../hooks/useConfirmation'
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -47,6 +48,7 @@ const EMPTY = { bloodType: "", component: "", quantity: "", urgencyLevel: "" };
 
 /** Facility request composer with explicit choices and a live summary before posting. */
 export default function NewRequest() {
+  const confirm = useConfirmation()
   const navigate = useNavigate();
   const formRef = useRef(null);
   const { user, profile } = useAuth();
@@ -95,6 +97,11 @@ export default function NewRequest() {
       formRef.current?.querySelector(`[name="${first}"]`)?.focus();
       return;
     }
+    if (!await confirm({
+      title: 'Post this blood request?',
+      description: `${form.quantity} units of ${form.bloodType} ${componentLabel(form.component)} · ${form.urgencyLevel}. Matching donors may be notified after posting.`,
+      confirmLabel: 'Confirm post',
+    })) return;
     setBusy(true);
     setMessage("");
     let requestId;
