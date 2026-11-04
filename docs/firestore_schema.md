@@ -23,6 +23,7 @@ and do not "correct" the live code back to the text below:
 | `users.lastDonationAt` | writable | frozen for the owner; only F8's server transaction writes it | D14 |
 | `errorLogs` | an ERD-free collection §1 lists as [ADDED] | client-written, open-create; `build` is `mode:12-character Git SHA` | D8, D10, D17, D36 |
 | `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
+| `systemConfig.radiusTiers` production | staged radius expansion | one immediate 25 km tier; historical seed defaults retained | D89 |
 | `users.address` | an ERD postal address | not collected; no field | D22 |
 
 §9 below is the file's own list of ERD inconsistencies. **They are open questions,

@@ -1,3 +1,4 @@
+import { callDonorService } from './donorApi'
 import { isCompletedDonation } from '../utils/donationCompletion'
 import { toDate } from '../utils/eligibility'
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore'
@@ -112,3 +113,6 @@ export function listenDonorRequests(uid, callback, onError) {
     for (const stop of stops.values()) stop()
   }
 }
+
+/** Discover compatible requests on an explicit wider search; no email alerts are created. */
+export function discoverWiderRequests() { return callDonorService('discover', { radiusKm: 50 }) }
