@@ -40,6 +40,6 @@ async function callInventory(action, payload) {
 export function confirmDonation(input) { return callInventory('confirmDonation', input) }
 export function recordTransfusion(input) { return callInventory('recordTransfusion', input) }
 export function adjustInventory(input) { return callInventory('adjustInventory', input) }
-export function screenDonorMatch(matchId, screeningStatus) {
-  return callInventory('screenMatch', { matchId, screeningStatus })
+export function screenDonorMatch(matchId, screeningStatus, details = {}) {
+  return callInventory('screenMatch', { matchId, screeningStatus, ...details })
 }

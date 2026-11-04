@@ -25,6 +25,7 @@ function fixture() {
         dateOfBirth: new Date('1990-01-01'),
       },
     ],
+    ['hospitals/hospital', { status: 'Active' }],
     ['donationTypes/whole-blood', { intervalDays: 56 }],
     ...['one', 'two'].flatMap((id) => [
       [
@@ -72,6 +73,7 @@ function fixture() {
               )
               .map(([path, data]) => ({ id: path.split('/')[1], data }))
           },
+          delete(path) { changes.push([path, undefined]) },
           create(path, data) {
             if (rows.has(path)) throw new Error('Already exists')
             changes.push([path, data])
@@ -82,7 +84,7 @@ function fixture() {
           },
         }
         const result = await work(tx)
-        for (const [path, data] of changes) rows.set(path, data)
+        for (const [path, data] of changes) { if (data === undefined) rows.delete(path); else rows.set(path, data) }
         return result
       })
       queue = operation.catch(() => {})
@@ -160,12 +162,13 @@ test('retrying the same acceptance is idempotent and does not duplicate consent'
     2,
   )
 })
-test('declining requires no consent, creates no commitment, and is final', async () => {
+test('declining requires no consent and can be accepted again with fresh consent', async () => {
   const { rows, respond } = fixture()
   await respond('alice', { matchId: 'one', responseStatus: 'Declined' })
   assert.ok(!rows.has('donorCommitments/alice'))
   assert.ok(!rows.has('donorConsents/one_data-sharing'))
-  await assert.rejects(respond('alice', input('one')), /already responded/)
+  await respond('alice', input('one'))
+  assert.equal(rows.get('donorMatches/one').responseStatus, 'Accepted')
 })
 test('wrong donor, closed request, suspension, incompatible blood and deferral are rejected atomically', async () => {
   for (const kind of ['owner', 'closed', 'suspended', 'blood', 'deferral']) {
@@ -212,4 +215,47 @@ test('withdrawing revokes consent and location atomically, and permits a later c
   assert.ok(rows.get('donorConsents/one_screening').revokedAt)
   await respond('alice', input('two'))
   assert.equal(rows.get('donorCommitments/alice').matchId, 'two')
+})
+
+test('withdraw and reaccept renews consent and acknowledgment, archives the old grant and resets unfinished progress', async () => {
+  const {rows,respond}=fixture()
+  await respond('alice',input('one'))
+  rows.get('donorMatches/one').donationStage='Processing'
+  rows.get('donorMatches/one').screeningStatus='Cleared'
+  await respond('alice',{matchId:'one',responseStatus:'Declined'})
+  assert.ok(rows.get('donorMatches/one').withdrawnAt)
+  assert.equal(rows.has('donorCommitments/alice'),false)
+  assert.ok(rows.get('donorConsents/one_data-sharing').revokedAt)
+  await assert.rejects(respond('alice',{...input('one'),acknowledged:false}),{status:400})
+  await respond('alice',input('one'))
+  assert.equal(rows.get('donorMatches/one').donationStage,'Responded')
+  assert.equal(rows.get('donorMatches/one').screeningStatus,null)
+  assert.equal(rows.get('donorMatches/one').withdrawnAt,null)
+  assert.equal(rows.get('donorMatches/one').acceptanceVersion,2)
+  assert.equal(rows.get('donorConsents/one_data-sharing').revokedAt,null)
+  assert.ok(rows.get('donorConsents/one_data-sharing_v1').revokedAt)
+  await assert.rejects(respond('alice',input('two')),{status:409})
+})
+
+test('deferred, rejected and completed attempts never resume or get relabeled as withdrawal', async () => {
+  for(const stage of ['Deferred','Rejected','Completed']) {
+    const {rows,respond}=fixture()
+    Object.assign(rows.get('donorMatches/one'),{responseStatus:'Accepted',donationStage:stage,screeningStatus:stage==='Completed'?'Cleared':stage})
+    const before=structuredClone([...rows])
+    await assert.rejects(respond('alice',{matchId:'one',responseStatus:'Declined'}),{status:409})
+    await assert.rejects(respond('alice',input('one')),{status:409})
+    assert.deepEqual([...rows],before)
+    await respond('alice',input('two'))
+  }
+})
+
+test('an expired invitation can be accepted again only while its underlying request is active', async () => {
+  const {rows,respond}=fixture()
+  rows.get('donorMatches/one').responseStatus='Expired'
+  await respond('alice',input('one'))
+  assert.equal(rows.get('donorMatches/one').donationStage,'Responded')
+  const closed=fixture()
+  closed.rows.get('donorMatches/one').responseStatus='Expired'
+  closed.rows.get('bloodRequests/one').status='cancelled'
+  await assert.rejects(closed.respond('alice',input('one')),{status:409})
 })

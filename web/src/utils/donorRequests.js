@@ -1,3 +1,5 @@
+import { toDate } from './eligibility.js'
+import { terminalAttempt } from './donationCompletion.js'
 import { asPoint, distanceKm } from './geo.js'
 import { isCompatibleDonor } from './matching.js'
 
@@ -15,11 +17,20 @@ export const componentName = (value) =>
 export const isActiveCommitment = (item) =>
   item.match.responseStatus === 'Accepted' &&
   !item.donated &&
-  !['Deferred', 'Rejected'].includes(item.match.screeningStatus) &&
+  !terminalAttempt(item.match) &&
   OPEN_REQUESTS.includes(item.request.status)
 export const isAvailableRequest = (item) =>
   item.match.responseStatus === 'Pending' &&
   OPEN_REQUESTS.includes(item.request.status)
+export const canReacceptRequest = item => ['Declined', 'Expired'].includes(item.match.responseStatus) && !item.donated && !terminalAttempt(item.match) && OPEN_REQUESTS.includes(item.request.status) && !!item.hospital && (item.hospital.status || 'Active') === 'Active'
+/** Incorporates the donation feed's newest clock without adding a profile listener. */
+export function requestDonorProfile(profile, items) {
+  const latest = items.reduce((last, item) => {
+    const at = toDate(item.donorLastDonationAt)
+    return at && Number.isFinite(+at) && (!last || at > last) ? at : last
+  }, toDate(profile?.lastDonationAt))
+  return { ...profile, lastDonationAt: latest || profile?.lastDonationAt }
+}
 export function facilityPoint(item) {
   return (
     asPoint(item.hospital?.latitude, item.hospital?.longitude) ??

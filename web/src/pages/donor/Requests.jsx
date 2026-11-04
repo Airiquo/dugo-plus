@@ -26,12 +26,15 @@ import {
   enrichRequest,
   isActiveCommitment,
   isAvailableRequest,
+  canReacceptRequest,
+  requestDonorProfile,
   requestDistance,
   directionsUrl,
 } from "../../utils/donorRequests";
 
 /** Donor request discovery, one active commitment, and informed responses. */
 export default function Requests() {
+  const [startAcceptance, setStartAcceptance] = useState(false);
   const [order, setOrder] = useState("nearest");
   const { user, profile } = useAuth(),
     { theme } = useTheme();
@@ -98,6 +101,7 @@ export default function Requests() {
       current = false;
     };
   }, []);
+  const currentProfile = requestDonorProfile(profile, feed.items);
   const items = useMemo(
     () =>
       feed.items
@@ -155,12 +159,12 @@ export default function Requests() {
       const item = items.find(
         (item) => item.request.id === id || item.match.id === id,
       );
-      if (item) setSelectedId(item.match.id);
+      if (item) { setSelectedId(item.match.id); setStartAcceptance(params.get("accept") === "1" && canReacceptRequest(item)); }
     }
   }, [params, feed.status, items]);
   const selectedEligibility = selected
     ? eligibilityFor({
-        ...profile,
+        ...currentProfile,
         intervalDays:
           types.get(donationTypeForComponent(selected.request.component)) ||
           DEFAULT_INTERVALS[
@@ -169,7 +173,10 @@ export default function Requests() {
           null,
       })
     : null;
-  const select = (item) => {
+  const canAcceptAgain = item => canReacceptRequest(item) && !active && item.compatible && !missingProfileFields.length
+    && (currentProfile.status || 'Active') === 'Active' && eligibilityFor({ ...currentProfile, intervalDays: types.get(donationTypeForComponent(item.request.component)) || DEFAULT_INTERVALS[donationTypeForComponent(item.request.component)] || null }).eligible;
+  const select = (item, accepting = false) => {
+    setStartAcceptance(accepting);
     setSelectedId(item.match.id);
     setError("");
   };
@@ -180,6 +187,7 @@ export default function Requests() {
     if (params.has("request")) {
       const next = new URLSearchParams(params);
       next.delete("request");
+      next.delete("accept");
       setParams(next, { replace: true });
     }
   };
@@ -203,6 +211,7 @@ export default function Requests() {
       setSelectedId(null);
       const next = new URLSearchParams(params);
       next.delete("request");
+      next.delete("accept");
       setParams(next, { replace: true });
       setNotice(
         response === "Accepted"
@@ -544,7 +553,7 @@ export default function Requests() {
                           {item.hospital?.address ||
                             "Contact the hospital for its address."}
                         </p>
-                        <div className="donation-card-footer">
+                        <div className={`donation-card-footer${tab === "past" ? " donation-response-actions" : ""}`}>
                           <span>
                             {tab === "past" ? (
                               item.donated ? (
@@ -565,6 +574,10 @@ export default function Requests() {
                               </>
                             )}
                           </span>
+                          {tab === "past" && <button className="btn" type="button"
+                            aria-label={`${canAcceptAgain(item) ? 'Accept again' : 'Unavailable'} at ${item.hospital?.name || item.request.hospitalName}`}
+                            disabled={busy || !canAcceptAgain(item)} title={canAcceptAgain(item) ? "Review fresh guidelines and consent" : "View details for availability and eligibility"}
+                            onClick={() => select(item, true)}>{canAcceptAgain(item) ? 'Accept again' : 'Unavailable'}</button>}
                           <button
                             className="btn"
                             type="button"
@@ -693,6 +706,8 @@ export default function Requests() {
         )}
         <DonorRequestDetails
           item={selected}
+          startAcceptance={startAcceptance}
+          profileReady={!missingProfileFields.length}
           position={position}
           activeCommitment={active}
           eligibility={selectedEligibility}

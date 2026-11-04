@@ -48,6 +48,9 @@ jobs:
       - name: Account, audit, and matching regression tests
         run: npm run test:matching
 
+      - name: Data-request service and closed-history regression tests
+        run: npm run test:data-requests
+
       - name: Build
         working-directory: web
         run: npm run build
@@ -84,3 +87,9 @@ jobs:
 
       - name: Hospital inventory Worker transaction suite
         run: npm run test:inventory:emulator
+
+      - name: Completed donation history and request response suite
+        run: npm run test:completion:emulator
+
+      - name: Hospital donor directory isolation suite
+        run: npx --no-install firebase emulators:exec --only firestore --project demo-dugo "node --test worker/src/hospitalDonors.emulator.test.js"

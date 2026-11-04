@@ -1,6 +1,20 @@
 {
   "indexes": [
     {
+      "collectionGroup": "donations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "hospitalId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "donorId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "auditBlocks",
       "queryScope": "COLLECTION",
       "fields": [
@@ -306,6 +320,23 @@
       "fields": [
         { "fieldPath": "state", "order": "ASCENDING" },
         { "fieldPath": "nextAttemptAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "donations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "hospitalId", "order": "ASCENDING"},
+        {"fieldPath": "requestId", "order": "ASCENDING"}
+      ]
+    },
+    {
+      "collectionGroup": "donations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "hospitalId", "order": "ASCENDING"},
+        {"fieldPath": "donorId", "order": "ASCENDING"},
+        {"fieldPath": "requestId", "order": "ASCENDING"}
       ]
     }
   ],

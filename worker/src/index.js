@@ -7,6 +7,9 @@
  * account operations (FR-040).
  */
 
+import { createHospitalDonationReader, createHospitalDonationDetails } from './hospitalDonations.js'
+
+import { createHospitalDonors } from './hospitalDonors.js'
 import { createHospitalRequestResponses } from './hospitalRequestResponses.js'
 import { documentName } from './firestore.js'
 import { createInventoryManager } from './inventoryOperations.js'
@@ -56,7 +59,15 @@ async function route(request, env) {
   }
 
   if (request.method === 'GET' && url.pathname === '/health') {
-    return json({ ok: true, service: 'dugo-matching', part: 1, accountOperationsVersion: 2, accountProfileVersion: 1, auditActivityVersion: 1, inventoryOperationsVersion: 1 }, 200, cors)
+    return json({ ok: true, service: 'dugo-matching', part: 1, accountOperationsVersion: 2, accountProfileVersion: 1, auditActivityVersion: 1, inventoryOperationsVersion: 2, donationCompletionVersion: 1 }, 200, cors)
+  }
+
+  if (request.method === 'POST' && url.pathname === '/hospital/donors') {
+    const user = await verifyIdToken(env, bearerToken(request))
+    let input
+    try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
+    const result = await createHospitalDonors(transactionStore(env), path => documentName(env, path))(user, input)
+    return json(result, 200, cors)
   }
 
   if (request.method === 'GET' && url.pathname === '/hospital/request-responses') {
@@ -67,6 +78,16 @@ async function route(request, env) {
       after: url.searchParams.get('after'),
     })
     return json(result, 200, cors)
+  }
+
+  if (request.method === 'POST' && ['/hospital/donations', '/hospital/donation-details'].includes(url.pathname)) {
+    const user = await verifyIdToken(env, bearerToken(request))
+    let input
+    try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpError(400, 'Body must be an object')
+    const store = transactionStore(env)
+    const read = url.pathname === '/hospital/donations' ? createHospitalDonationReader(store, path => documentName(env, path)) : createHospitalDonationDetails(store)
+    return json(await read(user, input), 200, cors)
   }
 
   if (request.method === 'POST' && url.pathname === '/inventory') {

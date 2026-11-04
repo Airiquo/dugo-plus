@@ -185,6 +185,28 @@
   font-size: 20px;
   font-weight: 500;
 }
+/* Intentional inline action grouping keeps View beside the request title. */
+.privacy-request-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.privacy-request-title .privacy-request-type {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.privacy-request-title .btn { flex-shrink: 0; }
+.privacy-queue-views { padding: 0 24px 16px; }
+.privacy-queue-views .btn[aria-pressed="true"] {
+  background: var(--d-field);
+  border-color: var(--d-ink);
+}
+.privacy-response p, .privacy-subject-note p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.privacy-response { margin-block: 24px; }
 .privacy-request-details,
 .privacy-request-note {
   font-size: 14px;
@@ -10144,3 +10166,92 @@ html:has(.role-shell),html:has(.donor-surface) { overscroll-behavior-y: none; }
 .pub .profile-main.donor-main{align-items:center}
 .donor-main>footer.support-contact{margin-top:auto;padding-top:28px}
 @media(max-width:600px){.donor-request-browse .donor-empty-mark{display:none}}
+
+
+/* Intentional request-overlay composition uses compact, wrapping progress controls. */
+.completion-section { padding: 1.5rem; border-top: 1px solid var(--line); }
+.completion-section h3, .completion-progress h4 { margin: 0 0 .75rem; }
+.completion-list { list-style: none; padding: 0; margin: 1rem 0; }
+.completion-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--line); }
+.completion-list p { margin: .35rem 0 0; color: var(--muted); }
+.completion-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .65rem; margin: 1rem 0; }
+.completion-progress { padding: 1rem; border: 1px solid var(--line); border-radius: 12px; }
+.completion-progress form { display: grid; gap: .65rem; padding: 1rem 0; border-top: 1px solid var(--line); }
+.completion-progress .field { width: 100%; box-sizing: border-box; }
+.completion-progress textarea { min-height: 6rem; resize: vertical; }
+.completion-progress p { line-height: 1.6; }
+.completion-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.completion-facts dt { font-size: .8rem; color: var(--muted); }
+.completion-facts dd { margin: .35rem 0 0; overflow-wrap: anywhere; }
+.completion-details .hresponses-content { overflow-wrap: anywhere; }
+@media (max-width: 540px) {
+  .completion-section { padding: 1rem; }
+  .completion-facts { grid-template-columns: 1fr; }
+  .completion-actions .btn { flex: 1 1 9rem; }
+  .completion-progress { padding: .8rem; }
+}
+
+/* Intentional response actions wrap below the status on narrow donor cards. */
+.donation-response-actions { flex-wrap: wrap; }
+.donation-response-actions>span { flex-basis: 100%; }
+.donation-response-actions .btn { flex: 1 1 8rem; }
+.donation-alert-bottom { flex-wrap: wrap; }
+.completion-details .hresponses-content { padding: 0 1.5rem 1.5rem; }
+.completion-details h3 { margin: 1.5rem 0 .65rem; }
+.completion-details p { font-size: .875rem; line-height: 1.7; }
+.hresponses-list>li>.btn { margin-bottom: 1rem; }
+.completion-progress { margin-bottom: 1rem; }
+@media (max-width: 540px) { .completion-details .hresponses-content { padding: 0 1rem 1rem; } }
+
+
+/* Intentional app control override: one inset caret and logical text clearance
+   replace native/wrapper marks on single selects, including narrow toolbars. */
+:root { --app-caret-inset: 16px; --app-caret-clearance: 40px; }
+#root select:not([multiple]):not([size]),
+#root select:not([multiple])[size="1"] {
+  appearance: none;
+  padding-inline-start: 12px;
+  padding-inline-end: var(--app-caret-clearance);
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: var(--app-caret-position, right calc(var(--app-caret-inset) + 4px) center, right var(--app-caret-inset) center);
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
+}
+html[dir="rtl"], #root[dir="rtl"], #root [dir="rtl"] {
+  --app-caret-position: left var(--app-caret-inset) center, left calc(var(--app-caret-inset) + 4px) center;
+}
+html[dir="ltr"], #root[dir="ltr"], #root [dir="ltr"] {
+  --app-caret-position: right calc(var(--app-caret-inset) + 4px) center, right var(--app-caret-inset) center;
+}
+#root .app-select::after { content: none; }
+#root select:focus-visible { outline: 2px solid var(--d-blue); outline-offset: 3px; }
+#root :is(.screen-filter-date-menu,.screen-extra-filters,.audit-search-disclosure,.profile-photo-settings,.hw-photo-settings)>summary {
+  padding-inline-end: var(--app-caret-inset);
+  column-gap: 12px;
+}
+#root :is(.screen-filter-date-menu,.screen-extra-filters,.audit-search-disclosure)>summary>svg:last-child { flex-shrink: 0; margin-inline-start: auto; }
+@media (forced-colors: active) {
+  #root select:not([multiple]):not([size]),
+  #root select:not([multiple])[size="1"] { appearance: auto; background-image: none; }
+}
+
+
+/* Intentional donor-directory composition uses a compact context band and wrapping record controls. */
+.hospital-donors { display: grid; gap: 24px; min-width: 0; }
+.hospital-donors-context { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 24px; padding: 24px; border: 1px solid var(--d-line); border-radius: 16px; background: var(--d-panel); }
+.hospital-donors-context h2 { margin: 8px 0 0; overflow-wrap: anywhere; }
+.hospital-donors-context > p { margin: 0; color: var(--d-muted); line-height: 1.65; }
+.hospital-donors-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.hospital-donors-heading h2 { margin: 0; }
+.hospital-donors-reference { display: grid; gap: 5px; overflow-wrap: anywhere; }
+.hospital-donors-export, .hospital-donors-pager { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.hospital-donors-export { margin-block: 20px; }
+.hospital-donors-export > label { display: grid; gap: 8px; font-size: 12px; max-width: 100%; }
+.hospital-donors-export select { width: 100%; max-width: 100%; }
+.hospital-donors-pager { border-top: 1px solid var(--d-line); padding-top: 20px; margin-top: 20px; font-size: 12px; }
+.hospital-donors .hospital-table { table-layout: fixed; }
+@media (max-width: 700px) {
+  .hospital-donors-context { grid-template-columns: 1fr; gap: 12px; padding: 20px; }
+  .hospital-donors-heading { flex-wrap: wrap; }
+  .hospital-donors-pager > span { order: -1; width: 100%; }
+}

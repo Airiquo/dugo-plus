@@ -1,5 +1,6 @@
-/** Request-scoped, consent-gated donor contacts for authorized facility staff. */
+/** Request-scoped, bounded response pages with consent-gated donor contacts. */
 import { HttpError } from './http.js'
+import { donationStage, responseLabel, isCompletedDonation } from '../../web/src/utils/donationCompletion.js'
 
 const ID = /^[^/\s]{1,128}$/
 const PAGE_SIZE = 25
@@ -8,7 +9,7 @@ const text = value => typeof value === 'string' ? value.trim() : ''
 const active = record => record && (record.data.status || 'Active') === 'Active'
 const date = value => value instanceof Date && Number.isFinite(value.getTime()) ? value.toISOString() : null
 
-/** Reads one consistent page; `referenceName` returns a Firestore document resource name. */
+/** Reads one consistent page; `referenceName` supplies Firestore resource names. */
 export function createHospitalRequestResponses(store, referenceName) {
   return async (actor, input = {}) => {
     if (!actor?.uid) throw new HttpError(401, 'Sign in again to continue.')
@@ -35,25 +36,39 @@ export function createHospitalRequestResponses(store, referenceName) {
         ...(after ? { startAt: { values: [{ referenceValue: referenceName('donorMatches/' + after) }], before: false } } : {}),
         limit: PAGE_SIZE + 1,
       })
-      const rows = []
-      for (const match of matches.slice(0, PAGE_SIZE)) {
+      // Each batch has at most 25 exact document references; profiles follow consent checks.
+      const batch = async (collection, ids) => ids.length ? new Map((await tx.query({
+        from: [{ collectionId: collection }],
+        where: { fieldFilter: { field: { fieldPath: '__name__' }, op: 'IN',
+          value: { arrayValue: { values: [...new Set(ids)].map(id => ({ referenceValue: referenceName(collection + '/' + id) })) } } } },
+        limit: PAGE_SIZE,
+      })).map(record => [record.id, record])) : new Map()
+      const page = matches.slice(0, PAGE_SIZE)
+      const donations = await batch('donations', page.filter(match => !match.data.donationStage && match.data.responseStatus === 'Accepted').map(match => match.id))
+      const accepted = page.filter(match => match.data.responseStatus === 'Accepted' && typeof match.data.donorId === 'string' && ID.test(match.data.donorId))
+      const consents = await batch('donorConsents', accepted.map(match => match.id + '_data-sharing'))
+      const permitted = new Set(accepted.filter(match => {
+        const consent = consents.get(match.id + '_data-sharing')
+        return consent?.data.donorId === match.data.donorId && consent.data.matchId === match.id
+          && consent.data.consentType === 'Data Sharing' && consent.data.revokedAt === null
+      }).map(match => match.id))
+      const profiles = await batch('users', accepted.filter(match => permitted.has(match.id)).map(match => match.data.donorId))
+      const rows = page.map(match => {
         const data = match.data
         let donor = null, privacy = 'consent-required'
-        if (data.responseStatus === 'Accepted' && typeof data.donorId === 'string' && ID.test(data.donorId)) {
-          const consent = await tx.get('donorConsents', match.id + '_data-sharing')
-          if (consent?.data.donorId === data.donorId && consent.data.matchId === match.id
-              && consent.data.consentType === 'Data Sharing' && consent.data.revokedAt === null) {
-            const record = await tx.get('users', data.donorId)
-            if (active(record) && record.data.role === 'donor' && !record.data.personalDataErased) {
-              donor = Object.fromEntries(['fullName', 'email', 'phoneNumber', 'bloodType', 'city'].map(key => [key, text(record.data[key])]))
-              privacy = null
-            } else privacy = 'profile-unavailable'
-          }
+        if (permitted.has(match.id)) {
+          const record = profiles.get(data.donorId)
+          if (active(record) && record.data.role === 'donor' && !record.data.personalDataErased) {
+            donor = Object.fromEntries(['fullName', 'email', 'phoneNumber', 'bloodType', 'city'].map(key => [key, text(record.data[key])]))
+            privacy = null
+          } else privacy = 'profile-unavailable'
         }
-        rows.push({ id: match.id, responseStatus: STATUSES.includes(data.responseStatus) ? data.responseStatus : 'Unknown',
+        return { id: match.id, responseStatus: STATUSES.includes(data.responseStatus) ? data.responseStatus : 'Unknown',
+          responseLabel: responseLabel(data), donationStage: isCompletedDonation(donations.get(match.id)?.data) ? 'Completed' : donationStage(data),
+          acceptanceVersion: data.acceptanceVersion || 0, deferralReason: donor ? text(data.deferralReason) : '',
           screeningStatus: ['Cleared', 'Deferred', 'Rejected'].includes(data.screeningStatus) ? data.screeningStatus : null,
-          matchedAt: date(data.matchedAt), acknowledgedAt: date(data.acknowledgedAt), donor, privacy })
-      }
+          matchedAt: date(data.matchedAt), acknowledgedAt: date(data.acknowledgedAt), donor, privacy }
+      })
       return { ok: true, rows, nextCursor: matches.length > PAGE_SIZE ? rows.at(-1).id : null }
     })
   }

@@ -373,6 +373,17 @@ Doc ID = the `donorMatches` doc ID. One donation per match (ERD 1:1).
 
 D63: donation records also carry `component` (request component code), `donationType` (interval-bearing reference ID), and `requestId`. The Worker derives the blood group from the donor profile; confirmation atomically writes the donation, matching component/group stock and log, donor clock, operation and audit outbox. Rewards remain removed by D43.
 
+D82 adds a Worker-only facility Donors directory over these existing records.
+Directory pages use hospital equality and donor-ID order, deduplicate donors and
+skip remaining visits for the last donor; selected history retains BOTH hospital
+and donor equality with document-ID cursors. Each query is bounded to 26 records
+(25 plus a sentinel), with a one-record directory lookahead. Completed means
+`status === 'Completed'` or a valid legacy `confirmedAt`; no history read writes
+stock or records. Batched exact match-specific Data Sharing consent checks gate
+allowlisted active/unerased profile reads inside the same transaction. Direct
+staff `users` reads remain denied. No stored fields or collections are added.
+See `docs/HOSPITAL_DONORS_DIRECTORY.md` for representative-visit consent scope.
+
 ### 2.10 `rewardTransactions/{donationId}` — legacy only (D43)
 
 Doc ID = `donationId` so UK(donation_id) holds. D43 removes future rewards; existing documents remain available to historical data export.
@@ -413,13 +424,16 @@ before it; the settings screen and `isRadiusTiers()` refuse anything else.
 |---|---|---|---|
 | userId | string | R | FK → `users` |
 | processedBy | string | O | `users` id of the admin (ERD has no FK marker. See §9) |
-| requestType | string | R | `Access \| Erasure \| Rectification \| Export`; required by the rules and by the submit form (D27) |
+| requestType | string | R | `Access \| Erasure \| Rectification \| Export \| Other`; required by rules and submit form (D27, D80) |
 | status | string | R | `Pending \| InProgress \| Completed \| Rejected`; required by the rules (D27) |
-| details | string | R | [ADDED] What the subject is asking for, ≤2000 chars; required on create (D27) |
+| details | string | R | [ADDED] What the subject is asking for, nonblank and ≤2000 chars; required on create, including Other (D27, D80) |
 | adminNote | string | O | [ADDED] Admin note/summary of the action taken, ≤2000 chars (D26/D27) |
-| resolutionAction | string | O | [ADDED] `'' \| Export \| Correction \| Deletion` — the action that closed the request (D27) |
+| resolutionAction | string | O | [ADDED] `'' \| Export \| Correction \| Deletion \| Response` — the recorded action; Response supports written answers to Other requests (D27, D80) |
+| rejectionReason | string | O | [ADDED] `'' \| InsufficientDetails \| Duplicate \| OutsideScope \| Other`; a valid nonempty category plus nonblank `adminNote` is required when rejecting. Historical records may omit it (D80) |
 | createdAt | Timestamp | R | Server time; frozen after create |
 | resolvedAt | Timestamp | O | ERD `?`. Null while open; server time when `Completed`/`Rejected` |
+
+Closed requests (`Completed`/`Rejected`) are immutable to clients and never deleted. Rejection preserves the original request and response. Completion requires a nonblank response and recorded action. Both outcomes require server `resolvedAt` and the current active admin as `processedBy` (D80).
 
 ### 2.13 `auditBlocks/{blockId}` — server-only, append-only
 
@@ -563,6 +577,7 @@ Cardinality read from the crow's-foot notation.
 | `notifications` | `deliveryStatus` ASC, `retryCount` ASC | Retry worker |
 | `donations` | `donorId` ASC, `donationDate` DESC | Donor history |
 | `donations` | `hospitalId` ASC, `donationDate` DESC | Hospital reporting |
+| `donations` | `hospitalId` ASC, `donorId` ASC | D82 bounded facility donor directory and donor-specific history |
 | `donorConsents` | `donorId` ASC, `grantedAt` DESC | Consent history |
 | `dataSubjectRequests` | `status` ASC, `createdAt` ASC | Admin work queue |
 | `auditBlocks` | `sequence` DESC | Fetch the latest block |
@@ -611,7 +626,7 @@ Use custom claims `request.auth.token.role` and `request.auth.token.hospitalId`.
 | `donations` | Donor (own), Staff of hospital, Admin | Worker only (D63) |
 | `rewardTransactions` | Donor (own), Admin | server-only |
 | `systemConfig` | Admin (Authenticated may read tiers if needed) | Admin |
-| `dataSubjectRequests` | Owner, Admin | Owner create; Admin update |
+| `dataSubjectRequests` | Active owner, Admin | Owner create with nonblank details; active Admin updates open records only; closed records immutable; delete denied (D80) |
 | `auditBlocks` | Admin | server-only, no update/delete |
 | `inventoryOperations`, `accountOperations`, `auditOutbox`, `auditContexts`, `auditRedactions` | no client reads | server-only (D40) |
 
@@ -770,8 +785,12 @@ interface SystemConfig {             // systemConfig/global
 interface DataSubjectRequest {
   userId: string;
   processedBy?: string | null;
-  requestType: string;
-  status: string;
+  requestType: "Access" | "Erasure" | "Rectification" | "Export" | "Other";
+  status: "Pending" | "InProgress" | "Completed" | "Rejected";
+  details: string;
+  adminNote?: string;
+  resolutionAction?: "" | "Export" | "Correction" | "Deletion" | "Response";
+  rejectionReason?: "" | "InsufficientDetails" | "Duplicate" | "OutsideScope" | "Other";
   createdAt: Timestamp;
   resolvedAt?: Timestamp | null;
 }
@@ -814,7 +833,7 @@ interface AuditBlock {
 2. **Copy-pasted status enum**: `Blood_Requests.status` and `Subscriptions.status` show `Active, Suspended, Removed` like Users/Hospitals. **Answered for requests:** the build's set is `urgent | collecting | matched | fulfilled | cancelled` (D24). **Still open for subscriptions**: `Active | Expired | Cancelled` is the suggestion, not a decision.
 3. **Missing FK edges in the diagram**: `Hospitals.created_by`, `Donor_Matches.screened_by_user_id`, `Donations.confirmed_by`, `Data_Subject_Request.processed_by`, `Blood_Requests.created_by` — all assumed → `users`.
 4. **`Donations` has no `donor_id`** — derived via match. I added `donorId`, `hospitalId`, `bloodType` as denormalized fields.
-5. **Unspecified enum values** (suggested values given above): `urgencyLevel` **answered** — `urgent | stat | routine` (D24). Still open: `responseStatus`, `consentType`, `channel`, `deliveryStatus`, `changeType`, `requestType`, DSR `status`, subscription `plan`.
+5. **Unspecified enum values** (suggested values given above): `urgencyLevel` **answered** — `urgent | stat | routine` (D24). DSR request types/statuses are resolved by D27/D80 (§2.12). Still open: `responseStatus`, `consentType`, `channel`, `deliveryStatus`, `changeType`, subscription `plan`.
 6. **`eligibility_info`** type unknown. **Answered (D25):** the field was never implemented, eligibility is computed on read, and it was removed from the model of record. If a screening record is ever needed, it gets a purpose-designed field in that feature.
 7. **`notif_retry_interval`** unit unknown. Assumed minutes.
 8. **Radius_Tiler** is spelled "Tiler" in the ERD; treated as "Tiers".
@@ -827,3 +846,37 @@ interface AuditBlock {
 `GET /audit/activity` requires verified Active admin authority. Optional `account`, `actor`, `event`, `from`, `to` filters apply before the fixed 26-row query (25 results plus continuation detection). The exclusive cursor contains the last event's time and sequence. IDs are resolved from at most 500 `users` document names, cached for 60 seconds per project/HMAC key; explicit account/actor filter IDs also resolve. Current profile fields are fetched fresh and allowlisted. Unresolved/missing/erased identities stay unavailable. This adds no stored field, collection, or rules permission.
 
 Context, current profiles and erasure tombstones use `:batchGet` chunks of 100 (at most 200 unique paths per helper call; at most 125 per activity page). Context is returned only if its allowlisted reason/status digest matches `contextHash` and neither subject nor actor has an erasure tombstone. Names/emails are never cached by this endpoint or copied to immutable blocks. The same batch helper bounds existing account-history context reads. A first-page emulator check with 25 distinct affected users uses five external requests including authorization; full-chain verification remains a separate explicit operation.
+
+
+## Request completion additions (2026-11-04, D79)
+
+The canonical compatibility predicate and stable authorized read seam are in
+`REQUEST_DONATION_COMPLETION_CONTRACT.md`. `donorMatches` adds donationStage
+(Responded/Screened/Processing/Completed/Deferred/Rejected), acceptanceVersion
+(integer incremented on each acceptance), withdrawnAt, screenedAt,
+processingAt/processingBy, deferredAt/deferredBy/deferralReason and
+completedAt/completedBy. Legacy Cleared maps to Screened. Deferred/Rejected
+cannot resume. Reacceptance resets unfinished withdrawn/declined progress and
+renews the deterministic consent records' grantedAt/revokedAt.
+
+`donations/{matchId}` adds status Completed and completedAt/completedBy;
+confirmedAt/confirmedBy remain exact compatibility aliases. Legacy confirmedAt
+records count as completed and are never stocked again. `inventory/*/logs`
+adds requestId alongside donationId. Completion reads donorCommitments and donor
+profile in the same transaction as the stock/donation/clock writes. Terminal
+outcomes delete only their own donor commitment. The historical audit event
+name Donation.Confirmed remains a compatibility alias for completion.
+
+The facility donation read queries use hospitalId plus optional donorId and/or
+requestId equality filters, ascending document-name cursor order and limit 26.
+No list joins private profiles. On-demand details check current match-specific
+Data Sharing consent and active unerased donor before returning private fields.
+
+Consent renewal archives the previous Data Sharing/Screening grant at
+`donorConsents/{matchId}_{suffix}_v{previousAcceptanceVersion}` with its
+acknowledgedAt and acceptanceVersion. The archived revokedAt is retained or set
+to renewal time; these historical documents never authorize profile access.
+Fresh acknowledgment and both current grants commit with response and commitment.
+The response reader batches at most 25 completion/consent/profile references per
+query and exposes legacy confirmations as Completed. The donor's legacy type
+lookups use owner-constrained 10-document batches under the existing rules.

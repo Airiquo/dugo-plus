@@ -3,7 +3,8 @@ import { filterRecords } from "../../utils/recordFilters";
 import { SupportContact } from "../../components/SupportContact";
 import { TableExport } from "../../components/TableExport";
 import { privacyReportColumns } from "../../utils/reportColumns";
-import { useEffect, useState } from "react";
+import { rejectionReasonLabel } from "../../utils/dataRequestReview";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
 import { useAuth } from "../../hooks/useAuth";
@@ -15,21 +16,10 @@ import {
   requestStatusLabel,
   requestTypeLabel,
 } from "../../services/dataRequests";
-import { Badge, FieldError, CarePageHeader } from "../../components";
+import { AdminDialog, Badge, Btn, FieldError, CarePageHeader } from "../../components";
 import { DonorNav } from "../../layout/DonorNav";
 
-/**
- * Donor privacy and data requests (FR-039/NFR-19).
- *
- * Submits an access, correction, erasure or export request with the detail the
- * administrator needs to act on it, and lists this account's own requests with
- * the team's answer. The linked notice is the consent text the account agreed
- * to.
- *
- * Chrome: the donor surface has no `AppShell`, so this carries the same `.pub`
- * scope as the profile and sign-in screens, which is what makes both themes
- * work unchanged.
- */
+/** Donor data-request submission, history and read-only responses (FR-039/NFR-19). */
 
 const TYPE_HINTS = {
   Access: "A copy of what Dugo+ holds about you, sent by the support team.",
@@ -37,6 +27,7 @@ const TYPE_HINTS = {
     "Correct a name, phone number or city that is wrong or out of date.",
   Erasure: "Have your identifying details removed and your account closed.",
   Export: "A machine-readable copy of your records you can take elsewhere.",
+  Other: "Describe another request about how Dugo+ handles your personal data.",
 };
 
 const STATUS_TONE = {
@@ -74,25 +65,34 @@ export default function Privacy() {
   const [type, setType] = useState("Access");
   const [details, setDetails] = useState("");
   const [formError, setFormError] = useState("");
+  const [active, setActive] = useState(null);
+  const generation = useRef(0);
 
   const load = () => {
     if (!user?.uid) return;
+    const current = ++generation.current;
     setLoading(true);
     setError("");
     listMyDataRequests(user.uid)
-      .then(setRequests)
-      .catch(() =>
-        setError(
+      .then((rows) => { if (current === generation.current) setRequests(rows); })
+      .catch(() => {
+        if (current === generation.current) setError(
           "Could not load your requests. Check your connection and try again.",
-        ),
-      )
-      .finally(() => setLoading(false));
+        );
+      })
+      .finally(() => { if (current === generation.current) setLoading(false); });
   };
 
-  useEffect(load, [user?.uid]);
+  useEffect(() => {
+    setRequests([]);
+    setActive(null);
+    load();
+    return () => { generation.current++; };
+  }, [user?.uid]);
 
   const submit = async (event) => {
     event.preventDefault();
+    if (busy) return;
     setFormError("");
     setError("");
     setNote("");
@@ -154,7 +154,7 @@ export default function Privacy() {
             <p className="pub-kicker">Your data</p>
             <h3>Privacy &amp; data requests</h3>
             <p className="pub-muted">
-              Ask to see what we hold, correct it, export it, or have it erased.
+              Ask to see what we hold, correct it, export it, have it erased, or make another data request.
               The <Link to="/privacy">privacy notice</Link> says what is kept
               and why.
             </p>
@@ -185,12 +185,13 @@ export default function Privacy() {
 
             <div className="profile-section">
               <label>
-                <span>Details</span>
+                <span>Details (required)</span>
                 <textarea
                   rows={4}
                   value={details}
                   maxLength={DETAILS_LIMIT}
                   disabled={busy}
+                  required
                   aria-invalid={Boolean(formError) || undefined}
                   aria-describedby={
                     formError
@@ -291,6 +292,7 @@ export default function Privacy() {
                 {error}
               </p>
             )}
+            {!loading && error && <Btn onClick={load}>Try again</Btn>}
             {!loading && !error && requests.length === 0 && (
               <p className="pub-muted">You have not submitted a request yet.</p>
             )}
@@ -306,9 +308,17 @@ export default function Privacy() {
                 {visible.map((request) => (
                   <li key={request.id}>
                     <div className="privacy-request-head">
-                      <span className="privacy-request-type">
-                        {requestTypeLabel(request.requestType)}
-                      </span>
+                      <div className="privacy-request-title">
+                        <span className="privacy-request-type">
+                          {requestTypeLabel(request.requestType)}
+                        </span>
+                        <Btn
+                          onClick={() => setActive(request)}
+                          aria-label={`View ${requestTypeLabel(request.requestType)}, request ${request.id}`}
+                        >
+                          View
+                        </Btn>
+                      </div>
                       <Badge
                         data-status={STATUS_TONE[request.status] ?? "pending"}
                       >
@@ -339,6 +349,53 @@ export default function Privacy() {
             )}
           </section>
         </div>
+        <AdminDialog
+          name="privacy-request"
+          open={!!active}
+          onClose={() => setActive(null)}
+          title={active ? requestTypeLabel(active.requestType) : "Your request"}
+          eyebrow="Your privacy request"
+        >
+          {active && (
+            <>
+              <div className="privacy-review-top">
+                <Badge data-status={STATUS_TONE[active.status] ?? "pending"}>
+                  {requestStatusLabel(active.status)}
+                </Badge>
+                <span>Sent {dateLabel(active.createdAt)}</span>
+              </div>
+              <dl className="aw-facts">
+                <div>
+                  <dt>Request ID</dt>
+                  <dd className="aw-record-id">{active.id}</dd>
+                </div>
+                <div>
+                  <dt>Answered</dt>
+                  <dd>{active.resolvedAt ? dateLabel(active.resolvedAt) : "Not answered yet"}</dd>
+                </div>
+              </dl>
+              <section className="privacy-subject-note">
+                <h3>Your original request</h3>
+                <p>{active.details || "No additional details were recorded."}</p>
+              </section>
+              <section className="privacy-response">
+                <h3>Dugo+ response</h3>
+                {active.status === "Rejected" && (
+                  <p><strong>Rejection reason:</strong> {rejectionReasonLabel(active.rejectionReason)}</p>
+                )}
+                <p>
+                  {active.adminNote || (["Pending", "InProgress"].includes(active.status)
+                    ? "The team has not added a response yet. Your request is awaiting review."
+                    : "No written response was recorded for this request.")}
+                </p>
+                {active.resolutionAction && (
+                  <p><strong>Action recorded:</strong> {active.resolutionAction}</p>
+                )}
+              </section>
+              <Btn onClick={() => setActive(null)}>Close request</Btn>
+            </>
+          )}
+        </AdminDialog>
         <SupportContact as="footer" />
       </main>
     </div>
