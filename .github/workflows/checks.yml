@@ -92,4 +92,4 @@ jobs:
         run: npm run test:completion:emulator
 
       - name: Hospital donor directory isolation suite
-        run: firebase emulators:exec --only firestore --project demo-dugo "node --test worker/src/hospitalDonors.emulator.test.js"
+        run: npx --no-install firebase emulators:exec --only firestore --project demo-dugo "node --test worker/src/hospitalDonors.emulator.test.js"
