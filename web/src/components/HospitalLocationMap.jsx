@@ -4,7 +4,6 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { cx } from '../utils/cx'
 import { asPoint } from '../utils/geo'
-import { Btn } from './Btn'
 
 const pin = L.divIcon({ className: 'donation-map-hospital', html: '<span>+</span>',
   iconSize: [32, 36], iconAnchor: [16, 34] })
@@ -53,9 +52,6 @@ export function HospitalLocationMap({ position, editable = false, disabled = fal
     <div className="hospital-location-caption">
       <p>{editable ? 'Click the map or drag the pin. You can also pan with arrow keys and press Enter to place it.'
         : 'Saved facility location · Managed by your Dugo+ administrator'}</p>
-      {editable && <Btn disabled={disabled} onClick={() => {
-        if (map.current) onChange(coordinate(map.current.getCenter()))
-      }}>Pin map centre</Btn>}
     </div>
     {tileError && <p className="hospital-map-error" role="status">Map tiles could not be loaded. {editable
       ? 'You can still enter coordinates below.' : 'The saved coordinates are shown below.'}</p>}

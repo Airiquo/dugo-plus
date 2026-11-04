@@ -53,7 +53,8 @@ export function HospitalRequestResponses({ name = 'hospital-responses', request,
       if (stage === 'Completed') saved = await confirmDonation({ matchId: row.id, units: Number(units), acceptanceVersion: row.acceptanceVersion })
       else await screenDonorMatch(row.id, stage, { reason: stage === 'Deferred' ? reason : '', acceptanceVersion: row.acceptanceVersion })
       focusAfterSave.current = row.id
-      setNotice(`${stage === 'Screened' ? 'Screening' : stage} saved.`); setSelectedSnapshot({...row,donationStage:stage,...(stage === 'Deferred' ? {deferralReason:reason} : {})}); if(stage === 'Completed')setCompletion(saved); setUnits(''); setReason(''); setReload(n => n + 1)
+      if (stage !== 'Completed') setNotice(`${stage === 'Screened' ? 'Screening' : stage} saved.`)
+      setSelectedSnapshot({...row,donationStage:stage,...(stage === 'Deferred' ? {deferralReason:reason} : {})}); if(stage === 'Completed')setCompletion(saved); setUnits(''); setReason(''); setReload(n => n + 1)
     } catch (failure) { setError(failure.message) } finally { setBusy(false) }
   }
   useEffect(() => {
