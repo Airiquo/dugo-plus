@@ -241,43 +241,17 @@ export default function Dashboard() {
           <section className="card aw-panel overview-config">
             <div className="aw-panel-heading">
               <div>
-                <h2>Matching at a glance</h2>
-                <p>Search reach and notification retry policy.</p>
+                <h2>Notification policy</h2>
+                <p>Retry settings for interrupted notifications.</p>
               </div>
-              <Icon name="target" />
+              <Icon name="refresh" />
             </div>
             <div className="aw-panel-body">
               {loading ? (
                 <p role="status">Loading configuration…</p>
               ) : data.config ? (
                 <>
-                  <p className="admin-care-eyebrow">
-                    {data.config.updatedAt
-                      ? "Saved search reach"
-                      : "Default search reach"}
-                  </p>
-                  <div className="overview-radius">
-                    <strong>
-                      {data.config.radiusTiers.at(-1)?.radiusKm ?? "—"}
-                    </strong>
-                    <span>km maximum radius</span>
-                  </div>
-                  <div
-                    className="overview-tier-track"
-                    aria-label="Configured radius tiers"
-                  >
-                    {data.config.radiusTiers.map((tier) => (
-                      <span key={tier.tierOrder}>
-                        {tier.radiusKm}
-                        <small>km</small>
-                      </span>
-                    ))}
-                  </div>
                   <dl className="overview-config-facts">
-                    <div>
-                      <dt>Search tiers</dt>
-                      <dd>{data.config.radiusTiers.length}</dd>
-                    </div>
                     <div>
                       <dt>Notification retries</dt>
                       <dd>{data.config.notifRetryLimit}</dd>
@@ -297,7 +271,7 @@ export default function Dashboard() {
             </div>
             <div className="overview-panel-link">
               <Link to="/admin/settings">
-                Review configuration <Icon name="arrow-right" />
+                Review notification settings <Icon name="arrow-right" />
               </Link>
             </div>
           </section>
