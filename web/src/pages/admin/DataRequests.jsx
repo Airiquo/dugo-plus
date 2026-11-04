@@ -495,6 +495,15 @@ export default function DataRequests() {
                 ))}
               </select>
             </label>
+            <TableExport
+            name="data-requests"
+            title="Privacy requests"
+            columns={privacyReportColumns}
+            disabled={loading || Boolean(error)}
+            getRows={(scope) =>
+              scope === "filtered" ? orderedRequests : requests
+            }
+          />
           </div>
           {note && !active && (
             <p className="aw-notice" role="status" ref={notice} tabIndex={-1}>
@@ -506,15 +515,7 @@ export default function DataRequests() {
               {directoryError}
             </p>
           )}
-          <TableExport
-            name="data-requests"
-            title="Privacy requests"
-            columns={privacyReportColumns}
-            disabled={loading || Boolean(error)}
-            getRows={(scope) =>
-              scope === "filtered" ? orderedRequests : requests
-            }
-          />
+
           {loading ? (
             <div className="aw-empty" role="status">
               Loading requests…

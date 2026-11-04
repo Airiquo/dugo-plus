@@ -415,7 +415,8 @@ export default function InventoryLog() {
                   : "Loading every page before showing totals or filtered results."}
               </p>
             </header>
-            <RecordFilters
+            <div className="record-toolbar">
+              <RecordFilters
               name={donations ? "donation history" : "stock movements"}
               value={filters}
               fields={fields}
@@ -452,6 +453,7 @@ export default function InventoryLog() {
                 .map(([key, value]) => `${key}: ${value}`)
                 .join(" · ")}
             />
+            </div>
             {data.status === "loading" && (
               <p className="hospital-state" role="status">
                 Loading complete history

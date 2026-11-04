@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { cx } from "../utils/cx";
 import { tableCsv, tablePrintHtml } from "../utils/tableExport";
 import { Btn } from "./Btn";
+import { ControlPopover } from "./ControlPopover";
 import { TablePrintPreview } from "./TablePrintPreview";
 
 /** Exports every matching row in current table order. `getRows` receives "filtered"; `filterSummary` describes the current view. */
@@ -13,9 +14,11 @@ export function TableExport({
   disabled = false,
   filterSummary = "",
   className,
+  children,
   ...rest
 }) {
   const scope = "filtered";
+  const menu = useRef(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -35,9 +38,11 @@ export function TableExport({
     setBusy(false);
     setMessage("");
     setError("");
+    requestAnimationFrame(() => menu.current?.querySelector("button")?.focus());
   }
   async function run(format) {
     if (busy || disabled) return;
+    menu.current?.querySelector("[popover]")?.hidePopover();
     const version = ++generation.current;
     const current = () => alive.current && generation.current === version;
     setError("");
@@ -98,14 +103,13 @@ export function TableExport({
       data-export-name={name}
       {...rest}
     >
-      <div className="table-export-actions">
-        <Btn aria-label="Export CSV" title="Export CSV" disabled={disabled || busy} onClick={() => run("csv")}>
-          CSV
-        </Btn>
-        <Btn aria-label="Print / PDF" title="Print or save as PDF" disabled={disabled || busy} onClick={() => run("pdf")}>
-          Print/PDF
-        </Btn>
-      </div>
+      <ControlPopover ref={menu} name={`${name}-export`} label="Export" triggerLabel={`Export ${title}`} icon={null} disabled={disabled || busy} showDone={false} className="table-export-menu">
+        <div className="table-export-formats" role="group" aria-label={`${title} export formats`}>
+          {children || <p>All matching records · current filters</p>}
+          <Btn disabled={disabled || busy} onClick={() => run("csv")}>Print CSV</Btn>
+          <Btn disabled={disabled || busy} onClick={() => run("pdf")}>Print PDF</Btn>
+        </div>
+      </ControlPopover>
       {message && <p role="status">{message}</p>}
       {error && (
         <p className="table-export-error" role="alert">

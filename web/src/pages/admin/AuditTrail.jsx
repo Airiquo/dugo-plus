@@ -1,3 +1,4 @@
+import { ControlPopover } from '../../components/ControlPopover';
 import { dayStart, donationDay, shiftDay } from "../../utils/hospitalReports";
 import { TableExport } from "../../components/TableExport";
 import { auditReportColumns } from "../../utils/reportColumns";
@@ -410,6 +411,7 @@ export default function AuditTrail() {
                   ))}
                 </select>
               </label>
+              <ControlPopover name="audit-dates" label="Date range"><div className="audit-date-inputs">
               <label className="audit-field">
                 From
                 <input
@@ -444,6 +446,7 @@ export default function AuditTrail() {
                   }
                 />
               </label>
+              </div></ControlPopover>
               <div className="audit-filter-actions">
                 <Btn type="submit" variant="primary">
                   Search history
@@ -471,11 +474,7 @@ export default function AuditTrail() {
                 onChange={(e) => setQuery(e.target.value)}
               />
             </label>
-            <p>
-              Search and column sorting apply to this page of up to 25 records.
-            </p>
-          </div>
-          <TableExport
+            <TableExport
             name="audit-activity"
             title="Audit activity"
             columns={auditReportColumns}
@@ -504,6 +503,11 @@ export default function AuditTrail() {
               );
             }}
           />
+            <p>
+              Search and column sorting apply to this page of up to 25 records.
+            </p>
+          </div>
+
           {loading ? (
             <div className="audit-state" role="status">
               Loading activity…

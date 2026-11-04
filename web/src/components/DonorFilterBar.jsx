@@ -133,8 +133,8 @@ export function DonorFilterBar({
             )}
           </button>
         </div>
+        {children}
       </div>
-      {children}
       <dialog
         ref={dialog}
         id={`${name}-drawer`}

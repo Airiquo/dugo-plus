@@ -477,17 +477,7 @@ export default function Accounts() {
               <Btn icon="refresh" onClick={load} disabled={loading}>
                 {loading ? "Refreshing…" : "Refresh"}
               </Btn>
-              <TableExport
-                name="accounts"
-                title="Accounts"
-                columns={accountReportColumns}
-                disabled={loading || Boolean(error)}
-                getRows={(scope) =>
-                  scope === "filtered"
-                    ? sorted
-                    : sortRows(accounts, ACCOUNT_SORT[sort.key], sort.direction)
-                }
-              />
+
             </div>
           </div>
           <div className="aa-filters">
@@ -523,6 +513,17 @@ export default function Accounts() {
                 )}
               />
             </Field>
+            <TableExport
+                name="accounts"
+                title="Accounts"
+                columns={accountReportColumns}
+                disabled={loading || Boolean(error)}
+                getRows={(scope) =>
+                  scope === "filtered"
+                    ? sorted
+                    : sortRows(accounts, ACCOUNT_SORT[sort.key], sort.direction)
+                }
+              />
           </div>
           <SortControls
             className="table-sort-mobile"
@@ -1001,7 +1002,8 @@ export default function Accounts() {
                   Refresh
                 </Btn>
               </div>
-              <RecordFilters
+              <div className="record-toolbar">
+                <RecordFilters
                 name="account activity"
                 value={historyFilters}
                 disabled={history.loading}
@@ -1052,6 +1054,7 @@ export default function Accounts() {
                   )
                 }
               />
+              </div>
               {history.error && (
                 <p className="aa-inline-error" role="alert">
                   {history.error}

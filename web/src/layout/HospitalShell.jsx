@@ -11,7 +11,7 @@ export const HOSPITAL_NAV = [
   { slug: "inventory-log", label: "History", icon: "list" },
   { slug: "map", label: "Hospital map", icon: "map" },
   { slug: "facility", label: "Facility details", icon: "settings" },
-  { slug: "profile", label: "My profile", icon: "user" },
+  { slug: "settings", label: "Settings", icon: "settings" },
 ];
 /** Hospital chrome retains the account's resolved facility name between route loads. */
 export function HospitalShell({ children, facility, ...rest }) {

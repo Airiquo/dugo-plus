@@ -60,3 +60,8 @@ export { TablePrintPreview } from './TablePrintPreview'
 
 export { HospitalDonationDetails } from './HospitalDonationDetails'
 export { RequestCompletedDonations } from './RequestCompletedDonations'
+export { AccountSettings } from './AccountSettings'
+
+export { AccountMenu } from './AccountMenu'
+
+export { ControlPopover } from './ControlPopover'

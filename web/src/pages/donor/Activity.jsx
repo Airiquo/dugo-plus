@@ -203,24 +203,8 @@ export default function Activity() {
                     },
                   ]}
                   dateLabel="Donation date"
-                />
-                <div className="donor-browse-result-bar donor-history-result-bar">
-                  <p aria-live="polite" aria-atomic="true">
-                    {visible.length}{" "}
-                    {visible.length === 1 ? "donation" : "donations"}
-                    {hasFilters ? " match your filters" : " recorded"}
-                  </p>
-                  <div>
-                    {hasFilters && (
-                      <button
-                        type="button"
-                        className="donor-clear-filters"
-                        onClick={clearFilters}
-                      >
-                        Clear
-                      </button>
-                    )}
-                    <TableExport
+                 >
+                  <TableExport
                       name="donor-donations"
                       title="Your donation history"
                       disabled={state.status !== "ready"}
@@ -243,6 +227,24 @@ export default function Activity() {
                       ]}
                       getRows={() => visible}
                     />
+                </DonorFilterBar>
+                <div className="donor-browse-result-bar donor-history-result-bar">
+                  <p aria-live="polite" aria-atomic="true">
+                    {visible.length}{" "}
+                    {visible.length === 1 ? "donation" : "donations"}
+                    {hasFilters ? " match your filters" : " recorded"}
+                  </p>
+                  <div>
+                    {hasFilters && (
+                      <button
+                        type="button"
+                        className="donor-clear-filters"
+                        onClick={clearFilters}
+                      >
+                        Clear
+                      </button>
+                    )}
+
                   </div>
                 </div>
                 {visible.length > 0 ? (

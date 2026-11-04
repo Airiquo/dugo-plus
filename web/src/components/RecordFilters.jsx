@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { cx } from "../utils/cx";
 import { filterDateError } from "../utils/recordFilters";
 import { Icon } from "./Icon";
+import { ControlPopover } from "./ControlPopover";
 
 /** Screen-specific instant filters. Dates use inclusive Philippine days; invalid edits keep the last valid range. */
 export function RecordFilters({
@@ -15,6 +16,7 @@ export function RecordFilters({
   disabled = false,
   searchPlaceholder = "Search these records…",
   className,
+  children,
   ...rest
 }) {
   const id = useId();
@@ -40,7 +42,7 @@ export function RecordFilters({
   };
   const reset = () => {
     setRange({ from: "", to: "" });
-    if (disclosure.current) disclosure.current.open = false;
+    disclosure.current?.querySelector("[popover]")?.hidePopover();
     onChange({
       search: "",
       from: "",
@@ -91,12 +93,7 @@ export function RecordFilters({
           </label>
         ))}
         {dates && (
-          <details ref={disclosure} className="screen-filter-date-menu">
-            <summary>
-              <Icon name="clock" size={16} />
-              {value.from || value.to ? "Dates selected" : "Date range"}
-              <Icon name="chevron-down" size={14} />
-            </summary>
+          <ControlPopover ref={disclosure} name={`${id}-dates`} label="Date range" data-active={Boolean(value.from || value.to)} disabled={disabled}>
             <div className="screen-filter-date-panel">
               <div>
                 <label>
@@ -135,8 +132,9 @@ export function RecordFilters({
                 </p>
               )}
             </div>
-          </details>
+          </ControlPopover>
         )}
+        {children}
         {active && (
           <button type="button" className="screen-filter-clear" onClick={reset}>
             Clear

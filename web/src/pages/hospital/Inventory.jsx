@@ -962,11 +962,7 @@ export default function Inventory() {
                       >
                         Reset filters
                       </Btn>
-                      <span role="status">
-                        {filteredStock.length} matching blood groups
-                      </span>
-                    </div>
-                    <TableExport
+                      <TableExport
                       name="inventory"
                       title={`${hospital?.name || "Facility"} blood inventory`}
                       columns={stockReportColumns}
@@ -980,6 +976,11 @@ export default function Inventory() {
                           : allInventory(hospitalId)
                       }
                     />
+                      <span role="status">
+                        {filteredStock.length} matching blood groups
+                      </span>
+                    </div>
+
                     {!filteredStock.length && (
                       <p className="hospital-note" role="status">
                         No blood groups match these filters. Reset filters to
@@ -1171,7 +1172,8 @@ export default function Inventory() {
                       )}
                     </header>
 
-                    <RecordFilters
+                    <div className="record-toolbar">
+                      <RecordFilters
                       name="pending donations"
                       onReset={() => {
                         setLogType("");
@@ -1261,6 +1263,7 @@ export default function Inventory() {
                           );
                       }}
                     />
+                    </div>
                     {matchesLoading && (
                       <p className="hospital-state">Loading donation log…</p>
                     )}
@@ -1861,7 +1864,8 @@ export default function Inventory() {
             recorded for {logBloodType} at this facility.
           </p>
 
-          <RecordFilters
+          <div className="record-toolbar">
+            <RecordFilters
             name="stock movement history"
             value={movementFilters}
             onChange={setMovementFilters}
@@ -1892,6 +1896,7 @@ export default function Inventory() {
               )
             }
           />
+          </div>
           {stockLogsLoading && (
             <p className="hospital-state">Loading movements…</p>
           )}

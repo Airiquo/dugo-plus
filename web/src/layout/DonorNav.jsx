@@ -1,27 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  PubThemeToggle,
-  AccountIdentity,
+  AccountMenu,
   WorkspaceNav,
-  Icon,
 } from "../components";
 import { useRouteScroll } from "../hooks/useRouteScroll";
 import { useAuth, userName } from "../hooks/useAuth";
 import { listenDonorAlerts } from "../services/alerts";
 
 export const DONOR_NAV = [
-  { to: "/home", label: "My profile", icon: "user" },
+  { to: "/donor/settings", label: "Settings", icon: "settings" },
   { to: "/donor/requests", label: "Requests", icon: "request" },
   { to: "/donor/activity", label: "Activity", icon: "chart" },
   { to: "/donor/alerts", label: "Alerts", icon: "bell" },
-  { to: "/donor/privacy", label: "Privacy", icon: "settings" },
+  { to: "/donor/privacy", label: "Privacy", icon: "shield" },
 ];
 
 /** Donor navigation becomes a bottom bar on small screens. */
 export function DonorNav() {
   useRouteScroll();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const name = profile?.fullName?.trim() || userName(user);
 
@@ -61,27 +59,8 @@ export function DonorNav() {
         />
 
         <div className="pub-nav-end">
-          <PubThemeToggle />
-          <Link
-            className="donor-account-link"
-            to="/home"
-            aria-label={`Your profile, ${name}`}
-          >
-            <AccountIdentity
-              photoURL={profile?.photoURL}
-              name={name}
-              role="Donor"
-            />
-          </Link>
-          <button
-            className="care-signout"
-            type="button"
-            onClick={signOut}
-            aria-label="Sign out"
-          >
-            <Icon name="logout" size={18} />
-            <span>Sign out</span>
-          </button>
+          <AccountMenu name={name} photoURL={profile?.photoURL} accountRole="Donor" settingsTo="/donor/settings" />
+
         </div>
       </header>
     </>

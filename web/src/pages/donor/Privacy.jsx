@@ -16,7 +16,7 @@ import {
   requestStatusLabel,
   requestTypeLabel,
 } from "../../services/dataRequests";
-import { AdminDialog, Badge, Btn, FieldError, CarePageHeader } from "../../components";
+import { AdminDialog, Badge, Btn, FieldError, Icon, CarePageHeader } from "../../components";
 import { DonorNav } from "../../layout/DonorNav";
 
 /** Donor data-request submission, history and read-only responses (FR-039/NFR-19). */
@@ -233,15 +233,15 @@ export default function Privacy() {
               </button>
               <Link
                 className="pub-btn pub-btn-ghost pub-btn-wide"
-                to="/donor/profile"
+                to="/donor/settings"
               >
-                Back to your profile
+                Back to Settings
               </Link>
             </div>
           </form>
 
           <section
-            className="pub-card pub-form profile-card privacy-card"
+            className="privacy-history"
             aria-labelledby="privacy-history-h"
           >
             <p className="pub-kicker">History</p>
@@ -250,6 +250,7 @@ export default function Privacy() {
               Only you and the Dugo+ team can see these.
             </p>
 
+            <div className="record-toolbar privacy-history-toolbar">
             <RecordFilters
               name="privacy requests"
               value={recordFilters}
@@ -286,6 +287,7 @@ export default function Privacy() {
               disabled={loading || Boolean(error)}
               getRows={(scope) => (scope === "filtered" ? visible : requests)}
             />
+            </div>
             {loading && <p className="pub-msg">Loading your requests…</p>}
             {!loading && error && requests.length === 0 && (
               <p className="pub-msg" data-kind="error" role="alert">
@@ -303,46 +305,21 @@ export default function Privacy() {
                 requests.
               </p>
             )}
+            {!loading && !error && <p className="privacy-result-count" role="status">{visible.length} {visible.length === 1 ? "request" : "requests"}</p>}
             {visible.length > 0 && (
               <ul className="privacy-requests">
                 {visible.map((request) => (
-                  <li key={request.id}>
-                    <div className="privacy-request-head">
-                      <div className="privacy-request-title">
-                        <span className="privacy-request-type">
-                          {requestTypeLabel(request.requestType)}
-                        </span>
-                        <Btn
-                          onClick={() => setActive(request)}
-                          aria-label={`View ${requestTypeLabel(request.requestType)}, request ${request.id}`}
-                        >
-                          View
-                        </Btn>
+                  <li key={request.id} className="privacy-request-card card">
+                    <div className="privacy-request-content">
+                      <div className="privacy-request-head">
+                        <h4 className="privacy-request-type">{requestTypeLabel(request.requestType)}</h4>
+                        <Badge data-status={STATUS_TONE[request.status] ?? "pending"}>{requestStatusLabel(request.status)}</Badge>
                       </div>
-                      <Badge
-                        data-status={STATUS_TONE[request.status] ?? "pending"}
-                      >
-                        {requestStatusLabel(request.status)}
-                      </Badge>
+                      {request.details && <p className="privacy-request-details">{request.details}</p>}
+                      <p className="privacy-request-meta"><span>Sent {dateLabel(request.createdAt)}</span><span>{request.resolvedAt ? `Answered ${dateLabel(request.resolvedAt)}` : "Awaiting an answer"}</span></p>
+                      {request.adminNote && <p className="privacy-request-note"><strong>Dugo+</strong> {request.adminNote}</p>}
                     </div>
-                    {request.details && (
-                      <p className="privacy-request-details">
-                        {request.details}
-                      </p>
-                    )}
-                    <p className="privacy-request-meta">
-                      <span>Sent {dateLabel(request.createdAt)}</span>
-                      <span>
-                        {request.resolvedAt
-                          ? `Answered ${dateLabel(request.resolvedAt)}`
-                          : "Awaiting an answer"}
-                      </span>
-                    </p>
-                    {request.adminNote && (
-                      <p className="privacy-request-note">
-                        <strong>Dugo+</strong> {request.adminNote}
-                      </p>
-                    )}
+                    <Btn onClick={() => setActive(request)} aria-label={`View ${requestTypeLabel(request.requestType)}, request ${request.id}`}>View <Icon name="arrow-right" size={16} /></Btn>
                   </li>
                 ))}
               </ul>
@@ -350,6 +327,7 @@ export default function Privacy() {
           </section>
         </div>
         <AdminDialog
+          className="privacy-request-drawer"
           name="privacy-request"
           open={!!active}
           onClose={() => setActive(null)}
@@ -358,40 +336,22 @@ export default function Privacy() {
         >
           {active && (
             <>
-              <div className="privacy-review-top">
-                <Badge data-status={STATUS_TONE[active.status] ?? "pending"}>
-                  {requestStatusLabel(active.status)}
-                </Badge>
-                <span>Sent {dateLabel(active.createdAt)}</span>
+              <div className="privacy-outcome" data-status={active.status}>
+                <Icon name={active.status === "Rejected" ? "alert" : active.status === "Completed" ? "check" : "clock"} size={24} />
+                <div><h3>{active.status === "Rejected" ? "This request was declined" : active.status === "Completed" ? "This request is complete" : active.status === "InProgress" ? "Your request is being reviewed" : "Your request is awaiting review"}</h3>
+                <p>{active.resolvedAt ? `Dugo+ answered on ${dateLabel(active.resolvedAt)}.` : requestStatusLabel(active.status)}</p></div>
               </div>
-              <dl className="aw-facts">
-                <div>
-                  <dt>Request ID</dt>
-                  <dd className="aw-record-id">{active.id}</dd>
-                </div>
-                <div>
-                  <dt>Answered</dt>
-                  <dd>{active.resolvedAt ? dateLabel(active.resolvedAt) : "Not answered yet"}</dd>
-                </div>
+              <dl className="privacy-detail-meta">
+                <div><dt>Sent</dt><dd>{dateLabel(active.createdAt)}</dd></div>
+                <div><dt>Answered</dt><dd>{active.resolvedAt ? dateLabel(active.resolvedAt) : "Not answered yet"}</dd></div>
+                <div><dt>Request ID</dt><dd className="aw-record-id">{active.id}</dd></div>
               </dl>
-              <section className="privacy-subject-note">
-                <h3>Your original request</h3>
-                <p>{active.details || "No additional details were recorded."}</p>
-              </section>
-              <section className="privacy-response">
-                <h3>Dugo+ response</h3>
-                {active.status === "Rejected" && (
-                  <p><strong>Rejection reason:</strong> {rejectionReasonLabel(active.rejectionReason)}</p>
-                )}
-                <p>
-                  {active.adminNote || (["Pending", "InProgress"].includes(active.status)
-                    ? "The team has not added a response yet. Your request is awaiting review."
-                    : "No written response was recorded for this request.")}
-                </p>
-                {active.resolutionAction && (
-                  <p><strong>Action recorded:</strong> {active.resolutionAction}</p>
-                )}
-              </section>
+              <section className="privacy-detail-section"><h3>What you asked</h3><p className="privacy-original-text">{active.details || "No additional details were recorded."}</p></section>
+              <section className="privacy-detail-section"><h3>Dugo+ replied</h3><p className="privacy-reply-text">{active.adminNote || (["Pending", "InProgress"].includes(active.status) ? "The team has not added a response yet. Your request is awaiting review." : "No written response was recorded for this request.")}</p></section>
+              <dl className="privacy-detail-meta">
+                {active.status === "Rejected" && <div><dt>Rejection reason</dt><dd>{rejectionReasonLabel(active.rejectionReason)}</dd></div>}
+                {active.resolutionAction && <div><dt>Action recorded</dt><dd>{active.resolutionAction}</dd></div>}
+              </dl>
               <Btn onClick={() => setActive(null)}>Close request</Btn>
             </>
           )}

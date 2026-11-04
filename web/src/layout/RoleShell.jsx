@@ -1,13 +1,12 @@
 import { SupportContact } from "../components/SupportContact";
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   Icon,
   NavigationSheet,
-  AccountIdentity,
+  AccountMenu,
   WorkspaceNav,
 } from "../components";
-import { useTheme } from "../hooks/useTheme";
 import { useAuth, userName } from "../hooks/useAuth";
 import { roleLabel } from "../services/users";
 import { useRouteScroll } from "../hooks/useRouteScroll";
@@ -22,17 +21,12 @@ export function RoleShell({
   className,
   ...rest
 }) {
-  const { user, profile, role, signOut } = useAuth();
-  const { theme, toggle } = useTheme();
+  const { user, profile, role } = useAuth();
   const { pathname } = useLocation();
   useRouteScroll();
-  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  const [error, setError] = useState("");
   const name = profile?.fullName || userName(user);
-  const profileTo = `/${area}/profile`;
-  const next = theme === "light" ? "dark" : "light";
+  const profileTo = `/${area}/settings`;
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
@@ -44,18 +38,6 @@ export function RoleShell({
     desktop.addEventListener("change", closeOnDesktop);
     return () => desktop.removeEventListener("change", closeOnDesktop);
   }, []);
-  async function leave() {
-    if (leaving) return;
-    setLeaving(true);
-    setError("");
-    try {
-      await signOut();
-      navigate("/");
-    } catch {
-      setError("Sign out failed. Please try again.");
-      setLeaving(false);
-    }
-  }
   const mobileItems = items.map(({ id, ...item }) => item);
   const primary =
     area === "admin"
@@ -99,17 +81,6 @@ export function RoleShell({
     (item) =>
       pathname === item.to ||
       (!item.exact && pathname.startsWith(`${item.to}/`)),
-  );
-  const themeButton = (
-    <button
-      className="theme-toggle"
-      type="button"
-      onClick={toggle}
-      aria-label={`Switch to ${next} mode`}
-      title={`Switch to ${next} mode`}
-    >
-      <Icon name={theme === "light" ? "moon" : "sun"} size={19} />
-    </button>
   );
   return (
     <div
@@ -156,28 +127,8 @@ export function RoleShell({
           linkClassName="btn"
         />
         <div id="sidebar-signed-in">
-          <Link
-            className="sidebar-profile-link"
-            to={profileTo}
-            aria-label={`Your profile, ${name}`}
-          >
-            <AccountIdentity
-              photoURL={profile?.photoURL}
-              name={name}
-              role={area === "hospital" ? "Hospital staff" : "Administrator"}
-            />
-          </Link>
-          <div className="role-session-actions">
-            {themeButton}
-            <button
-              id="sidebar-sign-out"
-              type="button"
-              onClick={leave}
-              disabled={leaving}
-            >
-              {leaving ? "Signing out…" : "Sign out"}
-            </button>
-          </div>
+          <AccountMenu name={name} photoURL={profile?.photoURL} accountRole={area === "hospital" ? "Hospital staff" : "Administrator"} settingsTo={profileTo} placement="side" />
+
         </div>
       </aside>
       <header className="staff-mobile-header">
@@ -198,36 +149,11 @@ export function RoleShell({
           </span>
         </Link>
         <div className="staff-mobile-actions">
-          {themeButton}
-          <Link
-            className="staff-mobile-avatar"
-            to={profileTo}
-            aria-label={`Your profile, ${name}`}
-          >
-            <AccountIdentity
-              photoURL={profile?.photoURL}
-              name={name}
-              role={area === "hospital" ? "Hospital staff" : "Administrator"}
-            />
-          </Link>
-          <button
-            type="button"
-            className="btn"
-            aria-label="Sign out"
-            title="Sign out"
-            disabled={leaving}
-            onClick={leave}
-          >
-            <Icon name="logout" size={19} />
-          </button>
+          <AccountMenu name={name} photoURL={profile?.photoURL} accountRole={area === "hospital" ? "Hospital staff" : "Administrator"} settingsTo={profileTo} />
+
         </div>
       </header>
       <main id="page-content" tabIndex={-1}>
-        {error && (
-          <p className="role-session-error" role="alert">
-            {error}
-          </p>
-        )}
         {children}
         <SupportContact as="footer" />
       </main>

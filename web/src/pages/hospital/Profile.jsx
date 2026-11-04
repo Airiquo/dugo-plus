@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { HospitalShell } from "../../layout/HospitalShell";
 import { useAuth } from "../../hooks/useAuth";
@@ -13,7 +13,8 @@ import {
 } from "../../components";
 
 /** Personal hospital identity, picture and read-only account access, with a separate facility destination. */
-export default function Profile() {
+export default function Profile({ embedded = false }) {
+  const Shell = embedded ? Fragment : HospitalShell;
   const { user, profile, roleLoading } = useAuth();
   const [facility, setFacility] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -43,12 +44,12 @@ export default function Profile() {
   }, [profile?.hospitalId, roleLoading, attempt]);
   const name = profile?.fullName || user?.displayName || "Hospital staff";
   return (
-    <HospitalShell facility={facility?.name}>
-      <HospitalPageHeader
+    <Shell {...(embedded ? {} : { facility: facility?.name })}>
+      {!embedded && <HospitalPageHeader
         title="My profile"
         eyebrow="Account / Your identity"
         description="Your personal account, connected to the care your facility provides."
-      />
+      />}
       <div className="hw-profile-layout">
         <section className="card hw-personal-card">
           <div className="hw-profile-cover">
@@ -167,6 +168,6 @@ export default function Profile() {
           </section>
         </div>
       </div>
-    </HospitalShell>
+    </Shell>
   );
 }

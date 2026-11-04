@@ -92,16 +92,18 @@ function DonorRecords({ hospitalId, selected, onView }) {
     <Card className="hospital-inventory-table">
       <header className="hospital-donors-heading"><div><h2>{history ? 'Completed donations' : 'Donor directory'}</h2><p className="muted">{ready ? `${visible.length} matching ${history ? 'records' : 'donors'} on page ${cursors.length}.` : 'Loading facility records…'} Search, filters and sorting apply to this page. Exports include every matching page.</p></div>
         <Btn icon="refresh" disabled={state.status === 'loading'} onClick={() => { setCursors([null]); setAttempt(value => value + 1) }}>Refresh</Btn></header>
+      <div className="record-toolbar hospital-donors-toolbar">
       <RecordFilters name={scopeLabel} value={filters} onChange={setFilters} fields={fields} dates={history} disabled={!ready}
         searchPlaceholder={history ? 'Search donation or request ID on this page…' : 'Search shared name, city or donor ID on this page…'} />
       <SortControls name="facility-donors" sort={sort} onChange={setSort} defaultLabel="Reference order · This page"
         fields={columns.filter(column => column.sortable !== false).map(column => ({ key: column.key, label: column.header }))} />
-      <div className="hospital-donors-export"><label>Export scope <select className="field" aria-label="Donor export scope" value={exportScope} onChange={event => setExportScope(event.target.value)} disabled={!ready}>
-        <option value="filtered">All matching pages · Current filters</option><option value="all">All pages · Clear filters</option>
-      </select></label>
       <TableExport key={`${hospitalId}:${selected?.id || ''}:${exportScope}:${summary}:${sort.key}:${sort.direction}`} name={history ? 'facility-donor-history' : 'facility-donor-directory'} title={history ? `Facility ${hospitalId} · Donor ${selected.id} completed donations` : `Facility ${hospitalId} donor directory`}
         columns={history ? donorHistoryColumns : donorDirectoryColumns} getRows={getExportRows} disabled={!ready}
-        filterSummary={`${exportScope === 'filtered' ? summary || 'No filters' : 'All records'} · All authorized pages · ${sort.key || 'Reference'} ${sort.direction}`} /></div>
+        filterSummary={`${exportScope === 'filtered' ? summary || 'No filters' : 'All records'} · All authorized pages · ${sort.key || 'Reference'} ${sort.direction}`} >
+        <label>Export scope <select className="field" aria-label="Donor export scope" value={exportScope} onChange={event => setExportScope(event.target.value)} disabled={!ready}>
+        <option value="filtered">All matching pages · Current filters</option><option value="all">All pages · Clear filters</option>
+      </select></label>
+      </TableExport></div>
       {state.status === 'loading' && <p className="hospital-state" role="status">Loading {history ? 'completed donations' : 'donors'}…</p>}
       {state.status === 'error' && <div className="hospital-state" role="alert"><p>{state.error}</p><Btn onClick={() => setAttempt(value => value + 1)}>Try again</Btn></div>}
       {ready && (visible.length ? <Table className="hospital-table" mobileCards columns={columns} rows={visible} rowKey={row => row.id} scroll={false} sort={sort} onSort={toggleSort} mobileSort={false} /> :
