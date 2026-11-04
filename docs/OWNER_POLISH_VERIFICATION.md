@@ -5,7 +5,7 @@ branches. Ratings/review content stay unchanged. The owner withdraws the
 inventory-refresh fix because inventory works; no inventory write change is
 included. Registration requires date of birth, gender and blood type.
 
-## Landing (D86)
+## Landing (D91)
 
 Global pause/theme controls restored. Cards have local pause/hover controls.
 The request-to-donation steps are click-driven, with no scroll handler; perspective
@@ -16,7 +16,7 @@ on resize; arrows continue from the current offset. No rating/review copy change
 Vite production build passes. Chrome fixtures pass at 390/1440px in both themes: global pause, click-driven steps, ribbon offset retention and no page overflow. Reference screenshot regeneration was attempted; Pillow is unavailable.
 No phase counts change; broader usability/device acceptance stays open.
 
-## Navigation (D87)
+## Navigation (D92)
 
 My profile is separate from Settings for donors/hospitals. Settings contains
 Appearance and Privacy/Facility details respectively; visited panels retain drafts.
@@ -24,7 +24,7 @@ Legacy privacy/facility URLs redirect into the selected tab. Existing hospital
 donor-directory route is retained. Sign out is separated by a divider and danger
 text in shared account menus and donor profile actions. Admin navigation stays.
 
-## Route loading and caching (D88)
+## Route loading and caching (D93)
 
 Route chunks are present in dist. Hover/focus preloads code, never data.
 Profiles/facilities/stock use a 30-second memory cache with concurrent-read
@@ -36,7 +36,7 @@ or health data is added to browser storage. Cache regressions pass (3 tests).
 Configured live sign-in/save/reload/verification smoke remains to be run with
 local emulator credentials; fixture checks are recorded separately.
 
-## Identity (D89)
+## Identity (D94)
 
 Email registration requires confirm password, DOB, gender and blood type, followed
 by a review before account creation. Google still provisions after provider sign-in
@@ -62,7 +62,7 @@ coordinate errors and missing-configuration behavior. Harness/results are in
 `/private/tmp/dugo-owner-auth-smoke/` and `/private/tmp/dugo-owner-*-rest.txt`.
 Live Google provider, production deployment and physical-device checks remain.
 
-## Queue and hospital toolbars (D90)
+## Queue and hospital toolbars (D95)
 
 Donation-stage filters distinguish Not screened, Screened (including legacy
 Cleared), Processing, Deferred and Rejected. Display/export use the same derived
@@ -130,3 +130,11 @@ Worker, rules and frontend together. Live Google-provider/production smoke and
 physical-device checks remain. The README screenshot generator was attempted
 but cannot run without Pillow; shared mockup styles were not edited, and the
 application screenshots above cover the changed screens.
+
+## Integration reconciliation
+
+Reconciled with integration `776310e`, retaining its session history guard,
+lasting-action confirmations, icon-only mobile staff navigation and 25/50 km
+discovery. The existing D86–D90 decisions keep their identifiers; this work uses
+D91–D95. Donor profile logout now honors cancellation. The session-navigation
+harness follows /home and the nested Privacy URL and covers profile logout cancel.

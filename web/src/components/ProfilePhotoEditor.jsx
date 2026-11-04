@@ -1,3 +1,4 @@
+import { useConfirmation } from '../hooks/useConfirmation'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useAuth, userName } from '../hooks/useAuth'
 import { isCloudinaryConfigured, uploadProfilePhoto } from '../services/cloudinary'
@@ -8,6 +9,7 @@ import { ProfileAvatar } from './ProfileAvatar'
 
 /** Saves a photo separately from surrounding profile forms. `disabled` blocks edits while details load/save. */
 export function ProfilePhotoEditor({ disabled = false, className, ...rest }) {
+  const confirm = useConfirmation()
   const { user, profile, updateProfilePhoto } = useAuth()
   const id = useId()
   const input = useRef(null)
@@ -43,6 +45,11 @@ export function ProfilePhotoEditor({ disabled = false, className, ...rest }) {
   }
   const save = async (remove = false) => {
     if (busy || disabled || (!remove && !file)) return
+    if (remove && !await confirm({
+      title: 'Remove your profile photo?',
+      description: 'Your account will use initials until you choose another photo.',
+      confirmLabel: 'Confirm removal',
+    })) return
     const controller = new AbortController()
     request.current = controller
     setBusy(true)

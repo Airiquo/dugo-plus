@@ -23,6 +23,7 @@ and do not "correct" the live code back to the text below:
 | `users.lastDonationAt` | writable | frozen for the owner; only F8's server transaction writes it | D14 |
 | `errorLogs` | an ERD-free collection §1 lists as [ADDED] | client-written, open-create; `build` is `mode:12-character Git SHA` | D8, D10, D17, D36 |
 | `systemConfig.radiusTiers` | §8's 3 illustrative tiers | NFR-05's 5-tier ladder (5→25 km) | D18 |
+| `systemConfig.radiusTiers` production | staged radius expansion | one immediate 25 km tier; historical seed defaults retained | D89 |
 | `users.address` | an ERD postal address | not collected; no field | D22 |
 
 §9 below is the file's own list of ERD inconsistencies. **They are open questions,
@@ -147,9 +148,9 @@ Legend: **R** = required, **O** = optional/nullable.
 | city | string | O | City label; the scheduled proximity matcher currently queries coordinates/geohash |
 | lastDonationAt | Timestamp | O | Used for eligibility interval checks. Owner-frozen (D14) |
 | bloodType | string | O | `BloodType`. ERD `?` |
-| dateOfBirth | Timestamp | R | Required for email/password donor registration; legacy/Google profiles may complete it later (D89). |
-| ~~age~~ | – | – | Not stored; computed from dateOfBirth for displays. Rules reject this key (D89). |
-| gender | string | O | [ADDED] `Female \| Male \| Other \| Prefer not to say`; email/password donor registration requires a choice. Optional on legacy/Google/staff profiles. Owner-editable, admin-correctable; erased with personal details (D89). Age is derived from dateOfBirth, never stored. |
+| dateOfBirth | Timestamp | R | Required for email/password donor registration; legacy/Google profiles may complete it later (D94). |
+| ~~age~~ | – | – | Not stored; computed from dateOfBirth for displays. Rules reject this key (D94). |
+| gender | string | O | [ADDED] `Female \| Male \| Other \| Prefer not to say`; email/password donor registration requires a choice. Optional on legacy/Google/staff profiles. Owner-editable, admin-correctable; erased with personal details (D94). Age is derived from dateOfBirth, never stored. |
 | ~~eligibilityInfo~~ | – | – | **Removed from the model of record** (D25). The ERD's field was never implemented and eligibility is computed, not stored |
 | ~~isVerified~~ | – | – | **[DECISION]** Do NOT store. Firebase Auth owns email verification (`user.emailVerified`); a copy would need a writer to stay true. See D5 |
 | status | string | R | `Active \| Suspended \| Removed`. Server-owned account operation (D40) |

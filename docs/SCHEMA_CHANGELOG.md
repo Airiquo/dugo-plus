@@ -305,7 +305,7 @@ unerased donor profiles gate batched identity reads in the Worker. Historical
 confirmed and canonical Completed donations share the read mapping; no stock is
 replayed. Verification/rollout limits: `docs/HOSPITAL_DONORS_DIRECTORY.md`.
 
-## 2026-11-04 — Donor identity (D89)
+## 2026-11-04 — Donor identity (D94)
 
 Add optional `users.gender` with Female/Male/Other/Prefer not to say choices.
 Email/password registration collects gender, birth date and blood group before

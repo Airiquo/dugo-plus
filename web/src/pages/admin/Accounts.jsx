@@ -1,5 +1,6 @@
 import { DonorDemographics } from '../../components/DonorDemographics'
 import { phNational, phE164 } from '../../utils/phone'
+import { useConfirmation } from '../../hooks/useConfirmation'
 import { RecordFilters } from "../../components/RecordFilters";
 import { filterRecords } from "../../utils/recordFilters";
 import { TableExport } from "../../components/TableExport";
@@ -121,6 +122,7 @@ const ACCOUNT_SORT = {
 };
 
 export default function Accounts({ donorsOnly = false }) {
+  const confirm = useConfirmation()
   const { sort, toggleSort, setSort } = useTableSort();
   const { user } = useAuth();
   const [accounts, setAccounts] = useState([]);
@@ -374,6 +376,11 @@ export default function Accounts({ donorsOnly = false }) {
       });
       return;
     }
+    if (!await confirm({
+      title: 'Create this hospital account?',
+      description: `${draft.facilityName.trim()} will receive an account for ${draft.email.trim()}. Review the facility and contact details before continuing.`,
+      confirmLabel: 'Confirm creation',
+    })) return;
     setBusy(true);
     setDialogError("");
     setNotice("");

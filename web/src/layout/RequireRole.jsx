@@ -1,6 +1,6 @@
-import { Link, Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { roleLabel } from '../services/users'
+import { homeFor } from '../services/users'
 
 function Centered({ children }) {
   // Same one-off inline centring as `RequireAuth` / `NotFound`, because no class
@@ -18,7 +18,7 @@ function Centered({ children }) {
  * - `role` still loading → wait for the profile read.
  * - no profile after loading → the auto-provision write failed (D20); report
  *   it rather than guessing a role or bouncing the visitor between screens.
- * - profile exists but isn't in `roles` → refuse.
+ * - profile exists but isn't in `roles` → replace with this account's home.
  *
  * `roles` is the list the parent route accepts, e.g. `roles={['admin']}` for
  * `/admin/*`.
@@ -64,17 +64,7 @@ export default function RequireRole({ children, roles }) {
   }
 
   if (roles && !roles.includes(role)) {
-    return (
-      <Centered>
-        <p className="pub-msg" data-kind="error" role="alert">
-          {user.email ?? 'This account'} is a {roleLabel(role)} account, but this area needs a{' '}
-          {roles.map((item) => roleLabel(item)).join(' or ')} account.
-        </p>
-        <p>
-          <Link to="/">Back to Dugo+</Link>
-        </p>
-      </Centered>
-    )
+    return <Navigate to={homeFor(role)} replace />
   }
 
   return children

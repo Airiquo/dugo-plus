@@ -5,9 +5,11 @@ import { routeLoaders } from './utils/routeModules'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from './hooks/useTheme'
 import { AuthProvider } from './hooks/useAuth'
+import { ConfirmationProvider } from './hooks/useConfirmation'
 import RequireAuth from './layout/RequireAuth'
 import RequireRole from './layout/RequireRole'
 import RequireVerified from './layout/RequireVerified'
+import SessionNavigationGuard from './layout/SessionNavigationGuard'
 import { isFirebaseConfigured, missingFirebaseKeys } from './lib/firebase'
 import Landing from './pages/public/Landing'
 import Login from './pages/public/Login'
@@ -91,6 +93,11 @@ const TRANSLATED = new Set([
   'inventory-log',
 ])
 
+/** Shared confirmation and authentication contexts for configured routes. */
+function SessionProviders({ children }) {
+  return <ConfirmationProvider><AuthProvider>{children}</AuthProvider></ConfirmationProvider>
+}
+
 /**
  * Top-level routes.
  *
@@ -126,7 +133,8 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <AuthProvider>
+      <SessionProviders>
+        <SessionNavigationGuard />
         <NavigationTransitions><Suspense fallback={<RouteSkeleton />}><Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/news/:slug" element={<Landing />} />
@@ -289,7 +297,7 @@ export default function App() {
           <Route path="/gallery" element={<Gallery />} />
           <Route path="*" element={<NotFound />} />
         </Routes></Suspense></NavigationTransitions>
-      </AuthProvider>
+      </SessionProviders>
     </ThemeProvider>
   )
 }

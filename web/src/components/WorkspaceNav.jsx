@@ -26,7 +26,7 @@ export function WorkspaceNav({
             className={linkClassName}
             data-active={active ? "true" : "false"}
             aria-current={active ? "page" : undefined}
-            aria-label={item.ariaLabel}
+            aria-label={item.ariaLabel || item.label}
             onClick={() => onNavigate?.()}
           >
             <span className="donor-nav-icon">
@@ -37,7 +37,7 @@ export function WorkspaceNav({
                 </span>
               )}
             </span>
-            <span>{item.label}</span>
+            <span className="workspace-nav-label">{item.label}</span>
           </Link>
         );
       })}

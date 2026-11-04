@@ -71,7 +71,7 @@ new registration acceptances record it and historical acceptance records remain
 unchanged. This contact correction does not add a re-consent gate or change the
 processing purposes or access rules.
 
-## Donor identity and location controls (2026-11-04, D89)
+## Donor identity and location controls (2026-11-04, D94)
 
 Notice version `2026-11-04` adds gender, derived age visibility, optional map/manual
 coordinates and authenticated city search through Photon/OpenStreetMap. Staff

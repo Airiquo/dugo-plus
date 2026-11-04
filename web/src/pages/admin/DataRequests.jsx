@@ -1,4 +1,5 @@
 import { phNational, phE164 } from '../../utils/phone'
+import { useConfirmation } from '../../hooks/useConfirmation'
 import { TableExport } from "../../components/TableExport";
 import { privacyReportColumns } from "../../utils/reportColumns";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -57,6 +58,7 @@ function dateLabel(value) {
 const STATUS_OPTIONS = ["Pending", "InProgress", "Completed", "Rejected"];
 
 export default function DataRequests() {
+  const confirm = useConfirmation()
   const { sort, toggleSort, setSort } = useTableSort();
   const { user } = useAuth();
   const [requests, setRequests] = useState([]);
@@ -198,6 +200,11 @@ export default function DataRequests() {
       reasonInput.current?.focus();
       return;
     }
+    if (['Completed', 'Rejected'].includes(status) && !await confirm({
+      title: `${status === 'Rejected' ? 'Reject' : 'Complete'} this privacy request?`,
+      description: `Your response will close the request as ${requestStatusLabel(status)}. Closed requests cannot be edited.`,
+      confirmLabel: status === 'Rejected' ? 'Confirm rejection' : 'Confirm completion',
+    })) return;
     setWorking(status);
     setError("");
     setNote("");
@@ -251,6 +258,11 @@ export default function DataRequests() {
       return;
     }
     if (correction.phoneNumber && ![9,10].includes(phNational(correction.phoneNumber).length)) { setError("Enter 9–10 digits after +63."); return; }
+    if (!await confirm({
+      title: 'Apply this profile correction?',
+      description: 'The corrected name, phone number and city will replace the account’s current details.',
+      confirmLabel: 'Confirm correction',
+    })) return;
     setWorking("correction");
     setError("");
     setNote("");

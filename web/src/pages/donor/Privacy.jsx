@@ -1,3 +1,4 @@
+import { useConfirmation } from '../../hooks/useConfirmation'
 import { RecordFilters } from "../../components/RecordFilters";
 import { filterRecords } from "../../utils/recordFilters";
 import { SupportContact } from "../../components/SupportContact";
@@ -49,6 +50,7 @@ function dateLabel(value) {
 
 export default function Privacy({ embedded = false }) {
   const Main = embedded ? "div" : "main";
+  const confirm = useConfirmation()
   const { theme } = useTheme();
   const { user } = useAuth();
   const [recordFilters, setRecordFilters] = useState({
@@ -110,6 +112,11 @@ export default function Privacy({ embedded = false }) {
       return;
     }
 
+    if (!await confirm({
+      title: 'Submit this privacy request?',
+      description: `The Dugo+ team will receive your ${requestTypeLabel(type).toLowerCase()} request and the details you entered.`,
+      confirmLabel: 'Confirm submission',
+    })) return;
     setBusy(true);
     try {
       await createDataRequest(user.uid, type, details);

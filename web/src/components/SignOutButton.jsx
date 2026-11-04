@@ -12,7 +12,7 @@ export function SignOutButton({ className, ...rest }) {
   const [error, setError] = useState('')
   return <div className={cx('profile-signout', className)} {...rest}><Btn type="button" className="signout-action" icon="logout" disabled={busy} onClick={async () => {
     setBusy(true); setError('')
-    try { await signOut(); navigate('/', { replace: true }) }
+    try { if (await signOut() === false) { setBusy(false); return } navigate('/', { replace: true }) }
     catch { setError('Sign out failed. Please try again.'); setBusy(false) }
   }}>{busy ? 'Signing out…' : 'Sign out'}</Btn>{error && <p role="alert">{error}</p>}</div>
 }
