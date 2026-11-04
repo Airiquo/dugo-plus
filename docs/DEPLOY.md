@@ -79,9 +79,11 @@ After building/deploying from clean `prod`, run:
 node tools/verify-hosting-build.mjs https://dugo-plus-clean.web.app
 ```
 
-This asserts the HTML stamp matches HEAD, the bundle includes the same log stamp,
+This asserts the HTML stamp matches HEAD, a compiled JavaScript chunk includes the same log stamp,
 `/` and `/register` have `no-cache`, the entry JS is immutable, and the deployed
-HTML/JS SHA-256 hashes match local `web/dist` byte for byte. Without a URL it
+HTML plus every generated JS/CSS chunk matches local `web/dist` byte for byte.
+Lazy routes may move logging into a shared chunk, so the stamp check searches
+all generated JavaScript and asset verification includes lazy chunks. Without a URL it
 checks the local build only. It performs no account or database mutation.
 A successful deployment check does not establish that a real signup, verification
 email, or `users/{uid}` write succeeded; report those checks separately.

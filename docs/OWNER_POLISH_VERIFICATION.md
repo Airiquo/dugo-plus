@@ -146,3 +146,11 @@ session-navigation browser harness passes with the new /home/profile route.
 
 Also retains integration `c93e853` (PR #61), which landed during CI: donor
 response outlines remain on the dialog, with its accompanying documentation.
+
+## Deployment verification compatibility
+
+The owner authorizes deployment of merged integration. Route splitting moves
+the logging source stamp from the entry bundle into a shared chunk. The verifier
+now searches all generated JS and verifies remote hashes/cache policy for every
+JS/CSS asset, including lazy pages. Deployment targets remain the existing Worker,
+clean-project rules and both documented Hosting entry points.
