@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from 'react'
 import { cx } from '../utils/cx'
 import { Field, Input, Textarea } from './Field'
 import { Icon } from './Icon'
+import { DonationStageTrack } from './DonationStageTrack'
+import { CopyId } from './CopyId'
+import { HospitalDonationDetails } from './HospitalDonationDetails'
 import { componentLabel } from '../services/requests'
 import { RequestCompletedDonations } from './RequestCompletedDonations'
 import { screenDonorMatch, confirmDonation } from '../services/inventory'
@@ -23,6 +26,7 @@ export function HospitalRequestResponses({ name = 'hospital-responses', request,
   const [result, setResult] = useState({ state: 'loading', rows: [], nextCursor: null })
   const [selected, setSelected] = useState(null), [busy, setBusy] = useState(false), [error, setError] = useState(''), [notice, setNotice] = useState('')
   const [reason, setReason] = useState(''), [units, setUnits] = useState('')
+  const [detail, setDetail] = useState(null), [donationId, setDonationId] = useState(null)
   const after = cursors.at(-1)
   async function save(row, stage) {
     setBusy(true); setError(''); setNotice('')
@@ -70,7 +74,7 @@ export function HospitalRequestResponses({ name = 'hospital-responses', request,
       </header>
       <div className="hresponses-summary">
         <span className="hreq-blood">{request.bloodType}</span>
-        <div><strong>{componentLabel(request.component)}</strong><span>{request.quantity} {request.quantity === 1 ? 'unit' : 'units'} requested</span></div>
+        <div><strong>{componentLabel(request.component)}</strong><span>{request.quantity} {request.quantity === 1 ? 'unit' : 'units'} requested · Actual collected units below</span></div>
         <span className="hreq-status" data-status={request.status}>{({ urgent: 'Open', collecting: 'Collecting', matched: 'Matched', fulfilled: 'Fulfilled', cancelled: 'Cancelled' })[request.status] || request.status}</span>
       </div>
       <div className="hresponses-toolbar">
@@ -89,14 +93,20 @@ export function HospitalRequestResponses({ name = 'hospital-responses', request,
         : <ul className="hresponses-list">{result.rows.map((row, index) => <li key={row.id}>
           <div className="hresponses-person"><span className="hresponses-avatar" aria-hidden="true">{row.donor?.fullName ? row.donor.fullName.split(/\s+/).slice(0, 2).map(word => word[0]).join('') : <Icon name="user" size={20} />}</span>
             <div><h3>{row.donor?.fullName || (row.donor ? 'Donor name not recorded' : 'Private donor')}</h3><p>{row.donor ? [row.donor.bloodType, row.donor.city].filter(Boolean).join(' · ') || 'Profile details not recorded' : row.privacy === 'profile-unavailable' ? 'Donor profile is unavailable.' : 'Contact details are not shared.'}</p></div>
-            <span className="chip" data-status={tone(row.responseStatus)}>{row.responseStatus === 'Pending' ? 'Awaiting response' : row.responseLabel}</span>
+            <span className="response-stage-pill" data-stage={row.donationStage}>{row.responseStatus === 'Pending' ? 'Awaiting response' : row.responseStatus !== 'Accepted' ? row.responseLabel : row.donationStage === 'Responded' ? 'Awaiting screening' : row.donationStage}</span>
           </div>
           <div className="hresponses-contact">{row.donor ? <>
             {row.donor.phoneNumber && <a href={`tel:${row.donor.phoneNumber.replace(/[^+0-9]/g, '')}`}><Icon name="phone" size={15} />{row.donor.phoneNumber}</a>}
             {row.donor.email && <a href={`mailto:${row.donor.email}`}><span>Email</span>{row.donor.email}</a>}
             {!row.donor.phoneNumber && !row.donor.email && <span>No contact details recorded.</span>}
           </> : <span>{row.responseStatus === 'Pending' ? 'This donor has not responded yet.' : 'A response does not grant access without current consent.'}</span>}</div>
-          <button ref={node => { if (node) viewButtons.current.set(row.id, node); else viewButtons.current.delete(row.id) }} className="btn" type="button" disabled={busy} aria-expanded={selected === row.id} aria-controls={`${id}-${index}-response`} aria-label={`View donor / response: ${row.donor?.fullName || 'match ' + ((cursors.length - 1) * 25 + index + 1)}`} onClick={() => { setSelected(selected === row.id ? null : row.id); setError(''); setReason(''); setUnits('') }}>View donor / response</button>
+          {row.responseStatus === 'Accepted' && <DonationStageTrack row={row} compact />}
+          <div className="response-card-meta"><span>Response: {row.responseLabel || row.responseStatus} · {matchedDate(row.matchedAt)}</span><small>Match {(cursors.length - 1) * 25 + index + 1}</small></div>
+          <div className="response-card-actions">
+            <button className="btn" type="button" disabled={busy} aria-expanded={detail === row.id} aria-label={`View donor / response: ${row.donor?.fullName || 'match ' + ((cursors.length - 1) * 25 + index + 1)}`} onClick={() => setDetail(detail === row.id ? null : row.id)}>View donor / response</button>
+            {row.donationStage === 'Completed' ? <button className="btn" type="button" disabled={busy} onClick={() => setDonationId(row.id)}>View donation <Icon name="arrow-right" size={16} /></button> : <button ref={node => { if (node) viewButtons.current.set(row.id, node); else viewButtons.current.delete(row.id) }} className="btn" data-primary type="button" disabled={busy || row.responseStatus !== 'Accepted' || !row.donor || ['Deferred','Rejected'].includes(row.donationStage)} aria-label={`Manage donation for ${row.donor?.fullName || 'this match'}`} aria-expanded={selected === row.id} aria-controls={`${id}-${index}-response`} onClick={() => { setSelected(selected === row.id ? null : row.id); setError(''); setReason(''); setUnits('') }}>Manage donation <Icon name="arrow-right" size={16} /></button>}
+          </div>
+          {detail === row.id && <section className="response-readonly" aria-label="Donor response details"><h4>Response details</h4><dl className="completion-facts"><div><dt>Response</dt><dd>{row.responseLabel || row.responseStatus}</dd></div><div><dt>Matched</dt><dd>{matchedDate(row.matchedAt)}</dd></div><div><dt>Match ID</dt><dd><CopyId value={row.id} label="match ID" /></dd></div><div><dt>Guidelines acknowledged</dt><dd>{row.acknowledgedAt ? matchedDate(row.acknowledgedAt).replace('Matched ','') : 'Not recorded'}</dd></div></dl>{row.deferralReason && <p>Deferral reason: {row.deferralReason}</p>}<button type="button" className="btn" onClick={() => setDetail(null)}>Close response details</button></section>}
           {selected === row.id && <div className="completion-progress" id={`${id}-${index}-response`}>
             <h4>Donation progress · {row.donationStage}</h4>
             {row.deferralReason && <p>Deferral reason: {row.deferralReason}</p>}
@@ -119,14 +129,15 @@ export function HospitalRequestResponses({ name = 'hospital-responses', request,
             </> : <p className="muted">{['Deferred', 'Rejected', 'Completed'].includes(row.donationStage) ? 'This attempt has ended.' : 'An accepted response with current donor consent is required to record progress.'}</p>}
             {busy && <p role="status">Saving progress…</p>}{error && <p role="alert" className="donation-error">{error}</p>}
           </div>}
-          <footer><span>{matchedDate(row.matchedAt)}</span>{row.responseStatus === 'Accepted' && <span className="chip" data-status={tone(row.screeningStatus)}>{row.donationStage}</span>}<small>Match {(cursors.length - 1) * 25 + index + 1}</small></footer>
         </li>)}</ul>}
       </section>
-      <footer className="hresponses-pagination"><span aria-live="polite">Page {cursors.length}{result.state === 'ready' ? ` · ${result.rows.length} donors shown` : ''}</span><div>
+      <footer className="hresponses-pagination"><span aria-live="polite">Page {cursors.length}{result.state === 'ready' ? ` · ${result.rows.length} ${result.rows.length === 1 ? "donor" : "donors"} shown` : ''}</span><div>
         <button className="btn" type="button" disabled={loading || busy || cursors.length === 1} onClick={() => setCursors(values => values.slice(0, -1))}>Previous</button>
         <button className="btn" type="button" disabled={loading || busy || !result.nextCursor} onClick={() => setCursors(values => [...values, result.nextCursor])}>Next</button>
       </div></footer>
+      {/* TODO(design): the response API supplies no request-wide collected total; the completion list labels its page sum. */}
       <RequestCompletedDonations request={request} revision={reload} />
+      {donationId && <HospitalDonationDetails donationId={donationId} onClose={() => setDonationId(null)} />}
     </dialog>
   )
 }

@@ -80,3 +80,13 @@ separate copyable donor ID and existing legacy-record note. Completed donation
 references include labeled full-ID Copy actions for donation/request IDs. Existing
 blood/component/date/search/sort, export scopes, facility/donor bounds and cursor
 pagination remain. Missing identity is explicitly unavailable, never inferred.
+
+## Screen 09 — Hospital response list
+
+Response cards have one stage chip, consent-gated contact chips, a segmented
+stage bar, response/match meta and separate View donor / response and Manage
+donation actions. Completed rows instead open the existing donation detail view.
+Both pagination controls and the completed-donation list remain. Collected units
+are explicitly summed only for the displayed completion page: the existing API
+returns bounded pages and no request-wide aggregate. No extra background reads,
+API change or invented total is introduced (`TODO(design)` in the component).

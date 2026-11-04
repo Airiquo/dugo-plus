@@ -10475,3 +10475,44 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .hospital-donor-identity-ref { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 10px; color: var(--d-muted); font: 11px var(--d-font-sans); }
 .hospital-donor-identity-ref .copy-id { max-width: 330px; }
 .hospital-donors-reference>span:has(.copy-id) { display: grid; gap: 0; }
+
+/* Intentional response-card composition separates consent-gated details from donation management. */
+.hresponses-list>li { border: 1px solid var(--d-line); border-radius: 18px; padding: 24px; margin-block: 0 18px; }
+.hresponses-list .hresponses-contact { padding-inline-start: 0; display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+.hresponses-contact>a { display: inline-flex; gap: 8px; align-items: center; padding: 8px 12px; min-height: 38px; border: 1px solid var(--d-line); border-radius: 10px; text-decoration: none; }
+.response-stage-pill { flex: none; border-radius: 999px; padding: 6px 12px; color: var(--d-chip-blue-fg); background: var(--d-chip-blue-bg); font: 12px/1.5 var(--d-font-sans); }
+.response-stage-pill[data-stage=Completed] { color: var(--d-chip-green-fg); background: var(--d-chip-green-bg); }
+.response-stage-pill[data-stage=Deferred],.response-stage-pill[data-stage=Rejected] { color: var(--d-chip-red-fg); background: var(--d-chip-red-bg); }
+.response-card-meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: var(--d-muted); font: 11px/1.7 var(--d-font-sans); margin: 14px 0 18px; }
+.response-card-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.response-card-actions .btn { justify-content: center; min-height: 46px; padding: 10px 14px; border-radius: 12px; }
+.response-readonly { margin-top: 18px; border-top: 1px solid var(--d-line); padding-top: 20px; }
+.response-readonly h4 { margin: 0 0 14px; font: 500 16px var(--d-font-sans); }
+.donation-stage-track { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); list-style: none; margin: 30px 0; padding: 0; gap: 0; }
+.donation-stage-track>li { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 9px; min-width: 0; color: var(--d-muted); font: 12px/1.5 var(--d-font-sans); }
+.donation-stage-track>li:before { content: ''; position: absolute; inset-inline: 0; top: 15px; height: 2px; background: var(--d-line); }
+.donation-stage-track>li:first-child:before { inset-inline-start: 50%; }
+.donation-stage-track>li:last-child:before { inset-inline-end: 50%; }
+.donation-stage-track>li[data-state=done]:before { background: var(--d-green); }
+.donation-stage-dot { position: relative; z-index: 1; display: grid; place-items: center; width: 32px; height: 32px; border: 2px solid var(--d-line); background: var(--d-panel); border-radius: 50%; }
+.donation-stage-track>li[data-state=done] .donation-stage-dot { color: var(--d-on-red); background: var(--d-green); border-color: var(--d-green); }
+.donation-stage-track>li[data-state=next] .donation-stage-dot { border-color: var(--d-red); color: var(--d-red); }
+.donation-stage-track>li[data-state=next] .donation-stage-dot>span { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.donation-stage-track strong { font-weight: 400; color: var(--d-ink); }
+.donation-stage-track small { font-size: 10px; padding-inline: 3px; overflow-wrap: anywhere; }
+.donation-stage-track--compact { gap: 8px; margin: 20px 0 12px; }
+.donation-stage-track--compact>li { align-items: stretch; text-align: start; font-size: 11px; }
+.donation-stage-track--compact>li:before { display: none; }
+.donation-stage-track--compact .donation-stage-dot { width: 100%; height: 5px; border-radius: 8px; border: 0; background: var(--d-line); }
+.donation-stage-track--compact .donation-stage-dot>* { display: none; }
+.donation-stage-track--compact>li[data-state=next] .donation-stage-dot { background: var(--d-red); }
+.completion-section-heading { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 12px; }
+.completion-section-heading>span { color: var(--d-muted); font: 12px/1.6 var(--d-font-sans); }
+.completion-empty { border: 1px dashed var(--d-line); border-radius: 14px; padding: 24px; color: var(--d-muted); font-size: 13px; line-height: 1.7; }
+@media(max-width:600px) {
+ .hresponses-list>li { padding: 18px; }
+ .response-card-actions { grid-template-columns: 1fr; }
+ .hresponses-person>.response-stage-pill { margin-inline-start: 0; }
+ .response-stage-pill { font-size: 11px; }
+ .donation-stage-track>li { font-size: 10px; }
+}
