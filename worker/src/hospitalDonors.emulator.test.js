@@ -51,9 +51,10 @@ async function setup(count = 3, repeats = 1) {
 test('directory excludes accepted/deferred matches and allowlists only consent-authorized identity', async () => {
   const f = await setup(), page = await read(f.actor, { hospitalId: f.hospitalId })
   assert.equal(page.rows.length, 3)
-  assert.deepEqual(Object.keys(page.rows[0].donor).sort(), ['bloodType', 'city', 'email', 'fullName', 'phoneNumber'])
+  assert.deepEqual(Object.keys(page.rows[0].donor).sort(), ['bloodType', 'city', 'dateOfBirth', 'email', 'fullName', 'gender', 'phoneNumber'])
   assert.equal(JSON.stringify(page).includes('latitude'), false)
-  assert.equal(JSON.stringify(page).includes('dateOfBirth'), false)
+  assert.equal(page.rows[0].donor.dateOfBirth, '1990-01-01T00:00:00.000Z')
+  assert.equal(Object.hasOwn(page.rows[0].donor, 'age'), false)
   assert.equal(page.nextCursor, null)
 })
 

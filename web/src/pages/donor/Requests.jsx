@@ -1,3 +1,4 @@
+import { ProfileCompletionBanner } from '../../components/ProfileCompletionBanner'
 import { DonorFilterBar } from "../../components/DonorFilterBar";
 import { filterRecords } from "../../utils/recordFilters";
 import { COMPONENTS } from "../../services/requests";
@@ -241,6 +242,7 @@ export default function Requests() {
             for you.
           </p>
         </header>
+        <ProfileCompletionBanner profile={profile} />
         {notice && (
           <div className="donation-success" role="status">
             <Icon name="check" size={20} />

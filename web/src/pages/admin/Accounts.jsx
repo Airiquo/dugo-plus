@@ -1,3 +1,5 @@
+import { DonorDemographics } from '../../components/DonorDemographics'
+import { phNational, phE164 } from '../../utils/phone'
 import { useConfirmation } from '../../hooks/useConfirmation'
 import { RecordFilters } from "../../components/RecordFilters";
 import { filterRecords } from "../../utils/recordFilters";
@@ -119,7 +121,7 @@ const ACCOUNT_SORT = {
   status: (row) => row.status || "Active",
 };
 
-export default function Accounts() {
+export default function Accounts({ donorsOnly = false }) {
   const confirm = useConfirmation()
   const { sort, toggleSort, setSort } = useTableSort();
   const { user } = useAuth();
@@ -137,6 +139,7 @@ export default function Accounts() {
   const [busy, setBusy] = useState(false);
   const [dialogError, setDialogError] = useState("");
   const [reason, setReason] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [draft, setDraft] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -183,6 +186,7 @@ export default function Accounts() {
   const filtered = useMemo(
     () =>
       filterRecords(accounts, { bloodType: bloodFilter, ...joinedRange }).filter((account) => {
+        if (donorsOnly && account.role !== "donor") return false;
         const term = query.trim().toLowerCase();
         return (
           (roleFilter === "all" || account.role === roleFilter) &&
@@ -197,7 +201,7 @@ export default function Accounts() {
             ].some((value) => value?.toLowerCase().includes(term)))
         );
       }),
-    [accounts, query, roleFilter, statusFilter, bloodFilter, joinedRange],
+    [accounts, query, roleFilter, statusFilter, bloodFilter, joinedRange, donorsOnly],
   );
   const sorted = useMemo(
     () => sortRows(filtered, ACCOUNT_SORT[sort.key], sort.direction),
@@ -224,6 +228,7 @@ export default function Accounts() {
     setDialogError("");
     setReason("");
     setShowPassword(false);
+    setConfirmPassword('');
   }
   async function loadHistory(
     accountId,
@@ -336,6 +341,8 @@ export default function Accounts() {
       found.email = "Enter a valid sign-in email.";
     if (draft.password.length < 8 || draft.password.length > 128)
       found.password = "Use 8–128 characters.";
+    if (!confirmPassword || confirmPassword !== draft.password) found.confirmPassword = "Enter the same password again.";
+    if (![9,10].includes(phNational(draft.contactNumber).length)) found.contactNumber = "Enter 9–10 digits after +63.";
     const latitude =
       draft.latitude.trim() === "" ? null : Number(draft.latitude);
     const longitude =
@@ -385,6 +392,7 @@ export default function Accounts() {
             key === "password" ? value : value.trim(),
           ]),
         ),
+        contactNumber: phE164(draft.contactNumber),
         latitude,
         longitude,
       });
@@ -392,6 +400,7 @@ export default function Accounts() {
         `Hospital account created for ${draft.facilityName.trim()}. Facility ID: ${result.hospitalId}.${auditNote(result)}`,
       );
       setDraft(EMPTY);
+      setConfirmPassword('');
       setShowPassword(false);
       setDialog(null);
       await load();
@@ -410,10 +419,11 @@ export default function Accounts() {
       >
         <Input
           id={`hospital-${key}`}
-          value={draft[key]}
-          onChange={(event) => change(key, event.target.value)}
+          value={key === "confirmPassword" ? confirmPassword : draft[key]}
+          inputMode={key === "contactNumber" ? "numeric" : undefined}
+          onChange={(event) => key === "confirmPassword" ? setConfirmPassword(event.target.value) : change(key, key === "contactNumber" ? phNational(event.target.value) : event.target.value)}
           type={options.type || "text"}
-          autoComplete={key === "password" ? "new-password" : "off"}
+          autoComplete={["password", "confirmPassword"].includes(key) ? "new-password" : "off"}
           required={options.required}
           maxLength={options.maxLength || 240}
           step={options.type === "number" ? "any" : undefined}
@@ -438,9 +448,9 @@ export default function Accounts() {
       >
         <PageHeader
           tag="People & permissions"
-          title="Accounts"
+          title={donorsOnly ? "Donor Registry" : "Accounts"}
           actions={
-            <Btn
+            !donorsOnly && <Btn
               variant="primary"
               icon="plus"
               onClick={() => open("create")}
@@ -452,6 +462,7 @@ export default function Accounts() {
         />
         <p className="aa-intro">
           Manage the people and facilities behind every connection.
+          {!donorsOnly && <Link to="/admin/donor-registry">Open Donor Registry</Link>}
         </p>
         <div className="aa-feedback" aria-live="polite">
           {notice && (
@@ -633,6 +644,7 @@ export default function Accounts() {
                         <td data-label="Type / facility">
                           <strong>{role(account.role)}</strong>
                           <small>{account.hospitalId || "—"}</small>
+                          {account.role === "donor" && <DonorDemographics profile={account} />}
                         </td>
                         <td data-label="Access">
                           <span className="badge" data-status={tone(status)}>
@@ -838,6 +850,7 @@ export default function Accounts() {
                   required: true,
                   maxLength: 128,
                 })}
+                {field("confirmPassword", "Confirm password", { type: showPassword ? "text" : "password", required: true, maxLength: 128 })}
                 <div className="aa-password-help">
                   <label>
                     <input

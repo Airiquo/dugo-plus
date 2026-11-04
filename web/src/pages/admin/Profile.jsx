@@ -1,3 +1,4 @@
+import { phNational, phE164 } from '../../utils/phone'
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "../../layout/AppShell";
@@ -15,7 +16,7 @@ import {
 } from "../../components";
 const formFrom = (profile) => ({
   fullName: profile?.fullName || "",
-  phoneNumber: profile?.phoneNumber || "",
+  phoneNumber: phNational(profile?.phoneNumber),
 });
 function dateLabel(value) {
   const date = value?.toDate ? value.toDate() : value ? new Date(value) : null;
@@ -42,14 +43,18 @@ export default function Profile({ embedded = false }) {
   const [note, setNote] = useState("");
   const generation = useRef(0),
     nameInput = useRef(null);
+  const readAbort = useRef(null);
   async function load() {
+    readAbort.current?.abort();
+    const controller = new AbortController();
+    readAbort.current = controller;
     if (!user?.uid) return;
     const version = ++generation.current;
     setLoading(true);
     setLoadFailed(false);
     setMessage("");
     try {
-      const found = await readProfile(user.uid);
+      const found = await readProfile(user.uid, { signal: controller.signal });
       if (!found) throw new Error("Profile unavailable");
       if (version !== generation.current) return;
       setSource(found);
@@ -65,6 +70,7 @@ export default function Profile({ embedded = false }) {
   useEffect(() => {
     load();
     return () => {
+      readAbort.current?.abort();
       generation.current++;
     };
   }, [user?.uid]);
@@ -72,7 +78,7 @@ export default function Profile({ embedded = false }) {
   const locked = loading || loadFailed || busy;
   function set(key) {
     return (event) => {
-      const value = event.target.value;
+      const value = key === "phoneNumber" ? phNational(event.target.value) : event.target.value;
       setForm((prev) => ({ ...prev, [key]: value }));
       setErrors((prev) => ({ ...prev, [key]: "" }));
       setNote("");
@@ -93,13 +99,14 @@ export default function Profile({ embedded = false }) {
       nameInput.current?.focus();
       return;
     }
+    if (form.phoneNumber && ![9,10].includes(phNational(form.phoneNumber).length)) { setErrors({ phoneNumber: "Enter 9–10 digits after +63." }); return; }
     setErrors({});
     setMessage("");
     setNote("");
     setBusy(true);
     const next = {
       fullName: form.fullName.trim(),
-      phoneNumber: form.phoneNumber.trim(),
+      phoneNumber: phE164(form.phoneNumber),
     };
     try {
       await saveProfile(user.uid, next);
@@ -126,8 +133,8 @@ export default function Profile({ embedded = false }) {
         ...next,
         updatedAt: updated?.updatedAt || null,
       }));
-      setForm(next);
-      setSaved(next);
+      setForm(formFrom(next));
+      setSaved(formFrom(next));
       setNote(
         refreshIssue
           ? "Your details are saved. Some account display information could not refresh; reload this page to check it."
@@ -261,15 +268,17 @@ export default function Profile({ embedded = false }) {
                   )}
                   <Field label="Phone number">
                     <Input
-                      type="tel"
+                      type="tel" inputMode="numeric"
                       autoComplete="tel"
                       maxLength={40}
+                      aria-invalid={Boolean(form.phoneNumber && ![9,10].includes(form.phoneNumber.length))}
+                      aria-describedby="admin-profile-phone-help"
                       value={form.phoneNumber}
                       onChange={set("phoneNumber")}
                     />
                   </Field>
-                  <p className="aw-field-help">
-                    Optional. Include your area or country code when needed.
+                  <p id="admin-profile-phone-help" className="aw-field-help" role={form.phoneNumber && ![9,10].includes(form.phoneNumber.length) ? 'alert' : undefined}>
+                    {form.phoneNumber && ![9,10].includes(form.phoneNumber.length) ? 'Enter 9–10 digits after +63.' : 'Optional Philippine number. Enter the digits after +63.'}
                   </p>
                 </fieldset>
                 {message && (

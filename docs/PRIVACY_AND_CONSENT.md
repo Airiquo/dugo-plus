@@ -70,3 +70,13 @@ contact links now use that mailbox. The current notice version is `2026-11-03`;
 new registration acceptances record it and historical acceptance records remain
 unchanged. This contact correction does not add a re-consent gate or change the
 processing purposes or access rules.
+
+## Donor identity and location controls (2026-11-04, D94)
+
+Notice version `2026-11-04` adds gender, derived age visibility, optional map/manual
+coordinates and authenticated city search through Photon/OpenStreetMap. Staff
+see these demographics only through the existing match-specific consent checks.
+Age remains computed, never stored. Gender is included in the existing profile
+export and erasure; historic acceptance versions remain unchanged. Privacy and
+request history now live at `/donor/settings?tab=privacy` with the old URL redirect.
+Photon supports search-as-you-type and country filtering: [provider API](https://github.com/komoot/photon/blob/master/docs/api-v1.md). Queries are debounced, bounded and cached in Worker memory; the endpoint is configurable.

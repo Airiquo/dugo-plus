@@ -1,3 +1,5 @@
+import { ageOn } from '../utils/eligibility'
+import { phNational, phE164 } from '../utils/phone'
 import { useEffect, useRef, useState } from 'react'
 import { getAccountProfile, updateAccountProfile, accountServiceError } from '../services/accounts'
 import { cx } from '../utils/cx'
@@ -9,11 +11,13 @@ import { Field, Input, Select, Textarea } from './Field'
 
 function formValues(details) {
   const values = (source) => source ? Object.fromEntries(Object.entries(source)
-    .map(([key, value]) => [key, value == null ? '' : String(value)])) : null
+    .map(([key, value]) => [key, ["phoneNumber", "contactNumber"].includes(key) ? phNational(value) : value == null ? '' : String(value)])) : null
   return { profile: values(details.profile), facility: values(details.facility) }
 }
 function payloadValues(source) {
   return source ? { ...source,
+    ...("phoneNumber" in source ? { phoneNumber: phE164(source.phoneNumber) } : {}),
+    ...("contactNumber" in source ? { contactNumber: phE164(source.contactNumber) } : {}),
     ...('latitude' in source ? {
       latitude: source.latitude.trim() === '' ? null : Number(source.latitude),
       longitude: source.longitude.trim() === '' ? null : Number(source.longitude),
@@ -37,13 +41,14 @@ export function AccountProfileEditor({ name = 'account-edit', account, open, onC
   useEffect(() => { if (error) errorRef.current?.focus() }, [error])
   useEffect(() => {
     if (!open || !account?.id) return
+    const controller = new AbortController()
     let active = true
     setDetails(null); setDraft(null); setReason(''); setError(''); setErrors({}); setLoading(true)
-    getAccountProfile(account.id).then((result) => {
+    getAccountProfile(account.id, { signal: controller.signal }).then((result) => {
       if (active) { setDetails(result); setDraft(formValues(result)) }
     }).catch((failure) => { if (active) setError(accountServiceError(failure)) })
       .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
+    return () => { active = false; controller.abort() }
   }, [open, account?.id, attempt])
   const change = (scope, key, value) => {
     setDraft((previous) => ({ ...previous, [scope]: { ...previous[scope], [key]: value } }))
@@ -54,7 +59,8 @@ export function AccountProfileEditor({ name = 'account-edit', account, open, onC
     return <Field label={`${label}${options.required ? ' *' : ''}`} key={key} className={options.wide ? 'aa-span' : ''}>
       <Input id={id} value={draft[scope][key]} type={options.type || 'text'} maxLength={options.maxLength || 240}
         step={options.type === 'number' ? 'any' : undefined} required={options.required}
-        onChange={(event) => change(scope, key, event.target.value)}
+        inputMode={options.type === 'tel' ? 'numeric' : undefined}
+        onChange={(event) => change(scope, key, options.type === 'tel' ? phNational(event.target.value) : event.target.value)}
         aria-invalid={Boolean(errors[`${scope}.${key}`])}
         aria-describedby={errors[`${scope}.${key}`] ? `${id}-error` : undefined} />
       {errors[`${scope}.${key}`] && <small id={`${id}-error`} data-state="error">{errors[`${scope}.${key}`]}</small>}
@@ -81,6 +87,7 @@ export function AccountProfileEditor({ name = 'account-edit', account, open, onC
       if (!source) continue
       for (const key of scope === 'profile' ? ['fullName'] : ['name', 'address', 'contactNumber'])
         if (!source[key].trim()) found[`${scope}.${key}`] = 'This field is required.'
+      for (const key of ['phoneNumber', 'contactNumber']) if (source[key] && ![9,10].includes(phNational(source[key]).length)) found[`${scope}.${key}`] = 'Enter 9–10 digits after +63.'
       if ('latitude' in source) {
         const lat = source.latitude.trim(), lng = source.longitude.trim()
         if (Boolean(lat) !== Boolean(lng) || (lat && (!Number.isFinite(Number(lat)) || Math.abs(Number(lat)) > 90)) ||
@@ -123,6 +130,8 @@ export function AccountProfileEditor({ name = 'account-edit', account, open, onC
               options={[{ value: '', label: 'Not set' }, ...['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'].map((value) => ({ value, label: value }))]}
               onChange={(event) => change('profile', 'bloodType', event.target.value)} /></Field>
             {field('profile', 'dateOfBirth', 'Date of birth', { type: 'date' })}
+            <Field label="Gender"><Select value={draft.profile.gender || ''} options={['', 'Female', 'Male', 'Other', 'Prefer not to say'].map(value => ({ value, label: value || 'Not set' }))} onChange={event => change('profile','gender',event.target.value)} /></Field>
+            <Field label="Age (derived)"><Input value={ageOn(draft.profile.dateOfBirth) ?? 'Not recorded'} readOnly /></Field>
           </>}
         </div>
       </fieldset>

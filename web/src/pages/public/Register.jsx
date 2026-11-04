@@ -2,40 +2,22 @@ import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { authErrorDetail } from '../../services/auth'
-import { homeFor } from '../../services/users'
+import { BLOOD_TYPES, GENDERS, homeFor } from '../../services/users'
 import { PASSWORD_MIN } from '../../utils/password'
 import { PRIVACY_NOTICE_VERSION } from '../../utils/privacy'
 import { CONSENT_REQUIRED, validateRegister } from '../../utils/validate'
 import AuthLayout from '../../layout/AuthLayout'
-import { Icon, GoogleMark, FieldError } from '../../components'
+import { AdminDialog, Icon, GoogleMark, FieldError } from '../../components'
 
-/**
- * Register screen — donor accounts only (D20).
- *
- * No mockup covers registration — the design only has a "Welcome back" card — so
- * this is `AuthLayout` with extra fields, composed from the public classes that
- * already exist. Self-registration creates a donor account and nothing else:
- * hospital and admin accounts are made by the Dugo+ team (the partner page,
- * `/partner`, is how a facility asks to be set up).
- *
- * The donor profile (`users/{uid}`, role `donor`) is written right after the
- * account is created (`hooks/useAuth.jsx`), and a display name is set from the
- * Name field. If that write fails the account still exists, so the screen says
- * so and offers a full reload — the session then auto-provisions the profile.
- *
- * Every field is checked on submit and each message renders under its own input,
- * so one submission answers the whole form. The password rule is the same
- * `utils/validate.js` function the policy in `utils/password.js` defines.
- *
- * The sign-in switch sits directly under the primary button, and the provider
- * button below an `or` divider, mirroring `Login` (dressed by `dugo.extras.css`).
- */
+/** Donor registration, required identity review, recorded consent and provider sign-in. */
 export default function Register() {
   const { user, role: sessionRole, signUp, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [identity, setIdentity] = useState({ confirmPassword: '', gender: '', dateOfBirth: '', bloodType: '' })
+  const [review, setReview] = useState(false)
   // Required before either account-creation path runs; the acceptance is
   // stored on the profile (`ensureProfile`, `PRIVACY_NOTICE_VERSION`).
   const [consent, setConsent] = useState(false)
@@ -95,11 +77,11 @@ export default function Register() {
   }
 
   const submit = () => {
-    const found = validateRegister({ name, email, password, consent })
+    const found = validateRegister({ name, email, password, consent, ...identity })
     setErrors(found)
     setMessage('')
     if (Object.keys(found).length) return
-    run(() => signUp(name.trim(), email.trim(), password, PRIVACY_NOTICE_VERSION))
+    setReview(true)
   }
 
   // Google creates an account on first use too, so the acceptance gates it
@@ -180,6 +162,12 @@ export default function Register() {
         <p className="pub-fine">
           At least {PASSWORD_MIN} characters, with upper and lower case letters and a number.
         </p>
+        {[
+          ['confirmPassword', 'Confirm password', 'password'],
+          ['dateOfBirth', 'Date of birth', 'date'],
+          ['gender', 'Gender', 'select'],
+          ['bloodType', 'Blood type', 'select'],
+        ].map(([key, label, type]) => <label key={key}><span>{label}</span>{type === 'select' ? <span className="app-select"><select required aria-label={label} value={identity[key]} aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `register-${key}-error` : undefined} onChange={event => { setIdentity(previous => ({ ...previous, [key]: event.target.value })); setErrors(previous => ({ ...previous, [key]: '' })) }}><option value="">Choose {label.toLowerCase()}</option>{(key === 'gender' ? GENDERS : BLOOD_TYPES).map(value => <option key={value}>{value}</option>)}</select></span> : <input required type={type} autoComplete={key === 'confirmPassword' ? 'new-password' : 'bday'} max={key === 'dateOfBirth' ? new Date().toLocaleDateString('en-CA') : undefined} value={identity[key]} aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `register-${key}-error` : undefined} onChange={event => { setIdentity(previous => ({ ...previous, [key]: event.target.value })); setErrors(previous => ({ ...previous, [key]: '' })) }} />}<FieldError id={`register-${key}-error`}>{errors[key]}</FieldError></label>)}
         <div className="pub-consent">
           <input
             id="register-consent"
@@ -245,6 +233,12 @@ export default function Register() {
           Hospital or blood bank? <Link to="/partner">Request a partnership</Link>
         </p>
       </form>
+      <AdminDialog eyebrow="Registration / Review" name="registration-review" open={review} busy={busy} title="Are these details correct?" onClose={() => setReview(false)}>
+        <p className="pub-kicker profile-confirm-kicker"><Icon name="shield" size={20} />One-time details</p>
+        <p>Your blood type and date of birth lock after registration. An administrator can help correct them.</p>
+        <dl className="profile-confirm-values"><div><dt>Name</dt><dd>{name}</dd></div><div><dt>Date of birth</dt><dd>{identity.dateOfBirth}</dd></div><div><dt>Gender</dt><dd>{identity.gender}</dd></div><div><dt>Blood type</dt><dd>{identity.bloodType}</dd></div></dl>
+        <div className="profile-confirm-actions"><button className="btn" type="button" disabled={busy} onClick={() => setReview(false)}>Go back</button><button className="btn" data-primary type="button" disabled={busy} onClick={() => { setReview(false); run(() => signUp(name.trim(), email.trim(), password, PRIVACY_NOTICE_VERSION, identity)) }}>Confirm and create account</button></div>
+      </AdminDialog>
     </AuthLayout>
   )
 }

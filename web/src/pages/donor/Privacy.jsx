@@ -48,7 +48,8 @@ function dateLabel(value) {
   }).format(date);
 }
 
-export default function Privacy() {
+export default function Privacy({ embedded = false }) {
+  const Main = embedded ? "div" : "main";
   const confirm = useConfirmation()
   const { theme } = useTheme();
   const { user } = useAuth();
@@ -138,9 +139,9 @@ export default function Privacy() {
       data-theme={theme}
       style={{ display: "grid", gridTemplateRows: "auto 1fr" }}
     >
-      <DonorNav />
+      {!embedded && <DonorNav />}
 
-      <main id="top" className="profile-main donor-main">
+      <Main id={embedded ? undefined : "top"} className={embedded ? "privacy-embedded" : "profile-main donor-main"}>
         <CarePageHeader
           kicker="Built on trust"
           title={
@@ -365,7 +366,7 @@ export default function Privacy() {
           )}
         </AdminDialog>
         <SupportContact as="footer" />
-      </main>
+      </Main>
     </div>
   );
 }

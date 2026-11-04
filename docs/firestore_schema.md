@@ -148,7 +148,9 @@ Legend: **R** = required, **O** = optional/nullable.
 | city | string | O | City label; the scheduled proximity matcher currently queries coordinates/geohash |
 | lastDonationAt | Timestamp | O | Used for eligibility interval checks. Owner-frozen (D14) |
 | bloodType | string | O | `BloodType`. ERD `?` |
-| dateOfBirth | Timestamp | R | |
+| dateOfBirth | Timestamp | R | Required for email/password donor registration; legacy/Google profiles may complete it later (D94). |
+| ~~age~~ | – | – | Not stored; computed from dateOfBirth for displays. Rules reject this key (D94). |
+| gender | string | O | [ADDED] `Female \| Male \| Other \| Prefer not to say`; email/password donor registration requires a choice. Optional on legacy/Google/staff profiles. Owner-editable, admin-correctable; erased with personal details (D94). Age is derived from dateOfBirth, never stored. |
 | ~~eligibilityInfo~~ | – | – | **Removed from the model of record** (D25). The ERD's field was never implemented and eligibility is computed, not stored |
 | ~~isVerified~~ | – | – | **[DECISION]** Do NOT store. Firebase Auth owns email verification (`user.emailVerified`); a copy would need a writer to stay true. See D5 |
 | status | string | R | `Active \| Suspended \| Removed`. Server-owned account operation (D40) |

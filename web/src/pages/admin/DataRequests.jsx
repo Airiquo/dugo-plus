@@ -1,3 +1,4 @@
+import { phNational, phE164 } from '../../utils/phone'
 import { useConfirmation } from '../../hooks/useConfirmation'
 import { TableExport } from "../../components/TableExport";
 import { privacyReportColumns } from "../../utils/reportColumns";
@@ -167,7 +168,7 @@ export default function DataRequests() {
     setRejectionReason(request.rejectionReason || "");
     setCorrection({
       fullName: byId.get(request.userId)?.fullName || "",
-      phoneNumber: byId.get(request.userId)?.phoneNumber || "",
+      phoneNumber: phNational(byId.get(request.userId)?.phoneNumber),
       city: byId.get(request.userId)?.city || "",
     });
     setConfirmErase(false);
@@ -256,6 +257,7 @@ export default function DataRequests() {
       setError("A corrected name is required.");
       return;
     }
+    if (correction.phoneNumber && ![9,10].includes(phNational(correction.phoneNumber).length)) { setError("Enter 9–10 digits after +63."); return; }
     if (!await confirm({
       title: 'Apply this profile correction?',
       description: 'The corrected name, phone number and city will replace the account’s current details.',
@@ -267,7 +269,7 @@ export default function DataRequests() {
     try {
       await correctUserProfile(active.userId, {
         fullName: correction.fullName,
-        phoneNumber: correction.phoneNumber,
+        phoneNumber: phE164(correction.phoneNumber),
         city: correction.city,
       });
       setResolution("Correction");
@@ -710,15 +712,17 @@ export default function DataRequests() {
                       <div className="aw-form-grid">
                         <Field label="Phone">
                           <Input
-                            type="tel"
+                            type="tel" inputMode="numeric"
+                            aria-invalid={Boolean(correction.phoneNumber && ![9,10].includes(correction.phoneNumber.length))} aria-describedby="correction-phone-error"
                             value={correction.phoneNumber}
                             onChange={(e) =>
                               setCorrection((p) => ({
                                 ...p,
-                                phoneNumber: e.target.value,
+                                phoneNumber: phNational(e.target.value),
                               }))
                             }
                           />
+                          {correction.phoneNumber && ![9,10].includes(correction.phoneNumber.length) && <small id="correction-phone-error" role="alert">Enter 9–10 digits after +63.</small>}
                         </Field>
                         <Field label="City">
                           <Input

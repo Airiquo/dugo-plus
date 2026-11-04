@@ -349,6 +349,22 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Owner polish integration (2026-11-04, D91–D95):** owner authorizes merging the completed work into protected integration. Reconciled with its newer session confirmation/navigation and full-radius discovery work; no phase counts change. Decision identifiers are renumbered to preserve existing D86–D90. Validation and rollout limits are in `docs/OWNER_POLISH_VERIFICATION.md`.
+
+
+- **Live screening filters and hospital toolbars (2026-11-04, D95):** Owner adds correct auto-updating queue filters and withdraws the inventory-refresh fix. Queue filtering/export/status presentation share normalized donation stages, live request/match subscriptions update rows and stale selections, and completed stages disappear immediately. Crowded hospital tables put search above aligned filters/export; status controls widen and the post-confirm success note is removed. Inventory confirmation/stock-write behavior is unchanged. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
+
+
+- **Registration identity and donor location (2026-11-04, D94):** Phone corrections show invalid-length feedback; city control forwards native input/root attributes separately. Owner confirms required DOB, gender and blood group plus password confirmation and one-time review at email registration; Google accounts land on /home with completion prompts. Staff demographic displays derive age from DOB. Gender is a new erasable profile field and is not a matching criterion. Donors can pin or enter coordinates and use authenticated city suggestions. Notice version is 2026-11-04; legacy consent is preserved. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
+
+
+- **Route loading and session reads (2026-11-04, D93):** Owner requests lazy routes with eager landing/login/register, code prefetch on navigation intent, an announced skeleton, native View Transitions with fade fallback, and short-lived memory-only profile/facility/stock reads. Writes invalidate cache and sign-out/session changes clear it. Firebase SDK reads detach aborted consumers; its transport cannot be cancelled. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
+
+
+- **Role navigation and Settings tabs (2026-11-04, D92):** The longer history label wraps without clipping; positional fifth-item styling is removed. Owner restores dedicated donor/hospital profile pages, places Settings last, nests donor privacy/history and facility details in Settings, preserves old URLs as redirects, and separates danger-colored sign-out actions. Admin navigation is unchanged. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
+
+
+- **Landing interactions (2026-11-04, D91):** Counters retain their elapsed progress across global/local pauses; destination and compatibility cards also have local controls. Owner restores global pause and theme access; cards pause independently, matching steps use clicks, partner content appears before impact/features, and ribbon position survives visibility, resize and remount. Aggregate rating and review content are unchanged. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
 - **Response-dialog border fix (2026-11-04):** owner requests the outline around the full dialog rather than the Private donor row. Nested rounded borders are removed; multiple donor rows retain simple separators. No product question or phase-count change. Light/dark responsive and state verification is recorded in `docs/HOSPITAL_REQUEST_RESPONSES.md`.
 
 - **Immediate matching radius (2026-11-04, D89):** owner clarifies that all donors within 25 km must be considered from the first search, including donors closer than 5 km. Production configuration now has a single 25 km tier; staged expansion is superseded. No product question or phase-count change. Live verification is recorded in `docs/MATCHING_FULL_RADIUS.md`. Owner also confirms D90: explicit 50 km search exposes additional compatible requests without sending emails outside 25 km.

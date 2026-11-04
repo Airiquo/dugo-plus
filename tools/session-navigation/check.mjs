@@ -25,7 +25,7 @@ async function login(role) {
   await page.getByPlaceholder('name@email.com').fill(role+'@example.test')
   await page.getByPlaceholder('••••••••').fill('Password123')
   await page.getByRole('button',{name:'Sign In',exact:true}).click()
-  await at(role==='admin'?'/admin/dashboard':role==='hospital'?'/hospital/dashboard':role==='unverified'?'/verify-email':'/donor/settings')
+  await at(role==='admin'?'/admin/dashboard':role==='hospital'?'/hospital/dashboard':role==='unverified'?'/verify-email':'/home')
 }
 try {
   await page.goto(base+'/login')
@@ -52,6 +52,10 @@ try {
   await page.getByRole('dialog',{name:'Log out of Dugo+?'}).getByRole('button',{name:'Confirm log out'}).click()
   await at('/login')
   await login('donor')
+  await page.getByRole('button',{name:'Sign out',exact:true}).click()
+  await page.getByRole('dialog',{name:'Log out of Dugo+?'}).getByRole('button',{name:'Back',exact:true}).click()
+  await at('/home')
+  console.log('PASS donor profile logout cancellation retains /home')
   await page.getByRole('link',{name:'Next page'}).click()
   await at('/donor/requests')
   await page.getByLabel('Unsaved draft').fill('keep this draft')

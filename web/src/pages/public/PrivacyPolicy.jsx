@@ -32,7 +32,7 @@ const SECTIONS = [
     items: [
       'Account details: full name, email address, phone number, account type and account status.',
       'Optional profile picture: an image you choose to upload, hosted by Cloudinary, and its image link stored with your account.',
-      'Donor profile: blood type, date of birth, city, and — only if you allow the browser prompt — your coordinates, stored as latitude/longitude and a coarse geohash.',
+      'Donor profile: blood type, date of birth, gender, city and optional coordinates you place on the map, enter manually or allow the browser to locate. Coordinates are stored as latitude/longitude and a geohash. Age is calculated from your birth date when displayed; it is never stored or sent as an age field to matching.',
       'Donation activity: matches, donations, consents you grant and the blood requests you post.',
       'Requests to Dugo+: your data-subject requests and the administrator’s note recording what was done.',
       'Operational records: error reports written by the browser, and a server-side audit chain that holds hashed references rather than readable personal data.',
@@ -52,7 +52,7 @@ const SECTIONS = [
     items: [
       'You, for your own profile and your own requests.',
       'Dugo+ administrators, for account management, support and data-subject requests.',
-      'Hospital staff, only for matches, donations and stock belonging to their own hospital. They do not get a donor directory.',
+      'Hospital staff, only for matches, donations and stock belonging to their own hospital. With your current match-specific data-sharing consent, they may see your contact details, gender and age in responses and their facility donor directory.',
       'Other donors cannot read your profile, matches, donations or requests.',
     ],
   },
@@ -60,6 +60,7 @@ const SECTIONS = [
     title: 'Where it is stored and how it is protected',
     body: (
       <>
+        City search text is sent through our authenticated service to Photon, which uses OpenStreetMap data. An approximate location is sent to OpenStreetMap for a city suggestion when you request it; map tiles are loaded from OpenStreetMap. You can enter a city manually if suggestions are unavailable.
         Data lives in Google Firebase (Cloud Firestore and Firebase Authentication). Google encrypts
         data in transit and at rest as part of the platform. Access is enforced by server-side
         Firestore rules, not by the screens: a suspended or removed account loses every protected
@@ -74,7 +75,7 @@ const SECTIONS = [
     title: 'How long we keep it',
     items: [
       'Your profile stays while your account is active.',
-      'If you ask for erasure, the identifying fields (name, email, phone, city, coordinates, blood type, birth date) are scrubbed and the account is closed, and an administrator deletes the sign-in record that holds your email. Donation and audit records are kept in de-identified form so blood-safety and traceability records stay complete.',
+      'If you ask for erasure, the identifying fields (name, email, phone, city, coordinates, blood type, birth date, gender) are scrubbed and the account is closed, and an administrator deletes the sign-in record that holds your email. Donation and audit records are kept in de-identified form so blood-safety and traceability records stay complete.',
       'A suspended or removed account keeps its profile for audit until a deletion request is processed.',
       'Removing or replacing a profile picture clears its link from your account. The stored image can remain on Cloudinary; ask support to delete that copy. Account erasure clears the current picture link and also needs this provider cleanup.',
       'Error reports are kept for troubleshooting and hold no profile data beyond an optional account id.',
@@ -94,7 +95,7 @@ const SECTIONS = [
     title: 'How to make a request',
     body: (
       <>
-        Sign in and open <Link to="/donor/privacy">Privacy &amp; data requests</Link>. Say what you
+        Sign in and open <Link to="/donor/settings?tab=privacy">Privacy &amp; data requests</Link>. Say what you
         want exported, corrected or erased. An administrator works the queue, records the action
         taken, and closes the request. We aim to answer within 15 working days.
       </>

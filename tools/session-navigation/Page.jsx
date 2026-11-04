@@ -1,3 +1,4 @@
+import {SignOutButton} from '../../web/src/components/SignOutButton'
 import {useState} from 'react'
 import NewRequest from '../../web/src/pages/hospital/NewRequest.jsx'
 import Privacy from '../../web/src/pages/donor/Privacy.jsx'
@@ -12,7 +13,7 @@ export default function FixturePage(){
   const {pathname}=useLocation()
   const {user,role,signOut}=useAuth()
   if(pathname==='/hospital/requests/new') return <NewRequest/>
-  if(pathname==='/donor/privacy') return <Privacy/>
-  const content = <section style={{padding:40}}><h1>{pathname}</h1><p data-testid="identity">{user?.uid}:{role}</p><input aria-label="Unsaved draft"/><Link to="/login">Login</Link><Link to={role==='admin'?'/admin/accounts':role==='hospital'?'/hospital/profile':'/donor/requests'}>Next page</Link><button onClick={signOut}>Sign out fixture</button><button onClick={()=>setResponses(true)}>Review fixture donation</button>{responses&&<HospitalRequestResponses request={request} onClose={()=>setResponses(false)}/>}</section>
+  if(pathname==='/donor/privacy'||(pathname==='/donor/settings'&&new URLSearchParams(location.search).get('tab')==='privacy')) return <Privacy/>
+  const content = <section style={{padding:40}}><h1>{pathname}</h1><p data-testid="identity">{user?.uid}:{role}</p><input aria-label="Unsaved draft"/><Link to="/login">Login</Link><Link to={role==='admin'?'/admin/accounts':role==='hospital'?'/hospital/profile':'/donor/requests'}>Next page</Link><button onClick={signOut}>Sign out fixture</button>{role==='donor'&&<SignOutButton/>}<button onClick={()=>setResponses(true)}>Review fixture donation</button>{responses&&<HospitalRequestResponses request={request} onClose={()=>setResponses(false)}/>}</section>
   return role === 'admin' ? <AppShell>{content}</AppShell> : role === 'hospital' ? <HospitalShell facility="Fixture hospital">{content}</HospitalShell> : content
 }

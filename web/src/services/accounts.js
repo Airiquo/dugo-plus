@@ -1,3 +1,4 @@
+import { invalidateSessionReads } from "./sessionCache"
 import { auth } from '../lib/firebase'
 import { ACCOUNT_QUOTA_MESSAGE, accountOperationRequest } from '../utils/accountOperationRequest.js'
 
@@ -48,13 +49,16 @@ export async function callAccountService(action, payload) {
     )
   const token = await user.getIdToken()
   try {
-    return await accountOperationRequest({
+    const result = await accountOperationRequest({
       url: SERVICE_URL,
       actorId: user.uid,
       token,
       action,
       payload,
     })
+    invalidateSessionReads("profile:")
+    invalidateSessionReads("facility:")
+    return result
   } catch (error) {
     throw serviceError(error.code || codeForStatus(error.status), error.message)
   }
@@ -65,12 +69,12 @@ export function createHospitalAccount(input) {
 }
 
 /** Fresh admin-only details; the revision prevents overwriting a concurrent edit. */
-export async function getAccountProfile(uid) {
+export async function getAccountProfile(uid, { signal } = {}) {
   if (!SERVICE_URL) throw serviceError('functions/unavailable', NOT_DEPLOYED)
   if (!auth?.currentUser) throw serviceError('functions/unauthenticated', 'Sign in again.')
   const token = await auth.currentUser.getIdToken()
   const response = await fetch(`${SERVICE_URL.replace(/\/$/, '')}/profile?uid=${encodeURIComponent(uid)}`, {
-    headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20000),
+    headers: { Authorization: `Bearer ${token}` }, signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20000)]) : AbortSignal.timeout(20000),
   })
   const data = await response.json().catch(() => ({}))
   if (!response.ok || !data.revision)

@@ -38,7 +38,7 @@ export function AccountMenu({ name, photoURL, accountRole, settingsTo, placement
       else { popup.current.showPopover(); position(); setOpen(true) }
     }}><AccountIdentity name={name} photoURL={photoURL} role={accountRole} /><Icon name="chevron-down" size={15} /></button>
     <div ref={popup} popover="auto" id={`${id}-account-menu`} className="account-menu-popup" onToggle={event => setOpen(event.newState === 'open')}>
-      <nav aria-label="Account options"><Link to={settingsTo} onClick={close}><Icon name="settings" size={17} />Settings</Link><Btn icon="logout" onClick={leave} disabled={busy}>{busy ? 'Signing out…' : 'Sign out'}</Btn></nav>
+      <nav aria-label="Account options"><Link to={settingsTo} onClick={close}><Icon name="settings" size={17} />Settings</Link><Btn className="signout-action" icon="logout" onClick={leave} disabled={busy}>{busy ? 'Signing out…' : 'Sign out'}</Btn></nav>
       {error && <p role="alert">{error}</p>}
     </div>
   </div>

@@ -1,3 +1,4 @@
+import { sessionRead, invalidateSessionReads } from "./sessionCache"
 import {
   collection,
   doc,
@@ -33,6 +34,8 @@ export const ROLES = ["donor", "hospital", "admin"];
 export const STATUSES = ["Active", "Suspended", "Removed"];
 
 /** The eight blood types, in the order a picker should read them. */
+export const GENDERS = ["Female", "Male", "Other", "Prefer not to say"];
+
 export const BLOOD_TYPES = ["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"];
 
 /** geohash precision stored with a location. ~150 m, enough for a donor radius. */
@@ -169,16 +172,20 @@ export async function ensureProfile(uid, profile, consentVersion) {
     status: "Active",
     createdAt: serverTimestamp(),
   };
+  for (const key of ["bloodType", "dateOfBirth", "gender"])
+    if (profile[key] != null) data[key] = profile[key];
   if (consentVersion) {
     data.privacyConsentAt = serverTimestamp();
     data.privacyNoticeVersion = consentVersion;
   }
-  return runTransaction(db, async (transaction) => {
+  const result = await runTransaction(db, async (transaction) => {
     const found = await transaction.get(ref);
     if (found.exists()) return { created: false, profile: found.data() };
     transaction.set(ref, data);
     return { created: true, profile: data };
   });
+  invalidateSessionReads(`profile:${uid}`);
+  return result;
 }
 
 /**
@@ -213,6 +220,10 @@ export async function saveProfile(uid, changes) {
     data.bloodType = type;
   }
 
+  if ("gender" in changes) {
+    if (changes.gender && !GENDERS.includes(changes.gender)) throw new Error("Choose a valid gender.");
+    data.gender = text(changes.gender);
+  }
   if ("dateOfBirth" in changes) data.dateOfBirth = changes.dateOfBirth || null;
   if ("lastDonationAt" in changes)
     data.lastDonationAt = changes.lastDonationAt || null;
@@ -228,6 +239,7 @@ export async function saveProfile(uid, changes) {
   }
 
   await setDoc(doc(db, "users", uid), data, { merge: true });
+  invalidateSessionReads(`profile:${uid}`);
 }
 
 /** Save or clear the picture on an existing account without changing its other details. */
@@ -239,6 +251,7 @@ export async function saveProfilePhoto(uid, photoURL) {
     photoURL,
     updatedAt: serverTimestamp(),
   });
+  invalidateSessionReads(`profile:${uid}`);
 }
 
 /**
@@ -261,6 +274,7 @@ export async function correctUserProfile(uid, changes) {
   if ("city" in changes) data.city = text(changes.city);
 
   await updateDoc(doc(db, "users", uid), data);
+  invalidateSessionReads(`profile:${uid}`);
   // F10b: a data-access event (FR-042).
   await recordAuditEvent({
     eventType: "DataAccess.Rectification",
@@ -287,7 +301,11 @@ function asDate(value) {
  * @param {string} uid
  * @returns {Promise<Profile | null>}
  */
-export async function readProfile(uid) {
+export function readProfile(uid, options) {
+  return sessionRead(`profile:${uid}`, () => loadProfile(uid), options)
+}
+
+async function loadProfile(uid) {
   requireDb();
   const snap = await getDoc(doc(db, "users", uid));
   if (!snap.exists()) return null;
@@ -305,6 +323,7 @@ export async function readProfile(uid) {
     email: text(data.email),
     phoneNumber: text(data.phoneNumber),
     bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : "",
+    gender: GENDERS.includes(data.gender) ? data.gender : "",
     dateOfBirth: asDate(data.dateOfBirth),
     lastDonationAt: asDate(data.lastDonationAt),
     latitude: isCoordinate(latitude, longitude) ? latitude : 0,
@@ -344,7 +363,8 @@ export async function listUsers() {
       email: text(data.email),
       phoneNumber: text(data.phoneNumber),
       bloodType: BLOOD_TYPES.includes(data.bloodType) ? data.bloodType : "",
-      dateOfBirth: asDate(data.dateOfBirth),
+      gender: GENDERS.includes(data.gender) ? data.gender : "",
+    dateOfBirth: asDate(data.dateOfBirth),
       lastDonationAt: asDate(data.lastDonationAt),
       latitude: isCoordinate(latitude, longitude) ? latitude : 0,
       longitude: isCoordinate(latitude, longitude) ? longitude : 0,

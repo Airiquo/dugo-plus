@@ -118,6 +118,12 @@ await no('signed-out cannot create a profile', setDoc(doc(db(anon()), 'users/fra
 await no('create cannot invent a status', setDoc(doc(db(as('gina')), 'users/gina'), { role: 'donor', fullName: 'Gina G.', email: 'gina@dugo.ph', status: 'Admin', createdAt: new Date() }));
 await ok('owner creates profile with recorded consent (FR-019)', setDoc(doc(db(as('jane')), 'users/jane'), { role: 'donor', fullName: 'Jane J.', email: 'jane@dugo.ph', privacyConsentAt: new Date(), privacyNoticeVersion: '2026-10-29', createdAt: new Date() }));
 await no('create cannot store consent as text', setDoc(doc(db(as('kate')), 'users/kate'), { role: 'donor', fullName: 'Kate K.', email: 'kate@dugo.ph', privacyConsentAt: '2026-10-29', privacyNoticeVersion: '2026-10-29', createdAt: new Date() }));
+await ok('owner can set optional gender', updateDoc(doc(db(as('alice')), 'users/alice'), { gender: 'Female' }));
+await no('owner cannot store arbitrary gender', updateDoc(doc(db(as('alice')), 'users/alice'), { gender: 'invalid' }));
+await no('owner cannot store derived age', updateDoc(doc(db(as('alice')), 'users/alice'), { age: 30 }));
+await ok('registration stores reviewed identity', setDoc(doc(db(as('new-identity')), 'users/new-identity'), { role: 'donor', fullName: 'New donor', email: 'identity@example.test', gender: 'Prefer not to say', dateOfBirth: new Date('1998-03-02'), bloodType: 'A+', createdAt: new Date() }));
+await no('registration rejects invalid gender', setDoc(doc(db(as('bad-identity')), 'users/bad-identity'), { role: 'donor', fullName: 'Bad donor', email: 'invalid@example.test', gender: 'invalid', createdAt: new Date() }));
+await no('registration rejects stored age', setDoc(doc(db(as('bad-age')), 'users/bad-age'), { role: 'donor', fullName: 'Bad donor', email: 'invalid@example.test', age: 30, createdAt: new Date() }));
 await ok('owner edits profile fields', updateDoc(doc(db(as('alice')), 'users/alice'), { fullName: 'Alice D.', phoneNumber: '09170000001', city: 'Malolos', latitude: 14.85, longitude: 120.82, geohash: 'wdt5' }));
 const photoURL = 'https://res.cloudinary.com/example/image/upload/v1/profile.jpg';
 await ok('donor saves a profile picture', updateDoc(doc(db(as('alice')), 'users/alice'), { photoURL }));

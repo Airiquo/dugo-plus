@@ -65,6 +65,7 @@ export function createHospitalDonors(store, referenceName) {
         const record = profiles.get(row.data.donorId)
         const donor = active(record) && record.data.role === 'donor' && !record.data.personalDataErased
           ? Object.fromEntries(['fullName', 'email', 'phoneNumber', 'bloodType', 'city'].map(key => [key, safeText(record.data[key])])) : null
+        if (donor) { donor.gender = safeText(record.data.gender); donor.dateOfBirth = iso(record.data.dateOfBirth) }
         return { id: row.data.donorId, donor, privacy: donor ? null : record ? 'profile-unavailable' : 'consent-required' }
       })
       return { ok: true, rows, nextCursor: remaining.length ? lastDonor : null }

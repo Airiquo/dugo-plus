@@ -112,6 +112,8 @@ service cloud.firestore {
                     && request.resource.data.role == 'donor'
                     && !request.resource.data.keys().hasAny(['loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased', 'hospitalId', 'statusReason', 'statusUpdatedAt'])
                     && request.resource.data.role is string
+                    && (!('gender' in request.resource.data) || request.resource.data.gender in ['', 'Female', 'Male', 'Other', 'Prefer not to say'])
+                    && !('age' in request.resource.data)
                     && request.resource.data.fullName is string
                     && request.resource.data.email is string
                     && (!('phoneNumber' in request.resource.data)
@@ -126,6 +128,8 @@ service cloud.firestore {
                         || request.resource.data.privacyConsentAt is timestamp)
                     && (!('privacyNoticeVersion' in request.resource.data)
                         || request.resource.data.privacyNoticeVersion is string)
+                    && (!('bloodType' in request.resource.data) || isOptionalBloodType(request.resource.data.bloodType))
+                    && (!('dateOfBirth' in request.resource.data) || request.resource.data.dateOfBirth == null || request.resource.data.dateOfBirth is timestamp)
                     && !('lastDonationAt' in request.resource.data);
 
       // Account access and provisioning fields are server-owned (D40).
@@ -133,7 +137,9 @@ service cloud.firestore {
       // Both paths preserve the server-owned fields by presence and value.
       // lastDonationAt is frozen by presence AND value (D14): clearing it
       // would restart the deferral clock and defeat FR-031.
-      allow update: if !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastDonationAt', 'role', 'hospitalId', 'status', 'statusReason', 'statusUpdatedAt', 'loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased'])
+      allow update: if (!('gender' in request.resource.data) || request.resource.data.gender in ['', 'Female', 'Male', 'Other', 'Prefer not to say'])
+                    && !('age' in request.resource.data)
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastDonationAt', 'role', 'hospitalId', 'status', 'statusReason', 'statusUpdatedAt', 'loginState', 'loginDeletedAt', 'accountOperationId', 'provisioningOperationId', 'personalDataErased'])
                     && ((
                          // Administrator corrections retain the profile's validated shape.
                          isAdmin()

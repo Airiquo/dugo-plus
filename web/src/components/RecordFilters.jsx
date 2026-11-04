@@ -4,7 +4,7 @@ import { filterDateError } from "../utils/recordFilters";
 import { Icon } from "./Icon";
 import { ControlPopover } from "./ControlPopover";
 
-/** Screen-specific instant filters. Dates use inclusive Philippine days; invalid edits keep the last valid range. */
+/** `searchAbove` exposes a full-width search row to the parent toolbar. Dates use inclusive Philippine days; invalid edits retain the last valid range. */
 export function RecordFilters({
   name,
   value,
@@ -12,6 +12,7 @@ export function RecordFilters({
   fields = [],
   dates = true,
   search = true,
+  searchAbove = false,
   onReset,
   disabled = false,
   searchPlaceholder = "Search these records…",
@@ -51,15 +52,7 @@ export function RecordFilters({
     });
     onReset?.();
   };
-  return (
-    <div
-      className={cx("screen-filter-bar", className)}
-      aria-label={`${name} filters`}
-      {...rest}
-    >
-      <fieldset disabled={disabled}>
-        <legend className="care-sr-only">Filter {name}</legend>
-        {search && (
+  const searchField = search ? (
           <label className="screen-filter-search">
             <Icon name="search" size={17} />
             <span className="care-sr-only">Search {name}</span>
@@ -67,11 +60,23 @@ export function RecordFilters({
               type="search"
               aria-label={`Search ${name}`}
               placeholder={searchPlaceholder}
+              disabled={disabled}
               value={value.search || ""}
               onChange={(event) => set("search", event.target.value)}
             />
           </label>
-        )}
+        ) : null;
+  return (
+    <div
+      className={cx("screen-filter-bar", className)}
+      data-search-above={searchAbove || undefined}
+      aria-label={`${name} filters`}
+      {...rest}
+    >
+      {searchAbove && searchField}
+      <fieldset disabled={disabled}>
+        <legend className="care-sr-only">Filter {name}</legend>
+        {!searchAbove && searchField}
         {fields.map((field) => (
           <label className="screen-filter-choice" key={field.key}>
             <span>{field.label}</span>

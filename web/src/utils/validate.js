@@ -1,5 +1,5 @@
-import { passwordProblem } from './password'
-import { phNational } from './phone'
+import { passwordProblem } from './password.js'
+import { phNational } from './phone.js'
 
 /**
  * Per-field validation for the auth screens (NFR-20, NFR-21).
@@ -39,13 +39,21 @@ export const CONSENT_REQUIRED =
   'Accept the Privacy & consent notice to create an account.'
 
 /** Registration: name, email, and the shared password policy (NFR-13). */
-export function validateRegister({ name, email, password, consent } = {}) {
+export function validateRegister({ name, email, password, confirmPassword, dateOfBirth, gender, bloodType, consent } = {}) {
   const errors = {}
   if (!(name ?? '').trim()) errors.name = 'Enter your name.'
   const emailIssue = emailProblem(email)
   if (emailIssue) errors.email = emailIssue
   const passwordIssue = passwordProblem(password ?? '', (email ?? '').trim())
   if (passwordIssue) errors.password = passwordIssue
+  if (!confirmPassword || password !== confirmPassword) errors.confirmPassword = 'Enter the same password again.'
+  if (!dateOfBirth) errors.dateOfBirth = 'Enter your date of birth.'
+  else {
+    const dob = new Date(dateOfBirth + 'T00:00:00')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) || !Number.isFinite(dob.getTime()) || dob > new Date() || dob.getFullYear() < 1900 || dob.getFullYear() !== Number(dateOfBirth.slice(0,4)) || dob.getMonth() + 1 !== Number(dateOfBirth.slice(5,7)) || dob.getDate() !== Number(dateOfBirth.slice(8,10))) errors.dateOfBirth = 'Enter a valid date of birth.'
+  }
+  if (!['Female', 'Male', 'Other', 'Prefer not to say'].includes(gender)) errors.gender = 'Choose your gender.'
+  if (!['O-', 'O+', 'A-', 'A+', 'B-', 'B+', 'AB-', 'AB+'].includes(bloodType)) errors.bloodType = 'Choose your blood type.'
   if (!consent) errors.consent = CONSENT_REQUIRED
   return errors
 }
@@ -71,7 +79,7 @@ export function validatePartner({ facility, contactPerson, email, phone, message
   if (emailIssue) errors.email = emailIssue
 
   const digits = (phone ?? '').replace(/[\s()-]/g, '')
-  if (digits && !/^(\+?\d{7,15})$/.test(digits)) {
+  if (digits && ![9,10].includes(phNational(digits).length)) {
     errors.phone = 'Enter a phone number in digits, for example 044 791 0000.'
   }
 
@@ -101,8 +109,8 @@ export function validateProfile({ fullName, phoneNumber, dateOfBirth, city } = {
   }
 
   const digits = (phoneNumber ?? '').replace(/[\s()-]/g, '')
-  if (digits && !/^(\+?\d{7,15})$/.test(digits)) {
-    errors.phoneNumber = 'Enter a phone number in digits, for example 0917 000 0000.'
+  if (digits && ![9,10].includes(phNational(digits).length)) {
+    errors.phoneNumber = 'Enter 9–10 digits after +63, for example 9171234567.'
   }
 
   if (dateOfBirth) {
@@ -111,7 +119,7 @@ export function validateProfile({ fullName, phoneNumber, dateOfBirth, city } = {
       errors.dateOfBirth = 'That date of birth is not valid.'
     } else if (dob.getTime() > Date.now()) {
       errors.dateOfBirth = 'Date of birth cannot be in the future.'
-    } else if (dob.getFullYear() < 1900) {
+    } else if (dob.getFullYear() < 1900 || dob.getFullYear() !== Number(dateOfBirth.slice(0,4)) || dob.getMonth() + 1 !== Number(dateOfBirth.slice(5,7)) || dob.getDate() !== Number(dateOfBirth.slice(8,10))) {
       errors.dateOfBirth = 'Check the year of birth.'
     }
   }
@@ -162,7 +170,7 @@ export function validateHospital({ name, contactNumber } = {}) {
   const contact = phNational(contactNumber)
   if (!contact) {
     errors.contactNumber = 'Enter a contact number for the facility.'
-  } else if (contact.length < 9) {
+  } else if (![9,10].includes(contact.length)) {
     errors.contactNumber = 'Enter a Philippine number, for example +63 917 000 0000.'
   }
 

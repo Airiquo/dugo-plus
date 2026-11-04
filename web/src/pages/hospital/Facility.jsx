@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { readHospital, saveHospital } from "../../services/hospitals";
 import { validateHospital } from "../../utils/validate";
-import { phDisplay, phE164, phNational } from "../../utils/phone";
+import { phE164, phNational } from "../../utils/phone";
 import { HospitalShell } from "../../layout/HospitalShell";
 import {
   Btn,
@@ -21,7 +21,8 @@ const formFrom = (hospital) => ({
 });
 
 /** Facility contact editor and the administrator-managed location, kept separate from staff identity. */
-export default function Facility() {
+export default function Facility({ embedded = false }) {
+  const Shell = embedded ? "div" : HospitalShell;
   const { profile } = useAuth();
   const hospitalId = profile?.hospitalId || "";
   const formRef = useRef(null);
@@ -40,10 +41,11 @@ export default function Facility() {
       setLoading(false);
       return;
     }
+    const controller = new AbortController()
     let active = true;
     setLoading(true);
     setFailed(false);
-    readHospital(hospitalId)
+    readHospital(hospitalId, { signal: controller.signal })
       .then((found) => {
         if (!active) return;
         if (!found) throw new Error("Missing facility");
@@ -58,6 +60,7 @@ export default function Facility() {
         if (active) setLoading(false);
       });
     return () => {
+      controller.abort()
       active = false;
     };
   }, [hospitalId, attempt]);
@@ -111,7 +114,7 @@ export default function Facility() {
     }
   }
   return (
-    <HospitalShell facility={source?.name}>
+    <Shell {...(embedded ? {} : { facility: source?.name })}>
       <HospitalPageHeader
         title="Facility details"
         eyebrow="Facility / Public details"
@@ -171,9 +174,9 @@ export default function Facility() {
                   name="contactNumber"
                   type="tel"
                   autoComplete="tel"
-                  inputMode="tel"
+                  inputMode="numeric"
                   maxLength={20}
-                  value={`+63 ${phDisplay(form.contactNumber)}`}
+                  value={form.contactNumber}
                   onChange={(e) => set("contactNumber", e.target.value)}
                   aria-invalid={Boolean(errors.contactNumber) || undefined}
                   aria-describedby={
@@ -183,7 +186,7 @@ export default function Facility() {
                   }
                 />
                 <FieldError id="facility-contact-error">
-                  {errors.contactNumber}
+                  {errors.contactNumber || (form.contactNumber && ![9,10].includes(form.contactNumber.length) ? "Enter 9–10 digits after +63." : "")}
                 </FieldError>
                 <small id="facility-phone-help" className="hw-field-help">
                   Use a number donors can reach for collection questions.
@@ -264,6 +267,6 @@ export default function Facility() {
           </aside>
         </div>
       )}
-    </HospitalShell>
+    </Shell>
   );
 }

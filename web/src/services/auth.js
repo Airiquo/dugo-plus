@@ -1,3 +1,4 @@
+import { clearSessionCache } from "./sessionCache"
 import {
   createUserWithEmailAndPassword,
   onAuthStateChanged,
@@ -163,7 +164,7 @@ function requireAuth() {
  */
 export function observeAuth(callback) {
   if (!auth) return undefined
-  return onAuthStateChanged(auth, callback)
+  return onAuthStateChanged(auth, user => { clearSessionCache(); callback(user) })
 }
 
 /** Send Firebase's password-reset email (FR-48). */
@@ -220,6 +221,7 @@ export async function signInWithGoogle() {
 export async function signOut() {
   if (!auth) return
   await signOutOfFirebase(auth)
+  clearSessionCache()
 }
 
 /** Send the account-verification email (FR-01, NFR-12). */
