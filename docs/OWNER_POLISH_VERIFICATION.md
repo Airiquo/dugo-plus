@@ -98,3 +98,35 @@ compatibility card controls. Review content/aggregate calculation stay unchanged
 Final motion checks pass: counters freeze/resume from elapsed progress, card hover
 and explicit pause remain local, arrows retain their offset across a news-article
 unmount/remount, and light/dark phone/desktop landing checks still pass.
+
+Final review fixes the long hospital history label wrapping, removes stale
+position-based sidebar styling, associates phone-correction length errors, and
+forwards city-control root/input attributes through their respective elements.
+
+Phone validation retains 9-digit Philippine landlines and 10-digit mobile
+numbers; administrator saves keep the editable form in national digits while
+persisting E.164. The inline administrator contact error is associated with its input.
+
+## Review handoff
+
+Combined review branch: `feat/owner-polish-review`, in
+`/Users/pol/Documents/dugo_mobile_web/.worktrees/owner-landing`.
+The existing settings/export branch (`0db771d`, based on integration `a7fa998`)
+was resumed without altering the original worktree. Workstream branches:
+`feat/owner-landing-controls`, `feat/owner-navigation`,
+`feat/owner-route-loading`, `feat/owner-donor-identity`, and
+`feat/owner-queue-filters`. They retain the preceding work in the requested order.
+
+Final checks: Vite production build; compiled-output inspection; check-docs;
+157 regression tests; 6 data-request tests; 264 rules assertions; 21 account/
+response/directory REST emulator checks; four required actual-app Auth/Firestore
+smokes; actual-app live queue changes; 80 fully loaded responsive/theme layouts;
+16 final targeted layouts; hospital password mismatch/no-gender verification;
+and landing pause/remount/offset checks. Review/aggregate rendering and landing
+content data were compared directly with `0db771d` and remain unchanged.
+
+No deployment, push or protected-branch merge is included. Review then roll out
+Worker, rules and frontend together. Live Google-provider/production smoke and
+physical-device checks remain. The README screenshot generator was attempted
+but cannot run without Pillow; shared mockup styles were not edited, and the
+application screenshots above cover the changed screens.

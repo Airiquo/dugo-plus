@@ -87,7 +87,7 @@ export function AccountProfileEditor({ name = 'account-edit', account, open, onC
       if (!source) continue
       for (const key of scope === 'profile' ? ['fullName'] : ['name', 'address', 'contactNumber'])
         if (!source[key].trim()) found[`${scope}.${key}`] = 'This field is required.'
-      for (const key of ['phoneNumber', 'contactNumber']) if (source[key] && (key === 'contactNumber' ? ![9,10].includes(phNational(source[key]).length) : phNational(source[key]).length !== 10)) found[`${scope}.${key}`] = 'Enter all 10 digits after +63.'
+      for (const key of ['phoneNumber', 'contactNumber']) if (source[key] && ![9,10].includes(phNational(source[key]).length)) found[`${scope}.${key}`] = 'Enter 9–10 digits after +63.'
       if ('latitude' in source) {
         const lat = source.latitude.trim(), lng = source.longitude.trim()
         if (Boolean(lat) !== Boolean(lng) || (lat && (!Number.isFinite(Number(lat)) || Math.abs(Number(lat)) > 90)) ||

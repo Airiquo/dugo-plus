@@ -2,8 +2,8 @@ import { useEffect, useId, useState } from 'react'
 import { searchCities } from '../services/reverseGeocoding'
 import { cx } from '../utils/cx'
 
-/** Worker-backed, debounced city suggestions; accepts free text if lookup fails. */
-export function CityAutocomplete({ value, onChange, disabled, className, ...rest }) {
+/** Worker-backed city suggestions. `inputProps` forwards native input attributes; root props go to the wrapper. Free text remains available on failure. */
+export function CityAutocomplete({ value, onChange, disabled, inputProps, className, ...rest }) {
   const id = useId()
   const [cities, setCities] = useState([])
   const [message, setMessage] = useState('')
@@ -19,5 +19,5 @@ export function CityAutocomplete({ value, onChange, disabled, className, ...rest
     }, 500)
     return () => { clearTimeout(timer); controller.abort() }
   }, [value, disabled])
-  return <span className={cx('city-autocomplete', className)}><input value={value} onChange={onChange} disabled={disabled} autoComplete="address-level2" list={`${id}-cities`} {...rest} /><datalist id={`${id}-cities`}>{cities.map(city => <option key={city} value={city} />)}</datalist><small role="status">{message}</small></span>
+  return <span className={cx('city-autocomplete', className)} {...rest}><input value={value} onChange={onChange} disabled={disabled} autoComplete="address-level2" list={`${id}-cities`} {...inputProps} /><datalist id={`${id}-cities`}>{cities.map(city => <option key={city} value={city} />)}</datalist><small role="status">{message}</small></span>
 }

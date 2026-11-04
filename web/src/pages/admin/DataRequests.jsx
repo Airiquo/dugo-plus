@@ -250,6 +250,7 @@ export default function DataRequests() {
       setError("A corrected name is required.");
       return;
     }
+    if (correction.phoneNumber && ![9,10].includes(phNational(correction.phoneNumber).length)) { setError("Enter 9–10 digits after +63."); return; }
     setWorking("correction");
     setError("");
     setNote("");
@@ -700,6 +701,7 @@ export default function DataRequests() {
                         <Field label="Phone">
                           <Input
                             type="tel" inputMode="numeric"
+                            aria-invalid={Boolean(correction.phoneNumber && ![9,10].includes(correction.phoneNumber.length))} aria-describedby="correction-phone-error"
                             value={correction.phoneNumber}
                             onChange={(e) =>
                               setCorrection((p) => ({
@@ -708,6 +710,7 @@ export default function DataRequests() {
                               }))
                             }
                           />
+                          {correction.phoneNumber && ![9,10].includes(correction.phoneNumber.length) && <small id="correction-phone-error" role="alert">Enter 9–10 digits after +63.</small>}
                         </Field>
                         <Field label="City">
                           <Input

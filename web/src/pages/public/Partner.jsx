@@ -178,7 +178,7 @@ export default function Partner() {
                 if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }))
               }}
             />
-            <FieldError id="partner-phone-error">{errors.phone || (phone && phone.length !== 10 ? "Enter all 10 digits after +63." : "")}</FieldError>
+            <FieldError id="partner-phone-error">{errors.phone || (phone && ![9,10].includes(phone.length) ? "Enter 9–10 digits after +63." : "")}</FieldError>
           </label>
           <label>
             <span>Partnership type</span>

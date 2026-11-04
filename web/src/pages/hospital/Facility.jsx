@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { readHospital, saveHospital } from "../../services/hospitals";
 import { validateHospital } from "../../utils/validate";
-import { phDisplay, phE164, phNational } from "../../utils/phone";
+import { phE164, phNational } from "../../utils/phone";
 import { HospitalShell } from "../../layout/HospitalShell";
 import {
   Btn,

@@ -9252,7 +9252,6 @@ dialog.navigation-sheet[id$=-modal]{inset:auto 0 0;transform:none;width:min(540p
 .role-shell[data-area="hospital"] #sidebar-logo-facility { margin-top: 12px; font-size: 11px; line-height: 1.7; }
 .role-shell[data-area="hospital"] #sidebar-nav .btn { min-height: 49px; padding: 12px; font-size: 12px; border-radius: 11px; }
 .role-shell[data-area="hospital"] #sidebar-nav .btn:nth-child(4) { margin-bottom: 14px; }
-.role-shell[data-area="hospital"] #sidebar-nav .btn:nth-child(5) { border-top: 1px solid var(--d-line); padding-top: 24px; }
 .role-shell[data-area="hospital"] .hw-sidebar-create { display: flex; justify-content: center; margin: 16px 0 20px; min-height: 46px; border-radius: 10px; font-size: 12px; }
 .hospital-workspace { min-width: 0; color: var(--d-ink); font-family: var(--d-font-sans); }
 .hospital-workspace :is(h1,h2,h3,p) { overflow-wrap: anywhere; }
@@ -10648,3 +10647,7 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .care-landing .motion-card[data-card-paused=true] > img { transform: none; transition: none; }
 .care-landing .address-envelope .card-motion-control { top: 8px; right: 8px; }
 .care-landing .address-envelope .address-card-top { padding-right: 44px; }
+
+/* Intentional wrapping for the longer history navigation label. */
+.role-shell[data-area="hospital"] #nav-inventory-log { height: auto; min-height: 48px; }
+.role-shell[data-area="hospital"] #nav-inventory-log > span:last-child { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.45; }

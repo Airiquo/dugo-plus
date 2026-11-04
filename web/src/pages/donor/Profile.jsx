@@ -404,7 +404,7 @@ export default function Profile({ embedded = false }) {
                 aria-describedby={errors.phoneNumber ? 'profile-phone-error' : undefined}
                 onChange={set('phoneNumber')}
               />
-              <FieldError id="profile-phone-error">{errors.phoneNumber || (form.phoneNumber && form.phoneNumber.length !== 10 ? "Enter all 10 digits after +63." : "")}</FieldError>
+              <FieldError id="profile-phone-error">{errors.phoneNumber || (form.phoneNumber && ![9,10].includes(form.phoneNumber.length) ? "Enter 9–10 digits after +63." : "")}</FieldError>
             </label>
           </div>
 
@@ -421,15 +421,11 @@ export default function Profile({ embedded = false }) {
             </p>
             <label>
               <span>City</span>
-              <CityAutocomplete aria-label="City"
-                autoComplete="address-level2"
-                placeholder="Malolos, Bulacan"
-                type="text"
-                value={form.city}
-                aria-invalid={Boolean(errors.city) || undefined}
-                aria-describedby={errors.city ? 'profile-city-error' : undefined}
-                onChange={set('city')}
-              />
+              <CityAutocomplete value={form.city} disabled={busy || !profileLoaded} onChange={set('city')} inputProps={{
+                'aria-label': 'City', autoComplete: 'address-level2', placeholder: 'Malolos, Bulacan', type: 'text',
+                'aria-invalid': Boolean(errors.city) || undefined,
+                'aria-describedby': errors.city ? 'profile-city-error' : undefined,
+              }} />
               <FieldError id="profile-city-error">{errors.city}</FieldError>
             </label>
 

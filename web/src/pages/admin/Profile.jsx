@@ -99,7 +99,7 @@ export default function Profile({ embedded = false }) {
       nameInput.current?.focus();
       return;
     }
-    if (form.phoneNumber && phNational(form.phoneNumber).length !== 10) { setErrors({ phoneNumber: "Enter all 10 digits after +63." }); return; }
+    if (form.phoneNumber && ![9,10].includes(phNational(form.phoneNumber).length)) { setErrors({ phoneNumber: "Enter 9–10 digits after +63." }); return; }
     setErrors({});
     setMessage("");
     setNote("");
@@ -133,8 +133,8 @@ export default function Profile({ embedded = false }) {
         ...next,
         updatedAt: updated?.updatedAt || null,
       }));
-      setForm(next);
-      setSaved(next);
+      setForm(formFrom(next));
+      setSaved(formFrom(next));
       setNote(
         refreshIssue
           ? "Your details are saved. Some account display information could not refresh; reload this page to check it."
@@ -271,12 +271,14 @@ export default function Profile({ embedded = false }) {
                       type="tel" inputMode="numeric"
                       autoComplete="tel"
                       maxLength={40}
+                      aria-invalid={Boolean(form.phoneNumber && ![9,10].includes(form.phoneNumber.length))}
+                      aria-describedby="admin-profile-phone-help"
                       value={form.phoneNumber}
                       onChange={set("phoneNumber")}
                     />
                   </Field>
-                  <p className="aw-field-help">
-                    Optional. Include your area or country code when needed.
+                  <p id="admin-profile-phone-help" className="aw-field-help" role={form.phoneNumber && ![9,10].includes(form.phoneNumber.length) ? 'alert' : undefined}>
+                    {form.phoneNumber && ![9,10].includes(form.phoneNumber.length) ? 'Enter 9–10 digits after +63.' : 'Optional Philippine number. Enter the digits after +63.'}
                   </p>
                 </fieldset>
                 {message && (

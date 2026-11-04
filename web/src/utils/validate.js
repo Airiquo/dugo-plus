@@ -79,7 +79,7 @@ export function validatePartner({ facility, contactPerson, email, phone, message
   if (emailIssue) errors.email = emailIssue
 
   const digits = (phone ?? '').replace(/[\s()-]/g, '')
-  if (digits && phNational(digits).length !== 10) {
+  if (digits && ![9,10].includes(phNational(digits).length)) {
     errors.phone = 'Enter a phone number in digits, for example 044 791 0000.'
   }
 
@@ -109,8 +109,8 @@ export function validateProfile({ fullName, phoneNumber, dateOfBirth, city } = {
   }
 
   const digits = (phoneNumber ?? '').replace(/[\s()-]/g, '')
-  if (digits && phNational(digits).length !== 10) {
-    errors.phoneNumber = 'Enter all 10 digits after +63, for example 9171234567.'
+  if (digits && ![9,10].includes(phNational(digits).length)) {
+    errors.phoneNumber = 'Enter 9–10 digits after +63, for example 9171234567.'
   }
 
   if (dateOfBirth) {
