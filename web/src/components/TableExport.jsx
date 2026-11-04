@@ -5,14 +5,13 @@ import { Btn } from "./Btn";
 import { ControlPopover } from "./ControlPopover";
 import { TablePrintPreview } from "./TablePrintPreview";
 
-/** `getRows(scope, progress)` exports complete matching/all records; `getPageRows()` supplies the displayed page. `allowAll` retains an existing clear-filter scope. */
+/** `getRows(scope, progress)` exports complete filtered/all records; required `getPageRows()` supplies only displayed records. Every menu offers the same scopes and formats. */
 export function TableExport({
   name,
   title,
   columns,
   getRows,
   getPageRows,
-  allowAll = false,
   disabled = false,
   filterSummary = "",
   className,
@@ -48,7 +47,7 @@ export function TableExport({
     const version = ++generation.current;
     const current = () => alive.current && generation.current === version;
     setError("");
-    setMessage(scope === "page" ? "Preparing this page…" : "Preparing matching records…");
+    setMessage(scope === "page" ? "Preparing this page…" : scope === "all" ? "Preparing all records in this view…" : "Preparing matching records…");
     setBusy(true);
     if (format === "pdf") setPreview({ open: true, html: "" });
     try {
@@ -108,12 +107,12 @@ export function TableExport({
         <div className="table-export-formats" role="group" aria-label={`${title} export formats`}>
           <fieldset className="export-scope" disabled={disabled || busy}>
             <legend>Export scope</legend>
-            {[['filtered', 'All matching pages · Current filters'], ...(getPageRows ? [['page', 'This page only']] : []), ...(allowAll ? [['all', 'All pages · Clear filters']] : [])].map(([value,label]) => <label key={value}><input type="radio" name={`${name}-export-scope`} value={value} checked={scope === value} onChange={() => setScope(value)} />{label}</label>)}
+            {[['filtered', 'All matching pages · Current filters'], ['page', 'This page only'], ['all', 'All pages · Clear filters']].map(([value,label]) => <label key={value}><input type="radio" name={`${name}-export-scope`} value={value} checked={scope === value} onChange={() => setScope(value)} />{label}</label>)}
           </fieldset>
           {children}
           <Btn disabled={disabled || busy} onClick={() => run("csv")}>Download CSV</Btn>
           <Btn disabled={disabled || busy} onClick={() => run("pdf")}>Print PDF</Btn>
-          <p className="export-note">{scope === "page" ? "Exports include this page only." : "Exports include every matching page."}</p>
+          <p className="export-note">{scope === "page" ? "Exports include this page only." : scope === "all" ? "Exports include every page in this view, with filters cleared." : "Exports include every matching page."}</p>
         </div>
       </ControlPopover>
       {message && <p role="status">{message}</p>}

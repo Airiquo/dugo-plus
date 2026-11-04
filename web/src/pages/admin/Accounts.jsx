@@ -946,7 +946,6 @@ export default function Accounts() {
 
         <AdminDialog
           name="account-history"
-              getPageRows={() => filterRecords(history.events, historyFilters, { search: row => `${row.eventType || ""} ${row.actor?.fullName || ""} ${row.context?.reason || ""}` })}
           open={dialog?.kind === "history"}
           title={selected ? label(selected) : "Account history"}
           onClose={close}
@@ -1022,6 +1021,7 @@ export default function Accounts() {
               />
               <TableExport
                 name="account-history"
+                getPageRows={() => filterRecords(history.events, historyFilters, { search: row => `${row.eventType || ""} ${row.actor?.fullName || ""} ${row.context?.reason || ""}` })}
                 title={`${label(selected)} account activity`}
                 columns={auditReportColumns}
                 disabled={history.loading || Boolean(history.error)}

@@ -681,7 +681,6 @@ export default function Dashboard() {
             <div className="record-toolbar">
               <RecordFilters
               name="collections"
-              getPageRows={() => visible.slice((page - 1) * 10, page * 10)}
               onReset={() => choosePreset("30")}
               value={filters}
               dates={false}
@@ -709,6 +708,7 @@ export default function Dashboard() {
             />
             <TableExport
               name="collections"
+              getPageRows={() => visible.slice((page - 1) * 10, page * 10)}
               title={`${hospital?.name || "Facility"} blood collections`}
               columns={donationReportColumns}
               filterSummary={`${scopeLabel}${filters.bloodType !== "all" ? " · " + filters.bloodType : ""}${filters.component !== "all" ? " · " + componentLabel(filters.component) : ""}${filters.search ? " · Search: " + filters.search : ""}`}

@@ -98,7 +98,7 @@ function DonorRecords({ hospitalId, selected, onView }) {
         fields={columns.filter(column => column.sortable !== false).map(column => ({ key: column.key, label: column.header }))} />
       <TableExport key={`${hospitalId}:${selected?.id || ''}`} name={history ? 'facility-donor-history' : 'facility-donor-directory'} title={history ? `Facility ${hospitalId} · Donor ${selected.id} completed donations` : `Facility ${hospitalId} donor directory`}
         columns={history ? donorHistoryColumns : donorDirectoryColumns} getRows={getExportRows} disabled={!ready}
-        filterSummary={`${summary || 'No filters'} · ${sort.key || 'Reference'} ${sort.direction}`} allowAll getPageRows={() => visible} /></div>
+        filterSummary={`${summary || 'No filters'} · ${sort.key || 'Reference'} ${sort.direction}`} getPageRows={() => visible} /></div>
       {state.status === 'loading' && <p className="hospital-state" role="status">Loading {history ? 'completed donations' : 'donors'}…</p>}
       {state.status === 'error' && <div className="hospital-state" role="alert"><p>{state.error}</p><Btn onClick={() => setAttempt(value => value + 1)}>Try again</Btn></div>}
       {ready && (visible.length ? <Table className="hospital-table" mobileCards columns={columns} rows={visible} rowKey={row => row.id} scroll={false} sort={sort} onSort={toggleSort} mobileSort={false} /> :

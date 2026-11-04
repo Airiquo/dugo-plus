@@ -1,9 +1,11 @@
 # Cross-role table exports and public help — D65/D66
 
-The shared `TableExport` control offers Filtered results / All table data,
-Export CSV and Print / PDF. D70 replaces the separate popup with an in-app
-native-dialog preview offering Back to table and Print / Save PDF; printing is
-explicit and uses the browser's Save as PDF option. It uses no remote PDF service.
+The shared `TableExport` control uses an Export dropdown everywhere (D83–D85).
+Every menu offers All matching pages · Current filters, This page only, and All
+pages · Clear filters, followed by Download CSV and Print PDF. The selected scope
+drives both formats; displayed-page callbacks never traverse cursors. D70's
+native-dialog preview offers Back to table and Print / Save PDF; printing is
+explicit and uses the browser's Save as PDF option, with no remote PDF service.
 Closing the preview cancels pending preparation. Reports use explicit plain-value
 columns, not copied DOM cells, so IDs are complete and buttons/inputs are absent.
 

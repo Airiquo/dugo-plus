@@ -91,8 +91,8 @@ export default function Activity() {
     search: (row) =>
       `${row.donationTypeName || row.donationTypeId} ${state.hospitals.get(row.hospitalId)?.name || ""} ${row.bloodType || ""}`,
   });
-  const visible = sortRows(
-    filteredVisits,
+  const sortVisits = (rows) => sortRows(
+    rows,
     {
       newest: (row) => sortDate(row.donationDate),
       oldest: (row) => sortDate(row.donationDate),
@@ -100,6 +100,7 @@ export default function Activity() {
     }[order],
     order === "newest" ? "desc" : "asc",
   );
+  const visible = sortVisits(filteredVisits);
   const years = new Map();
   for (const donation of visible) {
     const year =
@@ -226,7 +227,7 @@ export default function Activity() {
                         },
                         { label: "Units", value: (row) => row.units },
                       ]}
-                      getRows={() => visible}
+                      getRows={(scope) => scope === "filtered" ? visible : sortVisits(state.donations)}
                     />
                 </DonorFilterBar>
                 <div className="donor-browse-result-bar donor-history-result-bar">

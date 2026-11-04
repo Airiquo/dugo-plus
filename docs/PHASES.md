@@ -349,6 +349,8 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Universal exports (2026-11-04, D85):** owner answers that every Export menu must use the same three scopes (current matching filters, this page, all pages with filters cleared) and the same Download CSV / Print PDF actions. Report-only filter clearing retains every authorized context. No unresolved scope question or phase-count change.
+
 - **Redesign pack (2026-11-04, D84):** owner supplies `files(3).zip` and directs implementation of its Markdown without screenshot emojis. Owner answers: retain the form/history privacy composition; add This page only and retain existing export scopes; use Download CSV and Print PDF only inside Export. All three conflicts are resolved. No route/backend/schema change or status/count change. Screens and evidence are tracked in `docs/REDESIGN_PACK.md`.
 
 - **Settings and record-control layouts (2026-11-04, D83):** owner requests Profile/Appearance tabs for all roles, then specifies Settings/Sign out in profile-head menus (beside desktop sidebars), date overlays everywhere, the existing privacy form/history composition with cleaner history cards, a single Export dropdown, and removal of the admin notification retry screen plus Overview card. These are answered instructions, not unresolved questions. Existing profile/service/consent/filter/export contracts remain; legacy profile URLs redirect. No requirement status or phase-count changes. `docs/SETTINGS_AND_TOOLBAR_LAYOUTS.md` records local verification and remaining live-account/physical-device checks.
