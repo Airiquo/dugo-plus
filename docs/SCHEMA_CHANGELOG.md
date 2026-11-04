@@ -280,16 +280,13 @@ Owner chooses existing Cloudflare Worker transactions, administrator-only facili
 No automatic data migration or production deployment occurs in this task. See `HOSPITAL_WORKER_RECONCILIATION.md` for local evidence and rollout.
 
 
-### 2026-11-04 — request reacceptance and Completed donations (D79)
+## 2026-11-04 — facility donor directory read index (D82)
 
-- Add match donationStage, acceptanceVersion and stage/withdrawal/deferral timestamps/actors; require a written deferralReason and make Deferred terminal.
-- Add donation status Completed and completedAt/completedBy, retaining confirmedAt/confirmedBy compatibility aliases and historical completion reads.
-- Link donation stock logs to requestId as well as donationId; retain component/donor-group stock identity and atomic stock/history/clock/audit writes.
-- Archive superseded consent grants with acknowledgment/version at deterministic versioned IDs; renew current grants atomically and retain revoked history.
-- Release only the terminal attempt's commitment; reaccept renews consent and acknowledgment, resets progress, and increments acceptanceVersion to reject stale staff writes.
-- Add bounded donation history equality indexes; private context is fetched only on explicit detail requests through the current consent gate. See `REQUEST_DONATION_COMPLETION_CONTRACT.md`.
-## 2026-11-04 — data-request Other and rejection retention
+**Origin:** build → schema. **Refs:** D82, F6, F11.
 
-**Origin:** build → schema. **Refs:** D80, F9 (FR-039/NFR-19).
-
-`dataSubjectRequests.requestType` adds `Other`; `details` must contain non-whitespace text and remain ≤2000 characters. Optional `rejectionReason` adds `InsufficientDetails | Duplicate | OutsideScope | Other` (empty while not rejected); new rejections require the category and a nonblank `adminNote` ≤2000 characters. `resolutionAction` adds `Response` for written Other answers. Completed requests require a nonblank response and recorded action. Closed records cannot be updated/deleted by clients. Historical rejected records without the new field remain readable, with original details/responses/timestamps retained. No migration, collection, index, Worker endpoint or notification behavior change.
+Added `donations(hospitalId ASC, donorId ASC)` for bounded facility donor-ID
+directory cursors and hospital+donor history reads. No new fields, collections,
+client permissions or data writes. Current visit-specific consent and active,
+unerased donor profiles gate batched identity reads in the Worker. Historical
+confirmed and canonical Completed donations share the read mapping; no stock is
+replayed. Verification/rollout limits: `docs/HOSPITAL_DONORS_DIRECTORY.md`.

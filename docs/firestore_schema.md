@@ -373,6 +373,17 @@ Doc ID = the `donorMatches` doc ID. One donation per match (ERD 1:1).
 
 D63: donation records also carry `component` (request component code), `donationType` (interval-bearing reference ID), and `requestId`. The Worker derives the blood group from the donor profile; confirmation atomically writes the donation, matching component/group stock and log, donor clock, operation and audit outbox. Rewards remain removed by D43.
 
+D82 adds a Worker-only facility Donors directory over these existing records.
+Directory pages use hospital equality and donor-ID order, deduplicate donors and
+skip remaining visits for the last donor; selected history retains BOTH hospital
+and donor equality with document-ID cursors. Each query is bounded to 26 records
+(25 plus a sentinel), with a one-record directory lookahead. Completed means
+`status === 'Completed'` or a valid legacy `confirmedAt`; no history read writes
+stock or records. Batched exact match-specific Data Sharing consent checks gate
+allowlisted active/unerased profile reads inside the same transaction. Direct
+staff `users` reads remain denied. No stored fields or collections are added.
+See `docs/HOSPITAL_DONORS_DIRECTORY.md` for representative-visit consent scope.
+
 ### 2.10 `rewardTransactions/{donationId}` — legacy only (D43)
 
 Doc ID = `donationId` so UK(donation_id) holds. D43 removes future rewards; existing documents remain available to historical data export.
@@ -566,6 +577,7 @@ Cardinality read from the crow's-foot notation.
 | `notifications` | `deliveryStatus` ASC, `retryCount` ASC | Retry worker |
 | `donations` | `donorId` ASC, `donationDate` DESC | Donor history |
 | `donations` | `hospitalId` ASC, `donationDate` DESC | Hospital reporting |
+| `donations` | `hospitalId` ASC, `donorId` ASC | D82 bounded facility donor directory and donor-specific history |
 | `donorConsents` | `donorId` ASC, `grantedAt` DESC | Consent history |
 | `dataSubjectRequests` | `status` ASC, `createdAt` ASC | Admin work queue |
 | `auditBlocks` | `sequence` DESC | Fetch the latest block |

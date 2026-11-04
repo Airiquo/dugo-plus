@@ -34,6 +34,7 @@ import HospitalMap from './pages/hospital/Map'
 import HospitalProfile from './pages/hospital/Profile'
 import HospitalFacility from './pages/hospital/Facility'
 import InventoryLog from './pages/hospital/InventoryLog'
+import HospitalDonors from './pages/hospital/Donors'
 import Gallery from './pages/shared/Gallery'
 import ScreenStub from './pages/shared/ScreenStub'
 import NotConfigured from './pages/shared/NotConfigured'
@@ -239,6 +240,7 @@ export default function App() {
             <Route path="/hospital/requests/new" element={<NewRequest />} />
             <Route path="/hospital/inventory" element={<Inventory />} />
             <Route path="/hospital/inventory-log" element={<InventoryLog />} />
+            <Route path="/hospital/donors" element={<HospitalDonors />} />
             <Route path="/hospital/map" element={<HospitalMap />} />
             <Route path="/hospital/profile" element={<HospitalProfile />} />
             <Route path="/hospital/facility" element={<HospitalFacility />} />

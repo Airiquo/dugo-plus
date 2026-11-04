@@ -1,6 +1,20 @@
 {
   "indexes": [
     {
+      "collectionGroup": "donations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "hospitalId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "donorId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "auditBlocks",
       "queryScope": "COLLECTION",
       "fields": [

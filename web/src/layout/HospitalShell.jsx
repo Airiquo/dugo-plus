@@ -6,6 +6,7 @@ let rememberedFacility = { account: "", name: "" };
 export const HOSPITAL_NAV = [
   { slug: "dashboard", label: "Overview", icon: "grid" },
   { slug: "requests", label: "Blood requests", icon: "request" },
+  { slug: "donors", label: "Donors", icon: "user" },
   { slug: "inventory", label: "Inventory", icon: "box" },
   { slug: "inventory-log", label: "History", icon: "list" },
   { slug: "map", label: "Hospital map", icon: "map" },
