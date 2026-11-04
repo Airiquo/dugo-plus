@@ -64,3 +64,11 @@ select their corresponding group. Singular result/request labels are corrected.
 Every row has View with its contextual accessible label; the existing review
 workflow, sortable columns, outcome filters, pagination and footnote remain.
 Build/docs/whitespace and 1440/390/320 light/dark checks pass.
+
+## Screen 07 — Facility donor directory
+
+The completed-only/consent banner stays. Directory title has a matching-count
+pill; the subtitle states page-local search/filter/sort scope, while Export keeps
+complete traversal or the selected current-page scope. Sort is explicitly labeled
+Sort (this page); donor references use the shared full-ID Copy action. Pagination
+uses singular/plural grammar. No authorized identity or read contract changes.

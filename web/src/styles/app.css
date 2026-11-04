@@ -10464,3 +10464,11 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .privacy-queue-views>.btn { min-height: 52px; padding: 13px 0; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; box-shadow: none; color: var(--d-muted); font: 400 13px var(--d-font-sans); }
 .privacy-queue-views>.btn[aria-pressed=true] { border-bottom-color: var(--d-red); color: var(--d-ink); }
 .privacy-queue-views>.btn>span { font-size: 12px; margin-inline-start: 6px; }
+
+/* Intentional facility-directory hierarchy distinguishes page-local sorting and copyable references. */
+.hospital-donors-heading h2 { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.hospital-donors-heading .pill { font: 11px/1.5 var(--d-font-sans); color: var(--d-muted); }
+.hospital-donors-toolbar>.record-sort-controls { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+.hospital-donors-toolbar .record-sort-controls>label { color: var(--d-muted); font: 11px/1.4 var(--d-font-sans); }
+.hospital-donors-reference .copy-id { width: 100%; }
+.hospital-donors-reference .copy-id>code { max-width: calc(100% - 45px); }

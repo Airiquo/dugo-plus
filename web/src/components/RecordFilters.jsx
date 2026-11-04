@@ -80,7 +80,7 @@ export function RecordFilters({
               value={value[field.key] || "all"}
               onChange={(event) => set(field.key, event.target.value)}
             >
-              <option value="all">All</option>
+              <option value="all">{field.allLabel || "All"}</option>
               {field.options.map((option) => (
                 <option
                   key={typeof option === "string" ? option : option.value}
