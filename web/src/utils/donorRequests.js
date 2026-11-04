@@ -33,8 +33,8 @@ export function requestDonorProfile(profile, items) {
 }
 export function facilityPoint(item) {
   return (
-    asPoint(item.hospital?.latitude, item.hospital?.longitude) ??
-    asPoint(item.request.latitude, item.request.longitude)
+    asPoint(item.request.latitude, item.request.longitude) ??
+    asPoint(item.hospital?.latitude, item.hospital?.longitude)
   )
 }
 export function enrichRequest(item, position, bloodType) {

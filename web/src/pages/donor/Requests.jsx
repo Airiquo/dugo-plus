@@ -38,8 +38,7 @@ export default function Requests() {
   const [order, setOrder] = useState("nearest");
   const { user, profile } = useAuth(),
     { theme } = useTheme();
-  const feed = useDonorRequests(user?.uid),
-    position = useDonorLocation(profile);
+  const position = useDonorLocation(profile);
   const [params, setParams] = useSearchParams(),
     [selectedId, setSelectedId] = useState(null);
   const [filters, setFilters] = useState({
@@ -55,6 +54,7 @@ export default function Requests() {
   const [mobileView, setMobileView] = useState("list");
   const [tab, setTab] = useState("available");
   const { search, component, radius, ...recordFilters } = filters;
+  const feed = useDonorRequests(user?.uid, radius);
   const clearFilters = () =>
     setFilters({
       search: "",
@@ -391,7 +391,7 @@ export default function Requests() {
                         value: String(km),
                         label: `Within ${km} km`,
                       })),
-                      { value: "all", label: "Any distance" },
+                      { value: "all", label: "Any matched distance" },
                     ],
                   },
                   {
@@ -675,8 +675,8 @@ export default function Requests() {
                     </div>
                     {tab === "available" && position && (
                       <small>
-                        Distance filters apply to requests already matched to
-                        you.
+                        Widening to 50 km finds additional compatible requests near
+                        your saved location. Automatic alerts stay within 25 km.
                       </small>
                     )}
                   </div>

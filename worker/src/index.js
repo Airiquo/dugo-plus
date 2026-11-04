@@ -1,3 +1,5 @@
+import { createDonorDiscovery } from './donorDiscovery.js'
+import { runQuery, writeNewDocuments } from './firestore.js'
 /**
  * Cloudflare Worker entry point for F7 and F10.
  *
@@ -59,7 +61,7 @@ async function route(request, env) {
   }
 
   if (request.method === 'GET' && url.pathname === '/health') {
-    return json({ ok: true, service: 'dugo-matching', part: 1, accountOperationsVersion: 2, accountProfileVersion: 1, auditActivityVersion: 1, inventoryOperationsVersion: 2, donationCompletionVersion: 1 }, 200, cors)
+    return json({ ok: true, service: 'dugo-matching', part: 1, accountOperationsVersion: 2, accountProfileVersion: 1, auditActivityVersion: 1, inventoryOperationsVersion: 2, donationCompletionVersion: 1, donorDiscoveryVersion: 1 }, 200, cors)
   }
 
   if (request.method === 'POST' && url.pathname === '/hospital/donors') {
@@ -97,6 +99,16 @@ async function route(request, env) {
     try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
     const result = await createInventoryManager({ store: transactionStore(env), hash: value => hashRef(env, value) })(user, input)
     return json(result, 200, cors)
+  }
+
+  if (request.method === 'POST' && url.pathname === '/donor/discover') {
+    const user = await verifyIdToken(env, bearerToken(request))
+    let input
+    try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
+    const discover = createDonorDiscovery({ get: (collection, id) => getDocument(env, collection, id),
+      query: query => runQuery(env, query), createMatches: writes => writeNewDocuments(env, writes),
+      referenceName: path => documentName(env, path) })
+    return json(await discover(user.uid, input), 200, cors)
   }
 
   if (request.method === 'POST' && url.pathname === '/donor/respond') {
