@@ -185,6 +185,28 @@
   font-size: 20px;
   font-weight: 500;
 }
+/* Intentional inline action grouping keeps View beside the request title. */
+.privacy-request-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.privacy-request-title .privacy-request-type {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.privacy-request-title .btn { flex-shrink: 0; }
+.privacy-queue-views { padding: 0 24px 16px; }
+.privacy-queue-views .btn[aria-pressed="true"] {
+  background: var(--d-field);
+  border-color: var(--d-ink);
+}
+.privacy-response p, .privacy-subject-note p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.privacy-response { margin-block: 24px; }
 .privacy-request-details,
 .privacy-request-note {
   font-size: 14px;

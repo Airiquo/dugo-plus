@@ -288,3 +288,8 @@ No automatic data migration or production deployment occurs in this task. See `H
 - Archive superseded consent grants with acknowledgment/version at deterministic versioned IDs; renew current grants atomically and retain revoked history.
 - Release only the terminal attempt's commitment; reaccept renews consent and acknowledgment, resets progress, and increments acceptanceVersion to reject stale staff writes.
 - Add bounded donation history equality indexes; private context is fetched only on explicit detail requests through the current consent gate. See `REQUEST_DONATION_COMPLETION_CONTRACT.md`.
+## 2026-11-04 — data-request Other and rejection retention
+
+**Origin:** build → schema. **Refs:** D80, F9 (FR-039/NFR-19).
+
+`dataSubjectRequests.requestType` adds `Other`; `details` must contain non-whitespace text and remain ≤2000 characters. Optional `rejectionReason` adds `InsufficientDetails | Duplicate | OutsideScope | Other` (empty while not rejected); new rejections require the category and a nonblank `adminNote` ≤2000 characters. `resolutionAction` adds `Response` for written Other answers. Completed requests require a nonblank response and recorded action. Closed records cannot be updated/deleted by clients. Historical rejected records without the new field remain readable, with original details/responses/timestamps retained. No migration, collection, index, Worker endpoint or notification behavior change.

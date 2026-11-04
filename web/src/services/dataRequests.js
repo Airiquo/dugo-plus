@@ -3,13 +3,18 @@ import {
   collection,
   doc,
   getDocs,
+  documentId,
+  limit,
+  orderBy,
   query,
   serverTimestamp,
+  startAfter,
   updateDoc,
   where,
 } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { recordAuditEvent } from './audit'
+import { REJECTION_REASONS } from '../utils/dataRequestReview'
 
 const NOT_CONFIGURED = 'Firestore is not available. Copy web/.env.example to web/.env.local.'
 
@@ -22,13 +27,13 @@ function requireDb() {
  * schema's names; the screen shows the prompt's wording (Correction, Deletion)
  * through `REQUEST_TYPE_LABELS`.
  */
-export const REQUEST_TYPES = ['Access', 'Rectification', 'Erasure', 'Export']
+export const REQUEST_TYPES = ['Access', 'Rectification', 'Erasure', 'Export', 'Other']
 
 /** Every request status the queue can move through. */
 export const REQUEST_STATUSES = ['Pending', 'InProgress', 'Completed', 'Rejected']
 
 /** The action an administrator recorded when closing a request. */
-export const RESOLUTION_ACTIONS = ['', 'Export', 'Correction', 'Deletion']
+export const RESOLUTION_ACTIONS = ['', 'Export', 'Correction', 'Deletion', 'Response']
 
 /** Human labels for the stored request types. */
 const REQUEST_TYPE_LABELS = {
@@ -36,6 +41,7 @@ const REQUEST_TYPE_LABELS = {
   Rectification: 'Correction of my data',
   Erasure: 'Deletion of my data',
   Export: 'Export of my data',
+  Other: 'Other data request',
 }
 
 const REQUEST_STATUS_LABELS = {
@@ -81,6 +87,7 @@ function normalise(snap) {
     status: REQUEST_STATUSES.includes(d.status) ? d.status : 'Pending',
     details: typeof d.details === 'string' ? d.details : '',
     adminNote: typeof d.adminNote === 'string' ? d.adminNote : '',
+    rejectionReason: typeof d.rejectionReason === 'string' ? d.rejectionReason : '',
     resolutionAction: RESOLUTION_ACTIONS.includes(d.resolutionAction) ? d.resolutionAction : '',
     processedBy: d.processedBy || null,
     resolvedAt: d.resolvedAt || null,
@@ -116,6 +123,7 @@ export async function createDataRequest(uid, requestType, details) {
     status: 'Pending',
     details: note,
     adminNote: '',
+    rejectionReason: '',
     resolutionAction: '',
     processedBy: null,
     resolvedAt: null,
@@ -127,18 +135,27 @@ export async function createDataRequest(uid, requestType, details) {
 /** Requests belonging to one account, newest first. */
 export async function listMyDataRequests(uid) {
   requireDb()
-  const q = query(collection(db, 'dataSubjectRequests'), where('userId', '==', uid))
-  const snap = await getDocs(q)
-  return snap.docs
-    .map(normalise)
-    .sort((a, b) => time(b.createdAt) - time(a.createdAt))
+  if (!uid) throw new Error('Sign in again to view your requests.')
+  return readRequests([where('userId', '==', uid)])
 }
 
 /** Every request, for the admin queue (FR-039). Requires an admin claim. */
 export async function listAllDataRequests() {
   requireDb()
-  const snap = await getDocs(collection(db, 'dataSubjectRequests'))
-  return snap.docs.map(normalise).sort((a, b) => time(b.createdAt) - time(a.createdAt))
+  return readRequests([])
+}
+
+/** Complete explicit history loads use bounded batches, including legacy rows. */
+async function readRequests(scope) {
+  const rows = []
+  let cursor
+  do {
+    const snap = await getDocs(query(collection(db, 'dataSubjectRequests'), ...scope,
+      orderBy(documentId()), ...(cursor ? [startAfter(cursor)] : []), limit(100)))
+    rows.push(...snap.docs.map(normalise))
+    cursor = snap.size === 100 ? snap.docs.at(-1) : null
+  } while (cursor)
+  return rows.sort((a, b) => time(b.createdAt) - time(a.createdAt))
 }
 
 function time(value) {
@@ -158,7 +175,8 @@ function time(value) {
  *   status: 'Pending'|'InProgress'|'Completed'|'Rejected',
  *   processedBy: string,
  *   adminNote?: string,
- *   resolutionAction?: ''|'Export'|'Correction'|'Deletion',
+ *   rejectionReason?: string,
+ *   resolutionAction?: ''|'Export'|'Correction'|'Deletion'|'Response',
  * }} changes
  */
 export async function updateDataRequest(id, changes) {
@@ -168,14 +186,22 @@ export async function updateDataRequest(id, changes) {
   if (note.length > DETAILS_LIMIT) {
     throw new Error(`Keep the note under ${DETAILS_LIMIT} characters.`)
   }
+  const closed = changes.status === 'Completed' || changes.status === 'Rejected'
+  if (closed && !note) throw new Error('Add a written response before closing this request.')
+  if (changes.status !== 'Pending' && !changes.processedBy) throw new Error('Sign in again to review this request.')
+  if (changes.status === 'Rejected' && !REJECTION_REASONS.some(option => option.value === changes.rejectionReason)) {
+    throw new Error('Choose a rejection reason and explain it in the response.')
+  }
   const action = RESOLUTION_ACTIONS.includes(changes.resolutionAction)
     ? changes.resolutionAction
     : ''
+  if (changes.status === 'Completed' && !action) throw new Error('Record the action taken before completing this request.')
 
   const data = {
     status: changes.status,
     processedBy: changes.status === 'Pending' ? null : changes.processedBy || null,
     adminNote: note,
+    rejectionReason: changes.status === 'Rejected' ? changes.rejectionReason : '',
     resolutionAction: action,
   }
   if (changes.status === 'Completed' || changes.status === 'Rejected') {

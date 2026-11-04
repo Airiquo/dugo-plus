@@ -498,15 +498,18 @@ service cloud.firestore {
       // corrected or erased (FR-039).
       allow create: if signedIn()
                     && request.resource.data.userId == me()
-                    && request.resource.data.requestType in ['Access', 'Rectification', 'Erasure', 'Export']
+                    && request.resource.data.requestType in ['Access', 'Rectification', 'Erasure', 'Export', 'Other']
                     && request.resource.data.status == 'Pending'
                     && request.resource.data.details is string
                     && request.resource.data.details.size() <= 2000
+                    && request.resource.data.details.matches('[\\s\\S]*\\S[\\s\\S]*')
                     && request.resource.data.createdAt == request.time
                     && request.resource.data.processedBy == null
                     && request.resource.data.resolvedAt == null
                     && (!('adminNote' in request.resource.data)
                         || request.resource.data.adminNote == '')
+                    && (!('rejectionReason' in request.resource.data)
+                        || request.resource.data.rejectionReason == '')
                     && (!('resolutionAction' in request.resource.data)
                         || request.resource.data.resolutionAction == '');
 
@@ -515,6 +518,10 @@ service cloud.firestore {
       // the action taken and a note, and a closed request carries its
       // resolution time.
       allow update: if isAdmin()
+                    && resource.data.status in ['Pending', 'InProgress']
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'status', 'processedBy', 'adminNote', 'resolutionAction', 'rejectionReason', 'resolvedAt'
+                    ])
                     && request.resource.data.userId == resource.data.userId
                     && request.resource.data.requestType == resource.data.requestType
                     && request.resource.data.createdAt == resource.data.createdAt
@@ -523,7 +530,16 @@ service cloud.firestore {
                         || request.resource.data.details == resource.data.details)
                     && request.resource.data.adminNote is string
                     && request.resource.data.adminNote.size() <= 2000
-                    && request.resource.data.resolutionAction in ['', 'Export', 'Correction', 'Deletion']
+                    && request.resource.data.resolutionAction in ['', 'Export', 'Correction', 'Deletion', 'Response']
+                    && (request.resource.data.status != 'Completed'
+                        || (request.resource.data.resolutionAction != ''
+                            && request.resource.data.adminNote.matches('[\\s\\S]*\\S[\\s\\S]*')))
+                    && (request.resource.data.status != 'Rejected'
+                        || (request.resource.data.rejectionReason in ['InsufficientDetails', 'Duplicate', 'OutsideScope', 'Other']
+                            && request.resource.data.adminNote.matches('[\\s\\S]*\\S[\\s\\S]*')))
+                    && (request.resource.data.status == 'Rejected'
+                        || !('rejectionReason' in request.resource.data)
+                        || request.resource.data.rejectionReason == '')
                     && (
                          (request.resource.data.status in ['Pending', 'InProgress']
                           && request.resource.data.resolvedAt == null)

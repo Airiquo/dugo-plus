@@ -12,12 +12,14 @@ import {
 import { collectUserData, downloadUserData } from "../../services/dataExport";
 import {
   listAllDataRequests,
+  REQUEST_TYPES,
   requestStatusLabel,
   requestTypeLabel,
   updateDataRequest,
 } from "../../services/dataRequests";
 import { useTableSort } from "../../hooks/useTableSort";
 import { sortRows, sortDate } from "../../utils/sortRows";
+import { matchesRequestStatus, REJECTION_REASONS, rejectionReasonLabel } from "../../utils/dataRequestReview";
 import {
   AdminDialog,
   Btn,
@@ -65,6 +67,7 @@ export default function DataRequests() {
   const [working, setWorking] = useState("");
   const [adminNote, setAdminNote] = useState("");
   const [resolution, setResolution] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
   const [correction, setCorrection] = useState({
     fullName: "",
     phoneNumber: "",
@@ -78,6 +81,8 @@ export default function DataRequests() {
   const [directoryError, setDirectoryError] = useState("");
   const generation = useRef(0);
   const notice = useRef(null);
+  const noteInput = useRef(null);
+  const reasonInput = useRef(null);
   useEffect(() => {
     if (!activeId && note) notice.current?.focus();
   }, [activeId, note]);
@@ -127,10 +132,7 @@ export default function DataRequests() {
   const filtered = requests.filter((row) => {
     const person = byId.get(row.userId);
     return (
-      (statusFilter === "all" ||
-        (statusFilter === "open"
-          ? ["Pending", "InProgress"].includes(row.status)
-          : row.status === statusFilter)) &&
+      matchesRequestStatus(row.status, statusFilter) &&
       (typeFilter === "all" || row.requestType === typeFilter) &&
       [person?.fullName, person?.email, row.userId, row.id, row.details]
         .join(" ")
@@ -160,6 +162,7 @@ export default function DataRequests() {
     setActiveId(request.id);
     setAdminNote(request.adminNote || "");
     setResolution(request.resolutionAction || "");
+    setRejectionReason(request.rejectionReason || "");
     setCorrection({
       fullName: byId.get(request.userId)?.fullName || "",
       phoneNumber: byId.get(request.userId)?.phoneNumber || "",
@@ -182,10 +185,16 @@ export default function DataRequests() {
       setError(
         "Add a resolution note before completing or rejecting this request.",
       );
+      noteInput.current?.focus();
       return;
     }
     if (status === "Completed" && !action) {
       setError("Record the action taken before completing this request.");
+      return;
+    }
+    if (status === "Rejected" && !rejectionReason) {
+      setError("Choose a rejection reason and explain it in the resolution note.");
+      reasonInput.current?.focus();
       return;
     }
     setWorking(status);
@@ -200,6 +209,7 @@ export default function DataRequests() {
         processedBy: user?.uid,
         adminNote: joined,
         resolutionAction: action,
+        rejectionReason,
       });
       setAdminNote(joined);
       setResolution(action);
@@ -341,8 +351,8 @@ export default function DataRequests() {
       header: "Review",
       sortable: false,
       render: (req) => (
-        <Btn onClick={() => open(req)} aria-label={`Review request ${req.id}`}>
-          Review <span aria-hidden="true">↗</span>
+        <Btn onClick={() => open(req)} aria-label={`${matchesRequestStatus(req.status, "closed") ? "View" : "Review"} request ${req.id}`}>
+          {matchesRequestStatus(req.status, "closed") ? "View" : "Review"} <span aria-hidden="true">↗</span>
         </Btn>
       ),
     },
@@ -397,9 +407,9 @@ export default function DataRequests() {
               "file",
             ],
             [
-              "Completed",
-              "Completed",
-              requests.filter((r) => r.status === "Completed").length,
+              "closed",
+              "Closed requests",
+              requests.filter((r) => matchesRequestStatus(r.status, "closed")).length,
               "check",
             ],
           ].map(([key, label, count, icon]) => (
@@ -419,11 +429,11 @@ export default function DataRequests() {
                 {label}
                 <Icon name={icon} />
               </span>
-              <strong>{loading ? "—" : count}</strong>
+              <strong>{loading || error ? "—" : count}</strong>
               <small>
                 {key === "open"
                   ? "Pending + in progress"
-                  : "View these requests"}{" "}
+                  : key === "closed" ? "Completed + rejected" : "View these requests"}{" "}
                 <span aria-hidden="true">↗</span>
               </small>
             </button>
@@ -438,8 +448,12 @@ export default function DataRequests() {
               </p>
             </div>
             <span className="pill">
-              {loading ? "Loading…" : `${filtered.length} results`}
+              {loading ? "Loading…" : error ? "Unavailable" : `${filtered.length} results`}
             </span>
+          </div>
+          <div className="aw-inline-actions privacy-queue-views" aria-label="Request views">
+            <Btn aria-pressed={statusFilter === "open"} onClick={() => setStatusFilter("open")}>Open requests</Btn>
+            <Btn aria-pressed={statusFilter === "closed"} onClick={() => setStatusFilter("closed")}>Closed requests</Btn>
           </div>
           <div className="aw-filters">
             <label className="aw-label">
@@ -458,6 +472,7 @@ export default function DataRequests() {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="open">Needs attention</option>
+                <option value="closed">Closed · completed + rejected</option>
                 <option value="all">All statuses</option>
                 {STATUS_OPTIONS.map((v) => (
                   <option key={v} value={v}>
@@ -473,7 +488,7 @@ export default function DataRequests() {
                 onChange={(e) => setTypeFilter(e.target.value)}
               >
                 <option value="all">All types</option>
-                {["Access", "Export", "Rectification", "Erasure"].map((v) => (
+                {REQUEST_TYPES.map((v) => (
                   <option key={v} value={v}>
                     {requestTypeLabel(v)}
                   </option>
@@ -549,8 +564,7 @@ export default function DataRequests() {
           )}
           <footer className="aw-pagination">
             <span>
-              Page {currentPage} of {pages} · {filtered.length} matching
-              requests
+              {error ? "Request counts unavailable" : `Page ${currentPage} of ${pages} · ${filtered.length} matching requests`}
             </span>
             <div>
               <Btn
@@ -635,6 +649,7 @@ export default function DataRequests() {
                     <p>Review the request and perform the work it needs.</p>
                   </div>
                 </div>
+                {active.requestType === "Other" && <p>Read the request and provide a written response below. Select “Written response provided” once the response is ready.</p>}
                 {(active.requestType === "Access" ||
                   active.requestType === "Export") && (
                   <>
@@ -771,6 +786,7 @@ export default function DataRequests() {
                 </div>
                 <Field label="Resolution note">
                   <Textarea
+                    ref={noteInput}
                     maxLength={2000}
                     rows={4}
                     value={adminNote}
@@ -783,8 +799,18 @@ export default function DataRequests() {
                   />
                 </Field>
                 <small className="aw-field-help">
-                  Required to complete or reject · {adminNote.length}/2000
+                  Visible to the requester. Required to complete or reject · {adminNote.length}/2000
                 </small>
+                {closed && active.status === "Rejected" ? (
+                  <p><strong>Rejection reason:</strong> {rejectionReasonLabel(active.rejectionReason)}</p>
+                ) : !closed && (
+                  <Field label="Reason if rejecting">
+                    <Select ref={reasonInput} value={rejectionReason} disabled={!!working}
+                      onChange={(e) => { setRejectionReason(e.target.value); setError(""); }}
+                      options={[{ value: "", label: "Choose a reason to reject" }, ...REJECTION_REASONS]} />
+                    <small className="aw-field-help">Explain the reason in the resolution note, including when choosing Other.</small>
+                  </Field>
+                )}
                 <Field label="Action taken">
                   <Select
                     value={resolution}
@@ -795,6 +821,7 @@ export default function DataRequests() {
                       { value: "Export", label: "Data copy exported" },
                       { value: "Correction", label: "Profile corrected" },
                       { value: "Deletion", label: "Personal data erased" },
+                      ...(active.requestType === "Other" ? [{ value: "Response", label: "Written response provided" }] : []),
                     ]}
                   />
                 </Field>
@@ -810,6 +837,7 @@ export default function DataRequests() {
                 </p>
               )}
               <div className="privacy-review-actions">
+                <Btn onClick={close} disabled={!!working}>Back to requests</Btn>
                 <Btn
                   onClick={() => move("InProgress")}
                   disabled={
