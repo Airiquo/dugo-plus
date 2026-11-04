@@ -391,7 +391,7 @@ export default function Requests() {
                         value: String(km),
                         label: `Within ${km} km`,
                       })),
-                      { value: "all", label: "Any distance" },
+                      { value: "all", label: "Any matched distance" },
                     ],
                   },
                   {
@@ -675,8 +675,8 @@ export default function Requests() {
                     </div>
                     {tab === "available" && position && (
                       <small>
-                        Distance filters apply to requests already matched to
-                        you.
+                        Widening to 50 km finds additional compatible requests near
+                        your saved location. Automatic alerts stay within 25 km.
                       </small>
                     )}
                   </div>
