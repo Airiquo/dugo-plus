@@ -7,7 +7,7 @@ import { BLOOD_TYPES } from '../../services/users'
 import { COMPONENTS, componentLabel } from '../../services/requests'
 import { useTableSort } from '../../hooks/useTableSort'
 import { donorDirectoryColumns, donorHistoryColumns, filterHospitalDonors } from '../../utils/hospitalDonors'
-import { Badge, Btn, Card, HospitalPageHeader, RecordFilters, SortControls, Table, TableExport } from '../../components'
+import { Badge, Btn, Card, CopyId, HospitalPageHeader, RecordFilters, SortControls, Table, TableExport } from '../../components'
 
 const emptyFilters = { search: '', bloodType: 'all', component: 'all', from: '', to: '' }
 const dateLabel = value => value ? new Date(value).toLocaleDateString('en-PH', { dateStyle: 'medium', timeZone: 'Asia/Manila' }) : 'Not recorded'
@@ -49,7 +49,6 @@ function DonorRecords({ hospitalId, selected, onView }) {
   const [state, setState] = useState({ status: 'loading', rows: [], nextCursor: null })
   const [cursors, setCursors] = useState([null])
   const [attempt, setAttempt] = useState(0)
-  const [exportScope, setExportScope] = useState('filtered')
   const { sort, setSort, toggleSort } = useTableSort()
   const after = cursors.at(-1)
   useEffect(() => {
@@ -64,7 +63,7 @@ function DonorRecords({ hospitalId, selected, onView }) {
   const visible = filterHospitalDonors(state.rows, filters, sort, history)
   const scopeLabel = history ? 'donation history on this page' : 'donors on this page'
   const fields = [
-    { key: 'bloodType', label: 'Blood group', options: history ? BLOOD_TYPES : [...BLOOD_TYPES, { value: 'private', label: 'Private / unavailable' }] },
+    { key: 'bloodType', label: 'Blood group', allLabel: 'All blood groups', options: history ? BLOOD_TYPES : [...BLOOD_TYPES, { value: 'private', label: 'Private / unavailable' }] },
     ...(history ? [{ key: 'component', label: 'Component', options: COMPONENTS }] : []),
   ]
   const columns = history ? [
@@ -72,43 +71,41 @@ function DonorRecords({ hospitalId, selected, onView }) {
     { key: 'bloodType', header: 'Blood group', render: row => <Badge>{row.bloodType || 'Not recorded'}</Badge> },
     { key: 'component', header: 'Component', render: row => componentLabel(row.component) || 'Not recorded' },
     { key: 'units', header: 'Actual units', render: row => row.units ?? 'Not recorded' },
-    { key: 'reference', header: 'References', sortable: false, render: row => <div className="hospital-donors-reference"><span>Donation: {row.id}</span><span>Request: {row.requestId || 'Not recorded'}</span>{row.legacy && <span className="muted">Legacy confirmed record</span>}</div> },
+    { key: 'reference', header: 'References', sortable: false, render: row => <div className="hospital-donors-reference"><span>Donation <CopyId value={row.id} label="donation ID" /></span><span>Request <CopyId value={row.requestId} label="request ID" /></span>{row.legacy && <span className="muted">Legacy confirmed record</span>}</div> },
   ] : [
-    { key: 'donor', header: 'Donor', render: row => <div className="hospital-donors-reference"><strong>{row.donor?.fullName || 'Profile private'}</strong><span className="muted">{row.id}</span></div> },
+    { key: 'donor', header: 'Donor', render: row => <div className="hospital-donors-reference"><strong>{row.donor?.fullName || 'Profile private'}</strong><CopyId value={row.id} label="donor ID" /></div> },
     { key: 'bloodType', header: 'Blood group', render: row => <Badge>{row.donor?.bloodType || 'Private'}</Badge> },
     { key: 'contact', header: 'Shared contact', sortable: false, render: row => <div className="hospital-donors-reference">{row.donor ? <><span>{row.donor.email || 'No email shared'}</span><span>{row.donor.phoneNumber || 'No phone shared'}</span><span className="muted">{row.donor.city}</span></> : <span className="muted">Current visit consent and an active profile are required.</span>}</div> },
     { key: 'actions', header: 'History', sortable: false, render: row => <Btn aria-label={`View donor ${row.donor?.fullName || row.id}`} onClick={() => onView(row)}>View donor</Btn> },
   ]
   const summary = Object.entries(filters).filter(([, value]) => value && value !== 'all').map(([key, value]) => `${key}: ${value}`).join(' · ')
-  async function getExportRows(_scope, onProgress) {
+  async function getExportRows(scope, onProgress) {
     const rows = await exportHospitalDonors({ hospitalId, ...(selected ? { donorId: selected.id } : {}) }, onProgress)
-    return filterHospitalDonors(rows, exportScope === 'filtered' ? filters : emptyFilters, sort, history)
+    return filterHospitalDonors(rows, scope === 'filtered' ? filters : emptyFilters, sort, history)
   }
   return <div className="hospital-donors">
     <aside className="hospital-donors-context">
-      <div><p className="hw-eyebrow">{history ? 'One donor · This facility' : 'Completed visits only'}</p><h2>{history ? selected.id : 'A history of showing up.'}</h2></div>
+      <div><p className="hw-eyebrow">{history ? 'One donor · This facility' : 'Completed visits only'}</p><h2>{history ? selected.donor?.fullName || 'Donor profile unavailable' : 'A history of showing up.'}</h2>{history && <div className="hospital-donor-identity-ref"><span>Donor ID</span><CopyId value={selected.id} label="donor ID" /></div>}</div>
       <p>{history ? 'History includes legacy confirmed donations. These records do not create or change stock.' : 'Accepted and deferred matches are excluded. Names and contacts appear only with current consent for the directory’s completed visit.'}</p>
     </aside>
     <Card className="hospital-inventory-table">
-      <header className="hospital-donors-heading"><div><h2>{history ? 'Completed donations' : 'Donor directory'}</h2><p className="muted">{ready ? `${visible.length} matching ${history ? 'records' : 'donors'} on page ${cursors.length}.` : 'Loading facility records…'} Search, filters and sorting apply to this page. Exports include every matching page.</p></div>
+      <header className="hospital-donors-heading"><div><h2>{history ? 'Completed donations' : 'Donor directory'} <span className="pill">{ready ? `${visible.length} matching` : 'Loading…'}</span></h2><p className="muted">Page {cursors.length} · Search, filters and sorting apply to this page. Exports include every matching page.</p></div>
         <Btn icon="refresh" disabled={state.status === 'loading'} onClick={() => { setCursors([null]); setAttempt(value => value + 1) }}>Refresh</Btn></header>
+      <div className="record-toolbar hospital-donors-toolbar">
       <RecordFilters name={scopeLabel} value={filters} onChange={setFilters} fields={fields} dates={history} disabled={!ready}
         searchPlaceholder={history ? 'Search donation or request ID on this page…' : 'Search shared name, city or donor ID on this page…'} />
-      <SortControls name="facility-donors" sort={sort} onChange={setSort} defaultLabel="Reference order · This page"
+      <SortControls name="facility-donors" label="Sort (this page)" labelHidden={false} sort={sort} onChange={setSort} defaultLabel="Reference order"
         fields={columns.filter(column => column.sortable !== false).map(column => ({ key: column.key, label: column.header }))} />
-      <div className="hospital-donors-export"><label>Export scope <select className="field" aria-label="Donor export scope" value={exportScope} onChange={event => setExportScope(event.target.value)} disabled={!ready}>
-        <option value="filtered">All matching pages · Current filters</option><option value="all">All pages · Clear filters</option>
-      </select></label>
-      <TableExport key={`${hospitalId}:${selected?.id || ''}:${exportScope}:${summary}:${sort.key}:${sort.direction}`} name={history ? 'facility-donor-history' : 'facility-donor-directory'} title={history ? `Facility ${hospitalId} · Donor ${selected.id} completed donations` : `Facility ${hospitalId} donor directory`}
+      <TableExport key={`${hospitalId}:${selected?.id || ''}`} name={history ? 'facility-donor-history' : 'facility-donor-directory'} title={history ? `Facility ${hospitalId} · Donor ${selected.id} completed donations` : `Facility ${hospitalId} donor directory`}
         columns={history ? donorHistoryColumns : donorDirectoryColumns} getRows={getExportRows} disabled={!ready}
-        filterSummary={`${exportScope === 'filtered' ? summary || 'No filters' : 'All records'} · All authorized pages · ${sort.key || 'Reference'} ${sort.direction}`} /></div>
+        filterSummary={`${summary || 'No filters'} · ${sort.key || 'Reference'} ${sort.direction}`} getPageRows={() => visible} /></div>
       {state.status === 'loading' && <p className="hospital-state" role="status">Loading {history ? 'completed donations' : 'donors'}…</p>}
       {state.status === 'error' && <div className="hospital-state" role="alert"><p>{state.error}</p><Btn onClick={() => setAttempt(value => value + 1)}>Try again</Btn></div>}
       {ready && (visible.length ? <Table className="hospital-table" mobileCards columns={columns} rows={visible} rowKey={row => row.id} scroll={false} sort={sort} onSort={toggleSort} mobileSort={false} /> :
         <div className="hw-empty"><h3>{state.rows.length ? 'No matches on this page' : history ? 'No completed donations on this page' : 'No completed donors on this page'}</h3><p>{state.nextCursor ? 'Continue to the next page or clear your filters.' : 'Refresh after a completed donation, or clear filters to see available records.'}</p><Btn onClick={() => setFilters(emptyFilters)}>Clear filters</Btn></div>)}
       <nav className="hospital-donors-pager" aria-label={history ? 'Donor history pages' : 'Donor directory pages'}>
         <Btn disabled={!ready || cursors.length === 1} onClick={() => setCursors(value => value.slice(0, -1))}>Previous page</Btn>
-        <span aria-live="polite">Page {cursors.length} · {ready ? state.rows.length : '—'} {history ? 'records' : 'donors'} loaded</span>
+        <span aria-live="polite">Page {cursors.length} · {ready ? state.rows.length : '—'} {history ? (state.rows.length === 1 ? 'record' : 'records') : (state.rows.length === 1 ? 'donor' : 'donors')} loaded</span>
         <Btn disabled={!ready || !state.nextCursor} onClick={() => { setCursors(value => [...value, state.nextCursor]) }}>Next page</Btn>
       </nav>
     </Card>

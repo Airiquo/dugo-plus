@@ -17,11 +17,10 @@ import Welcome from './pages/shared/Welcome'
 import Dashboard from './pages/admin/Dashboard'
 import BloodRequests from './pages/admin/BloodRequests'
 import AuditTrail from './pages/admin/AuditTrail'
-import AdminProfile from './pages/admin/Profile'
 import AdminAccounts from './pages/admin/Accounts'
 import AdminSettings from './pages/admin/Settings'
 import AdminDataRequests from './pages/admin/DataRequests'
-import Profile from './pages/donor/Profile'
+import DonorSettings from './pages/donor/Settings'
 import Activity from './pages/donor/Activity'
 import DonorPrivacy from './pages/donor/Privacy'
 import Requests from './pages/donor/Requests'
@@ -31,7 +30,7 @@ import NewRequest from './pages/hospital/NewRequest'
 import HospitalDashboard from './pages/hospital/Dashboard'
 import Inventory from './pages/hospital/Inventory'
 import HospitalMap from './pages/hospital/Map'
-import HospitalProfile from './pages/hospital/Profile'
+import HospitalSettings from './pages/hospital/Settings'
 import HospitalFacility from './pages/hospital/Facility'
 import InventoryLog from './pages/hospital/InventoryLog'
 import HospitalDonors from './pages/hospital/Donors'
@@ -131,12 +130,12 @@ export default function App() {
           {/* Donor surface (FR-04). Donor accounts have no AppShell, so this
               sits behind the session + account-type gates only. */}
           <Route
-            path="/home"
+            path="/donor/settings"
             element={
               <RequireAuth>
                 <RequireVerified>
                   <RequireRole roles={['donor']}>
-                    <Profile />
+                    <DonorSettings />
                   </RequireRole>
                 </RequireVerified>
               </RequireAuth>
@@ -154,7 +153,8 @@ export default function App() {
               </RequireAuth>
             }
           />
-          <Route path="/donor/profile" element={<Navigate to="/home" replace />} />
+          <Route path="/home" element={<Navigate to="/donor/settings" replace />} />
+          <Route path="/donor/profile" element={<Navigate to="/donor/settings" replace />} />
           {/* Donor blood requests (FR-005/006/022/023/028/029/030/038). */}
           <Route
             path="/donor/requests"
@@ -197,7 +197,7 @@ export default function App() {
             <Route path="/admin/dashboard" element={<Dashboard />} />
             <Route path="/admin/blood-requests" element={<BloodRequests />} />
             <Route path="/admin/audit-trail" element={<AuditTrail />} />
-            <Route path="/admin/profile" element={<AdminProfile />} />
+            <Route path="/admin/profile" element={<Navigate to="/admin/settings" replace />} />
             <Route path="/admin/accounts" element={<AdminAccounts />} />
             <Route path="/admin/settings" element={<AdminSettings />} />
             <Route path="/admin/data-requests" element={<AdminDataRequests />} />
@@ -242,7 +242,8 @@ export default function App() {
             <Route path="/hospital/inventory-log" element={<InventoryLog />} />
             <Route path="/hospital/donors" element={<HospitalDonors />} />
             <Route path="/hospital/map" element={<HospitalMap />} />
-            <Route path="/hospital/profile" element={<HospitalProfile />} />
+            <Route path="/hospital/settings" element={<HospitalSettings />} />
+            <Route path="/hospital/profile" element={<Navigate to="/hospital/settings" replace />} />
             <Route path="/hospital/facility" element={<HospitalFacility />} />
           </Route>
           <Route path="/gallery" element={<Gallery />} />

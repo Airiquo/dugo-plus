@@ -36,6 +36,7 @@ import {
   Icon,
   LinkBtn,
   RecordFilters,
+  ControlPopover,
   Table,
   TableExport,
   TablePager,
@@ -435,6 +436,7 @@ export default function Dashboard() {
                 </label>
               </div>
             </div>
+            <ControlPopover name="overview-custom-dates" label="Date range" className="hw-range-popover">
             <form
               className="hw-date-range"
               noValidate
@@ -486,6 +488,7 @@ export default function Dashboard() {
               <Btn onClick={() => choosePreset("30")}>Reset to 30 days</Btn>
               <p>Inclusive dates · Philippine time</p>
             </form>
+            </ControlPopover>
             {rangeError && (
               <p className="record-filter-error" role="alert">
                 {rangeError}
@@ -675,7 +678,8 @@ export default function Dashboard() {
                 Full history <Icon name="arrow-right" size={16} />
               </Link>
             </div>
-            <RecordFilters
+            <div className="record-toolbar">
+              <RecordFilters
               name="collections"
               onReset={() => choosePreset("30")}
               value={filters}
@@ -704,6 +708,7 @@ export default function Dashboard() {
             />
             <TableExport
               name="collections"
+              getPageRows={() => visible.slice((page - 1) * 10, page * 10)}
               title={`${hospital?.name || "Facility"} blood collections`}
               columns={donationReportColumns}
               filterSummary={`${scopeLabel}${filters.bloodType !== "all" ? " · " + filters.bloodType : ""}${filters.component !== "all" ? " · " + componentLabel(filters.component) : ""}${filters.search ? " · Search: " + filters.search : ""}`}
@@ -714,6 +719,7 @@ export default function Dashboard() {
                   : allHospitalDonations(hospitalId, {}, progress)
               }
             />
+            </div>
             {ready &&
               (visible.length ? (
                 <>

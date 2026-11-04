@@ -235,6 +235,7 @@ export default function Requests() {
         <header className="donor-browse-header">
           <p className="donation-eyebrow">A connection worth making</p>
           <h1>Find where you can help.</h1>
+          <span className="pill donor-header-count">{available.length} matched</span>
           <p>
             Requests matched to your blood type. Choose a donation that works
             for you.
@@ -368,6 +369,7 @@ export default function Requests() {
               </div>
               <DonorFilterBar
                 name="donor-requests"
+                moreLabel="Filters"
                 sortLabel="Sort requests"
                 value={filters}
                 onChange={setFilters}
@@ -387,7 +389,7 @@ export default function Requests() {
                     options: [
                       ...[5, 10, 15, 20, 25, 50].map((km) => ({
                         value: String(km),
-                        label: `${km} km`,
+                        label: `Within ${km} km`,
                       })),
                       { value: "all", label: "Any distance" },
                     ],
@@ -405,6 +407,9 @@ export default function Requests() {
                       ]),
                     ).map((value) => ({ value, label: componentName(value) })),
                   },
+
+                ]}
+                advanced={[
                   {
                     key: "priority",
                     label: "Urgency",
@@ -417,8 +422,6 @@ export default function Requests() {
                           : option.label,
                     })),
                   },
-                ]}
-                advanced={[
                   {
                     key: "status",
                     label: "Request status",
@@ -462,7 +465,7 @@ export default function Requests() {
                     className="donor-clear-filters"
                     onClick={clearFilters}
                   >
-                    Clear
+                    Clear filters
                   </button>
                 )}
                 <div
@@ -606,7 +609,7 @@ export default function Requests() {
                         : hasRefinements
                           ? "No requests match your filters."
                           : position && radius !== "all"
-                            ? `No requests within ${radius} km right now.`
+                            ? "No requests nearby right now"
                             : "No matched requests right now."}
                     </h2>
                     <p>
@@ -663,6 +666,7 @@ export default function Requests() {
                           Check again
                         </button>
                       )}
+                      {/* TODO(design): no alert opt-in setting exists; preserve the existing inbox destination. */}
                       {tab === "available" && (
                         <Link className="btn" to="/donor/alerts">
                           View alerts

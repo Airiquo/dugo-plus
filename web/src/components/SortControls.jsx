@@ -17,12 +17,14 @@ export function SortControls({
   onChange,
   fields,
   defaultLabel = "Recommended order",
+  label = "Sort by",
+  labelHidden = true,
   className,
   ...rest
 }) {
   return (
     <div className={cx("record-sort-controls", className)} {...rest}>
-      <label className="care-sr-only" htmlFor={`${name}-sort-key`}>Sort by</label>
+      <label className={labelHidden ? "care-sr-only" : undefined} htmlFor={`${name}-sort-key`}>{label}</label>
       <select
         id={`${name}-sort-key`}
         value={sort.key ? `${sort.key}:${sort.direction}` : ""}

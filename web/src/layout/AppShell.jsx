@@ -78,7 +78,6 @@ export function AppShell({ children, ...rest }) {
       "audit-trail",
       "data-requests",
       "settings",
-      "profile",
     ].includes(item.slug),
   ).map((item) => ({
     to: `/admin/${item.slug}`,

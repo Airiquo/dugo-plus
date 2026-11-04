@@ -16,6 +16,7 @@ export function DonorFilterBar({
   placeholder,
   sortLabel = "Sort results",
   dateLabel = "Date range",
+  moreLabel = "More filters",
   className,
   children,
   ...rest
@@ -124,7 +125,7 @@ export function DonorFilterBar({
             onClick={() => setOpen(true)}
           >
             <Icon name="settings" size={16} />
-            <span>More filters</span>
+            <span>{moreLabel}</span>
             {hasAdvanced && (
               <span
                 className="donor-filter-indicator"
@@ -133,8 +134,8 @@ export function DonorFilterBar({
             )}
           </button>
         </div>
+        {children}
       </div>
-      {children}
       <dialog
         ref={dialog}
         id={`${name}-drawer`}

@@ -7,17 +7,15 @@ import {
   listAllDataRequests,
   requestTypeLabel,
 } from "../../services/dataRequests";
-import { readSystemConfig } from "../../services/systemConfig";
 import { sortDate } from "../../utils/sortRows";
 import { Btn, Icon, PageHeader } from "../../components";
 
-/** Administration overview of current profiles, privacy work and matching configuration. */
+/** Administration overview of current profiles and privacy work. */
 export default function Dashboard() {
   const { user, profile } = useAuth();
   const [data, setData] = useState({
     accounts: null,
     requests: null,
-    config: null,
   });
   const [errors, setErrors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,10 +27,9 @@ export default function Dashboard() {
     const results = await Promise.allSettled([
       listUsers(),
       listAllDataRequests(),
-      readSystemConfig(),
     ]);
     if (version !== generation.current) return;
-    const labels = ["Accounts", "Privacy requests", "Matching settings"];
+    const labels = ["Accounts", "Privacy requests"];
     setErrors(
       results.flatMap((result, i) =>
         result.status === "rejected" ? [labels[i]] : [],
@@ -40,7 +37,7 @@ export default function Dashboard() {
     );
     setData(
       Object.fromEntries(
-        ["accounts", "requests", "config"].map((key, i) => [
+        ["accounts", "requests"].map((key, i) => [
           key,
           results[i].status === "fulfilled" ? results[i].value : null,
         ]),
@@ -115,7 +112,7 @@ export default function Dashboard() {
                 ? `Snapshot refreshed ${updatedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
                 : ""}
           </span>
-          <span>Accounts · Privacy · Matching</span>
+          <span>Accounts · Privacy</span>
         </div>
         {!!errors.length && (
           <div className="aw-notice aw-error" role="alert">
@@ -238,43 +235,7 @@ export default function Dashboard() {
               </Link>
             </div>
           </section>
-          <section className="card aw-panel overview-config">
-            <div className="aw-panel-heading">
-              <div>
-                <h2>Notification policy</h2>
-                <p>Retry settings for interrupted notifications.</p>
-              </div>
-              <Icon name="refresh" />
-            </div>
-            <div className="aw-panel-body">
-              {loading ? (
-                <p role="status">Loading configuration…</p>
-              ) : data.config ? (
-                <>
-                  <dl className="overview-config-facts">
-                    <div>
-                      <dt>Notification retries</dt>
-                      <dd>{data.config.notifRetryLimit}</dd>
-                    </div>
-                    <div>
-                      <dt>Retry interval</dt>
-                      <dd>{data.config.notifRetryInterval} min</dd>
-                    </div>
-                  </dl>
-                </>
-              ) : (
-                <div className="aw-empty">
-                  <h3>Settings unavailable</h3>
-                  <p>Refresh the overview to try again.</p>
-                </div>
-              )}
-            </div>
-            <div className="overview-panel-link">
-              <Link to="/admin/settings">
-                Review notification settings <Icon name="arrow-right" />
-              </Link>
-            </div>
-          </section>
+
         </div>
         <section
           className="overview-tools"

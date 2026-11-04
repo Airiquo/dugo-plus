@@ -415,7 +415,8 @@ export default function InventoryLog() {
                   : "Loading every page before showing totals or filtered results."}
               </p>
             </header>
-            <RecordFilters
+            <div className="record-toolbar">
+              <RecordFilters
               name={donations ? "donation history" : "stock movements"}
               value={filters}
               fields={fields}
@@ -441,6 +442,7 @@ export default function InventoryLog() {
             />
             <TableExport
               name={donations ? "donation-history" : "stock-movements"}
+              getPageRows={() => visible.slice((currentPage - 1) * 10, currentPage * 10)}
               title={`${hospital?.name || "Facility"} ${donations ? "completed donations" : "stock movements"}`}
               columns={
                 donations ? donationReportColumns : movementReportColumns
@@ -452,6 +454,7 @@ export default function InventoryLog() {
                 .map(([key, value]) => `${key}: ${value}`)
                 .join(" · ")}
             />
+            </div>
             {data.status === "loading" && (
               <p className="hospital-state" role="status">
                 Loading complete history

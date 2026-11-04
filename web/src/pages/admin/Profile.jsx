@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "../../layout/AppShell";
 import { useAuth } from "../../hooks/useAuth";
@@ -28,7 +28,8 @@ function dateLabel(value) {
 }
 
 /** Administrator identity, contact details and read-only access facts. */
-export default function Profile() {
+export default function Profile({ embedded = false }) {
+  const Shell = embedded ? Fragment : AppShell;
   const { user, profile, role, reloadUser } = useAuth();
   const [source, setSource] = useState(null);
   const [form, setForm] = useState(formFrom(null));
@@ -142,9 +143,9 @@ export default function Profile() {
   }
   const status = source?.status || "Active";
   return (
-    <AppShell>
+    <Shell>
       <div className="admin-workspace">
-        <PageHeader title="My Profile" />
+        {!embedded && <PageHeader title="My Profile" />}
         <p className="profile-page-note">
           Manage your contact details and administrator identity.
         </p>
@@ -386,6 +387,6 @@ export default function Profile() {
           </div>
         </div>
       </div>
-    </AppShell>
+    </Shell>
   );
 }

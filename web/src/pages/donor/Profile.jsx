@@ -51,9 +51,10 @@ function formFrom(profile) {
  * Location is captured from the browser's geolocation prompt on request. An
  * authenticated Worker suggests a city from the point; donors can edit it.
  */
-export default function Profile() {
+export default function Profile({ embedded = false }) {
+  const Main = embedded ? "div" : "main";
   const { theme } = useTheme()
-  const { user, profile, loading, role, roleLoading, signOut } = useAuth()
+  const { user, profile, loading, role, roleLoading } = useAuth()
 
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [loadFailed, setLoadFailed] = useState(false)
@@ -286,14 +287,14 @@ export default function Profile() {
 
   return (
     <div
-      className="pub donor-surface"
+      className={embedded ? "donor-profile-content" : "pub donor-surface"}
       data-theme={theme}
-      style={{ display: 'grid', gridTemplateRows: 'auto 1fr' }}
+      style={embedded ? undefined : { display: 'grid', gridTemplateRows: 'auto 1fr' }}
     >
-      <DonorNav />
+      {!embedded && <DonorNav />}
 
-      <main id="top" className="profile-main donor-main">
-        <CarePageHeader kicker="Your donor space" title={<>{form.fullName ? `Hello, ${form.fullName.trim().split(' ')[0]}.` : 'A little of you.'}<br /><em>A lot of possibility.</em></>} description="A connection starts with knowing you. Keep your details ready for the next person who needs a donor." />
+      <Main id={embedded ? undefined : "top"} className={embedded ? "settings-profile-content" : "profile-main donor-main"}>
+        {!embedded && <CarePageHeader kicker="Your donor space" title={<>{form.fullName ? `Hello, ${form.fullName.trim().split(' ')[0]}.` : 'A little of you.'}<br /><em>A lot of possibility.</em></>} description="A connection starts with knowing you. Keep your details ready for the next person who needs a donor." />}
         <div className="donor-profile-layout">
         <form className="pub-card pub-form profile-card" noValidate onSubmit={submit}>
           <p className="pub-kicker">Your profile</p>
@@ -466,20 +467,13 @@ export default function Profile() {
               {loadFailed ? 'Profile unavailable' : busy ? 'Saving…' : !profileLoaded ? 'Loading…' : dirty ? 'Save profile' : 'Saved'}
               {!busy && dirty && <Icon name="arrow-right" size={14} />}
             </button>
-            <button
-              className="pub-btn pub-btn-ghost pub-btn-wide"
-              type="button"
-              disabled={busy}
-              onClick={() => signOut()}
-            >
-              Sign out
-            </button>
+
           </div>
         </form>
         <CareDonorCard bloodType={form.bloodType} city={form.city} eligibility={eligibility} loaded={profileLoaded && !loadFailed} error={loadFailed} photoURL={profile?.photoURL} name={form.fullName || user.displayName || user.email} />
         </div>
-        <SupportContact as="footer" />
-      </main>
+        {!embedded && <SupportContact as="footer" />}
+      </Main>
       <dialog
         ref={identityDialog}
         className="profile-confirm-dialog"
