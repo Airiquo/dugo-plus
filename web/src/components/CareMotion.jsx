@@ -41,16 +41,17 @@ export function MotionSection({ children, className = '', ...props }) {
 
 export function CountUp({ value, className, ...rest }) {
   const { ref, entered } = useVisibility()
-  const { paused } = useMotion()
-  const [count, setCount] = useState(value)
+  const { paused, reduced } = useMotion()
+  const [count, setCount] = useState(0)
+  const elapsed = useRef(0)
   const completed = useRef(false)
   useEffect(() => {
     if (!entered || completed.current || paused) return
-    let frame
-    let start
+    let frame, previous
     const tick = time => {
-      start ??= time
-      const progress = Math.min((time - start) / 1400, 1)
+      if (previous !== undefined) elapsed.current += Math.min(time - previous, 50)
+      previous = time
+      const progress = Math.min(elapsed.current / 1400, 1)
       setCount(Math.round(value * (1 - Math.pow(1 - progress, 3))))
       if (progress < 1) frame = requestAnimationFrame(tick)
       else completed.current = true
@@ -58,7 +59,7 @@ export function CountUp({ value, className, ...rest }) {
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
   }, [entered, paused, value])
-  return <span ref={ref} className={className} aria-label={value.toLocaleString('en-US')} {...rest}><span aria-hidden="true">{paused ? value.toLocaleString('en-US') : count.toLocaleString('en-US')}</span></span>
+  return <span ref={ref} className={className} aria-label={value.toLocaleString('en-US')} {...rest}><span aria-hidden="true">{(reduced ? value : count).toLocaleString('en-US')}</span></span>
 }
 
 /** A card's pause button and hover affect only its own animation subtree. */

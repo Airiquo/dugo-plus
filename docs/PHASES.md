@@ -361,7 +361,7 @@ route renders `pages/shared/NotConfigured`.
 - **Role navigation and Settings tabs (2026-11-04, D87):** Owner restores dedicated donor/hospital profile pages, places Settings last, nests donor privacy/history and facility details in Settings, preserves old URLs as redirects, and separates danger-colored sign-out actions. Admin navigation is unchanged. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
 
 
-- **Landing interactions (2026-11-04, D86):** Owner restores global pause and theme access; cards pause independently, matching steps use clicks, partner content appears before impact/features, and ribbon position survives visibility, resize and remount. Aggregate rating and review content are unchanged. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
+- **Landing interactions (2026-11-04, D86):** Counters retain their elapsed progress across global/local pauses; destination and compatibility cards also have local controls. Owner restores global pause and theme access; cards pause independently, matching steps use clicks, partner content appears before impact/features, and ribbon position survives visibility, resize and remount. Aggregate rating and review content are unchanged. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
 
 
 - **Universal exports (2026-11-04, D85):** owner answers that every Export menu must use the same three scopes (current matching filters, this page, all pages with filters cleared) and the same Download CSV / Print PDF actions. Report-only filter clearing retains every authorized context. No unresolved scope question or phase-count change.

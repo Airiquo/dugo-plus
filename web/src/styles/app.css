@@ -10644,3 +10644,7 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
   .hospital-workspace .record-toolbar-stacked .screen-filter-choice { width: auto; min-width: 0; margin: 0; }
   .hospital-workspace .record-toolbar-stacked .screen-filter-choice select { width: 100%; min-width: 0; }
 }
+
+.care-landing .motion-card[data-card-paused=true] > img { transform: none; transition: none; }
+.care-landing .address-envelope .card-motion-control { top: 8px; right: 8px; }
+.care-landing .address-envelope .address-card-top { padding-right: 44px; }

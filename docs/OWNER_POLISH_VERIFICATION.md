@@ -88,3 +88,13 @@ The full regression command passes 157 tests after adding cache, registration,
 city-search and queue-stage coverage. Vite build and traceability checks pass;
 compiled output contains route chunks, stage-filter labels and stacked-toolbar
 rules. Responsive fixtures wait for real route content after lazy loading.
+
+Final responsive fixtures: 80 fully loaded route layouts at 320/390/768/1440px
+in both themes pass without page overflow or JavaScript errors. Phone profile,
+queue, history and desktop table screenshots were inspected. Motion follow-up
+keeps elapsed counter progress through pause/resume and adds local destination/
+compatibility card controls. Review content/aggregate calculation stay unchanged.
+
+Final motion checks pass: counters freeze/resume from elapsed progress, card hover
+and explicit pause remain local, arrows retain their offset across a news-article
+unmount/remount, and light/dark phone/desktop landing checks still pass.
