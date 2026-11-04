@@ -154,3 +154,34 @@ the logging source stamp from the entry bundle into a shared chunk. The verifier
 now searches all generated JS and verifies remote hashes/cache policy for every
 JS/CSS asset, including lazy pages. Deployment targets remain the existing Worker,
 clean-project rules and both documented Hosting entry points.
+
+## Production rollout — 2026-11-04 (Asia/Manila)
+
+Owner-authorized deployment is complete for the reviewed feature set. Initial
+Hosting release source is clean merged integration `f84209825208` (PRs #62/#63).
+Both `https://dugo-plus-clean.web.app` and `https://dugo-plus.web.app` serve the
+same build. All 50 compiled JS/CSS assets plus / and /register pass exact-byte
+and cache-policy verification on each domain (52 checks per domain).
+
+Worker version: `f89de5ad-51de-40ba-8674-17c643c029c0` at the existing
+`https://dugo-matching.dugo-plus.workers.dev`. Existing six secret bindings and
+runtime variables are retained; AUDIT_HASH_SECRET was not rotated. /health and
+clean-origin CORS return 200; city/reverse/discovery endpoints require a bearer
+token (401 without one). The public city provider responds to a bounded PH query.
+
+Clean-project ruleset: `1ba0103e-db1a-4b53-87c2-0d4e53b38b2f`. Downloaded source
+SHA-256 matches reviewed rules exactly:
+`b4b3f035934565389c277e8cf085d1570e21bb492a93be0da1953f29e8ceed0d`.
+No index, stock, data migration or reference-configuration change is performed.
+
+Live phone-width checks pass on both domains: pause/theme behavior, required
+registration identity fields and review/Back without account creation, current
+privacy version, signed-out donor/hospital/admin gates, no page errors/overflow.
+No production donor/hospital record, stock operation, verification email or
+Google OAuth account was created/exercised. Authenticated persistence and
+transaction checks remain the earlier isolated emulator evidence.
+
+Final follow-up derives the displayed privacy update date from
+PRIVACY_NOTICE_VERSION to avoid a second stale date. Its merged build is
+republished and reverified on both domains; the operator JSON reports in
+`/private/tmp/dugo-owner-verify-{clean,legacy}.json` hold the final source stamp.
