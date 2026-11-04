@@ -349,6 +349,9 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Live screening filters and hospital toolbars (2026-11-04, D90):** Owner adds correct auto-updating queue filters and withdraws the inventory-refresh fix. Queue filtering/export/status presentation share normalized donation stages, live request/match subscriptions update rows and stale selections, and completed stages disappear immediately. Crowded hospital tables put search above aligned filters/export; status controls widen and the post-confirm success note is removed. Inventory confirmation/stock-write behavior is unchanged. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
+
+
 - **Registration identity and donor location (2026-11-04, D89):** Owner confirms required DOB, gender and blood group plus password confirmation and one-time review at email registration; Google accounts land on /home with completion prompts. Staff demographic displays derive age from DOB. Gender is a new erasable profile field and is not a matching criterion. Donors can pin or enter coordinates and use authenticated city suggestions. Notice version is 2026-11-04; legacy consent is preserved. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
 
 

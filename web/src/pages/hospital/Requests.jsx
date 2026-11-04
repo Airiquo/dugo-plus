@@ -531,6 +531,37 @@ export default function Requests() {
               Urgency first, then oldest. Open requests are awaiting donors.
             </p>
           </div>
+
+        </header>
+        <div id="hreq-view" aria-busy={loading}>
+          <div className="hreq-toolbar hreq-toolbar-stacked">
+            <label className="hreq-search">
+              <span className="care-sr-only">Search requests</span>
+              <Icon name="search" size={18} />
+              <input
+                type="search"
+                aria-label="Search requests"
+                placeholder="Search type, component or ID…"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                disabled={loading || !hospitalId}
+              />
+              {search && (
+                <button
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => {
+                    setSearch("");
+                    setPage(1);
+                  }}
+                >
+                  <Icon name="x" size={15} />
+                </button>
+              )}
+            </label>
           <div className="hreq-heading-controls">
             <label className="hreq-heading-select">
               <span className="care-sr-only">Filter requests by status</span>
@@ -580,36 +611,6 @@ export default function Requests() {
               </select>
             </label>
           </div>
-        </header>
-        <div id="hreq-view" aria-busy={loading}>
-          <div className="hreq-toolbar">
-            <label className="hreq-search">
-              <span className="care-sr-only">Search requests</span>
-              <Icon name="search" size={18} />
-              <input
-                type="search"
-                aria-label="Search requests"
-                placeholder="Search type, component or ID…"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value);
-                  setPage(1);
-                }}
-                disabled={loading || !hospitalId}
-              />
-              {search && (
-                <button
-                  type="button"
-                  aria-label="Clear search"
-                  onClick={() => {
-                    setSearch("");
-                    setPage(1);
-                  }}
-                >
-                  <Icon name="x" size={15} />
-                </button>
-              )}
-            </label>
             <label className="hreq-component">
               <span>Component</span>
               <select

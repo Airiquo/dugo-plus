@@ -415,8 +415,8 @@ export default function InventoryLog() {
                   : "Loading every page before showing totals or filtered results."}
               </p>
             </header>
-            <div className="record-toolbar">
-              <RecordFilters
+            <div className="record-toolbar record-toolbar-stacked">
+              <RecordFilters searchAbove
               name={donations ? "donation history" : "stock movements"}
               value={filters}
               fields={fields}

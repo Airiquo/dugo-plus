@@ -448,3 +448,36 @@ export async function readHospitals(ids) {
   );
   return new Map(rows);
 }
+
+/** Live facility queue. Shares request/match listeners and releases them on unmount. */
+export function watchFacilityMatches(hospitalId, onNext, onError) {
+  requireDb()
+  const id = text(hospitalId)
+  if (!id) { onNext([]); return () => {} }
+  return sessionWatch(`queue:${id}`, (next, fail) => {
+    let active = true
+    const groups = new Map()
+    const emit = () => {
+      if (!active || [...groups.values()].some(group => !group.snapshot)) return
+      next([...groups.values()].flatMap(group => group.snapshot.docs.map(snap => matchRow(snap, group.request)))
+        .sort((a,b) => (b.matchedAt?.getTime() || 0) - (a.matchedAt?.getTime() || 0)))
+    }
+    const stop = onSnapshot(query(collection(db, 'bloodRequests'), where('hospitalId', '==', id)), snapshot => {
+      if (!active) return
+      const ids = new Set(snapshot.docs.map(snap => snap.id))
+      for (const [key, group] of groups) if (!ids.has(key)) { group.stop(); groups.delete(key) }
+      for (const snap of snapshot.docs) {
+        const data = snap.data() || {}
+        const request = { id: snap.id, hospitalId: id, bloodType: text(data.bloodType), component: text(data.component) }
+        if (groups.has(snap.id)) { groups.get(snap.id).request = request; continue }
+        const group = { request, snapshot: null, stop: () => {} }
+        groups.set(snap.id, group)
+        group.stop = onSnapshot(query(collection(db, 'donorMatches'), where('requestId', '==', snap.id)), matches => {
+          group.snapshot = matches; emit()
+        }, error => { if (active) fail(error) })
+      }
+      emit()
+    }, error => { if (active) fail(error) })
+    return () => { active = false; stop(); for (const group of groups.values()) group.stop(); groups.clear() }
+  }, onNext, onError)
+}

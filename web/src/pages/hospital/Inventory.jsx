@@ -1,3 +1,4 @@
+import { QUEUE_STAGES, queueFilterFields, pendingDonationRows, queueStatus } from '../../utils/donationQueue'
 import { HospitalDonationDetails } from '../../components/HospitalDonationDetails';
 import { donationStage } from '../../utils/donationCompletion';
 import {
@@ -22,6 +23,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import {
   getFacilityMatches,
+  watchFacilityMatches,
   getInventoryLogs,
   listHospitals,
   readHospital,
@@ -118,23 +120,7 @@ function isConfirmable(row) {
 }
 
 /** The log's status tone for a match that has no donation record yet. */
-function pendingStatus(row) {
-  if (row.responseStatus === "Declined")
-    return { label: row.withdrawnAt ? "Withdrew" : "Declined", tone: "rejected" };
-  if (row.responseStatus === "Expired")
-    return { label: "Expired", tone: "deferred" };
-  if (row.responseStatus !== "Accepted")
-    return { label: "Awaiting donor", tone: "pending" };
-  if (row.screeningStatus === "Rejected")
-    return { label: "Rejected", tone: "rejected" };
-  if (row.screeningStatus === "Deferred")
-    return { label: "Deferred", tone: "deferred" };
-  if (row.screeningStatus !== "Cleared")
-    return { label: "Not screened", tone: "pending" };
-  if (!row.guidelinesAcknowledged)
-    return { label: "Guidelines pending", tone: "pending" };
-  return { label: donationStage(row), tone: "ok" };
-}
+const pendingStatus = queueStatus;
 
 /** A donor ID shortened for the table, with the full value in the tooltip. */
 function shortId(value) {
@@ -167,7 +153,7 @@ export default function Inventory() {
     search: "",
     component: "all",
     responseStatus: "all",
-    screeningStatus: "all",
+    donationStage: "all",
     from: "",
     to: "",
   });
@@ -221,8 +207,10 @@ export default function Inventory() {
   const [saving, setSaving] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [historyKey, setHistoryKey] = useState(0);
+  const [queueAttempt, setQueueAttempt] = useState(0);
 
   const bumpHistory = () => setHistoryKey((key) => key + 1);
+  const refreshQueue = () => { bumpHistory(); setQueueAttempt(value => value + 1); };
 
   const [screeningRow, setScreeningRow] = useState(null);
   const [screeningStatus, setScreeningStatus] = useState("");
@@ -263,7 +251,6 @@ export default function Inventory() {
         `Screening for donor ${shortId(screeningRow.donorId)} marked as ${screeningStatus}.`,
       );
       setScreeningRow(null);
-      bumpHistory();
     } catch (error) {
       setScreeningError(
         error instanceof Error && error.message
@@ -274,6 +261,14 @@ export default function Inventory() {
       setScreeningSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (!screeningRow) return;
+    const current = matches.find(row => row.id === screeningRow.id);
+    if (!current || current.acceptanceVersion !== screeningRow.acceptanceVersion || donationStage(current) !== donationStage(screeningRow)) {
+      setScreeningRow(null); setScreeningError("");
+    }
+  }, [matches]);
 
   const openLogs = async (bt) => {
     setLogBloodType(bt);
@@ -366,48 +361,28 @@ export default function Inventory() {
     };
   }, [hospitalId, stockComponent, reloadKey]);
 
-  // Donation log: pending matches and completed donations load together so a
-  // confirmed match drops out of the pending table in the same paint. The
-  // error line is not cleared here: a partial failure sets it in the same
-  // tick that reloads the log, and it has to survive the reload.
   useEffect(() => {
-    if (!hospitalId || tab !== "log") return undefined;
+    if (!hospitalId || tab !== "log") return;
     let current = true;
-    setQueueFacility("");
-    setHistoryLoading(true);
-    setHistoryFailed(false);
-    setMatchesLoading(true);
-    setMatchesFailed(false);
-    setHistory([]);
-    setMatches([]);
-    setSelected([]);
-    setUnitsById({});
+    setQueueFacility(""); setMatchesLoading(true); setMatchesFailed(false);
+    setMatches([]); setSelected([]); setUnitsById({});
+    const stop = watchFacilityMatches(hospitalId, rows => {
+      if (!current) return;
+      setMatches(rows); setMatchesLoading(false); setMatchesFailed(false); setQueueFacility(hospitalId);
+      setSelected(previous => previous.filter(id => rows.some(row => row.id === id && isConfirmable(row))));
+    }, () => { if (current) { setMatchesLoading(false); setMatchesFailed(true); } });
+    return () => { current = false; stop(); };
+  }, [hospitalId, tab, queueAttempt]);
 
-    Promise.allSettled([
-      getFacilityMatches(hospitalId),
-      allHospitalDonations(hospitalId).then((rows) => ({ rows })),
-    ])
-      .then(([matchResult, donationResult]) => {
-        if (!current) return;
-        if (matchResult.status === "fulfilled") setMatches(matchResult.value);
-        else setMatchesFailed(true);
-
-        if (donationResult.status === "fulfilled") {
-          setHistory(donationResult.value.rows);
-        } else {
-          setHistoryFailed(true);
-        }
-      })
-      .finally(() => {
-        if (!current) return;
-        setHistoryLoading(false);
-        setMatchesLoading(false);
-        setQueueFacility(hospitalId);
-      });
-
-    return () => {
-      current = false;
-    };
+  useEffect(() => {
+    if (!hospitalId || tab !== "log") return;
+    let current = true;
+    setHistoryLoading(true); setHistoryFailed(false);
+    allHospitalDonations(hospitalId).then(rows => {
+      if (current) setHistory(rows);
+    }).catch(() => { if (current) setHistoryFailed(true); })
+      .finally(() => { if (current) setHistoryLoading(false); });
+    return () => { current = false; };
   }, [hospitalId, historyKey, tab]);
 
   const totals = useMemo(() => {
@@ -454,14 +429,7 @@ export default function Inventory() {
 
   // Pending rows are matches with no donation record yet; a match's ID is the
   // donation's ID (schema §2.9), so the confirmed set is a direct lookup.
-  const donationIds = useMemo(
-    () => new Set(history.map((row) => row.id)),
-    [history],
-  );
-  const pending = useMemo(
-    () => matches.filter((row) => !donationIds.has(row.id)),
-    [matches, donationIds],
-  );
+  const pending = useMemo(() => pendingDonationRows(matches, history), [matches, history]);
   const logRows = useMemo(() => {
     const filtered = filterRecords(
       logType ? pending.filter((row) => row.bloodType === logType) : pending,
@@ -470,9 +438,7 @@ export default function Inventory() {
         date: (row) => row.matchedAt,
         search: (row) =>
           `${row.donorId} ${row.requestId} ${row.bloodType} ${componentLabel(row.component)}`,
-        fields: {
-          screeningStatus: (row) => row.screeningStatus || "unscreened",
-        },
+        fields: queueFilterFields,
       },
     );
     const dir = logSort === "new" ? -1 : 1;
@@ -571,9 +537,6 @@ export default function Inventory() {
     setReviewOpen(false);
     setSelected([]);
     if (confirmed) {
-      setNote(
-        `Completed ${confirmed} donation${confirmed === 1 ? "" : "s"}. Stock and donor history updated.`,
-      );
       bumpHistory();
     }
     if (failures.length) {
@@ -649,7 +612,7 @@ export default function Inventory() {
           tab === "log" ? (
             <Btn
               icon="refresh"
-              onClick={bumpHistory}
+              onClick={refreshQueue}
               disabled={matchesLoading || historyLoading || confirming}
             >
               Refresh queue
@@ -1173,8 +1136,8 @@ export default function Inventory() {
                       )}
                     </header>
 
-                    <div className="record-toolbar">
-                      <RecordFilters
+                    <div className="record-toolbar record-toolbar-stacked">
+                      <RecordFilters searchAbove
                       name="pending donations"
                       onReset={() => {
                         setLogType("");
@@ -1205,14 +1168,9 @@ export default function Inventory() {
                           ],
                         },
                         {
-                          key: "screeningStatus",
-                          label: "Screening",
-                          options: [
-                            { value: "unscreened", label: "Not screened" },
-                            "Cleared",
-                            "Deferred",
-                            "Rejected",
-                          ],
+                          key: "donationStage",
+                          label: "Donation stage",
+                          options: QUEUE_STAGES,
                         },
                       ]}
                       disabled={
@@ -1238,16 +1196,13 @@ export default function Inventory() {
                         ]);
                         const done = new Set(confirmed.map((row) => row.id));
                         return filterRecords(
-                          found,
+                          pendingDonationRows(found, confirmed),
                           scope === "filtered" ? pendingFilters : {},
                           {
                             date: (row) => row.matchedAt,
                             search: (row) =>
                               `${row.donorId} ${row.requestId} ${row.bloodType} ${componentLabel(row.component)}`,
-                            fields: {
-                              screeningStatus: (row) =>
-                                row.screeningStatus || "unscreened",
-                            },
+                            fields: queueFilterFields,
                           },
                         )
                           .filter(
@@ -1276,7 +1231,7 @@ export default function Inventory() {
                           Completed donations could not be loaded, so the
                           pending list is unavailable.
                         </p>
-                        <Btn onClick={bumpHistory}>Try again</Btn>
+                        <Btn onClick={refreshQueue}>Try again</Btn>
                       </div>
                     )}
 
@@ -1285,7 +1240,7 @@ export default function Inventory() {
                         <p className="hospital-state" data-kind="error">
                           The donation log could not be loaded.
                         </p>
-                        <Btn onClick={bumpHistory}>Try again</Btn>
+                        <Btn onClick={refreshQueue}>Try again</Btn>
                       </div>
                     )}
 

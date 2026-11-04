@@ -61,3 +61,30 @@ registration/identity locks, numeric paste, manual pin persistence, invalid
 coordinate errors and missing-configuration behavior. Harness/results are in
 `/private/tmp/dugo-owner-auth-smoke/` and `/private/tmp/dugo-owner-*-rest.txt`.
 Live Google provider, production deployment and physical-device checks remain.
+
+## Queue and hospital toolbars (D90)
+
+Donation-stage filters distinguish Not screened, Screened (including legacy
+Cleared), Processing, Deferred and Rejected. Display/export use the same derived
+values. Completed rows leave pending even before history refresh. Active queue
+listeners receive changes from other sessions, prune stale selections and close
+stale screening drafts. Refresh reattaches after an error; subscriptions release
+on unmount/sign-out. No polling. Initial reads remain one facility-request query
+plus one match query/listener per returned request, then changed documents;
+completions retain the existing history reload. No inventory mutation change.
+
+History/queue search spans the first toolbar row; filters, sort and Export align
+below in the same order at narrow widths. Requests uses full-width search and
+wider status choices. Post-confirm success prose is removed; errors remain.
+
+Queue verification: the actual application and Firestore SDK were exercised with
+a verified emulator hospital identity while another session updated Screened →
+Processing → Deferred → Completed. Selected filters updated without refresh, stale
+selection cleared, deferred selection disabled and completion left the pending
+list before any history record was added. No stock mutation was performed.
+Harness: `/private/tmp/dugo-owner-auth-smoke/queue.mjs`.
+
+The full regression command passes 157 tests after adding cache, registration,
+city-search and queue-stage coverage. Vite build and traceability checks pass;
+compiled output contains route chunks, stage-filter labels and stacked-toolbar
+rules. Responsive fixtures wait for real route content after lazy loading.
