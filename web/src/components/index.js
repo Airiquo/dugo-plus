@@ -57,3 +57,6 @@ export { HospitalStockChart } from './HospitalStockChart'
 export { RecordFilters } from './RecordFilters'
 export { DonorFilterBar } from './DonorFilterBar'
 export { TablePrintPreview } from './TablePrintPreview'
+
+export { HospitalDonationDetails } from './HospitalDonationDetails'
+export { RequestCompletedDonations } from './RequestCompletedDonations'

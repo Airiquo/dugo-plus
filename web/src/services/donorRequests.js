@@ -1,3 +1,5 @@
+import { isCompletedDonation } from '../utils/donationCompletion'
+import { toDate } from '../utils/eligibility'
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore'
 import { db } from '../lib/firebase'
 import { listenDonorMatches } from './matches'
@@ -9,6 +11,7 @@ export function listenDonorRequests(uid, callback, onError) {
     failed = false,
     matches = [],
     donations = new Set(),
+    donorLastDonationAt = null,
     matchesReady = false,
     donationsReady = false
   const requests = new Map(),
@@ -26,6 +29,7 @@ export function listenDonorRequests(uid, callback, onError) {
           hospital:
             hospitals.get(requests.get(match.requestId)?.hospitalId) ?? null,
           donated: donations.has(match.id),
+          donorLastDonationAt,
         }))
         .filter((item) => item.request),
     )
@@ -90,7 +94,12 @@ export function listenDonorRequests(uid, callback, onError) {
   const stopDonations = onSnapshot(
     query(collection(db, 'donations'), where('donorId', '==', uid)),
     (snap) => {
-      donations = new Set(snap.docs.map((entry) => entry.id))
+      const completed = snap.docs.filter(entry => isCompletedDonation(entry.data()))
+      donations = new Set(completed.map(entry => entry.id))
+      donorLastDonationAt = completed.reduce((latest, entry) => {
+        const at = toDate(entry.data().donationDate)
+        return at && Number.isFinite(+at) && (!latest || at > latest) ? at : latest
+      }, null)
       donationsReady = true
       publish()
     },

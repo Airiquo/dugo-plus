@@ -16,7 +16,7 @@ function setup(extra = {}) {
     'users/donor': { role: 'donor', status: 'Active', bloodType: 'O-', dateOfBirth: new Date('1990-01-01') },
     'hospitals/h1': { status: 'Active' },
     'bloodRequests/r1': { hospitalId: 'h1', component: 'rbc', bloodType: 'A+', quantity: 3, status: 'collecting' },
-    'donorMatches/r1_donor': { donorId: 'donor', requestId: 'r1', donationTypeId: 'whole-blood', responseStatus: 'Accepted', screeningStatus: 'Cleared', guidelinesAcknowledged: true },
+    'donorMatches/r1_donor': { donorId: 'donor', requestId: 'r1', donationTypeId: 'whole-blood', responseStatus: 'Accepted', screeningStatus: 'Cleared', donationStage: 'Processing', guidelinesAcknowledged: true },
     'donorConsents/r1_donor_data-sharing': { donorId: 'donor', matchId: 'r1_donor', consentType: 'Data Sharing', revokedAt: null },
     'donorConsents/r1_donor_screening': { donorId: 'donor', matchId: 'r1_donor', consentType: 'Screening', revokedAt: null },
     'donationTypes/whole-blood': { intervalDays: 56 },
@@ -119,14 +119,86 @@ test('adjustments require a reason and valid stock identity, prevent negative co
   await assert.rejects(execute(actor,{...adjust,delta:-4,operationId:'22345678-1234-1234-1234-123456789012'}),{status:409})
 })
 
-test('screening is facility-authorized, audited, retry-safe and cannot rewrite an already confirmed donation', async () => {
-  const {store,execute}=setup()
-  const screen={action:'screenMatch',matchId:'r1_donor',screeningStatus:'Deferred',operationId:issue.operationId}
+test('deferral needs a reason, is retry-safe and ends the attempt without stock or donation', async () => {
+  const {store,execute}=setup({ 'donorCommitments/donor': { matchId: 'r1_donor' } })
+  const screen={action:'screenMatch',matchId:'r1_donor',screeningStatus:'Deferred',reason:'Screening result requires deferral',operationId:issue.operationId}
+  await assert.rejects(execute(actor,{...screen,reason:'  '}),{status:400})
   await execute(actor,screen)
   await execute(actor,screen)
   assert.equal(store.docs.get('donorMatches/r1_donor').screeningStatus,'Deferred')
+  assert.equal(store.docs.get('donorMatches/r1_donor').deferralReason,screen.reason)
+  assert.equal(store.docs.has('donorCommitments/donor'),false)
+  assert.equal(records(store,'donations').length,0)
+  assert.equal(records(store,'hospitals/h1/inventory').length,0)
   assert.equal(records(store,'auditOutbox').length,1)
-  await execute(actor,{...screen,screeningStatus:'Cleared',operationId:'22345678-1234-1234-1234-123456789012'})
+  await assert.rejects(execute(actor,{...screen,screeningStatus:'Screened',operationId:'22345678-1234-1234-1234-123456789012'}),{status:409})
+  await assert.rejects(execute(actor,confirm),{status:409})
+})
+
+test('screening and processing must be recorded in order; legacy Cleared maps to Screened', async () => {
+  const { store, execute } = setup({ 'donorMatches/r1_donor': { donorId:'donor',requestId:'r1',responseStatus:'Accepted',guidelinesAcknowledged:true } })
+  const screen = { action:'screenMatch',matchId:'r1_donor',screeningStatus:'Processing',operationId:issue.operationId }
+  await assert.rejects(execute(actor, confirm), {status:409})
+  await assert.rejects(execute(actor, screen), {status:409})
+  await execute(actor,{...screen,screeningStatus:'Screened'})
+  await execute(actor,{...screen,operationId:'22345678-1234-1234-1234-123456789012'})
   await execute(actor,confirm)
+  assert.equal(store.docs.get('donorMatches/r1_donor').donationStage,'Completed')
+  assert.equal(store.docs.get('donations/r1_donor').status,'Completed')
+  assert.deepEqual(store.docs.get('donations/r1_donor').completedAt,at)
+  assert.deepEqual(store.docs.get('donations/r1_donor').confirmedAt,at)
+  const movement=records(store,'hospitals/h1/inventory/rbc_O-/logs')[0][1]
+  assert.equal(movement.requestId,'r1');assert.equal(movement.donationId,'r1_donor')
   await assert.rejects(execute(actor,{...screen,operationId:'32345678-1234-1234-1234-123456789012'}),{status:409})
+})
+
+test('historical confirmations cannot stock again even without a retry receipt', async () => {
+  const {store,execute}=setup({'donations/r1_donor':{matchId:'r1_donor',confirmedAt:at,units:2}})
+  const before=structuredClone([...store.docs])
+  await assert.rejects(execute(actor,confirm),{status:409})
+  assert.deepEqual([...store.docs],before)
+})
+
+test('revoked consent, stale acceptance version and invalid units cannot write progress or completion', async () => {
+  for (const overrides of [
+    {'donorConsents/r1_donor_data-sharing':{donorId:'donor',matchId:'r1_donor',consentType:'Data Sharing',revokedAt:at}},
+    {'donorMatches/r1_donor':{donorId:'donor',requestId:'r1',responseStatus:'Accepted',screeningStatus:'Cleared',donationStage:'Processing',guidelinesAcknowledged:true,acceptanceVersion:2}},
+  ]) {
+    const {store,execute}=setup(overrides),before=structuredClone([...store.docs])
+    await assert.rejects(execute(actor,confirm),{status:409})
+    await assert.rejects(execute(actor,{action:'screenMatch',matchId:'r1_donor',screeningStatus:'Deferred',reason:'Visit deferred',operationId:issue.operationId}),{status:409})
+    assert.deepEqual([...store.docs],before)
+  }
+  const {store,execute}=setup()
+  for(const units of [0,-1,1.5,'2',Number.MAX_SAFE_INTEGER+1]) await assert.rejects(execute(actor,{...confirm,units}),{status:400})
+  assert.equal(records(store,'donations').length,0)
+})
+
+test('completion releases only its own commitment and rejects a different active commitment', async () => {
+  const {store,execute}=setup({'donorCommitments/donor':{matchId:'r1_donor'}})
+  await execute(actor,confirm)
+  assert.equal(store.docs.has('donorCommitments/donor'),false)
+  const other=setup({'donorCommitments/donor':{matchId:'other'}})
+  await assert.rejects(other.execute(actor,confirm),{status:409})
+  assert.equal(other.store.docs.get('donorCommitments/donor').matchId,'other')
+})
+
+test('failed terminal deferral rolls back both the commitment release and the audit receipt', async () => {
+  const {store,execute}=setup({'donorCommitments/donor':{matchId:'r1_donor'}})
+  const before=structuredClone([...store.docs])
+  const input={action:'screenMatch',matchId:'r1_donor',screeningStatus:'Deferred',reason:'Screening requires deferral',operationId:issue.operationId}
+  store.failNextCommit(new Error('deferral unavailable'))
+  await assert.rejects(execute(actor,input),/deferral unavailable/)
+  assert.deepEqual([...store.docs],before)
+  await execute(actor,input)
+  assert.equal(store.docs.has('donorCommitments/donor'),false)
+})
+
+test('completion refuses malformed stock and cannot invent a replacement count', async () => {
+  for(const unitsAvailable of [null,undefined,'4',-1,1.5,Number.MAX_SAFE_INTEGER]) {
+    const {store,execute}=setup({'hospitals/h1/inventory/rbc_O-':{component:'rbc',bloodType:'O-',unitsAvailable}})
+    const before=structuredClone([...store.docs])
+    await assert.rejects(execute(actor,confirm),{status:409})
+    assert.deepEqual([...store.docs],before)
+  }
 })

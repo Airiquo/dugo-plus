@@ -93,6 +93,7 @@ const store = {
             currentDocument: { exists: false },
           })
         },
+        delete(path) { writes.push({ delete: database + '/' + path }) },
         update(path, data) {
           writes.push({
             update: {

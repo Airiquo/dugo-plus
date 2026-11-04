@@ -1,4 +1,5 @@
 /** Authorized hospital movements, confirmation and screening with atomic audit delivery. */
+import { donationStage, terminalAttempt } from '../../web/src/utils/donationCompletion.js'
 import { HttpError } from './http.js'
 import { inventoryKey } from '../../web/src/utils/inventory.js'
 import { BLOOD_TYPES, COMPONENTS, donationTypeForComponent, isCompatibleDonor } from '../../web/src/utils/matching.js'
@@ -16,7 +17,7 @@ function integer(value, signed = false) {
   return value
 }
 function stockUnits(record) {
-  const count = record?.data.unitsAvailable ?? 0
+  const count = record ? record.data.unitsAvailable : 0
   if (!Number.isSafeInteger(count) || count < 0) throw new HttpError(409, 'This stock record needs an administrator correction.')
   return count
 }
@@ -37,18 +38,18 @@ export function createInventoryManager({ store, hash, now = () => new Date() }) 
     const units = action === 'adjustInventory' ? integer(input.delta, true)
       : action === 'screenMatch' ? 0 : integer(input.units)
     const reason = typeof input.reason === 'string' ? input.reason.trim() : ''
-    if (reason.length > 2000 || (action === 'adjustInventory' && !reason))
+    if (reason.length > 2000 || ((action === 'adjustInventory' || (action === 'screenMatch' && input.screeningStatus === 'Deferred')) && !reason))
       throw new HttpError(400, 'Provide a reason of 1–2000 characters.')
     if (action === 'adjustInventory' && !['ADJUSTMENT', 'EXPIRED'].includes(input.changeType))
       throw new HttpError(400, 'Choose adjustment or expired stock.')
     if (input.changeType === 'EXPIRED' && units > 0)
       throw new HttpError(400, 'Expired stock must remove units.')
-    if (action === 'screenMatch' && !['Cleared', 'Deferred', 'Rejected'].includes(input.screeningStatus))
-      throw new HttpError(400, 'Choose Cleared, Deferred or Rejected.')
+    if (action === 'screenMatch' && !['Cleared', 'Screened', 'Processing', 'Deferred', 'Rejected'].includes(input.screeningStatus))
+      throw new HttpError(400, 'Choose Screened, Processing, Deferred or Rejected.')
     if (action !== 'confirmDonation' && (typeof input.operationId !== 'string' || !/^[a-zA-Z0-9-]{16,80}$/.test(input.operationId)))
       throw new HttpError(400, 'A valid operation ID is required.')
     const normalized = matchAction
-      ? { action, matchId, ...(action === 'screenMatch' ? { screeningStatus: input.screeningStatus } : { units }) }
+      ? { action, matchId, acceptanceVersion: input.acceptanceVersion ?? 0, ...(action === 'screenMatch' ? { screeningStatus: input.screeningStatus, reason } : { units }) }
       : { action, hospitalId: id(input.hospitalId, 'facility'), bloodType: input.bloodType,
           component: input.component, units, reason, changeType: action === 'adjustInventory' ? input.changeType : 'TRANSFUSION',
           requestId: input.requestId ? id(input.requestId, 'request') : null }
@@ -62,7 +63,7 @@ export function createInventoryManager({ store, hash, now = () => new Date() }) 
         && profile.data.hospitalId && profile.data.hospitalId === actor.claims.hospitalId
       if (!active(profile) || (!admin && !staff)) throw new HttpError(403, 'An active hospital staff or administrator account is required.')
       const prior = await tx.get('inventoryOperations', operationId)
-      let match, request, donor, donation, donationType
+      let match, request, donor, donation, donationType, commitment
       if (matchAction) {
         match = await tx.get('donorMatches', matchId)
         if (!match) throw new HttpError(404, 'This match was not found.')
@@ -73,6 +74,8 @@ export function createInventoryManager({ store, hash, now = () => new Date() }) 
       if (!admin && hospitalId !== actor.claims.hospitalId) throw new HttpError(403, 'This record belongs to another facility.')
       const hospital = await tx.get('hospitals', hospitalId)
       if (!active(hospital)) throw new HttpError(409, 'An active facility is required.')
+      if (matchAction && (match.data.acceptanceVersion || 0) !== normalized.acceptanceVersion)
+        throw new HttpError(409, 'This response has changed. Refresh before recording progress.')
       if (prior) {
         if (prior.data.fingerprint !== fingerprint) throw new HttpError(409, 'This operation was already used with different details.')
         return { ...prior.data.result, replayed: true }
@@ -80,7 +83,9 @@ export function createInventoryManager({ store, hash, now = () => new Date() }) 
       let component = normalized.component, bloodType = normalized.bloodType
       if (matchAction) {
         donation = await tx.get('donations', matchId)
-        if (donation) throw new HttpError(409, 'This donation has already been confirmed.')
+        if (donation) throw new HttpError(409, 'This donation has already been completed.')
+        if (terminalAttempt(match.data)) throw new HttpError(409, 'This donation attempt has ended.')
+        commitment = await tx.get('donorCommitments', match.data.donorId)
         if (!OPEN.includes(request.data.status)) throw new HttpError(409, 'This request is closed.')
         if (match.data.responseStatus !== 'Accepted' || match.data.guidelinesAcknowledged !== true)
           throw new HttpError(409, 'The donor must accept and acknowledge the guidelines first.')
@@ -91,20 +96,27 @@ export function createInventoryManager({ store, hash, now = () => new Date() }) 
             throw new HttpError(409, 'Current donor consent is missing. Contact Dugo+ support to obtain fresh donor consent before screening.')
         }
         donor = await tx.get('users', id(match.data.donorId, 'donor'))
-        if (!active(donor) || donor.data.role !== 'donor') throw new HttpError(409, 'An active donor profile is required.')
+        if (!active(donor) || donor.data.role !== 'donor' || donor.data.personalDataErased) throw new HttpError(409, 'An active donor profile is required.')
         component = request.data.component
         bloodType = donor.data.bloodType
         if (!COMPONENTS.includes(component) || !BLOOD_TYPES.includes(bloodType)
             || !isCompatibleDonor(request.data.bloodType, bloodType, component))
           throw new HttpError(409, 'The donor blood group does not match this request.')
         if (action === 'confirmDonation') {
-          if (match.data.screeningStatus !== 'Cleared') throw new HttpError(409, 'Clear this donor before confirming the donation.')
+          if (donationStage(match.data) !== 'Processing') throw new HttpError(409, 'Record Processing before completing the donation.')
+          if (commitment && commitment.data.matchId !== matchId) throw new HttpError(409, 'The donor has another active commitment.')
           donationType = await tx.get('donationTypes', donationTypeForComponent(component))
-          if (!donationType || !Number.isFinite(donationType.data.intervalDays) || donationType.data.intervalDays <= 0)
+          if (!donationType || !Number.isSafeInteger(donationType.data.intervalDays) || donationType.data.intervalDays <= 0)
             throw new HttpError(409, 'The donation interval is unavailable.')
           if (!eligibilityFor({ ...donor.data, intervalDays: donationType.data.intervalDays }, now()).eligible)
             throw new HttpError(409, 'The donor is currently deferred or ineligible.')
         }
+      }
+      if (action === 'screenMatch') {
+        const target = input.screeningStatus === 'Cleared' ? 'Screened' : input.screeningStatus
+        const expected = target === 'Processing' ? 'Screened' : 'Responded'
+        if (!['Deferred', 'Rejected'].includes(target) && donationStage(match.data) !== expected)
+          throw new HttpError(409, `This donor must be ${expected} before recording ${target}.`)
       }
       if (!matchAction && normalized.requestId) {
         if (!request || request.data.hospitalId !== hospitalId || request.data.component !== component
@@ -134,19 +146,28 @@ export function createInventoryManager({ store, hash, now = () => new Date() }) 
           : { unitsAvailable, units: Math.abs(units), ...(action === 'confirmDonation' ? { donationId: matchId } : {}) }) }
       // Every read above precedes the first write.
       if (action === 'screenMatch') {
-        tx.update(`donorMatches/${matchId}`, { screeningStatus: input.screeningStatus, screenedByUserId: actor.uid })
+        const stage = input.screeningStatus === 'Cleared' ? 'Screened' : input.screeningStatus
+        tx.update(`donorMatches/${matchId}`, { donationStage: stage,
+          screeningStatus: ['Screened', 'Processing'].includes(stage) ? 'Cleared' : stage,
+          ...(stage === 'Processing' ? { processingAt: at, processingBy: actor.uid } : { screenedByUserId: actor.uid, screenedAt: at }),
+          ...(stage === 'Deferred' ? { deferralReason: reason, deferredAt: at, deferredBy: actor.uid } : {}) })
+        if (['Deferred', 'Rejected'].includes(stage) && commitment?.data.matchId === matchId)
+          tx.delete(`donorCommitments/${match.data.donorId}`)
       } else {
         const data = { bloodType, component, unitsAvailable, lastUpdated: at }
         if (stock) tx.update(stockPath, data)
         else tx.create(stockPath, data)
         tx.create(`${stockPath}/logs/${operationId}`, { donationId: action === 'confirmDonation' ? matchId : null,
+          requestId: matchAction ? match.data.requestId : normalized.requestId,
           userId: actor.uid, component, bloodType, changeType: action === 'confirmDonation' ? 'DONATION' : normalized.changeType,
           unitsChanged: delta, reason, createdAt: at })
         if (action === 'confirmDonation') {
           tx.create(`donations/${matchId}`, { matchId, hospitalId, donorId: match.data.donorId, bloodType,
             component, donationType: donationTypeForComponent(component), requestId: match.data.requestId,
-            units, donationDate: at, confirmedAt: at, confirmedBy: actor.uid })
+            units, donationDate: at, status: 'Completed', completedAt: at, completedBy: actor.uid, confirmedAt: at, confirmedBy: actor.uid })
           tx.update(`users/${match.data.donorId}`, { lastDonationAt: at })
+          tx.update(`donorMatches/${matchId}`, { donationStage: 'Completed', completedAt: at, completedBy: actor.uid })
+          if (commitment?.data.matchId === matchId) tx.delete(`donorCommitments/${match.data.donorId}`)
         } else if (transfusedUnits != null) tx.update(`bloodRequests/${normalized.requestId}`, {
           transfusedUnits, ...(transfusedUnits === request.data.quantity ? { status: 'fulfilled' } : {}) })
       }

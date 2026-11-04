@@ -235,6 +235,9 @@ function matchRow(snap, request) {
       typeof data.responseStatus === "string" ? data.responseStatus : "",
     screeningStatus:
       typeof data.screeningStatus === "string" ? data.screeningStatus : "",
+    donationStage: text(data.donationStage),
+    acceptanceVersion: data.acceptanceVersion || 0,
+    withdrawnAt: data.withdrawnAt || null,
     guidelinesAcknowledged: data.guidelinesAcknowledged === true,
     matchedAt: asDate(data.matchedAt),
   };
@@ -399,6 +402,8 @@ export async function getInventoryLogs(
     const data = item.data() ?? {};
     return {
       id: item.id,
+      donationId: text(data.donationId),
+      requestId: text(data.requestId),
       changeType: text(data.changeType),
       unitsChanged: Number(data.unitsChanged) || 0,
       reason: text(data.reason),

@@ -12,8 +12,13 @@ import {
   componentName,
   isActiveCommitment,
   isAvailableRequest,
+  canReacceptRequest,
+  requestDonorProfile,
 } from "../../utils/donorRequests";
-import { toDate } from "../../utils/eligibility";
+import { isCompatibleDonor, donationTypeForComponent } from '../../utils/matching';
+import { missingDonorProfileFields } from '../../utils/profileCompletion';
+import { listDonationTypes } from '../../services/donationTypes';
+import { eligibilityFor, DEFAULT_INTERVALS, toDate } from "../../utils/eligibility";
 
 function alertTime(value) {
   const date = toDate(value);
@@ -28,7 +33,7 @@ function alertTime(value) {
 /** Actionable donor inbox with request context, unread state, and request deep links. */
 export default function Alerts() {
   const [order, setOrder] = useState("newest");
-  const { user } = useAuth(),
+  const { user, profile } = useAuth(),
     { theme } = useTheme(),
     navigate = useNavigate();
   const feed = useDonorRequests(user?.uid);
@@ -64,7 +69,13 @@ export default function Alerts() {
       : (row) => sortDate(row.createdAt || row.sentAt),
     order === "newest" ? "desc" : "asc",
   );
+  const [types, setTypes] = useState(new Map());
+  useEffect(() => { let current = true; listDonationTypes().then(rows => { if (current) setTypes(new Map(rows.map(row => [row.id, row.intervalDays]))); }).catch(() => {}); return () => { current = false; }; }, []);
+  const currentProfile = requestDonorProfile(profile, feed.items);
   const active = feed.items.find(isActiveCommitment);
+  const canAcceptAgain = item => item && canReacceptRequest(item) && !active && !missingDonorProfileFields(currentProfile).length && (currentProfile.status || 'Active') === 'Active'
+    && isCompatibleDonor(item.request.bloodType, currentProfile.bloodType, item.request.component)
+    && eligibilityFor({ ...currentProfile, intervalDays: types.get(donationTypeForComponent(item.request.component)) || DEFAULT_INTERVALS[donationTypeForComponent(item.request.component)] || null }).eligible;
   const readAll = async () => {
     setBusy(true);
     setError("");
@@ -77,10 +88,10 @@ export default function Alerts() {
       setBusy(false);
     }
   };
-  const open = async (alert, item) => {
+  const open = async (alert, item, accepting = false) => {
     if (!item) return;
     if (!alert.readAt) markAlertsRead([alert.id]).catch(() => {});
-    navigate(`/donor/requests?request=${encodeURIComponent(alert.requestId)}`);
+    navigate(`/donor/requests?request=${encodeURIComponent(alert.requestId)}${accepting ? "&accept=1" : ""}`);
   };
   return (
     <div className="pub donor-surface" data-theme={theme}>
@@ -221,12 +232,15 @@ export default function Alerts() {
                                   ? item.donated
                                     ? "Donation completed"
                                     : item.match.responseStatus === "Declined"
-                                      ? "You declined this request"
+                                      ? item.match.withdrawnAt ? "You withdrew from this request" : "You declined this request"
                                       : "This request has closed"
                                   : active
                                     ? "Browse now · one donation at a time"
                                     : "A match is an invitation. The choice is yours."}
                             </span>
+                            {(!item || closed) && <button className="btn" type="button" disabled={busy || !canAcceptAgain(item)}
+                              aria-label={`${canAcceptAgain(item) ? 'Accept again' : 'Unavailable'} for request ${item?.request.id || alert.requestId}`}
+                              onClick={() => open(alert, item, true)}>{canAcceptAgain(item) ? 'Accept again' : 'Unavailable'}</button>}
                             {item && (
                               <button
                                 className="btn"

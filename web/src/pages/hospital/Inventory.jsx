@@ -1,3 +1,5 @@
+import { HospitalDonationDetails } from '../../components/HospitalDonationDetails';
+import { donationStage } from '../../utils/donationCompletion';
 import {
   filterStock,
   stockBand,
@@ -64,8 +66,9 @@ const BLOOD_TYPE_OPTIONS = BLOOD_TYPES.map((value) => ({
 }));
 
 const SCREENING_OPTIONS = [
-  { value: "Cleared", label: "Cleared (Ready to donate)" },
-  { value: "Deferred", label: "Deferred (Temporarily ineligible)" },
+  { value: "Screened", label: "Screened" },
+  { value: "Processing", label: "Processing" },
+  { value: "Deferred", label: "Deferred (Ends this attempt)" },
   { value: "Rejected", label: "Rejected (Not eligible for this donation)" },
 ];
 
@@ -108,7 +111,7 @@ const TITLES = {
 /** A match can be confirmed only when screening and guidelines are complete. */
 function isConfirmable(row) {
   return (
-    row.screeningStatus === "Cleared" &&
+    donationStage(row) === "Processing" &&
     row.guidelinesAcknowledged &&
     row.responseStatus === "Accepted"
   );
@@ -117,7 +120,7 @@ function isConfirmable(row) {
 /** The log's status tone for a match that has no donation record yet. */
 function pendingStatus(row) {
   if (row.responseStatus === "Declined")
-    return { label: "Declined", tone: "rejected" };
+    return { label: row.withdrawnAt ? "Withdrew" : "Declined", tone: "rejected" };
   if (row.responseStatus === "Expired")
     return { label: "Expired", tone: "deferred" };
   if (row.responseStatus !== "Accepted")
@@ -130,7 +133,7 @@ function pendingStatus(row) {
     return { label: "Not screened", tone: "pending" };
   if (!row.guidelinesAcknowledged)
     return { label: "Guidelines pending", tone: "pending" };
-  return { label: "Ready", tone: "ok" };
+  return { label: donationStage(row), tone: "ok" };
 }
 
 /** A donor ID shortened for the table, with the full value in the tooltip. */
@@ -144,7 +147,7 @@ function shortId(value) {
  *
  * Two tabs. Stock: live counts per blood type, with Issue and Adjust on each
  * row. Donation log: matches waiting for confirmation (multi-select) above the
- * facility's confirmed donations. The one header action is Record transfusion.
+ * facility's completed donations. The one header action is Record transfusion.
  *
  * Reads: live stock, the facility's matches and its donation history, all from
  * `services/hospitals.js`. Writes: authenticated Worker transactions through
@@ -223,9 +226,11 @@ export default function Inventory() {
 
   const [screeningRow, setScreeningRow] = useState(null);
   const [screeningStatus, setScreeningStatus] = useState("");
+  const [screeningReason, setScreeningReason] = useState("");
   const [screeningSaving, setScreeningSaving] = useState(false);
   const [screeningError, setScreeningError] = useState("");
 
+  const [movementDetails, setMovementDetails] = useState(null);
   const [logBloodType, setLogBloodType] = useState(null);
   const [stockLogs, setStockLogs] = useState([]);
   const [stockLogsLoading, setStockLogsLoading] = useState(false);
@@ -238,7 +243,8 @@ export default function Inventory() {
 
   const openScreening = (row) => {
     setScreeningRow(row);
-    setScreeningStatus(row.screeningStatus || "");
+    setScreeningStatus("");
+    setScreeningReason("");
     setScreeningError("");
   };
 
@@ -252,7 +258,7 @@ export default function Inventory() {
     setScreeningSaving(true);
     setScreeningError("");
     try {
-      await screenDonorMatch(screeningRow.id, screeningStatus);
+      await screenDonorMatch(screeningRow.id, screeningStatus, { reason: screeningReason, acceptanceVersion: screeningRow.acceptanceVersion });
       setNote(
         `Screening for donor ${shortId(screeningRow.donorId)} marked as ${screeningStatus}.`,
       );
@@ -360,7 +366,7 @@ export default function Inventory() {
     };
   }, [hospitalId, stockComponent, reloadKey]);
 
-  // Donation log: pending matches and confirmed donations load together so a
+  // Donation log: pending matches and completed donations load together so a
   // confirmed match drops out of the pending table in the same paint. The
   // error line is not cleared here: a partial failure sets it in the same
   // tick that reloads the log, and it has to survive the reload.
@@ -504,7 +510,7 @@ export default function Inventory() {
     setLogError("");
   };
 
-  const unitsFor = (id) => unitsById[id] ?? "1";
+  const unitsFor = (id) => unitsById[id] ?? "";
 
   const updateUnits = (id, value) => {
     setUnitsById((prev) => ({ ...prev, [id]: value }));
@@ -554,7 +560,7 @@ export default function Inventory() {
         continue;
       }
       try {
-        await confirmDonation({ matchId: row.id, units });
+        await confirmDonation({ matchId: row.id, units, acceptanceVersion: row.acceptanceVersion });
         confirmed += 1;
       } catch (error) {
         failures.push(`${shortId(row.donorId)}: ${error.message}`);
@@ -566,13 +572,13 @@ export default function Inventory() {
     setSelected([]);
     if (confirmed) {
       setNote(
-        `Confirmed ${confirmed} donation${confirmed === 1 ? "" : "s"}. Stock and donor history updated.`,
+        `Completed ${confirmed} donation${confirmed === 1 ? "" : "s"}. Stock and donor history updated.`,
       );
       bumpHistory();
     }
     if (failures.length) {
       setLogError(
-        `${failures.length} donation${failures.length === 1 ? "" : "s"} could not be confirmed — ${failures.join("; ")}`,
+        `${failures.length} donation${failures.length === 1 ? "" : "s"} could not be completed — ${failures.join("; ")}`,
       );
     }
   };
@@ -1132,13 +1138,13 @@ export default function Inventory() {
                     </div>
                     <div>
                       <span>3</span>
-                      <strong>Confirm collection</strong>
+                      <strong>Complete collection</strong>
                       <small>Actual units enter stock</small>
                     </div>
                   </div>
-                  <HospitalNotice title="Screening comes before confirmation">
-                    Only accepted donors with completed guidelines and a Cleared
-                    screening result can be selected. The service rechecks
+                  <HospitalNotice title="Screening and processing come before completion">
+                    Only accepted donors with completed guidelines and a Processing
+                    stage can be selected. The service rechecks
                     consent and eligibility when you confirm.
                   </HospitalNotice>
                   <Card className="hospital-inventory-table hospital-inventory-log">
@@ -1147,8 +1153,8 @@ export default function Inventory() {
                         <p className="hw-eyebrow">From arrival to collection</p>
                         <h2>Screening & donation queue</h2>
                         <p className="muted">
-                          Review accepted donors, record screening, then confirm
-                          the units actually collected. Confirmation updates
+                          Review accepted donors, record screening, then complete
+                          the donation with actual units. Completion updates
                           stock and donor history together.
                         </p>
                       </div>
@@ -1159,8 +1165,8 @@ export default function Inventory() {
                           disabled={!selectedReady.length || confirming}
                         >
                           {confirming
-                            ? "Confirming…"
-                            : `Confirm selected${selectedReady.length ? ` (${selectedReady.length})` : ""}`}
+                            ? "Saving…"
+                            : `Complete selected${selectedReady.length ? ` (${selectedReady.length})` : ""}`}
                         </Btn>
                       )}
                     </header>
@@ -1213,7 +1219,7 @@ export default function Inventory() {
                     />
                     <TableExport
                       name="pending-donations"
-                      title="Awaiting donation confirmation"
+                      title="Awaiting donation completion"
                       columns={pendingReportColumns}
                       disabled={
                         matchesLoading ||
@@ -1262,7 +1268,7 @@ export default function Inventory() {
                     {!matchesLoading && historyFailed && (
                       <div role="alert">
                         <p className="hospital-state" data-kind="error">
-                          Confirmed donations could not be loaded, so the
+                          Completed donations could not be loaded, so the
                           pending list is unavailable.
                         </p>
                         <Btn onClick={bumpHistory}>Try again</Btn>
@@ -1470,12 +1476,10 @@ export default function Inventory() {
                                           confirming ||
                                           saving ||
                                           row.responseStatus !== "Accepted" ||
-                                          !row.guidelinesAcknowledged
+                                          !row.guidelinesAcknowledged || ["Deferred", "Rejected", "Completed"].includes(donationStage(row))
                                         }
                                       >
-                                        {row.screeningStatus
-                                          ? "Re-screen"
-                                          : "Screen"}
+                                        Record progress
                                       </Btn>
                                     ),
                                   },
@@ -1514,12 +1518,12 @@ export default function Inventory() {
                       }}
                     >
                       <div>
-                        <h2>Confirmed donations & stock audit</h2>
+                        <h2>Completed donations & stock audit</h2>
                         <p className="muted">
                           {history.length > 0
-                            ? `${history.length} confirmed donation${history.length === 1 ? "" : "s"} recorded at this facility.`
-                            : "No donations confirmed here yet."}{" "}
-                          Review confirmed donations and stock movements in the
+                            ? `${history.length} completed donation${history.length === 1 ? "" : "s"} recorded at this facility.`
+                            : "No completed donations here yet."}{" "}
+                          Review completed donations and stock movements in the
                           full history.
                         </p>
                       </div>
@@ -1718,15 +1722,15 @@ export default function Inventory() {
         open={reviewOpen}
         busy={confirming}
         onClose={() => !confirming && setReviewOpen(false)}
-        title="Confirm collected donations"
+        title="Complete collected donations"
         eyebrow={
           isAdmin ? "Dugo+ administration" : "Hospital / Review collection"
         }
         className="hw-operation-dialog"
       >
         <p className="hw-panel-description">
-          Confirm only the blood actually collected. Each successful
-          confirmation updates stock, donation history and the donor’s donation
+          Record only the blood actually collected. Each successful
+          completion updates stock, donation history and the donor’s donation
           clock.
         </p>
         <ul className="hw-confirm-list">
@@ -1736,7 +1740,7 @@ export default function Inventory() {
               <li key={row.id}>
                 <span>
                   <strong>
-                    {row.bloodType || "Group verified on confirmation"} ·{" "}
+                    {row.bloodType || "Group verified on completion"} ·{" "}
                     {componentLabel(row.component)}
                   </strong>
                   <small>Donor {shortId(row.donorId)}</small>
@@ -1755,8 +1759,8 @@ export default function Inventory() {
             disabled={confirming || !selectedReady.length}
           >
             {confirming
-              ? "Confirming…"
-              : `Confirm ${selectedReady.length} donation${selectedReady.length === 1 ? "" : "s"}`}
+              ? "Saving…"
+              : `Complete ${selectedReady.length} donation${selectedReady.length === 1 ? "" : "s"}`}
           </Btn>
         </div>
       </Modal>
@@ -1781,8 +1785,7 @@ export default function Inventory() {
           >
             <p className="hospital-note">
               Record health screening for donor{" "}
-              <code>{shortId(screeningRow.donorId)}</code>. Cleared donors
-              become eligible for donation confirmation.
+              <code>{shortId(screeningRow.donorId)}</code>. Record Screened, then Processing before completing a donation.
             </p>
             <div className="hospital-inventory-form-grid">
               <Field label="Donor">
@@ -1792,7 +1795,7 @@ export default function Inventory() {
                 <Input
                   value={
                     screeningRow.bloodType ||
-                    "Verified by the service on confirmation"
+                    "Verified by the service on completion"
                   }
                   disabled
                   readOnly
@@ -1811,7 +1814,7 @@ export default function Inventory() {
                 aria-label="Screening result"
                 options={[
                   { value: "", label: "Choose a screening result" },
-                  ...SCREENING_OPTIONS,
+                  ...SCREENING_OPTIONS.filter(option => option.value === "Screened" ? donationStage(screeningRow) === "Responded" : option.value === "Processing" ? donationStage(screeningRow) === "Screened" : !["Deferred", "Rejected", "Completed"].includes(donationStage(screeningRow))),
                 ]}
                 value={screeningStatus}
                 onChange={(e) => setScreeningStatus(e.target.value)}
@@ -1819,6 +1822,7 @@ export default function Inventory() {
               />
             </Field>
 
+            {screeningStatus === "Deferred" && <Field label="Deferral reason (required)"><Textarea required maxLength={2000} value={screeningReason} disabled={screeningSaving} onChange={event => setScreeningReason(event.target.value)} /><p>Deferred ends this attempt and adds no stock.</p></Field>}
             {screeningError && (
               <p className="hospital-state" data-kind="error" role="alert">
                 {screeningError}
@@ -1961,6 +1965,7 @@ export default function Inventory() {
                   render: (row) =>
                     row.userId ? <code>{shortId(row.userId)}</code> : "—",
                 },
+                { key: 'details', header: 'Details', render: row => <Btn aria-label={`View details for stock movement ${row.id}`} onClick={() => setMovementDetails({ ...row, bloodType: logBloodType, component: stockComponent })}>View details</Btn> },
               ]}
               rows={filterRecords(stockLogs, movementFilters)}
               rowKey={(row) => row.id}
@@ -1972,6 +1977,7 @@ export default function Inventory() {
           </div>
         </div>
       </Modal>
+      {movementDetails && <HospitalDonationDetails name="stock-movement-context" donationId={movementDetails.donationId} movement={movementDetails} onClose={() => setMovementDetails(null)} />}
     </Shell>
   );
 }

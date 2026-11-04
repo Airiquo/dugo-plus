@@ -156,9 +156,12 @@ export function eligibilityFor(
 
   const knownInterval = Number.isFinite(intervalDays) && intervalDays > 0
   const next = nextEligibleDate(lastDonationAt, knownInterval ? intervalDays : UNKNOWN_INTERVAL_DAYS)
+  if (lastDonationAt && (!next || !Number.isFinite(next.getTime()))) {
+    return { status: 'unknown', eligible: false, label: 'Donation date needs review', detail: 'Contact the hospital to review your last donation date before accepting.', nextEligibleOn: null }
+  }
   if (next) {
-    const daysLeft = daysBetween(now, next)
-    if (daysLeft > 0) {
+    const daysLeft = Math.ceil((next.getTime() - now.getTime()) / DAY_MS)
+    if (next > now) {
       return {
         status: 'deferred',
         eligible: false,
