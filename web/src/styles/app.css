@@ -10144,3 +10144,23 @@ html:has(.role-shell),html:has(.donor-surface) { overscroll-behavior-y: none; }
 .pub .profile-main.donor-main{align-items:center}
 .donor-main>footer.support-contact{margin-top:auto;padding-top:28px}
 @media(max-width:600px){.donor-request-browse .donor-empty-mark{display:none}}
+
+/* Intentional donor-directory composition uses a compact context band and wrapping record controls. */
+.hospital-donors { display: grid; gap: 24px; min-width: 0; }
+.hospital-donors-context { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 24px; padding: 24px; border: 1px solid var(--d-line); border-radius: 16px; background: var(--d-panel); }
+.hospital-donors-context h2 { margin: 8px 0 0; overflow-wrap: anywhere; }
+.hospital-donors-context > p { margin: 0; color: var(--d-muted); line-height: 1.65; }
+.hospital-donors-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.hospital-donors-heading h2 { margin: 0; }
+.hospital-donors-reference { display: grid; gap: 5px; overflow-wrap: anywhere; }
+.hospital-donors-export, .hospital-donors-pager { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.hospital-donors-export { margin-block: 20px; }
+.hospital-donors-export > label { display: grid; gap: 8px; font-size: 12px; max-width: 100%; }
+.hospital-donors-export select { width: 100%; max-width: 100%; }
+.hospital-donors-pager { border-top: 1px solid var(--d-line); padding-top: 20px; margin-top: 20px; font-size: 12px; }
+.hospital-donors .hospital-table { table-layout: fixed; }
+@media (max-width: 700px) {
+  .hospital-donors-context { grid-template-columns: 1fr; gap: 12px; padding: 20px; }
+  .hospital-donors-heading { flex-wrap: wrap; }
+  .hospital-donors-pager > span { order: -1; width: 100%; }
+}

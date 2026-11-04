@@ -7,6 +7,7 @@
  * account operations (FR-040).
  */
 
+import { createHospitalDonors } from './hospitalDonors.js'
 import { createHospitalRequestResponses } from './hospitalRequestResponses.js'
 import { documentName } from './firestore.js'
 import { createInventoryManager } from './inventoryOperations.js'
@@ -57,6 +58,14 @@ async function route(request, env) {
 
   if (request.method === 'GET' && url.pathname === '/health') {
     return json({ ok: true, service: 'dugo-matching', part: 1, accountOperationsVersion: 2, accountProfileVersion: 1, auditActivityVersion: 1, inventoryOperationsVersion: 1 }, 200, cors)
+  }
+
+  if (request.method === 'POST' && url.pathname === '/hospital/donors') {
+    const user = await verifyIdToken(env, bearerToken(request))
+    let input
+    try { input = await request.json() } catch { throw new HttpError(400, 'Body must be JSON') }
+    const result = await createHospitalDonors(transactionStore(env), path => documentName(env, path))(user, input)
+    return json(result, 200, cors)
   }
 
   if (request.method === 'GET' && url.pathname === '/hospital/request-responses') {

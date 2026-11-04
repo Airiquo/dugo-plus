@@ -278,3 +278,14 @@ Owner chooses existing Cloudflare Worker transactions, administrator-only facili
 - Deny browser stock/log/donation/screening/clock writes; retain the prior admin-only subscription boundary and stored records while removing its self-service UI.
 
 No automatic data migration or production deployment occurs in this task. See `HOSPITAL_WORKER_RECONCILIATION.md` for local evidence and rollout.
+
+## 2026-11-04 — facility donor directory read index (D82)
+
+**Origin:** build → schema. **Refs:** D82, F6, F11.
+
+Added `donations(hospitalId ASC, donorId ASC)` for bounded facility donor-ID
+directory cursors and hospital+donor history reads. No new fields, collections,
+client permissions or data writes. Current visit-specific consent and active,
+unerased donor profiles gate batched identity reads in the Worker. Historical
+confirmed and canonical Completed donations share the read mapping; no stock is
+replayed. Verification/rollout limits: `docs/HOSPITAL_DONORS_DIRECTORY.md`.
