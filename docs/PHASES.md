@@ -349,6 +349,9 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Owner polish deployment (2026-11-04, D91–D95):** owner authorizes Worker, rules and both Hosting entry points from merged integration. The source-stamp verifier now supports lazy logging chunks and checks all JS/CSS assets. No phase-count change; rollout evidence is recorded in `docs/OWNER_POLISH_VERIFICATION.md`.
+
+
 - **Owner polish integration (2026-11-04, D91–D95):** owner authorizes merging the completed work into protected integration. Reconciled with its newer session confirmation/navigation and full-radius discovery work; no phase counts change. Decision identifiers are renumbered to preserve existing D86–D90. Validation and rollout limits are in `docs/OWNER_POLISH_VERIFICATION.md`.
 
 
