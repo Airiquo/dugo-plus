@@ -375,7 +375,7 @@ export default function Dashboard() {
             />
             <HospitalMetric
               name="overview-donations"
-              label="Confirmed donations"
+              label="Completed donations"
               value={ready ? rangeRows.length : "—"}
               detail="View donations in the selected dates"
               icon="check"
@@ -393,7 +393,7 @@ export default function Dashboard() {
                 <p className="hw-eyebrow">Every day of care</p>
                 <h2 id="donation-activity-title">Donation activity</h2>
                 <p className="hw-panel-description">
-                  Each square is a day. Color shows confirmed donation activity,
+                  Each square is a day. Color shows completed donation activity,
                   not units of stock.
                 </p>
               </div>

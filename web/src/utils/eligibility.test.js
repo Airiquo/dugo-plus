@@ -56,3 +56,12 @@ test('an explicitly unknown component retains F5 longest-interval guidance', () 
   assert.match(result.detail, /facility confirms the exact date/)
   assert.equal(eligibilityFor({ dateOfBirth: adult, lastDonationAt: daysAgo(113), intervalDays: null }, now).status, 'eligible')
 })
+
+test('the full component interval is enforced until the exact instant, including the final partial day', () => {
+  for (const intervalDays of [7,28,56,112]) {
+    const last = new Date(now.getTime() - intervalDays * 86400000 + 1)
+    assert.equal(eligibilityFor({ dateOfBirth: adult, lastDonationAt: last, intervalDays }, now).eligible, false)
+    assert.equal(eligibilityFor({ dateOfBirth: adult, lastDonationAt: new Date(+last - 1), intervalDays }, now).eligible, true)
+  }
+  assert.equal(eligibilityFor({ dateOfBirth: adult, lastDonationAt: 'unreadable' }, now).eligible,false)
+})

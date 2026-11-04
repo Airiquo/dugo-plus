@@ -123,3 +123,20 @@ test('HTTP route authenticates, enforces scope, returns private no-store respons
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), 'https://fixture.test')
   assert.equal((await response.json()).rows[0].donor.fullName, 'Fictional donor 0')
 })
+
+test('response pages batch contacts and legacy completion with bounded queries rather than per-row reads', async () => {
+  const f=await setup(32)
+  await store.transact(tx=>{
+    tx.create('donations/'+f.firstMatch,{hospitalId:f.hospitalId,donorId:f.firstDonor,confirmedAt:new Date('2026-11-03')})
+    tx.update('donorMatches/'+f.requestId+'_001',{responseStatus:'Declined',withdrawnAt:new Date('2026-11-03')})
+  })
+  const calls=[]
+  const bounded={transact:work=>store.transact(tx=>work({...tx,get:(...args)=>{calls.push(['get',...args]);return tx.get(...args)},query:q=>{calls.push(['query',q.limit]);return tx.query(q)}}))}
+  const result=await createHospitalRequestResponses(bounded,path=>documentName(env,path))(f.actor,{requestId:f.requestId})
+  assert.equal(result.rows[0].donationStage,'Completed')
+  assert.equal(result.rows[1].responseLabel,'Withdrew')
+  assert.equal(result.rows[1].donor,null)
+  assert.equal(calls.filter(call=>call[0]==='get').length,3)
+  assert.equal(calls.filter(call=>call[0]==='query').length,4)
+  assert.ok(calls.filter(call=>call[0]==='query').every(call=>call[1]<=26))
+})

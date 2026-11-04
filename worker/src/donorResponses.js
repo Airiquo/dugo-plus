@@ -1,3 +1,4 @@
+import { terminalAttempt } from '../../web/src/utils/donationCompletion.js'
 import { eligibilityFor } from '../../web/src/utils/eligibility.js'
 import {
   isCompatibleDonor,
@@ -7,11 +8,11 @@ import { HttpError } from './http.js'
 import { missingDonorProfileFields } from '../../web/src/utils/profileCompletion.js'
 
 const OPEN = new Set(['urgent', 'collecting', 'matched'])
-const CLOSED_SCREENING = new Set(['Deferred', 'Rejected'])
 
 /** Atomic donor responses, including a per-donor lock and legacy commitments. */
 export function createDonorResponder(store, clock = () => new Date()) {
   return async function respond(uid, input = {}) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new HttpError(400, 'Choose a valid response.')
     const {
       matchId,
       responseStatus,
@@ -50,7 +51,7 @@ export function createDonorResponder(store, clock = () => new Date()) {
     return store.transact(async (tx) => {
       const profile = await tx.get('users', uid)
       if (
-        profile?.data?.role !== 'donor' ||
+        profile?.data?.role !== 'donor' || profile.data.personalDataErased ||
         (profile.data.status || 'Active') !== 'Active'
       )
         throw new HttpError(403, 'An active donor account is required.')
@@ -60,12 +61,15 @@ export function createDonorResponder(store, clock = () => new Date()) {
           404,
           'This request is not available to your account.',
         )
+      const donation = await tx.get('donations', matchId)
+      if (donation || terminalAttempt(match.data))
+        throw new HttpError(409, 'This donation attempt has ended. Choose another request.')
       if (match.data.responseStatus === responseStatus)
         return { ok: true, responseStatus, matchId }
       const withdrawing =
         match.data.responseStatus === 'Accepted' &&
         responseStatus === 'Declined'
-      if (match.data.responseStatus !== 'Pending' && !withdrawing)
+      if (!['Pending', ...(accepting ? ['Declined', 'Expired'] : [])].includes(match.data.responseStatus) && !withdrawing)
         throw new HttpError(409, 'You have already responded to this request.')
       const request = await tx.get('bloodRequests', match.data.requestId)
       if (!request || !OPEN.has(request.data.status))
@@ -74,6 +78,9 @@ export function createDonorResponder(store, clock = () => new Date()) {
           'This request has closed. Choose another request.',
         )
       if (accepting) {
+        const facility = await tx.get('hospitals', request.data.hospitalId)
+        if (!facility || (facility.data.status || 'Active') !== 'Active')
+          throw new HttpError(409, 'This facility is not available for donations.')
         const missing = missingDonorProfileFields(profile.data)
         if (missing.length)
           throw new HttpError(
@@ -82,6 +89,8 @@ export function createDonorResponder(store, clock = () => new Date()) {
           )
         const typeId = donationTypeForComponent(request.data.component)
         const type = typeId ? await tx.get('donationTypes', typeId) : null
+        if (!type || !Number.isSafeInteger(type.data.intervalDays) || type.data.intervalDays <= 0)
+          throw new HttpError(409, 'The donation interval is unavailable. Try again later.')
         if (
           !isCompatibleDonor(
             request.data.bloodType,
@@ -105,12 +114,12 @@ export function createDonorResponder(store, clock = () => new Date()) {
           )
       }
       const lock = await tx.get('donorCommitments', uid)
+      const existingConsents = accepting ? await Promise.all(['data-sharing', 'screening'].map(suffix => tx.get('donorConsents', `${matchId}_${suffix}`))) : []
       let withdrawConsents = []
       if (withdrawing) {
-        if (await tx.get('donations', matchId))
-          throw new HttpError(409, 'This donation has already been confirmed.')
         withdrawConsents = await tx.query({
           from: [{ collectionId: 'donorConsents' }],
+          limit: 101,
           where: {
             compositeFilter: {
               op: 'AND',
@@ -134,9 +143,11 @@ export function createDonorResponder(store, clock = () => new Date()) {
           },
         })
       }
+      if (withdrawConsents.length > 100) throw new HttpError(409, 'Your consent history needs review. Contact support before withdrawing.')
       if (accepting) {
         const accepted = await tx.query({
           from: [{ collectionId: 'donorMatches' }],
+          limit: 101,
           where: {
             compositeFilter: {
               op: 'AND',
@@ -159,6 +170,7 @@ export function createDonorResponder(store, clock = () => new Date()) {
             },
           },
         })
+        if (accepted.length > 100) throw new HttpError(409, 'Your response history needs review. Contact support before accepting.')
         for (const previous of accepted) {
           const previousRequest = await tx.get(
             'bloodRequests',
@@ -166,8 +178,8 @@ export function createDonorResponder(store, clock = () => new Date()) {
           )
           const donation = await tx.get('donations', previous.id)
           if (
-            !donation &&
-            !CLOSED_SCREENING.has(previous.data.screeningStatus) &&
+            previous.id !== matchId && !donation &&
+            !terminalAttempt(previous.data) &&
             (!previousRequest || OPEN.has(previousRequest.data.status))
           )
             throw new HttpError(
@@ -179,8 +191,10 @@ export function createDonorResponder(store, clock = () => new Date()) {
       const now = clock()
       tx.update('donorMatches/' + matchId, {
         responseStatus,
+        ...(accepting ? { acceptanceVersion: (match.data.acceptanceVersion || 0) + 1, donationStage: 'Responded', screeningStatus: null, screenedByUserId: null, screenedAt: null, processingAt: null, processingBy: null, deferralReason: null, withdrawnAt: null, donorLatitude: null, donorLongitude: null, locationSharedAt: null } : {}),
         ...(withdrawing
           ? {
+              withdrawnAt: now,
               donorLatitude: null,
               donorLongitude: null,
               locationSharedAt: null,
@@ -200,7 +214,10 @@ export function createDonorResponder(store, clock = () => new Date()) {
       for (const consent of withdrawConsents)
         if (!consent.data.revokedAt)
           tx.update('donorConsents/' + consent.id, { revokedAt: now })
+      if (withdrawing && lock?.data.matchId === matchId) tx.delete('donorCommitments/' + uid)
       if (accepting) {
+        for (const consent of existingConsents.filter(Boolean))
+          tx.create(`donorConsents/${consent.id}_v${match.data.acceptanceVersion || 0}`, { ...consent.data, revokedAt: consent.data.revokedAt || now, acceptanceVersion: match.data.acceptanceVersion || 0, acknowledgedAt: match.data.acknowledgedAt || null })
         const commitment = {
           donorId: uid,
           matchId,
@@ -209,11 +226,11 @@ export function createDonorResponder(store, clock = () => new Date()) {
         }
         if (lock) tx.update('donorCommitments/' + uid, commitment)
         else tx.create('donorCommitments/' + uid, commitment)
-        for (const [suffix, consentType] of [
+        for (const [index, [suffix, consentType]] of [
           ['data-sharing', 'Data Sharing'],
           ['screening', 'Screening'],
-        ])
-          tx.create(`donorConsents/${matchId}_${suffix}`, {
+        ].entries())
+          tx[existingConsents[index] ? 'update' : 'create'](`donorConsents/${matchId}_${suffix}`, {
             donorId: uid,
             matchId,
             consentType,

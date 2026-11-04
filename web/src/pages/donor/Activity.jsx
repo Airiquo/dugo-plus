@@ -133,14 +133,14 @@ export default function Activity() {
           <p className="donation-eyebrow">Every visit means something</p>
           <h1>Your donation history.</h1>
           <p>
-            Your confirmed visits, the places you’ve helped, and your next step.
+            Your completed visits, the places you’ve helped, and your next step.
           </p>
         </header>
         {state.status === "loading" && (
           <div className="donation-state" role="status">
             <span className="donation-loading-mark" />
             <h2>Gathering your story</h2>
-            <p>Loading your confirmed visits and donation readiness…</p>
+            <p>Loading your completed visits and donation readiness…</p>
           </div>
         )}
         {state.status === "error" && (
@@ -302,9 +302,10 @@ export default function Activity() {
                                     </strong>
                                     <span>
                                       <Icon name="check" size={12} />
-                                      Confirmed
+                                      Completed
                                     </span>
                                   </span>
+                                  <span className="story-visit-action">View details</span>
                                   <Icon
                                     className="story-visit-caret"
                                     name="chevron-down"
@@ -334,7 +335,7 @@ export default function Activity() {
                                   {donation.confirmedAt && (
                                     <p>
                                       <Icon name="shield" size={14} />
-                                      Confirmed by the hospital on{" "}
+                                      Completed by the hospital on{" "}
                                       {dateLabel(donation.confirmedAt)}.
                                     </p>
                                   )}
@@ -383,7 +384,7 @@ export default function Activity() {
                 {state.donations.length > 0 && (
                   <p className="story-history-note">
                     <Icon name="shield" size={15} />
-                    Only donations confirmed by a hospital appear in your
+                    Only donations completed by a hospital appear in your
                     history.
                   </p>
                 )}

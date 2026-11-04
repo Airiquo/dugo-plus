@@ -72,6 +72,10 @@ const input = (id) => ({
 })
 async function seed(uid, ids, profile = {}) {
   await store.transact(async (tx) => {
+    const hospital = await tx.get('hospitals', 'hospital')
+    const type = await tx.get('donationTypes', 'whole-blood')
+    if (!hospital) tx.create('hospitals/hospital', { status: 'Active' })
+    if (!type) tx.create('donationTypes/whole-blood', { intervalDays: 56 })
     tx.create('users/' + uid, {
       role: 'donor',
       status: 'Active',
@@ -114,9 +118,6 @@ test('REST acceptance rejects a donor with an incomplete profile without changin
   assert.equal(await store.get('donorCommitments', 'incomplete-donor'), null)
 })
 test('REST transactions serialize simultaneous acceptances and release after completion', async () => {
-  await store.transact(async (tx) =>
-    tx.create('donationTypes/whole-blood', { intervalDays: 56 }),
-  )
   await seed('donor', ['race-one', 'race-two'])
   const results = await Promise.allSettled([
     respond('donor', input('race-one')),

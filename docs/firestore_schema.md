@@ -827,3 +827,37 @@ interface AuditBlock {
 `GET /audit/activity` requires verified Active admin authority. Optional `account`, `actor`, `event`, `from`, `to` filters apply before the fixed 26-row query (25 results plus continuation detection). The exclusive cursor contains the last event's time and sequence. IDs are resolved from at most 500 `users` document names, cached for 60 seconds per project/HMAC key; explicit account/actor filter IDs also resolve. Current profile fields are fetched fresh and allowlisted. Unresolved/missing/erased identities stay unavailable. This adds no stored field, collection, or rules permission.
 
 Context, current profiles and erasure tombstones use `:batchGet` chunks of 100 (at most 200 unique paths per helper call; at most 125 per activity page). Context is returned only if its allowlisted reason/status digest matches `contextHash` and neither subject nor actor has an erasure tombstone. Names/emails are never cached by this endpoint or copied to immutable blocks. The same batch helper bounds existing account-history context reads. A first-page emulator check with 25 distinct affected users uses five external requests including authorization; full-chain verification remains a separate explicit operation.
+
+
+## Request completion additions (2026-11-04, D79)
+
+The canonical compatibility predicate and stable authorized read seam are in
+`REQUEST_DONATION_COMPLETION_CONTRACT.md`. `donorMatches` adds donationStage
+(Responded/Screened/Processing/Completed/Deferred/Rejected), acceptanceVersion
+(integer incremented on each acceptance), withdrawnAt, screenedAt,
+processingAt/processingBy, deferredAt/deferredBy/deferralReason and
+completedAt/completedBy. Legacy Cleared maps to Screened. Deferred/Rejected
+cannot resume. Reacceptance resets unfinished withdrawn/declined progress and
+renews the deterministic consent records' grantedAt/revokedAt.
+
+`donations/{matchId}` adds status Completed and completedAt/completedBy;
+confirmedAt/confirmedBy remain exact compatibility aliases. Legacy confirmedAt
+records count as completed and are never stocked again. `inventory/*/logs`
+adds requestId alongside donationId. Completion reads donorCommitments and donor
+profile in the same transaction as the stock/donation/clock writes. Terminal
+outcomes delete only their own donor commitment. The historical audit event
+name Donation.Confirmed remains a compatibility alias for completion.
+
+The facility donation read queries use hospitalId plus optional donorId and/or
+requestId equality filters, ascending document-name cursor order and limit 26.
+No list joins private profiles. On-demand details check current match-specific
+Data Sharing consent and active unerased donor before returning private fields.
+
+Consent renewal archives the previous Data Sharing/Screening grant at
+`donorConsents/{matchId}_{suffix}_v{previousAcceptanceVersion}` with its
+acknowledgedAt and acceptanceVersion. The archived revokedAt is retained or set
+to renewal time; these historical documents never authorize profile access.
+Fresh acknowledgment and both current grants commit with response and commitment.
+The response reader batches at most 25 completion/consent/profile references per
+query and exposes legacy confirmations as Completed. The donor's legacy type
+lookups use owner-constrained 10-document batches under the existing rules.

@@ -6,7 +6,7 @@
   "scripts": {
     "test:rules": "firebase emulators:exec --only firestore --project demo-dugo \"node firestore.rules.test.mjs\"",
     "test:profile-photos": "node --test web/src/utils/profilePhoto.test.js",
-    "test:matching": "node --test web/src/utils/geo.test.js web/src/utils/geohash.test.js web/src/utils/matching.test.js web/src/utils/eligibility.test.js worker/src/firestore.test.js worker/src/matcher.test.js worker/src/audit.test.js worker/src/donorResponses.test.js worker/src/accounts.test.js worker/src/accountOperations.test.js worker/src/reverseGeocoding.test.js worker/src/accountHistory.test.js worker/src/auditActivity.test.js web/src/utils/accountOperationRequest.test.js web/src/utils/accountActions.test.js web/src/utils/sortRows.test.js worker/src/inventoryOperations.test.js web/src/utils/tableExport.test.js web/src/utils/hospitalReports.test.js",
+    "test:matching": "node --test web/src/utils/geo.test.js web/src/utils/geohash.test.js web/src/utils/matching.test.js web/src/utils/eligibility.test.js web/src/utils/donorRequests.test.js worker/src/firestore.test.js worker/src/matcher.test.js worker/src/audit.test.js worker/src/donorResponses.test.js worker/src/accounts.test.js worker/src/accountOperations.test.js worker/src/reverseGeocoding.test.js worker/src/accountHistory.test.js worker/src/auditActivity.test.js web/src/utils/accountOperationRequest.test.js web/src/utils/accountActions.test.js web/src/utils/sortRows.test.js worker/src/inventoryOperations.test.js web/src/utils/tableExport.test.js web/src/utils/hospitalReports.test.js",
     "dev:donor-api": "node --watch tools/donor-api-dev.mjs",
     "check:docs": "node tools/check-docs.mjs",
     "seed:demo": "node scripts/seed-demo-world.mjs",
@@ -21,6 +21,7 @@
     "test:matching:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/matcher.emulator.test.js\"",
     "test:accounts:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/accounts.emulator.test.js\"",
     "test:inventory:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/inventoryOperations.emulator.test.js\"",
+    "test:completion:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/inventoryOperations.emulator.test.js worker/src/donorResponses.emulator.test.js worker/src/hospitalRequestResponses.emulator.test.js web/src/services/donations.emulator.test.mjs\"",
     "test:hospital-responses:emulator": "firebase emulators:exec --only firestore --project demo-dugo \"node --test worker/src/hospitalRequestResponses.emulator.test.js\""
   },
   "devDependencies": {

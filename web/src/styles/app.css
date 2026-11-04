@@ -10144,3 +10144,39 @@ html:has(.role-shell),html:has(.donor-surface) { overscroll-behavior-y: none; }
 .pub .profile-main.donor-main{align-items:center}
 .donor-main>footer.support-contact{margin-top:auto;padding-top:28px}
 @media(max-width:600px){.donor-request-browse .donor-empty-mark{display:none}}
+
+
+/* Intentional request-overlay composition uses compact, wrapping progress controls. */
+.completion-section { padding: 1.5rem; border-top: 1px solid var(--line); }
+.completion-section h3, .completion-progress h4 { margin: 0 0 .75rem; }
+.completion-list { list-style: none; padding: 0; margin: 1rem 0; }
+.completion-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--line); }
+.completion-list p { margin: .35rem 0 0; color: var(--muted); }
+.completion-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .65rem; margin: 1rem 0; }
+.completion-progress { padding: 1rem; border: 1px solid var(--line); border-radius: 12px; }
+.completion-progress form { display: grid; gap: .65rem; padding: 1rem 0; border-top: 1px solid var(--line); }
+.completion-progress .field { width: 100%; box-sizing: border-box; }
+.completion-progress textarea { min-height: 6rem; resize: vertical; }
+.completion-progress p { line-height: 1.6; }
+.completion-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.completion-facts dt { font-size: .8rem; color: var(--muted); }
+.completion-facts dd { margin: .35rem 0 0; overflow-wrap: anywhere; }
+.completion-details .hresponses-content { overflow-wrap: anywhere; }
+@media (max-width: 540px) {
+  .completion-section { padding: 1rem; }
+  .completion-facts { grid-template-columns: 1fr; }
+  .completion-actions .btn { flex: 1 1 9rem; }
+  .completion-progress { padding: .8rem; }
+}
+
+/* Intentional response actions wrap below the status on narrow donor cards. */
+.donation-response-actions { flex-wrap: wrap; }
+.donation-response-actions>span { flex-basis: 100%; }
+.donation-response-actions .btn { flex: 1 1 8rem; }
+.donation-alert-bottom { flex-wrap: wrap; }
+.completion-details .hresponses-content { padding: 0 1.5rem 1.5rem; }
+.completion-details h3 { margin: 1.5rem 0 .65rem; }
+.completion-details p { font-size: .875rem; line-height: 1.7; }
+.hresponses-list>li>.btn { margin-bottom: 1rem; }
+.completion-progress { margin-bottom: 1rem; }
+@media (max-width: 540px) { .completion-details .hresponses-content { padding: 0 1rem 1rem; } }

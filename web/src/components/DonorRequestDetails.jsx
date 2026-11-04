@@ -7,17 +7,21 @@ import {
   requestDistance,
   directionsUrl,
   isAvailableRequest,
+  canReacceptRequest,
   isActiveCommitment,
 } from '../utils/donorRequests'
 import { donationTypeForComponent } from '../utils/matching'
+import { responseLabel } from '../utils/donationCompletion'
 import { toDate } from '../utils/eligibility'
 
-/** Accessible request dialog; acceptance requires guidelines and two explicit consents. */
+/** Accessible request dialog. `startAcceptance` opens fresh consent; `profileReady` gates acceptance on required profile fields. */
 export function DonorRequestDetails({
   name = 'donor-request',
   item,
   position,
   activeCommitment,
+  startAcceptance = false,
+  profileReady = true,
   eligibility,
   busy,
   error,
@@ -36,7 +40,7 @@ export function DonorRequestDetails({
     if (!item) return
     const dialog = ref.current,
       trigger = document.activeElement
-    setStep('details')
+    setStep(startAcceptance ? 'consent' : 'details')
     setAck(false)
     setSharing(false)
     setScreening(false)
@@ -62,7 +66,7 @@ export function DonorRequestDetails({
   if (!item) return null
   const { request, hospital, match } = item,
     id = `${name}-modal`,
-    available = isAvailableRequest(item)
+    available = isAvailableRequest(item) || canReacceptRequest(item)
   const blocked = activeCommitment && activeCommitment.match.id !== match.id
   const url = directionsUrl(position, item.facility),
     date = toDate(request.createdAt)
@@ -146,7 +150,7 @@ export function DonorRequestDetails({
                 <strong>
                   {match.responseStatus === 'Pending'
                     ? 'Not answered'
-                    : match.responseStatus}
+                    : responseLabel(match)}
                 </strong>
               </div>
             </div>
@@ -222,6 +226,7 @@ export function DonorRequestDetails({
                 </span>
               </p>
             )}
+            {!profileReady && <p className="donation-notice">Complete your name, blood type, date of birth and city on your profile before accepting.</p>}
             {blocked && (
               <p className="donation-notice">
                 <Icon name="clock" size={18} />
@@ -364,11 +369,12 @@ export function DonorRequestDetails({
                     busy ||
                     blocked ||
                     !item.compatible ||
-                    !eligibility?.eligible
+                    !eligibility?.eligible ||
+                    !profileReady
                   }
                   onClick={() => setStep('consent')}
                 >
-                  {blocked ? 'Donation already planned' : 'I can help'}
+                  {blocked ? 'Donation already planned' : !profileReady ? 'Profile required' : canReacceptRequest(item) ? 'Accept again' : 'I can help'}
                   <Icon name="arrow-right" />
                 </button>
               </>
@@ -377,6 +383,7 @@ export function DonorRequestDetails({
                 <button className="btn" type="button" onClick={onClose}>
                   Back to requests
                 </button>
+                {!isActiveCommitment(item) && <button className="btn" type="button" disabled>Unavailable</button>}
                 {isActiveCommitment(item) && (
                   <button
                     className="donation-text-link"
@@ -427,6 +434,8 @@ export function DonorRequestDetails({
                 busy ||
                 blocked ||
                 !available ||
+                !profileReady ||
+                !eligibility?.eligible ||
                 !ack ||
                 !sharing ||
                 !screening ||

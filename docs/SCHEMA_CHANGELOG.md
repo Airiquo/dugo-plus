@@ -278,3 +278,13 @@ Owner chooses existing Cloudflare Worker transactions, administrator-only facili
 - Deny browser stock/log/donation/screening/clock writes; retain the prior admin-only subscription boundary and stored records while removing its self-service UI.
 
 No automatic data migration or production deployment occurs in this task. See `HOSPITAL_WORKER_RECONCILIATION.md` for local evidence and rollout.
+
+
+### 2026-11-04 — request reacceptance and Completed donations (D79)
+
+- Add match donationStage, acceptanceVersion and stage/withdrawal/deferral timestamps/actors; require a written deferralReason and make Deferred terminal.
+- Add donation status Completed and completedAt/completedBy, retaining confirmedAt/confirmedBy compatibility aliases and historical completion reads.
+- Link donation stock logs to requestId as well as donationId; retain component/donor-group stock identity and atomic stock/history/clock/audit writes.
+- Archive superseded consent grants with acknowledgment/version at deterministic versioned IDs; renew current grants atomically and retain revoked history.
+- Release only the terminal attempt's commitment; reaccept renews consent and acknowledgment, resets progress, and increments acceptanceVersion to reject stale staff writes.
+- Add bounded donation history equality indexes; private context is fetched only on explicit detail requests through the current consent gate. See `REQUEST_DONATION_COMPLETION_CONTRACT.md`.

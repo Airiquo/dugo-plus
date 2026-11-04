@@ -1,3 +1,4 @@
+import { HospitalDonationDetails } from '../../components/HospitalDonationDetails';
 import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "../../layout/AppShell";
 import { HospitalShell } from "../../layout/HospitalShell";
@@ -56,6 +57,7 @@ const dateLabel = (value) => {
 
 /** Complete facility histories with shared filters, sorting, pagination and matching report scopes. */
 export default function InventoryLog() {
+  const [details, setDetails] = useState(null);
   const { profile, role } = useAuth(),
     isAdmin = role === "admin";
   const [facilities, setFacilities] = useState([]),
@@ -260,6 +262,7 @@ export default function InventoryLog() {
             render: (row) => row.userId || "Not recorded",
           },
         ]),
+    { key: 'details', header: 'Details', sortable: false, render: row => <Btn aria-label={`View details for ${donations ? 'donation' : 'stock movement'} ${row.id}`} onClick={() => setDetails({ row, donationId: donations ? row.id : row.donationId })}>View details</Btn> },
   ];
   return (
     <Shell facility={hospital?.name}>
@@ -313,7 +316,7 @@ export default function InventoryLog() {
             label="History views"
             value={tab}
             tabs={[
-              { value: "donations", label: "Confirmed donations" },
+              { value: "donations", label: "Completed donations" },
               { value: "movements", label: "Stock movements" },
             ]}
             onChange={(value) => {
@@ -330,9 +333,9 @@ export default function InventoryLog() {
               <>
                 <HospitalMetric
                   name="history-donations"
-                  label="Confirmed donations"
+                  label="Completed donations"
                   value={ready ? data.rows.length : "—"}
-                  detail="View all confirmed donation records"
+                  detail="View all completed donation records"
                   icon="check"
                   onClick={() => kpi()}
                   disabled={!ready}
@@ -405,7 +408,7 @@ export default function InventoryLog() {
           <Card className="hospital-inventory-table" id="history-records">
             <header>
               <p className="hw-eyebrow">Complete facility records</p>
-              <h2>{donations ? "Confirmed donations" : "Stock movements"}</h2>
+              <h2>{donations ? "Completed donations" : "Stock movements"}</h2>
               <p className="muted">
                 {ready
                   ? `${visible.length} matching records. Filters and exports include all matching pages.`
@@ -438,7 +441,7 @@ export default function InventoryLog() {
             />
             <TableExport
               name={donations ? "donation-history" : "stock-movements"}
-              title={`${hospital?.name || "Facility"} ${donations ? "confirmed donations" : "stock movements"}`}
+              title={`${hospital?.name || "Facility"} ${donations ? "completed donations" : "stock movements"}`}
               columns={
                 donations ? donationReportColumns : movementReportColumns
               }
@@ -506,6 +509,7 @@ export default function InventoryLog() {
           </Card>
         </div>
       )}
+      {details && <HospitalDonationDetails donationId={details.donationId} movement={donations ? null : details.row} onClose={() => setDetails(null)} />}
     </Shell>
   );
 }
