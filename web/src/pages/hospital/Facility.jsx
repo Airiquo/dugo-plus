@@ -41,10 +41,11 @@ export default function Facility({ embedded = false }) {
       setLoading(false);
       return;
     }
+    const controller = new AbortController()
     let active = true;
     setLoading(true);
     setFailed(false);
-    readHospital(hospitalId)
+    readHospital(hospitalId, { signal: controller.signal })
       .then((found) => {
         if (!active) return;
         if (!found) throw new Error("Missing facility");
@@ -59,6 +60,7 @@ export default function Facility({ embedded = false }) {
         if (active) setLoading(false);
       });
     return () => {
+      controller.abort()
       active = false;
     };
   }, [hospitalId, attempt]);

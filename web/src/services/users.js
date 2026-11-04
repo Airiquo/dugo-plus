@@ -1,3 +1,4 @@
+import { sessionRead, invalidateSessionReads } from "./sessionCache"
 import {
   collection,
   doc,
@@ -228,6 +229,7 @@ export async function saveProfile(uid, changes) {
   }
 
   await setDoc(doc(db, "users", uid), data, { merge: true });
+  invalidateSessionReads(`profile:${uid}`);
 }
 
 /** Save or clear the picture on an existing account without changing its other details. */
@@ -239,6 +241,7 @@ export async function saveProfilePhoto(uid, photoURL) {
     photoURL,
     updatedAt: serverTimestamp(),
   });
+  invalidateSessionReads(`profile:${uid}`);
 }
 
 /**
@@ -261,6 +264,7 @@ export async function correctUserProfile(uid, changes) {
   if ("city" in changes) data.city = text(changes.city);
 
   await updateDoc(doc(db, "users", uid), data);
+  invalidateSessionReads(`profile:${uid}`);
   // F10b: a data-access event (FR-042).
   await recordAuditEvent({
     eventType: "DataAccess.Rectification",
@@ -287,7 +291,11 @@ function asDate(value) {
  * @param {string} uid
  * @returns {Promise<Profile | null>}
  */
-export async function readProfile(uid) {
+export function readProfile(uid, options) {
+  return sessionRead(`profile:${uid}`, () => loadProfile(uid), options)
+}
+
+async function loadProfile(uid) {
   requireDb();
   const snap = await getDoc(doc(db, "users", uid));
   if (!snap.exists()) return null;

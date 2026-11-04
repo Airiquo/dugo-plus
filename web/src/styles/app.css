@@ -10603,3 +10603,10 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .account-menu-popup .signout-action, .signout-action { border-top: 1px solid var(--d-line); margin-top: 8px; padding-top: 14px; color: var(--d-red-ink); }
 .privacy-embedded { width: 100%; }
 .account-settings-panel .donor-surface { padding: 0; }
+/* Intentional route loading treatment and non-supporting-browser fade. */
+.route-skeleton { min-height: 70vh; padding: clamp(24px,6vw,80px); background: var(--d-page); }
+.route-skeleton > div { max-width: 1100px; margin: auto; display: grid; gap: 24px; }
+.route-skeleton i { display: block; height: 100px; border-radius: 16px; background: var(--d-field); border: 1px solid var(--d-line); }
+.route-skeleton i:first-child { height: 48px; width: 55%; }
+.route-surface main { animation: care-panel-enter .18s ease; }
+@media (prefers-reduced-motion: reduce) { .route-surface main { animation: none; } ::view-transition-group(*) { animation-duration: 0s; } }

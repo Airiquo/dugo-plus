@@ -349,6 +349,9 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Route loading and session reads (2026-11-04, D88):** Owner requests lazy routes with eager landing/login/register, code prefetch on navigation intent, an announced skeleton, native View Transitions with fade fallback, and short-lived memory-only profile/facility/stock reads. Writes invalidate cache and sign-out/session changes clear it. Firebase SDK reads detach aborted consumers; its transport cannot be cancelled. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
+
+
 - **Role navigation and Settings tabs (2026-11-04, D87):** Owner restores dedicated donor/hospital profile pages, places Settings last, nests donor privacy/history and facility details in Settings, preserves old URLs as redirects, and separates danger-colored sign-out actions. Admin navigation is unchanged. Phase counts are unchanged. Verification and remaining checks: `docs/OWNER_POLISH_VERIFICATION.md`.
 
 

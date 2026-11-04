@@ -1,3 +1,4 @@
+import { sessionRead, sessionWatch, invalidateSessionReads } from "./sessionCache"
 import {
   collection,
   doc,
@@ -57,7 +58,11 @@ function num(value) {
  *   geohash: string, contactNumber: string, status: string,
  * } | null>} null when the account has no facility or the document is missing.
  */
-export async function readHospital(hospitalId) {
+export function readHospital(hospitalId, options) {
+  return sessionRead(`facility:${hospitalId}`, () => loadHospital(hospitalId), options)
+}
+
+async function loadHospital(hospitalId) {
   requireDb();
   const id = text(hospitalId);
   if (!id) return null;
@@ -92,6 +97,7 @@ export async function saveHospital(hospitalId, changes = {}) {
 
   if (!Object.keys(data).length) return;
   await updateDoc(doc(db, "hospitals", id), data);
+  invalidateSessionReads(`facility:${id}`);
 }
 
 /** A readable timestamp, or null for anything Firestore has not written yet. */
@@ -167,7 +173,11 @@ function donationRow(snap) {
  * @param {string} hospitalId
  * @returns {Promise<Array<{bloodType: string, unitsAvailable: number, lastUpdated: Date|null}>>}
  */
-export async function getInventory(hospitalId, component = "whole-blood") {
+export function getInventory(hospitalId, component = "whole-blood", options) {
+  return sessionRead(`inventory:${hospitalId}:${component}`, () => loadInventory(hospitalId, component), options)
+}
+
+async function loadInventory(hospitalId, component) {
   requireDb();
   const id = text(hospitalId);
   if (!id)
@@ -207,11 +217,10 @@ export function watchInventory(
     );
     return () => {};
   }
-  return onSnapshot(
+  return sessionWatch(`inventory:${id}:${component}`, (next, fail) => onSnapshot(
     collection(db, "hospitals", id, "inventory"),
-    (snap) => onNext(stockRows(snap, component)),
-    onError,
-  );
+    (snap) => next(stockRows(snap, component)), fail,
+  ), onNext, onError);
 }
 
 /**

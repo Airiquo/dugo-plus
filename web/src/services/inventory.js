@@ -1,3 +1,4 @@
+import { invalidateSessionReads } from "./sessionCache"
 import { auth } from '../lib/firebase'
 
 /** Hospital writes use the authenticated Worker; operation IDs survive uncertain retries. */
@@ -34,6 +35,7 @@ async function callInventory(action, payload) {
   }
   if (!result?.ok || !result?.operationId) throw new Error('Could not confirm the result. Retry with the same details.')
   clear()
+  invalidateSessionReads("inventory:")
   return result
 }
 

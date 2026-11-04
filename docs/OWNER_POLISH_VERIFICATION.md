@@ -23,3 +23,15 @@ Appearance and Privacy/Facility details respectively; visited panels retain draf
 Legacy privacy/facility URLs redirect into the selected tab. Existing hospital
 donor-directory route is retained. Sign out is separated by a divider and danger
 text in shared account menus and donor profile actions. Admin navigation stays.
+
+## Route loading and caching (D88)
+
+Route chunks are present in dist. Hover/focus preloads code, never data.
+Profiles/facilities/stock use a 30-second memory cache with concurrent-read
+deduplication; stock listeners are shared and released on last unsubscribe.
+Writes invalidate relevant reads. Session changes/sign-out clear data/listeners.
+An aborted consumer receives AbortError without cancelling a shared reader.
+Firestore's getDoc/getDocs API cannot abort the underlying transport. No profile
+or health data is added to browser storage. Cache regressions pass (3 tests).
+Configured live sign-in/save/reload/verification smoke remains to be run with
+local emulator credentials; fixture checks are recorded separately.

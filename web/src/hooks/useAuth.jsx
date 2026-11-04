@@ -111,7 +111,7 @@ export function AuthProvider({ children }) {
       // otherwise only applies at the next sign-in.
       refreshClaims().catch(() => {})
 
-      readProfile(snap.uid)
+      readProfile(snap.uid, { fresh: true })
         .then(async (found) => {
           // Auto-provision (D20): no profile document means a first Google
           // sign-in or an account made before roles existed. Self-registration

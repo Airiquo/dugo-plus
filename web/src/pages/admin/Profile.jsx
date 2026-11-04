@@ -42,14 +42,18 @@ export default function Profile({ embedded = false }) {
   const [note, setNote] = useState("");
   const generation = useRef(0),
     nameInput = useRef(null);
+  const readAbort = useRef(null);
   async function load() {
+    readAbort.current?.abort();
+    const controller = new AbortController();
+    readAbort.current = controller;
     if (!user?.uid) return;
     const version = ++generation.current;
     setLoading(true);
     setLoadFailed(false);
     setMessage("");
     try {
-      const found = await readProfile(user.uid);
+      const found = await readProfile(user.uid, { signal: controller.signal });
       if (!found) throw new Error("Profile unavailable");
       if (version !== generation.current) return;
       setSource(found);
@@ -65,6 +69,7 @@ export default function Profile({ embedded = false }) {
   useEffect(() => {
     load();
     return () => {
+      readAbort.current?.abort();
       generation.current++;
     };
   }, [user?.uid]);

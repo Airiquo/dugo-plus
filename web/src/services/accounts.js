@@ -1,3 +1,4 @@
+import { invalidateSessionReads } from "./sessionCache"
 import { auth } from '../lib/firebase'
 import { ACCOUNT_QUOTA_MESSAGE, accountOperationRequest } from '../utils/accountOperationRequest.js'
 
@@ -48,13 +49,16 @@ export async function callAccountService(action, payload) {
     )
   const token = await user.getIdToken()
   try {
-    return await accountOperationRequest({
+    const result = await accountOperationRequest({
       url: SERVICE_URL,
       actorId: user.uid,
       token,
       action,
       payload,
     })
+    invalidateSessionReads("profile:")
+    invalidateSessionReads("facility:")
+    return result
   } catch (error) {
     throw serviceError(error.code || codeForStatus(error.status), error.message)
   }

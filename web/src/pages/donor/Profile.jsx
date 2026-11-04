@@ -72,9 +72,10 @@ export default function Profile({ embedded = false }) {
   // not refreshed by profile edits made on this screen.
   useEffect(() => {
     if (!user?.uid) return
+    const controller = new AbortController()
     let current = true
     setLoadFailed(false)
-    readProfile(user.uid)
+    readProfile(user.uid, { signal: controller.signal })
       .then((found) => {
         if (!current) return
         const next = formFrom(found)
@@ -90,6 +91,7 @@ export default function Profile({ embedded = false }) {
         setProfileLoaded(true)
       })
     return () => {
+      controller.abort()
       current = false
     }
   }, [user?.uid])

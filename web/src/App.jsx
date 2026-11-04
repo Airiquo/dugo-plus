@@ -1,3 +1,7 @@
+import { lazy, Suspense } from 'react'
+import { NavigationTransitions } from './layout/NavigationTransitions'
+import { RouteSkeleton } from './components/RouteSkeleton'
+import { routeLoaders } from './utils/routeModules'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { ThemeProvider } from './hooks/useTheme'
 import { AuthProvider } from './hooks/useAuth'
@@ -8,38 +12,69 @@ import { isFirebaseConfigured, missingFirebaseKeys } from './lib/firebase'
 import Landing from './pages/public/Landing'
 import Login from './pages/public/Login'
 import Register from './pages/public/Register'
-import Partner from './pages/public/Partner'
-import ForgotPassword from './pages/public/ForgotPassword'
-import VerifyEmail from './pages/public/VerifyEmail'
-import PrivacyPolicy from './pages/public/PrivacyPolicy'
-import NotFound from './pages/public/NotFound'
-import Welcome from './pages/shared/Welcome'
-import Dashboard from './pages/admin/Dashboard'
-import BloodRequests from './pages/admin/BloodRequests'
-import AuditTrail from './pages/admin/AuditTrail'
-import AdminAccounts from './pages/admin/Accounts'
-import AdminSettings from './pages/admin/Settings'
-import AdminDataRequests from './pages/admin/DataRequests'
-import Profile from './pages/donor/Profile'
-import HospitalProfile from './pages/hospital/Profile'
-import DonorSettings from './pages/donor/Settings'
-import Activity from './pages/donor/Activity'
-import DonorPrivacy from './pages/donor/Privacy'
-import Requests from './pages/donor/Requests'
-import Alerts from './pages/donor/Alerts'
-import HospitalRequests from './pages/hospital/Requests'
-import NewRequest from './pages/hospital/NewRequest'
-import HospitalDashboard from './pages/hospital/Dashboard'
-import Inventory from './pages/hospital/Inventory'
-import HospitalMap from './pages/hospital/Map'
-import HospitalSettings from './pages/hospital/Settings'
-import HospitalFacility from './pages/hospital/Facility'
-import InventoryLog from './pages/hospital/InventoryLog'
-import HospitalDonors from './pages/hospital/Donors'
-import Gallery from './pages/shared/Gallery'
-import ScreenStub from './pages/shared/ScreenStub'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 import NotConfigured from './pages/shared/NotConfigured'
 import { NAV } from './layout/AppShell'
+
+const Partner = lazy(routeLoaders.Partner)
+const ForgotPassword = lazy(routeLoaders.ForgotPassword)
+const VerifyEmail = lazy(routeLoaders.VerifyEmail)
+const PrivacyPolicy = lazy(routeLoaders.PrivacyPolicy)
+const NotFound = lazy(routeLoaders.NotFound)
+const Welcome = lazy(routeLoaders.Welcome)
+const Dashboard = lazy(routeLoaders.Dashboard)
+const BloodRequests = lazy(routeLoaders.BloodRequests)
+const AuditTrail = lazy(routeLoaders.AuditTrail)
+const AdminAccounts = lazy(routeLoaders.AdminAccounts)
+const AdminSettings = lazy(routeLoaders.AdminSettings)
+const AdminDataRequests = lazy(routeLoaders.AdminDataRequests)
+const Profile = lazy(routeLoaders.Profile)
+const HospitalProfile = lazy(routeLoaders.HospitalProfile)
+const DonorSettings = lazy(routeLoaders.DonorSettings)
+const Activity = lazy(routeLoaders.Activity)
+const DonorPrivacy = lazy(routeLoaders.DonorPrivacy)
+const Requests = lazy(routeLoaders.Requests)
+const Alerts = lazy(routeLoaders.Alerts)
+const HospitalRequests = lazy(routeLoaders.HospitalRequests)
+const NewRequest = lazy(routeLoaders.NewRequest)
+const HospitalDashboard = lazy(routeLoaders.HospitalDashboard)
+const Inventory = lazy(routeLoaders.Inventory)
+const HospitalMap = lazy(routeLoaders.HospitalMap)
+const HospitalSettings = lazy(routeLoaders.HospitalSettings)
+const HospitalFacility = lazy(routeLoaders.HospitalFacility)
+const InventoryLog = lazy(routeLoaders.InventoryLog)
+const HospitalDonors = lazy(routeLoaders.HospitalDonors)
+const Gallery = lazy(routeLoaders.Gallery)
+const ScreenStub = lazy(routeLoaders.ScreenStub)
 
 /** Slugs that have a real page; every other admin screen renders `ScreenStub`. */
 const TRANSLATED = new Set([
@@ -90,7 +125,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Routes>
+        <NavigationTransitions><Suspense fallback={<RouteSkeleton />}><Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/news/:slug" element={<Landing />} />
           <Route path="/login" element={<Login />} />
@@ -250,7 +285,7 @@ export default function App() {
           </Route>
           <Route path="/gallery" element={<Gallery />} />
           <Route path="*" element={<NotFound />} />
-        </Routes>
+        </Routes></Suspense></NavigationTransitions>
       </AuthProvider>
     </ThemeProvider>
   )
