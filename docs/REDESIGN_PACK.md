@@ -48,3 +48,11 @@ only rendered records, without cursor traversal; complete scopes retain existing
 callbacks and authorization. The directory also retains All pages / Clear filters.
 Both formats use the same chosen scope, and the native radio group supports
 arrow-key selection. No unresolved product question remains for these choices.
+
+## Screen 05 — Admin account directory
+
+One toolbar groups search, account type, access status, blood group, joined-date
+overlay and Export. New presentation filters operate on the already-loaded
+authorized account collection; joined dates use the existing PHT-inclusive filter
+helper. Existing columns, sorting, account actions, provisioning and account-history
+controls remain. Meta text states showing/loaded counts and date timezone.

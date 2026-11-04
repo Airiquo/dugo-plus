@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "../../layout/AppShell";
 import { useAuth } from "../../hooks/useAuth";
-import { listUsers, removeUser, updateUserStatus } from "../../services/users";
+import { BLOOD_TYPES, listUsers, removeUser, updateUserStatus } from "../../services/users";
 import {
   accountServiceError,
   createHospitalAccount,
@@ -128,6 +128,8 @@ export default function Accounts() {
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [bloodFilter, setBloodFilter] = useState("all");
+  const [joinedRange, setJoinedRange] = useState({from: "", to: ""});
   const [page, setPage] = useState(1);
   const [dialog, setDialog] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -175,10 +177,10 @@ export default function Accounts() {
   }, []);
   useEffect(() => {
     setPage(1);
-  }, [query, roleFilter, statusFilter]);
+  }, [query, roleFilter, statusFilter, bloodFilter, joinedRange]);
   const filtered = useMemo(
     () =>
-      accounts.filter((account) => {
+      filterRecords(accounts, { bloodType: bloodFilter, ...joinedRange }).filter((account) => {
         const term = query.trim().toLowerCase();
         return (
           (roleFilter === "all" || account.role === roleFilter) &&
@@ -193,7 +195,7 @@ export default function Accounts() {
             ].some((value) => value?.toLowerCase().includes(term)))
         );
       }),
-    [accounts, query, roleFilter, statusFilter],
+    [accounts, query, roleFilter, statusFilter, bloodFilter, joinedRange],
   );
   const sorted = useMemo(
     () => sortRows(filtered, ACCOUNT_SORT[sort.key], sort.direction),
@@ -471,7 +473,7 @@ export default function Accounts() {
               <h2>
                 Account directory <span>{filtered.length}</span>
               </h2>
-              <p>All roles · {accounts.length} loaded accounts</p>
+              <p>All roles · {accounts.length} {accounts.length === 1 ? "account" : "accounts"} loaded</p>
             </div>
             <div className="aa-directory-actions">
               <Btn icon="refresh" onClick={load} disabled={loading}>
@@ -480,39 +482,15 @@ export default function Accounts() {
 
             </div>
           </div>
-          <div className="aa-filters">
-            <Field label="Search accounts">
-              <Input
-                type="search"
-                placeholder="Name, email, account or facility ID"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-              />
-            </Field>
-            <Field label="Account type">
-              <Select
-                value={roleFilter}
-                onChange={(event) => setRoleFilter(event.target.value)}
-                options={[
-                  { value: "all", label: "All types" },
-                  { value: "hospital", label: "Hospital staff" },
-                  { value: "donor", label: "Donor / recipient" },
-                  { value: "admin", label: "Administrator" },
-                ]}
-              />
-            </Field>
-            <Field label="Access status">
-              <Select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                options={["all", "Active", "Suspended", "Removed"].map(
-                  (value) => ({
-                    value,
-                    label: value === "all" ? "All statuses" : value,
-                  }),
-                )}
-              />
-            </Field>
+          <div className="record-toolbar account-directory-toolbar">
+            <RecordFilters name="account directory" value={{search:query,role:roleFilter,status:statusFilter,bloodType:bloodFilter,...joinedRange}}
+              onChange={next => {setQuery(next.search || "");setRoleFilter(next.role || "all");setStatusFilter(next.status || "all");setBloodFilter(next.bloodType || "all");setJoinedRange({from:next.from || "",to:next.to || ""});}}
+              disabled={loading || Boolean(error)} searchPlaceholder="Name, email, account or facility ID"
+              fields={[
+                {key:"role",label:"Account type",options:[{value:"hospital",label:"Hospital staff"},{value:"donor",label:"Donor / recipient"},{value:"admin",label:"Administrator"}]},
+                {key:"status",label:"Access status",options:["Active","Suspended","Removed"]},
+                {key:"bloodType",label:"Blood group",options:BLOOD_TYPES},
+              ]} />
             <TableExport
                 name="accounts"
               getPageRows={() => visible}
@@ -526,6 +504,7 @@ export default function Accounts() {
                 }
               />
           </div>
+          <p className="account-directory-meta">Showing {filtered.length} of {accounts.length} · Dates use Philippine time</p>
           <SortControls
             className="table-sort-mobile"
             name="accounts"
@@ -565,6 +544,7 @@ export default function Accounts() {
                       setQuery("");
                       setRoleFilter("all");
                       setStatusFilter("all");
+                      setBloodFilter("all");setJoinedRange({from:"",to:""});
                     }}
                   >
                     Clear filters

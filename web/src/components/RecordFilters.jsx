@@ -137,7 +137,7 @@ export function RecordFilters({
         {children}
         {active && (
           <button type="button" className="screen-filter-clear" onClick={reset}>
-            Clear
+            Clear filters
           </button>
         )}
       </fieldset>

@@ -10452,3 +10452,9 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .export-scope label:has(input:checked) { background: var(--d-field); }
 .control-popover-panel .export-scope input { width: 15px; height: 15px; min-height: 0; flex: none; accent-color: var(--d-red); }
 .table-export-formats>.export-note { padding: 8px 12px 0; margin: 0; font-size: 10px; }
+
+/* Intentional directory toolbar fits search, existing account filters and joined dates beside Export. */
+.account-directory-toolbar .screen-filter-choice { flex: 0 1 145px; }
+.account-directory-toolbar .screen-filter-search { flex: 1 1 200px; }
+.account-directory-meta { margin: 0 24px 18px; color: var(--d-muted); font: 12px/1.7 var(--d-font-sans); }
+.screen-filter-clear,.donor-clear-filters { color: var(--d-red-ink); }
