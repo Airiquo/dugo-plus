@@ -38,7 +38,8 @@ No notification fan-out runs. Existing responses/consents and donation records
 are preserved. Subsequent acceptance uses the existing server checks.
 
 The UI requests discovery only for 50 km/Any matched distance, with loading,
-error and explicit retry. The ordinary 25 km filter hides farther matches.
+error and explicit retry. The ordinary 25 km filter hides farther matches. Display/map distance prefers
+the saved request pin, matching the server even after a hospital pin changes.
 Read traversal is bounded to 1000 requests; oversized searches fail before
 writes rather than silently truncate. Up to 400 candidate writes are allowed.
 There is no polling. No new collection, field, index or rules permission is added.
