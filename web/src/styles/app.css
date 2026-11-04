@@ -10458,3 +10458,9 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .account-directory-toolbar .screen-filter-search { flex: 1 1 200px; }
 .account-directory-meta { margin: 0 24px 18px; color: var(--d-muted); font: 12px/1.7 var(--d-font-sans); }
 .screen-filter-clear,.donor-clear-filters { color: var(--d-red-ink); }
+
+/* Intentional queue view tabs use an underline while retaining native buttons and status filters. */
+.privacy-queue-views.aw-inline-actions { display: flex; gap: 28px; padding: 0 24px; margin: 0; border-bottom: 1px solid var(--d-line); }
+.privacy-queue-views>.btn { min-height: 52px; padding: 13px 0; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; box-shadow: none; color: var(--d-muted); font: 400 13px var(--d-font-sans); }
+.privacy-queue-views>.btn[aria-pressed=true] { border-bottom-color: var(--d-red); color: var(--d-ink); }
+.privacy-queue-views>.btn>span { font-size: 12px; margin-inline-start: 6px; }

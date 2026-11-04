@@ -56,3 +56,11 @@ overlay and Export. New presentation filters operate on the already-loaded
 authorized account collection; joined dates use the existing PHT-inclusive filter
 helper. Existing columns, sorting, account actions, provisioning and account-history
 controls remain. Meta text states showing/loaded counts and date timezone.
+
+## Screen 06 — Admin request queue
+
+Open/closed filters use underlined counted buttons; specific outcome filters
+select their corresponding group. Singular result/request labels are corrected.
+Every row has View with its contextual accessible label; the existing review
+workflow, sortable columns, outcome filters, pagination and footnote remain.
+Build/docs/whitespace and 1440/390/320 light/dark checks pass.

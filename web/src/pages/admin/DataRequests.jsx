@@ -351,8 +351,8 @@ export default function DataRequests() {
       header: "Review",
       sortable: false,
       render: (req) => (
-        <Btn onClick={() => open(req)} aria-label={`${matchesRequestStatus(req.status, "closed") ? "View" : "Review"} request ${req.id}`}>
-          {matchesRequestStatus(req.status, "closed") ? "View" : "Review"} <span aria-hidden="true">↗</span>
+        <Btn onClick={() => open(req)} aria-label={`View request ${req.id}`}>
+          View <span aria-hidden="true">↗</span>
         </Btn>
       ),
     },
@@ -448,12 +448,12 @@ export default function DataRequests() {
               </p>
             </div>
             <span className="pill">
-              {loading ? "Loading…" : error ? "Unavailable" : `${filtered.length} results`}
+              {loading ? "Loading…" : error ? "Unavailable" : `${filtered.length} ${filtered.length === 1 ? "result" : "results"}`}
             </span>
           </div>
           <div className="aw-inline-actions privacy-queue-views" aria-label="Request views">
-            <Btn aria-pressed={statusFilter === "open"} onClick={() => setStatusFilter("open")}>Open requests</Btn>
-            <Btn aria-pressed={statusFilter === "closed"} onClick={() => setStatusFilter("closed")}>Closed requests</Btn>
+            <Btn aria-pressed={["open","Pending","InProgress"].includes(statusFilter)} onClick={() => setStatusFilter("open")}>Open requests <span>{requests.filter(row => matchesRequestStatus(row.status,"open")).length}</span></Btn>
+            <Btn aria-pressed={["closed","Completed","Rejected"].includes(statusFilter)} onClick={() => setStatusFilter("closed")}>Closed requests <span>{requests.filter(row => matchesRequestStatus(row.status,"closed")).length}</span></Btn>
           </div>
           <div className="aw-filters">
             <label className="aw-label">
@@ -566,7 +566,7 @@ export default function DataRequests() {
           )}
           <footer className="aw-pagination">
             <span>
-              {error ? "Request counts unavailable" : `Page ${currentPage} of ${pages} · ${filtered.length} matching requests`}
+              {error ? "Request counts unavailable" : `Page ${currentPage} of ${pages} · ${filtered.length} matching ${filtered.length === 1 ? "request" : "requests"}`}
             </span>
             <div>
               <Btn
