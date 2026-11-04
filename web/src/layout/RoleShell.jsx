@@ -173,13 +173,14 @@ export function RoleShell({
             type="button"
             data-active={moreActive ? "true" : "false"}
             aria-expanded={menuOpen}
+            aria-label="More navigation"
             aria-controls={`${area}-navigation-modal`}
             onClick={() => setMenuOpen(true)}
           >
             <span className="donor-nav-icon">
               <Icon name="menu" size={20} />
             </span>
-            <span>More</span>
+            <span className="workspace-nav-label">More</span>
           </button>
         )}
       </WorkspaceNav>

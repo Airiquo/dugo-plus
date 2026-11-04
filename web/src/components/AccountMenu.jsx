@@ -29,7 +29,7 @@ export function AccountMenu({ name, photoURL, accountRole, settingsTo, placement
   async function leave() {
     if (busy) return
     setBusy(true); setError('')
-    try { await signOut(); close(); navigate('/', { replace: true }) }
+    try { if (await signOut()) { close(); navigate('/', { replace: true }) } else setBusy(false) }
     catch { setError('Sign out failed. Please try again.'); setBusy(false); requestAnimationFrame(position) }
   }
   return <div className={cx('account-menu', className)} {...rest}>

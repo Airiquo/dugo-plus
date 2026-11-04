@@ -349,6 +349,8 @@ route renders `pages/shared/NotConfigured`.
 
 ## 10. Open questions
 
+- **Session history, action confirmations and mobile staff navigation (2026-11-04, D86–D88):** owner requests Back to retain the current signed-in page and ask about logout, confirms lasting-action review with Confirm/Back while ordinary saves/navigation stay immediate, and requests icon-only mobile admin/hospital bottom bars. Those scope questions are answered. No phase counts or backend/data contracts change. Local browser/build evidence and production-verification limits are in `docs/SESSION_NAVIGATION.md`. Owner subsequently authorizes protected integration merge and redeployment of its Hosting build and Firestore rules to `dugo-plus-clean`.
+
 - **Universal exports (2026-11-04, D85):** owner answers that every Export menu must use the same three scopes (current matching filters, this page, all pages with filters cleared) and the same Download CSV / Print PDF actions. Report-only filter clearing retains every authorized context. No unresolved scope question or phase-count change.
 
 - **Redesign pack (2026-11-04, D84):** owner supplies `files(3).zip` and directs implementation of its Markdown without screenshot emojis. Owner answers: retain the form/history privacy composition; add This page only and retain existing export scopes; use Download CSV and Print PDF only inside Export. All three conflicts are resolved. No route/backend/schema change or status/count change. Screens and evidence are tracked in `docs/REDESIGN_PACK.md`.

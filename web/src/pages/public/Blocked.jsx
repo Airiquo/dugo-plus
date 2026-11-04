@@ -41,7 +41,7 @@ export default function Blocked() {
     setBusy(true)
     setError('')
     try {
-      await signOut()
+      if (!await signOut()) setBusy(false)
     } catch {
       setError('Signing out failed. Check your connection and try again.')
       setBusy(false)

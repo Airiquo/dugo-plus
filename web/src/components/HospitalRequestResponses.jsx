@@ -1,3 +1,4 @@
+import { useConfirmation } from '../hooks/useConfirmation'
 import { lockDialogScroll } from '../utils/dialogScrollLock'
 import { useEffect, useRef, useState } from 'react'
 import { cx } from '../utils/cx'
@@ -20,6 +21,7 @@ function matchedDate(value) {
 
 /** Native request response dialog; restores focus to its queue trigger on dismissal. */
 export function HospitalRequestResponses({ name = 'hospital-responses', request, onClose, className, ...rest }) {
+  const confirm = useConfirmation()
   const dialogRef = useRef(null), viewButtons = useRef(new Map()), focusAfterSave = useRef(null)
   const [status, setStatus] = useState('')
   const [cursors, setCursors] = useState([null])
@@ -35,6 +37,15 @@ export function HospitalRequestResponses({ name = 'hospital-responses', request,
     if (busy || result.state === 'loading') return
     if (stage === 'Deferred' ? !canDeferDonation(row,reason) : stage !== nextDonationStage(row)) return
     if (stage === 'Completed' && !validCollectedUnits(units)) return
+    if (!await confirm({
+      title: `Record ${stage.toLowerCase()}?`,
+      description: stage === 'Completed'
+        ? `Complete ${Number(units)} units of ${componentLabel(request.component)} for ${row.donor?.fullName || 'this donor'}. This updates stock and donor history.`
+        : stage === 'Deferred'
+          ? `End this donation attempt with the reason: ${reason.trim()}. No stock is added.`
+          : `Record ${stage.toLowerCase()} for ${row.donor?.fullName || 'this donor'}. This updates the donation’s progress.`,
+      confirmLabel: `Confirm ${stage.toLowerCase()}`,
+    })) return
     setBusy(true); setError(''); setNotice('')
     try {
       let saved
