@@ -476,6 +476,7 @@ export default function AuditTrail() {
             </label>
             <TableExport
             name="audit-activity"
+              getPageRows={() => sorted}
             title="Audit activity"
             columns={auditReportColumns}
             disabled={loading || Boolean(error)}

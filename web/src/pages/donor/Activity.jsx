@@ -206,6 +206,7 @@ export default function Activity() {
                  >
                   <TableExport
                       name="donor-donations"
+              getPageRows={() => visible}
                       title="Your donation history"
                       disabled={state.status !== "ready"}
                       columns={[

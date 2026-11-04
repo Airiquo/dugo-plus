@@ -497,6 +497,7 @@ export default function DataRequests() {
             </label>
             <TableExport
             name="data-requests"
+              getPageRows={() => rows}
             title="Privacy requests"
             columns={privacyReportColumns}
             disabled={loading || Boolean(error)}

@@ -49,7 +49,6 @@ function DonorRecords({ hospitalId, selected, onView }) {
   const [state, setState] = useState({ status: 'loading', rows: [], nextCursor: null })
   const [cursors, setCursors] = useState([null])
   const [attempt, setAttempt] = useState(0)
-  const [exportScope, setExportScope] = useState('filtered')
   const { sort, setSort, toggleSort } = useTableSort()
   const after = cursors.at(-1)
   useEffect(() => {
@@ -80,9 +79,9 @@ function DonorRecords({ hospitalId, selected, onView }) {
     { key: 'actions', header: 'History', sortable: false, render: row => <Btn aria-label={`View donor ${row.donor?.fullName || row.id}`} onClick={() => onView(row)}>View donor</Btn> },
   ]
   const summary = Object.entries(filters).filter(([, value]) => value && value !== 'all').map(([key, value]) => `${key}: ${value}`).join(' · ')
-  async function getExportRows(_scope, onProgress) {
+  async function getExportRows(scope, onProgress) {
     const rows = await exportHospitalDonors({ hospitalId, ...(selected ? { donorId: selected.id } : {}) }, onProgress)
-    return filterHospitalDonors(rows, exportScope === 'filtered' ? filters : emptyFilters, sort, history)
+    return filterHospitalDonors(rows, scope === 'filtered' ? filters : emptyFilters, sort, history)
   }
   return <div className="hospital-donors">
     <aside className="hospital-donors-context">
@@ -97,13 +96,9 @@ function DonorRecords({ hospitalId, selected, onView }) {
         searchPlaceholder={history ? 'Search donation or request ID on this page…' : 'Search shared name, city or donor ID on this page…'} />
       <SortControls name="facility-donors" sort={sort} onChange={setSort} defaultLabel="Reference order · This page"
         fields={columns.filter(column => column.sortable !== false).map(column => ({ key: column.key, label: column.header }))} />
-      <TableExport key={`${hospitalId}:${selected?.id || ''}:${exportScope}:${summary}:${sort.key}:${sort.direction}`} name={history ? 'facility-donor-history' : 'facility-donor-directory'} title={history ? `Facility ${hospitalId} · Donor ${selected.id} completed donations` : `Facility ${hospitalId} donor directory`}
+      <TableExport key={`${hospitalId}:${selected?.id || ''}`} name={history ? 'facility-donor-history' : 'facility-donor-directory'} title={history ? `Facility ${hospitalId} · Donor ${selected.id} completed donations` : `Facility ${hospitalId} donor directory`}
         columns={history ? donorHistoryColumns : donorDirectoryColumns} getRows={getExportRows} disabled={!ready}
-        filterSummary={`${exportScope === 'filtered' ? summary || 'No filters' : 'All records'} · All authorized pages · ${sort.key || 'Reference'} ${sort.direction}`} >
-        <label>Export scope <select className="field" aria-label="Donor export scope" value={exportScope} onChange={event => setExportScope(event.target.value)} disabled={!ready}>
-        <option value="filtered">All matching pages · Current filters</option><option value="all">All pages · Clear filters</option>
-      </select></label>
-      </TableExport></div>
+        filterSummary={`${summary || 'No filters'} · ${sort.key || 'Reference'} ${sort.direction}`} allowAll getPageRows={() => visible} /></div>
       {state.status === 'loading' && <p className="hospital-state" role="status">Loading {history ? 'completed donations' : 'donors'}…</p>}
       {state.status === 'error' && <div className="hospital-state" role="alert"><p>{state.error}</p><Btn onClick={() => setAttempt(value => value + 1)}>Try again</Btn></div>}
       {ready && (visible.length ? <Table className="hospital-table" mobileCards columns={columns} rows={visible} rowKey={row => row.id} scroll={false} sort={sort} onSort={toggleSort} mobileSort={false} /> :

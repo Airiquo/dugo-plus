@@ -515,6 +515,7 @@ export default function Accounts() {
             </Field>
             <TableExport
                 name="accounts"
+              getPageRows={() => visible}
                 title="Accounts"
                 columns={accountReportColumns}
                 disabled={loading || Boolean(error)}
@@ -965,6 +966,7 @@ export default function Accounts() {
 
         <AdminDialog
           name="account-history"
+              getPageRows={() => filterRecords(history.events, historyFilters, { search: row => `${row.eventType || ""} ${row.actor?.fullName || ""} ${row.context?.reason || ""}` })}
           open={dialog?.kind === "history"}
           title={selected ? label(selected) : "Account history"}
           onClose={close}

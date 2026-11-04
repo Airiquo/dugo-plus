@@ -964,6 +964,7 @@ export default function Inventory() {
                       </Btn>
                       <TableExport
                       name="inventory"
+              getPageRows={() => filteredStock.map(row => ({ ...row, component: stockComponent }))}
                       title={`${hospital?.name || "Facility"} blood inventory`}
                       columns={stockReportColumns}
                       disabled={loading || loadFailed || !hospitalId}
@@ -1221,6 +1222,7 @@ export default function Inventory() {
                     />
                     <TableExport
                       name="pending-donations"
+              getPageRows={() => logPaged}
                       title="Awaiting donation completion"
                       columns={pendingReportColumns}
                       disabled={
@@ -1880,6 +1882,7 @@ export default function Inventory() {
           />
           <TableExport
             name="stock-history"
+              getPageRows={() => filterRecords(stockLogs, movementFilters)}
             title={`${logBloodType || ""} ${componentLabel(stockComponent)} movements`}
             columns={movementReportColumns}
             disabled={

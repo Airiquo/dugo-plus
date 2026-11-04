@@ -38,10 +38,13 @@ visible failure feedback and truncation; missing actions read Not recorded. No
 claim that no data was shared is inferred. The page-level privacy composition
 remains unchanged pending the owner answer.
 
-## Pending owner answers
+## Resolved owner answers and shared exports
 
-- Privacy: prior form/history composition versus full-width history in the pack.
-- Exports: prior existing scopes versus adding This page only.
-- Export labels: Print CSV / Print PDF versus Download CSV / Print / PDF.
-
-These block only the conflicting portions; no answer is assumed.
+Keep the form/history privacy composition and tidy only history. Add This page
+only while retaining all existing export scopes. Use Download CSV and Print PDF
+inside Export, never as separate toolbar buttons. Shared exports now receive an
+explicit displayed-page callback at all 13 report declarations. Page scope uses
+only rendered records, without cursor traversal; complete scopes retain existing
+callbacks and authorization. The directory also retains All pages / Clear filters.
+Both formats use the same chosen scope, and the native radio group supports
+arrow-key selection. No unresolved product question remains for these choices.

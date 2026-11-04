@@ -5,19 +5,21 @@ import { Btn } from "./Btn";
 import { ControlPopover } from "./ControlPopover";
 import { TablePrintPreview } from "./TablePrintPreview";
 
-/** Exports every matching row in current table order. `getRows` receives "filtered"; `filterSummary` describes the current view. */
+/** `getRows(scope, progress)` exports complete matching/all records; `getPageRows()` supplies the displayed page. `allowAll` retains an existing clear-filter scope. */
 export function TableExport({
   name,
   title,
   columns,
   getRows,
+  getPageRows,
+  allowAll = false,
   disabled = false,
   filterSummary = "",
   className,
   children,
   ...rest
 }) {
-  const scope = "filtered";
+  const [scope, setScope] = useState("filtered");
   const menu = useRef(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -46,14 +48,15 @@ export function TableExport({
     const version = ++generation.current;
     const current = () => alive.current && generation.current === version;
     setError("");
-    setMessage("Preparing all matching records…");
+    setMessage(scope === "page" ? "Preparing this page…" : "Preparing matching records…");
     setBusy(true);
     if (format === "pdf") setPreview({ open: true, html: "" });
     try {
-      const rows = await getRows(scope, (count) => {
+      const progress = (count) => {
         if (!current()) throw new Error("Export cancelled.");
         setMessage(`Preparing ${count} records…`);
-      });
+      };
+      const rows = scope === "page" ? await getPageRows() : await getRows(scope, progress);
       if (!current()) return;
       if (!Array.isArray(rows))
         throw new Error("The export could not be prepared.");
@@ -75,9 +78,7 @@ export function TableExport({
           open: true,
           html: tablePrintHtml(
             title,
-            scope === "filtered"
-              ? `Current table${filterSummary ? " · " + filterSummary : ""}`
-              : "All table data",
+            scope === "page" ? `This page${filterSummary ? " · " + filterSummary : ""}` : scope === "filtered" ? `All matching pages${filterSummary ? " · " + filterSummary : ""}` : "All authorized pages · Filters cleared",
             columns,
             rows,
             new Date(),
@@ -105,9 +106,14 @@ export function TableExport({
     >
       <ControlPopover ref={menu} name={`${name}-export`} label="Export" triggerLabel={`Export ${title}`} icon={null} disabled={disabled || busy} showDone={false} className="table-export-menu">
         <div className="table-export-formats" role="group" aria-label={`${title} export formats`}>
-          {children || <p>All matching records · current filters</p>}
-          <Btn disabled={disabled || busy} onClick={() => run("csv")}>Print CSV</Btn>
+          <fieldset className="export-scope" disabled={disabled || busy}>
+            <legend>Export scope</legend>
+            {[['filtered', 'All matching pages · Current filters'], ...(getPageRows ? [['page', 'This page only']] : []), ...(allowAll ? [['all', 'All pages · Clear filters']] : [])].map(([value,label]) => <label key={value}><input type="radio" name={`${name}-export-scope`} value={value} checked={scope === value} onChange={() => setScope(value)} />{label}</label>)}
+          </fieldset>
+          {children}
+          <Btn disabled={disabled || busy} onClick={() => run("csv")}>Download CSV</Btn>
           <Btn disabled={disabled || busy} onClick={() => run("pdf")}>Print PDF</Btn>
+          <p className="export-note">{scope === "page" ? "Exports include this page only." : "Exports include every matching page."}</p>
         </div>
       </ControlPopover>
       {message && <p role="status">{message}</p>}

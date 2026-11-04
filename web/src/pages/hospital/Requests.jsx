@@ -671,6 +671,7 @@ export default function Requests() {
             </details>
             <TableExport
               name="hospital-requests"
+              getPageRows={() => paged}
               title="Blood requests"
               columns={requestReportColumns}
               disabled={!hospitalId || loading || Boolean(error)}

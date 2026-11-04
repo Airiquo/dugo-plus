@@ -442,6 +442,7 @@ export default function InventoryLog() {
             />
             <TableExport
               name={donations ? "donation-history" : "stock-movements"}
+              getPageRows={() => visible.slice((currentPage - 1) * 10, currentPage * 10)}
               title={`${hospital?.name || "Facility"} ${donations ? "completed donations" : "stock movements"}`}
               columns={
                 donations ? donationReportColumns : movementReportColumns

@@ -282,6 +282,7 @@ export default function Privacy() {
             />
             <TableExport
               name="your-data-requests"
+              getPageRows={() => visible}
               title="Your privacy requests"
               columns={privacyReportColumns}
               disabled={loading || Boolean(error)}

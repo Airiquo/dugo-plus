@@ -10444,3 +10444,11 @@ dialog.privacy-request-drawer.admin-care-dialog[id$=-modal] { position: fixed; i
 .copy-id>button:focus-visible { outline: 2px solid var(--d-blue); outline-offset: 3px; }
 .copy-id-feedback { flex-basis: 100%; font: 11px/1.6 var(--d-font-sans); color: var(--d-muted); }
 .privacy-detail-meta .copy-id>code { max-width: min(220px,100%); }
+
+/* Intentional shared export scope controls select complete matching records or the displayed page. */
+.export-scope { min-width: 0; margin: 0 0 5px; padding: 0 0 12px; border: 0; border-bottom: 1px solid var(--d-line); }
+.export-scope legend { padding: 8px 12px; color: var(--d-muted); font: 500 10px/1.5 var(--d-font-sans); letter-spacing: .1em; text-transform: uppercase; }
+.export-scope label { display: flex; flex-direction: row; align-items: center; gap: 9px; min-height: 44px; padding: 9px 10px; border-radius: 8px; font: 12px/1.6 var(--d-font-sans); cursor: pointer; }
+.export-scope label:has(input:checked) { background: var(--d-field); }
+.control-popover-panel .export-scope input { width: 15px; height: 15px; min-height: 0; flex: none; accent-color: var(--d-red); }
+.table-export-formats>.export-note { padding: 8px 12px 0; margin: 0; font-size: 10px; }
